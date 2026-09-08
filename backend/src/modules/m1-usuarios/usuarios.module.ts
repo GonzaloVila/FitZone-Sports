@@ -1,2 +1,2 @@
-// CAPAS - M1 Usuarios y Membresias (RF-01..03).
+// CAPAS - M1 Usuarios (RF-01).
 // Ensambla controllers/services/repositories (interfaz + adaptador Prisma) por constructor (DI).

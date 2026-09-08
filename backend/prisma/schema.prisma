@@ -1,0 +1,3 @@
+// Schema Prisma versionado (Data Mapper, ADR-07).
+// Modelos (Sede, Usuario/rol, Socio/Membresia, Cancha, Reserva, Clase/ReservaClase, Pago)
+// y constraint unico RN-02 llegan en la Fase B (SCRUM-11a).

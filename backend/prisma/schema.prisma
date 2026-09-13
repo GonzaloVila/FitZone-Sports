@@ -1,3 +1,242 @@
-// Schema Prisma versionado (Data Mapper, ADR-07).
-// Modelos (Sede, Usuario/rol, Socio/Membresia, Cancha, Reserva, Clase/ReservaClase, Pago)
-// y constraint unico RN-02 llegan en la Fase B (SCRUM-11a).
+// Schema Prisma versionado (Data Mapper, ADR-07) — Unidad II · SCRUM-11a.
+// Fiel al modelo de datos acordado (docs/db/fitzone.dbml · 14 tablas).
+// Herencia híbrida por rol: Usuario (super) + subtipos SOLO con datos propios
+// (Socio = membresía; EmpleadoSede = staff RECEPCION/A3, 1:1 con Usuario y Sede).
+// Herencia parte-todo de Pago: PagoReserva / PagoMembresia (PK = FK 1:1).
+// Invariante: todo Pago referencia exactamente UN concepto (estructural, sin CHECK).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  SOCIO
+  EXTERNO
+  RECEPCION
+  GERENTE
+}
+
+enum PlanMembresia {
+  MENSUAL
+  TRIMESTRAL
+  ANUAL
+}
+
+enum EstadoMembresia {
+  ACTIVA
+  VENCIDA
+  SUSPENDIDA
+}
+
+enum TipoCancha {
+  PADDLE
+  FUTBOL5
+}
+
+enum EstadoCancha {
+  OPERATIVA
+  EN_MANTENIMIENTO
+}
+
+enum EstadoReserva {
+  CONFIRMADA
+  CANCELADA
+}
+
+enum EstadoReservaClase {
+  CONFIRMADA
+  CANCELADA
+}
+
+enum EstadoEspera {
+  EN_ESPERA
+  NOTIFICADO
+  CONFIRMADO
+}
+
+enum EstadoPago {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+  ANULADO
+}
+
+model Sede {
+  id           String          @id @default(uuid())
+  nombre       String
+  direccion    String
+  aforo_maximo Int
+  canchas      Cancha[]
+  clases       Clase[]
+  socios       Socio[]
+  empleado     EmpleadoSede?
+  ingresos     Ingreso[]
+}
+
+model Usuario {
+  id             String         @id @default(uuid())
+  rol            Rol
+  dni            String         @unique
+  nombre         String
+  email          String         @unique
+  telefono       String?
+  foto_url       String?
+  socio          Socio?
+  empleado       EmpleadoSede?
+  reservas       Reserva[]
+  pagos          Pago[]
+  ingresos       Ingreso[]
+}
+
+// Staff de sucursal (rol RECEPCION, A3): subtable 1:1 con Usuario y con Sede.
+// ids únicas => a lo sumo un staff por usuario y a lo sumo un staff por sucursal.
+// Gerente (A4) y Externo (A2) no tienen fila acá (sin datos propios; viven en rol).
+model EmpleadoSede {
+  id         String  @id @default(uuid())
+  usuario_id String  @unique
+  sede_id    String  @unique
+  usuario    Usuario @relation(fields: [usuario_id], references: [id])
+  sede       Sede    @relation(fields: [sede_id], references: [id])
+}
+
+model Socio {
+  id             String       @id @default(uuid())
+  usuario_id     String       @unique
+  sede_id        String
+  fecha_alta     DateTime
+  usuario        Usuario      @relation(fields: [usuario_id], references: [id])
+  sede           Sede         @relation(fields: [sede_id], references: [id])
+  membresia      Membresia?
+  reservas_clase ReservaClase[]
+  espera_clase   EsperaClase[]
+}
+
+// Membresia 1:1 con Socio (DBML corregido): un socio = UNA fila; la renovación
+// actualiza fecha_fin sobre la misma fila y cada renovación genera su PagoMembresia.
+model Membresia {
+  id                 String          @id @default(uuid())
+  socio_id           String          @unique
+  plan               PlanMembresia
+  estado             EstadoMembresia
+  fecha_inicio       DateTime
+  fecha_fin          DateTime
+  renueva_automatica Boolean         @default(false)
+  socio              Socio           @relation(fields: [socio_id], references: [id])
+  pago_membresias    PagoMembresia[]
+}
+
+model Cancha {
+  id             String         @id @default(uuid())
+  sede_id        String
+  tipo           TipoCancha
+  costo_por_hora Decimal
+  estado         EstadoCancha
+  sede           Sede           @relation(fields: [sede_id], references: [id])
+  reservas       Reserva[]
+}
+
+model Clase {
+  id             String           @id @default(uuid())
+  sede_id        String
+  tipo           String
+  instructor     String
+  horario        String
+  capacidad      Int
+  sede           Sede             @relation(fields: [sede_id], references: [id])
+  reservas       ReservaClase[]
+  espera         EsperaClase[]
+}
+
+// RN-02 (dos reservas a la vez): el constraint UNIQUE PARCIAL vive en la BD, no en un if.
+// Prisma no expresa partial unique en schema => se agrega como raw migration:
+//
+//   CREATE UNIQUE INDEX unq_reserva_turno
+//     ON "Reserva"("cancha_id", "fecha_hora_inicio")
+//     WHERE "estado" != 'CANCELADA';
+//
+// El @@index de abajo cubre las búsquedas de disponibilidad (RNF-03).
+model Reserva {
+  id                String           @id @default(uuid())
+  cancha_id         String
+  usuario_id        String
+  fecha_hora_inicio DateTime
+  fecha_hora_fin    DateTime
+  estado            EstadoReserva
+  precio_aplicado   Decimal
+  cancha            Cancha           @relation(fields: [cancha_id], references: [id])
+  usuario           Usuario          @relation(fields: [usuario_id], references: [id])
+  pago              PagoReserva?
+
+  @@index([cancha_id, fecha_hora_inicio])
+}
+
+model ReservaClase {
+  id         String             @id @default(uuid())
+  clase_id   String
+  socio_id   String
+  estado     EstadoReservaClase
+  clase      Clase              @relation(fields: [clase_id], references: [id])
+  socio      Socio              @relation(fields: [socio_id], references: [id])
+}
+
+// Lista de espera RF-08: se notifica a TODOS y el cupo lo toma el PRIMERO que confirme
+// (first-come por confirmación => decide fecha_confirmacion, no el orden de anotación).
+model EsperaClase {
+  id                 String             @id @default(uuid())
+  clase_id           String
+  socio_id           String
+  estado             EstadoEspera
+  fecha_anotacion    DateTime
+  fecha_notificacion DateTime?
+  fecha_confirmacion DateTime?
+  clase              Clase              @relation(fields: [clase_id], references: [id])
+  socio              Socio              @relation(fields: [socio_id], references: [id])
+}
+
+// Supertabla de la herencia parte-todo. RNF-02: nunca datos de tarjeta, solo token.
+// Corrección de cobro: anular (estado = ANULADO) y repagar con NUEVA idempotencia_key.
+model Pago {
+  id                  String        @id @default(uuid())
+  usuario_id          String
+  idempotencia_key    String        @unique
+  monto               Decimal
+  moneda              String        @default("ARS")
+  estado              EstadoPago
+  token               String
+  comprobante_pdf_url String?
+  usuario             Usuario       @relation(fields: [usuario_id], references: [id])
+  pago_reserva        PagoReserva?
+  pago_membresia      PagoMembresia?
+}
+
+// Subtipo: pago de reserva de cancha (RF-13). reserva_id única => un comprobante por reserva.
+model PagoReserva {
+  id_pago    String   @id
+  reserva_id String   @unique
+  pago       Pago     @relation(fields: [id_pago], references: [id])
+  reserva    Reserva  @relation(fields: [reserva_id], references: [id])
+}
+
+// Subtipo: pago de renovación de membresía (RF-02/RF-13). Una membresía puede tener varios pagos.
+model PagoMembresia {
+  id_pago      String     @id
+  membresia_id String
+  pago         Pago       @relation(fields: [id_pago], references: [id])
+  membresia    Membresia  @relation(fields: [membresia_id], references: [id])
+}
+
+// Turno de acceso (RF-04/RF-05): aforo actual = ingresos sin fecha_hora_egreso (RN-01).
+model Ingreso {
+  id                 String   @id @default(uuid())
+  sede_id            String
+  usuario_id         String
+  fecha_hora_ingreso DateTime
+  fecha_hora_egreso  DateTime?
+  sede               Sede     @relation(fields: [sede_id], references: [id])
+  usuario            Usuario  @relation(fields: [usuario_id], references: [id])
+}

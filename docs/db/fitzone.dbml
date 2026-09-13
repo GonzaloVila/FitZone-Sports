@@ -1,0 +1,176 @@
+// FitZone - Modelo de datos (dbdiagram.io)
+// Herencia parte-todo: Pago (super) con subtipos PagoReserva / PagoMembresia (PK = FK 1:1).
+// Estado de pago: PENDIENTE | APROBADO | RECHAZADO | ANULADO (un pago anulado no se borra: se deja
+// con estado ANULADO y se genera un nuevo pago con otra idempotencia_key para el cobro correcto).
+// Lista de espera de clases: se notifica a TODOS los anotados y el cupo lo toma el PRIMERO que
+// confirme (first-come por confirmación, decide fecha_confirmacion; no hay orden de anotación).
+// Perfil de usuario por rol (herencia híbrida por clase): Usuario (super) + subtipos SOLO donde
+// existe especialización. Socio = membresía; EmpleadoSede = sucursal de trabajo del rol RECEPCION
+// (A3), 1:1 (unique en ambas FKs). Así Usuario NO tiene columnas nullable de un solo rol.
+// Cliente Externo y Gerente viven solo en rol. Alta de sedes = RNF-04. Deja de decir RF-15.
+
+TableGroup Núcleo {
+  Sede
+  Usuario
+  Socio
+  EmpleadoSede
+}
+
+TableGroup "Socios y membresías" {
+  Membresia
+}
+
+TableGroup Instalaciones {
+  Cancha
+  Clase
+}
+
+TableGroup Reservas {
+  "Reserva (cancha)"
+  ReservaClase
+  EsperaClase
+}
+
+TableGroup "Pagos y accesos" {
+  Pago
+  PagoReserva
+  PagoMembresia
+  "Ingreso (acceso)"
+}
+
+Table Sede {
+  id_sede varchar(36) [pk]
+  nombre varchar(100) [not null]
+  direccion varchar(100) [not null]
+  aforo_maximo int [not null]
+}
+
+Table Usuario {
+  id_usuario varchar(36) [pk]
+  rol varchar(20) [not null]
+  dni varchar(20) [unique, not null]
+  nombre varchar(100) [not null]
+  email varchar(100) [unique, not null]
+  telefono varchar(20)
+  foto_url varchar(100)
+}
+
+Table EmpleadoSede {
+  id_empleado varchar(36) [pk]
+  id_usuario varchar(36) [unique, not null]
+  id_sede varchar(36) [unique, not null]
+}
+
+Table Socio {
+  id_socio varchar(36) [pk]
+  id_usuario varchar(36) [unique, not null]
+  id_sede varchar(36) [not null]
+  fecha_alta date [not null]
+}
+
+Table Membresia {
+  id_membresia varchar(36) [pk]
+  id_socio varchar(36) [not null, unique]
+  plan varchar(20) [not null]
+  estado varchar(20) [not null]
+  fecha_inicio date [not null]
+  fecha_fin date [not null]
+  renueva_automatica boolean [not null]
+}
+
+Table Cancha {
+  id_cancha varchar(36) [pk]
+  id_sede varchar(36) [not null]
+  tipo varchar(20) [not null]
+  costo_por_hora decimal(10,2) [not null]
+  estado varchar(20) [not null]
+}
+
+Table Clase {
+  id_clase varchar(36) [pk]
+  id_sede varchar(36) [not null]
+  tipo varchar(30) [not null]
+  instructor varchar(100) [not null]
+  horario varchar(20) [not null]
+  capacidad int [not null]
+}
+
+Table "Reserva (cancha)" {
+  id_reserva varchar(36) [pk]
+  id_cancha varchar(36) [not null]
+  id_usuario varchar(36) [not null]
+  fecha_hora_inicio timestamp [not null]
+  fecha_hora_fin timestamp [not null]
+  estado varchar(20) [not null]
+  precio_aplicado decimal(10,2) [not null]
+}
+
+Table ReservaClase {
+  id_reservaclase varchar(36) [pk]
+  id_clase varchar(36) [not null]
+  id_socio varchar(36) [not null]
+  estado varchar(20) [not null]
+}
+
+Table EsperaClase {
+  id_esperaclase varchar(36) [pk]
+  id_clase varchar(36) [not null]
+  id_socio varchar(36) [not null]
+  estado varchar(20) [not null]
+  fecha_anotacion timestamp [not null]
+  fecha_notificacion timestamp
+  fecha_confirmacion timestamp
+}
+
+Table Pago {
+  id_pago varchar(36) [pk]
+  id_usuario varchar(36) [not null]
+  idempotencia_key varchar(50) [unique, not null]
+  monto decimal(10,2) [not null]
+  moneda varchar(3) [not null]
+  estado varchar(20) [not null]
+  token varchar(64) [not null]
+  comprobante_pdf_url varchar(100)
+}
+
+Table PagoReserva {
+  id_pago varchar(36) [pk]
+  id_reserva varchar(36) [unique, not null]
+}
+
+Table PagoMembresia {
+  id_pago varchar(36) [pk]
+  id_membresia varchar(36) [not null]
+}
+
+Table "Ingreso (acceso)" {
+  id_ingreso varchar(36) [pk]
+  id_sede varchar(36) [not null]
+  id_usuario varchar(36) [not null]
+  fecha_hora_ingreso timestamp [not null]
+  fecha_hora_egreso timestamp
+}
+
+// Usuario - Socio: 1:1 (Socio.id_usuario única)
+Ref: Usuario.id_usuario - Socio.id_usuario
+Ref: Sede.id_sede < Socio.id_sede
+// EmpleadoSede: staff de sucursal 1:1 con Usuario y con Sede (ids únicos) — solo rol RECEPCION (A3)
+Ref: Usuario.id_usuario - EmpleadoSede.id_usuario
+Ref: Sede.id_sede - EmpleadoSede.id_sede
+// Socio - Membresia: 1:1 (id_socio única) — un socio tiene UNA membresía; la renovación actualiza la misma fila
+Ref: Socio.id_socio - Membresia.id_socio
+Ref: Sede.id_sede < Cancha.id_sede
+Ref: Sede.id_sede < Clase.id_sede
+Ref: Cancha.id_cancha < "Reserva (cancha)".id_cancha
+Ref: Usuario.id_usuario < "Reserva (cancha)".id_usuario
+Ref: Clase.id_clase < ReservaClase.id_clase
+Ref: Socio.id_socio < ReservaClase.id_socio
+Ref: Clase.id_clase < EsperaClase.id_clase
+Ref: Socio.id_socio < EsperaClase.id_socio
+Ref: Usuario.id_usuario < Pago.id_usuario
+Ref: Pago.id_pago - PagoReserva.id_pago
+Ref: "Reserva (cancha)".id_reserva - PagoReserva.id_reserva
+Ref: Pago.id_pago - PagoMembresia.id_pago
+Ref: Membresia.id_membresia < PagoMembresia.id_membresia
+Ref: Sede.id_sede < "Ingreso (acceso)".id_sede
+Ref: Usuario.id_usuario < "Ingreso (acceso)".id_usuario

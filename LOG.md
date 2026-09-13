@@ -52,7 +52,7 @@
 - Inicialicé el entorno Node del backend (`package.json`, `package-lock.json`) e instalé Prisma.
 - Generé y apliqué la migración `20260913000541_init` en la base de Supabase: las **14 tablas** creadas + el índice único parcial **RN-02** (`unq_reserva_turno` en `Reserva`, solo reservas no canceladas).
 - Documenté el plan del Sprint 2 en `TFI FitZone - Organizacion Sprint 2.docx` (fuente: `PLAN-SPRINT-2.md`).
-  - [commit](https://github.com/GonzaloVila/FitZone-Sports) (pendiente de push)
+  - [commit 5916533](https://github.com/GonzaloVila/FitZone-Sports/commit/5916533)
 
 #### Decisiones tomadas
 

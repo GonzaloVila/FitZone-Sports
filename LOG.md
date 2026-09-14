@@ -58,7 +58,7 @@
 
 2. **`Usuario.contrasenia` — Exequiel**
    - Columna `contrasenia` (hash obligatorio) agregada al modelo `Usuario` en DBML y Prisma; migración `usuario_contrasenia` aplicada en Supabase.
-   - [commit —](https://github.com/GonzaloVila/FitZone-Sports)
+   - [commit c9efd4d](https://github.com/GonzaloVila/FitZone-Sports/commit/c9efd4d)
 
 ---
 

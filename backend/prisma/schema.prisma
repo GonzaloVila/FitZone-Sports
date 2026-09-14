@@ -84,6 +84,7 @@ model Usuario {
   dni            String         @unique
   nombre         String
   email          String         @unique
+  contrasenia    String         // hash (bcrypt/argon2); nunca en texto plano
   telefono       String?
   foto_url       String?
   socio          Socio?

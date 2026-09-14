@@ -51,6 +51,7 @@ Table Usuario {
   dni varchar(20) [unique, not null]
   nombre varchar(100) [not null]
   email varchar(100) [unique, not null]
+  contrasenia varchar(255) [not null]   // hash (bcrypt/argon2); nunca texto plano
   telefono varchar(20)
   foto_url varchar(100)
 }

@@ -56,6 +56,10 @@
    - Repo NestJS creado en `backend/` con la instalación de dependencias (NestJS 12) y el bootstrap del server.
    - [commit 9ac889a](https://github.com/GonzaloVila/FitZone-Sports/commit/9ac889a)
 
+2. **`Usuario.contrasenia` — Exequiel**
+   - Columna `contrasenia` (hash obligatorio) agregada al modelo `Usuario` en DBML y Prisma; migración `usuario_contrasenia` aplicada en Supabase.
+   - [commit —](https://github.com/GonzaloVila/FitZone-Sports)
+
 ---
 
 ## Templates de integrantes (completar por cada uno)

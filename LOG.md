@@ -56,7 +56,7 @@
 
 | # | Microtarea | Responsable | Estado | Commit |
 |---|---|---|---|---|
-| 1 | Bootstrap NestJS: `main.ts` (ValidationPipe global + prefijo `api/v1` + Swagger `/docs`) + `ConfigModule` (zod) | Exequiel | Finalizada | — |
+| 1 | Bootstrap NestJS: `main.ts` (ValidationPipe global + prefijo `api/v1` + Swagger `/docs`) + `ConfigModule` (zod) | Exequiel | Finalizada | [9ac889a](https://github.com/GonzaloVila/FitZone-Sports/commit/9ac889a) |
 | 2 | PrismaService singleton (`commons/database`, logs + ping Supabase) | Exequiel | Por hacer | — |
 | 3 | Filtro global RFC 9457 (`commons/filters`) → `application/problem+json` | Santino | Por hacer | — |
 | 4 | Repositorio puerto m1 + DI por constructor (referencia para M2–M4) | Exequiel | Por hacer | — |

@@ -1,2 +1,13 @@
-// Orquestador raiz: ConfigModule global (.env tipado con zod) + CommonsModule + Modulos M1..M5.
-// Se implementa en la Fase C (SCRUM-10).
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { validateEnv } from './config/env.config';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+    }),
+  ],
+})
+export class AppModule {}

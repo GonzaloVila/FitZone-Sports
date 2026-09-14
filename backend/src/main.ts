@@ -1,2 +1,36 @@
-// Punto de entrada del backend (bootstrap: app.listen, ValidationPipe global, Swagger /docs)
-// Se implementa en la Fase C (SCRUM-10) + Fase D (SCRUM-11c) con NestJS + @nestjs/swagger.
+import 'reflect-metadata';
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+
+  app.setGlobalPrefix('api/v1');
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('FitZone Sports API')
+    .setDescription('Backend de FitZone Sports — Unidad II · SCRUM-11')
+    .setVersion('1.0')
+    .addTag('M1 Usuarios')
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('docs', app, swaggerDocument);
+
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('PORT', 3000);
+  await app.listen(port);
+  console.log(`FitZone API escuchando en http://localhost:${port}`);
+}
+
+bootstrap();

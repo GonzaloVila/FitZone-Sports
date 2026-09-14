@@ -48,6 +48,34 @@
 
 ---
 
+### Semana 4 · SCRUM-11 — Inyección de dependencias y primera API REST (desglosada)
+
+**Fecha:** 14–18/09/2026 · **Rama:** `exe` + PRs a `main` · **Prioridades:** P0 = micro 1–4 + L1 · P1 = L2–L4 + L6 · P2 = 5 + L5
+
+#### Microtareas (a completar al cerrar cada una con su commit)
+
+| # | Microtarea | Responsable | Estado | Commit |
+|---|---|---|---|---|
+| 1 | Bootstrap NestJS: `main.ts` (ValidationPipe global + prefijo `api/v1` + Swagger `/docs`) + `ConfigModule` (zod) | Exequiel | Finalizada | — |
+| 2 | PrismaService singleton (`commons/database`, logs + ping Supabase) | Exequiel | Por hacer | — |
+| 3 | Filtro global RFC 9457 (`commons/filters`) → `application/problem+json` | Santino | Por hacer | — |
+| 4 | Repositorio puerto m1 + DI por constructor (referencia para M2–M4) | Exequiel | Por hacer | — |
+| 5 | Mediador mínimo (`commons/mediador`) | Gonzalo | Por hacer | — |
+| L1 | Usuarios: POST `201+Location` / GET `{id}` `404` / PATCH parcial | Exequiel | Por hacer | — |
+| L2 | Sedes: GET listado paginado + POST alta (RNF-04) | Santino | Por hacer | — |
+| L3 | Canchas: GET por sede (paginado) + POST alta (RF-09) | Santiago | Por hacer | — |
+| L4 | Socio + Membresía: alta plan + GET membresía actual (1:1) | Exequiel | Por hacer | — |
+| L5 | Aforo RF-05: GET `/sedes/{id}/aforo` | Santino | Por hacer | — |
+| L6 | Reserva + RN-02: disponibilidad (RNF-03) + POST + test de concurrencia | Exequiel + Gonzalo | Por hacer | — |
+
+#### Pendiente (cierre de la semana)
+
+- Swagger completo documentando `problem+json` y paginación + test e2e (`supertest`) consolidado — Gonzalo con revisión del equipo.
+- Consolidar el entregable C4 + ADR de la Semana 2 — Santiago.
+- **Fuera de alcance** (próxima semana): Clases (RF-06), Pagos/M5 + comprobante PDF (RF-14) y auth (no hay login).
+
+---
+
 ## Templates de integrantes (completar por cada uno)
 
 ### Unidad I — Arquitectura · Santiago Rayn (P1)

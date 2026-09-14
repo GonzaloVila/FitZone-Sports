@@ -56,17 +56,17 @@
 
 | # | Microtarea | Responsable | Estado | Commit |
 |---|---|---|---|---|
-| 1 | Bootstrap NestJS: `main.ts` (ValidationPipe global + prefijo `api/v1` + Swagger `/docs`) + `ConfigModule` (zod) | Exequiel | Finalizada | [9ac889a](https://github.com/GonzaloVila/FitZone-Sports/commit/9ac889a) |
-| 2 | PrismaService singleton (`commons/database`, logs + ping Supabase) | Exequiel | Por hacer | — |
-| 3 | Filtro global RFC 9457 (`commons/filters`) → `application/problem+json` | Santino | Por hacer | — |
-| 4 | Repositorio puerto m1 + DI por constructor (referencia para M2–M4) | Exequiel | Por hacer | — |
-| 5 | Mediador mínimo (`commons/mediador`) | Gonzalo | Por hacer | — |
-| L1 | Usuarios: POST `201+Location` / GET `{id}` `404` / PATCH parcial | Exequiel | Por hacer | — |
-| L2 | Sedes: GET listado paginado + POST alta (RNF-04) | Santino | Por hacer | — |
-| L3 | Canchas: GET por sede (paginado) + POST alta (RF-09) | Santiago | Por hacer | — |
-| L4 | Socio + Membresía: alta plan + GET membresía actual (1:1) | Exequiel | Por hacer | — |
-| L5 | Aforo RF-05: GET `/sedes/{id}/aforo` | Santino | Por hacer | — |
-| L6 | Reserva + RN-02: disponibilidad (RNF-03) + POST + test de concurrencia | Exequiel + Gonzalo | Por hacer | — |
+| 1 | Bootstrap NestJS | Exequiel | Finalizada | [9ac889a](https://github.com/GonzaloVila/FitZone-Sports/commit/9ac889a) |
+| 2 | PrismaService singleton | Exequiel | Por hacer | — |
+| 3 | Filtro RFC 9457 | Santino | Por hacer | — |
+| 4 | Repositorio puerto m1 + DI | Exequiel | Por hacer | — |
+| 5 | Mediador mínimo | Gonzalo | Por hacer | — |
+| L1 | Usuarios | Exequiel | Por hacer | — |
+| L2 | Sedes | Santino | Por hacer | — |
+| L3 | Canchas | Santiago | Por hacer | — |
+| L4 | Socio + Membresía | Exequiel | Por hacer | — |
+| L5 | Aforo RF-05 | Santino | Por hacer | — |
+| L6 | Reserva + RN-02 | Exequiel + Gonzalo | Por hacer | — |
 
 #### Pendiente (cierre de la semana)
 

@@ -31,7 +31,7 @@ backend/
 │           │   └── prisma/
 │           │       └── prisma-usuario.repository.ts  → adaptador Prisma (Data Mapper)
 │           ├── entities/
-│           │   └── usuario.entity.ts             → entidad de dominio (igualdad por UUID)
+│           │   └── usuario.entity.ts             → entidad de dominio (igualdad por id numérico)
 │           ├── dtos/
 │           │   └── crear-usuario.dto.ts          → DTO de entrada (validación alta)
 │           └── usuarios.module.ts                → ensamblador del módulo (DI)

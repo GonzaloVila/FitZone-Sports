@@ -60,6 +60,10 @@
    - Columna `contrasenia` (hash obligatorio) agregada al modelo `Usuario` en DBML y Prisma; migración `usuario_contrasenia` aplicada en Supabase.
    - [commit c9efd4d](https://github.com/GonzaloVila/FitZone-Sports/commit/c9efd4d)
 
+3. **`PrismaService` singleton (micro 2) — Exequiel**
+   - `PrismaService` en `commons/database` (extiende `PrismaClient`; ping a Supabase al arranque con fails-fast; logs `$on('query')` vía `Logger` de Nest), expuesto por un `DatabaseModule` `@Global()`.
+   - [commit d1d4642](https://github.com/GonzaloVila/FitZone-Sports/commit/d1d4642)
+
 ---
 
 ## Templates de integrantes (completar por cada uno)

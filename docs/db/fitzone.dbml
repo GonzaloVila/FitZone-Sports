@@ -39,14 +39,14 @@ TableGroup "Pagos y accesos" {
 }
 
 Table Sede {
-  id_sede varchar(36) [pk]
+  id_sede int [pk, increment]
   nombre varchar(100) [not null]
   direccion varchar(100) [not null]
   aforo_maximo int [not null]
 }
 
 Table Usuario {
-  id_usuario varchar(36) [pk]
+  id_usuario int [pk, increment]
   rol varchar(20) [not null]
   dni varchar(20) [unique, not null]
   nombre varchar(100) [not null]
@@ -57,21 +57,21 @@ Table Usuario {
 }
 
 Table EmpleadoSede {
-  id_empleado varchar(36) [pk]
-  id_usuario varchar(36) [unique, not null]
-  id_sede varchar(36) [unique, not null]
+  id_empleado int [pk, increment]
+  id_usuario int [unique, not null]
+  id_sede int [unique, not null]
 }
 
 Table Socio {
-  id_socio varchar(36) [pk]
-  id_usuario varchar(36) [unique, not null]
-  id_sede varchar(36) [not null]
+  id_socio int [pk, increment]
+  id_usuario int [unique, not null]
+  id_sede int [not null]
   fecha_alta date [not null]
 }
 
 Table Membresia {
-  id_membresia varchar(36) [pk]
-  id_socio varchar(36) [not null, unique]
+  id_membresia int [pk, increment]
+  id_socio int [not null, unique]
   plan varchar(20) [not null]
   estado varchar(20) [not null]
   fecha_inicio date [not null]
@@ -80,16 +80,16 @@ Table Membresia {
 }
 
 Table Cancha {
-  id_cancha varchar(36) [pk]
-  id_sede varchar(36) [not null]
+  id_cancha int [pk, increment]
+  id_sede int [not null]
   tipo varchar(20) [not null]
   costo_por_hora decimal(10,2) [not null]
   estado varchar(20) [not null]
 }
 
 Table Clase {
-  id_clase varchar(36) [pk]
-  id_sede varchar(36) [not null]
+  id_clase int [pk, increment]
+  id_sede int [not null]
   tipo varchar(30) [not null]
   instructor varchar(100) [not null]
   horario varchar(20) [not null]
@@ -97,9 +97,9 @@ Table Clase {
 }
 
 Table "Reserva (cancha)" {
-  id_reserva varchar(36) [pk]
-  id_cancha varchar(36) [not null]
-  id_usuario varchar(36) [not null]
+  id_reserva int [pk, increment]
+  id_cancha int [not null]
+  id_usuario int [not null]
   fecha_hora_inicio timestamp [not null]
   fecha_hora_fin timestamp [not null]
   estado varchar(20) [not null]
@@ -107,16 +107,16 @@ Table "Reserva (cancha)" {
 }
 
 Table ReservaClase {
-  id_reservaclase varchar(36) [pk]
-  id_clase varchar(36) [not null]
-  id_socio varchar(36) [not null]
+  id_reservaclase int [pk, increment]
+  id_clase int [not null]
+  id_socio int [not null]
   estado varchar(20) [not null]
 }
 
 Table EsperaClase {
-  id_esperaclase varchar(36) [pk]
-  id_clase varchar(36) [not null]
-  id_socio varchar(36) [not null]
+  id_esperaclase int [pk, increment]
+  id_clase int [not null]
+  id_socio int [not null]
   estado varchar(20) [not null]
   fecha_anotacion timestamp [not null]
   fecha_notificacion timestamp
@@ -124,8 +124,8 @@ Table EsperaClase {
 }
 
 Table Pago {
-  id_pago varchar(36) [pk]
-  id_usuario varchar(36) [not null]
+  id_pago int [pk, increment]
+  id_usuario int [not null]
   idempotencia_key varchar(50) [unique, not null]
   monto decimal(10,2) [not null]
   moneda varchar(3) [not null]
@@ -135,19 +135,19 @@ Table Pago {
 }
 
 Table PagoReserva {
-  id_pago varchar(36) [pk]
-  id_reserva varchar(36) [unique, not null]
+  id_pago int [pk, increment]
+  id_reserva int [unique, not null]
 }
 
 Table PagoMembresia {
-  id_pago varchar(36) [pk]
-  id_membresia varchar(36) [not null]
+  id_pago int [pk, increment]
+  id_membresia int [not null]
 }
 
 Table "Ingreso (acceso)" {
-  id_ingreso varchar(36) [pk]
-  id_sede varchar(36) [not null]
-  id_usuario varchar(36) [not null]
+  id_ingreso int [pk, increment]
+  id_sede int [not null]
+  id_usuario int [not null]
   fecha_hora_ingreso timestamp [not null]
   fecha_hora_egreso timestamp
 }

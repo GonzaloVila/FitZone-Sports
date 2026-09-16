@@ -27,7 +27,7 @@ CREATE TYPE "EstadoPago" AS ENUM ('PENDIENTE', 'APROBADO', 'RECHAZADO', 'ANULADO
 
 -- CreateTable
 CREATE TABLE "Sede" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "nombre" TEXT NOT NULL,
     "direccion" TEXT NOT NULL,
     "aforo_maximo" INTEGER NOT NULL,
@@ -37,11 +37,12 @@ CREATE TABLE "Sede" (
 
 -- CreateTable
 CREATE TABLE "Usuario" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "rol" "Rol" NOT NULL,
     "dni" TEXT NOT NULL,
     "nombre" TEXT NOT NULL,
     "email" TEXT NOT NULL,
+    "contrasenia" TEXT NOT NULL,
     "telefono" TEXT,
     "foto_url" TEXT,
 
@@ -50,18 +51,18 @@ CREATE TABLE "Usuario" (
 
 -- CreateTable
 CREATE TABLE "EmpleadoSede" (
-    "id" TEXT NOT NULL,
-    "usuario_id" TEXT NOT NULL,
-    "sede_id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "usuario_id" INTEGER NOT NULL,
+    "sede_id" INTEGER NOT NULL,
 
     CONSTRAINT "EmpleadoSede_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Socio" (
-    "id" TEXT NOT NULL,
-    "usuario_id" TEXT NOT NULL,
-    "sede_id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "usuario_id" INTEGER NOT NULL,
+    "sede_id" INTEGER NOT NULL,
     "fecha_alta" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Socio_pkey" PRIMARY KEY ("id")
@@ -69,8 +70,8 @@ CREATE TABLE "Socio" (
 
 -- CreateTable
 CREATE TABLE "Membresia" (
-    "id" TEXT NOT NULL,
-    "socio_id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "socio_id" INTEGER NOT NULL,
     "plan" "PlanMembresia" NOT NULL,
     "estado" "EstadoMembresia" NOT NULL,
     "fecha_inicio" TIMESTAMP(3) NOT NULL,
@@ -82,8 +83,8 @@ CREATE TABLE "Membresia" (
 
 -- CreateTable
 CREATE TABLE "Cancha" (
-    "id" TEXT NOT NULL,
-    "sede_id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "sede_id" INTEGER NOT NULL,
     "tipo" "TipoCancha" NOT NULL,
     "costo_por_hora" DECIMAL(65,30) NOT NULL,
     "estado" "EstadoCancha" NOT NULL,
@@ -93,8 +94,8 @@ CREATE TABLE "Cancha" (
 
 -- CreateTable
 CREATE TABLE "Clase" (
-    "id" TEXT NOT NULL,
-    "sede_id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "sede_id" INTEGER NOT NULL,
     "tipo" TEXT NOT NULL,
     "instructor" TEXT NOT NULL,
     "horario" TEXT NOT NULL,
@@ -105,9 +106,9 @@ CREATE TABLE "Clase" (
 
 -- CreateTable
 CREATE TABLE "Reserva" (
-    "id" TEXT NOT NULL,
-    "cancha_id" TEXT NOT NULL,
-    "usuario_id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "cancha_id" INTEGER NOT NULL,
+    "usuario_id" INTEGER NOT NULL,
     "fecha_hora_inicio" TIMESTAMP(3) NOT NULL,
     "fecha_hora_fin" TIMESTAMP(3) NOT NULL,
     "estado" "EstadoReserva" NOT NULL,
@@ -118,9 +119,9 @@ CREATE TABLE "Reserva" (
 
 -- CreateTable
 CREATE TABLE "ReservaClase" (
-    "id" TEXT NOT NULL,
-    "clase_id" TEXT NOT NULL,
-    "socio_id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "clase_id" INTEGER NOT NULL,
+    "socio_id" INTEGER NOT NULL,
     "estado" "EstadoReservaClase" NOT NULL,
 
     CONSTRAINT "ReservaClase_pkey" PRIMARY KEY ("id")
@@ -128,9 +129,9 @@ CREATE TABLE "ReservaClase" (
 
 -- CreateTable
 CREATE TABLE "EsperaClase" (
-    "id" TEXT NOT NULL,
-    "clase_id" TEXT NOT NULL,
-    "socio_id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "clase_id" INTEGER NOT NULL,
+    "socio_id" INTEGER NOT NULL,
     "estado" "EstadoEspera" NOT NULL,
     "fecha_anotacion" TIMESTAMP(3) NOT NULL,
     "fecha_notificacion" TIMESTAMP(3),
@@ -141,8 +142,8 @@ CREATE TABLE "EsperaClase" (
 
 -- CreateTable
 CREATE TABLE "Pago" (
-    "id" TEXT NOT NULL,
-    "usuario_id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "usuario_id" INTEGER NOT NULL,
     "idempotencia_key" TEXT NOT NULL,
     "monto" DECIMAL(65,30) NOT NULL,
     "moneda" TEXT NOT NULL DEFAULT 'ARS',
@@ -155,25 +156,25 @@ CREATE TABLE "Pago" (
 
 -- CreateTable
 CREATE TABLE "PagoReserva" (
-    "id_pago" TEXT NOT NULL,
-    "reserva_id" TEXT NOT NULL,
+    "id_pago" INTEGER NOT NULL,
+    "reserva_id" INTEGER NOT NULL,
 
     CONSTRAINT "PagoReserva_pkey" PRIMARY KEY ("id_pago")
 );
 
 -- CreateTable
 CREATE TABLE "PagoMembresia" (
-    "id_pago" TEXT NOT NULL,
-    "membresia_id" TEXT NOT NULL,
+    "id_pago" INTEGER NOT NULL,
+    "membresia_id" INTEGER NOT NULL,
 
     CONSTRAINT "PagoMembresia_pkey" PRIMARY KEY ("id_pago")
 );
 
 -- CreateTable
 CREATE TABLE "Ingreso" (
-    "id" TEXT NOT NULL,
-    "sede_id" TEXT NOT NULL,
-    "usuario_id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "sede_id" INTEGER NOT NULL,
+    "usuario_id" INTEGER NOT NULL,
     "fecha_hora_ingreso" TIMESTAMP(3) NOT NULL,
     "fecha_hora_egreso" TIMESTAMP(3),
 
@@ -201,7 +202,7 @@ CREATE UNIQUE INDEX "Membresia_socio_id_key" ON "Membresia"("socio_id");
 -- CreateIndex
 CREATE INDEX "Reserva_cancha_id_fecha_hora_inicio_idx" ON "Reserva"("cancha_id", "fecha_hora_inicio");
 
--- RN-02: turno único por cancha para reservas vigentes (las canceladas se liberan)
+-- CreateIndex
 CREATE UNIQUE INDEX unq_reserva_turno ON "Reserva"("cancha_id", "fecha_hora_inicio") WHERE "estado" <> 'CANCELADA';
 
 -- CreateIndex

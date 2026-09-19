@@ -1,0 +1,16 @@
+import { HttpException } from '@nestjs/common';
+
+export interface ProblemDetails {
+  type: string;
+  title: string;
+  status: number;
+  detail?: string;
+  instance?: string;
+  [key: string]: unknown;
+}
+
+export class ProblemException extends HttpException {
+  constructor(details: ProblemDetails) {
+    super(details, details.status);
+  }
+}

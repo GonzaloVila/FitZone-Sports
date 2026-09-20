@@ -120,18 +120,6 @@
    - `npm run build` verificado en verde (exit code 0).
    - [commit fe5d9a7](https://github.com/GonzaloVila/FitZone-Sports/commit/fe5d9a7)
 
----
-
-## Templates de integrantes (completar por cada uno)
-
-### Unidad I — Arquitectura · Santiago Rayn (P1)
-
-- _Actividades:_ ...
-
-### Unidad IV — Componentes · Santino Mazzulla (P3)
-
-- _Actividades:_ ...
-
 ### Unidades V–VI — Testing/DevOps/Mobile · Gonzalo Vila (P4)
 
 - _Actividades:_ ...

@@ -7,6 +7,7 @@ import {
 import { plainToInstance } from 'class-transformer';
 import { CrearMembresiaDto } from '../dtos/crear-membresia.dto';
 import { MembresiaOutDto } from '../dtos/membresia-out.dto';
+import { MembresiaPatchDto } from '../dtos/membresia-patch.dto';
 import { Membresia } from '../entities/membresia.entity';
 import {
   MEMBRESIA_REPOSITORY,
@@ -51,6 +52,20 @@ export class MembresiasService {
     }
 
     const membresia = await this.membresias.buscarPorSocioId(socioId);
+    if (!membresia) {
+      throw new NotFoundException('El socio no posee una membresía activa.');
+    }
+
+    return this.aOut(membresia);
+  }
+
+  async modificar(socioId: number, dto: MembresiaPatchDto): Promise<MembresiaOutDto> {
+    const socio = await this.socios.buscarPorId(socioId);
+    if (!socio) {
+      throw new NotFoundException('No existe el socio indicado.');
+    }
+
+    const membresia = await this.membresias.actualizar(socioId, dto);
     if (!membresia) {
       throw new NotFoundException('El socio no posee una membresía activa.');
     }

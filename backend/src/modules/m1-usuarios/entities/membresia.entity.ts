@@ -1,6 +1,6 @@
 import type { PlanMembresia } from './socio.entity';
 
-export type EstadoMembresia = "ACTIVA" | "VENCIDA" | "SUSPENDIDA";
+export type EstadoMembresia = 'ACTIVA' | 'VENCIDA' | 'SUSPENDIDA';
 
 export interface Membresia {
   id: number;
@@ -17,6 +17,12 @@ export interface MembresiaNueva {
   plan: PlanMembresia;
   renueva_automatica?: boolean;
   fecha_inicio?: Date;
+}
+
+export interface MembresiaActualizable {
+  plan?: PlanMembresia;
+  renueva_automatica?: boolean;
+  estado?: EstadoMembresia;
 }
 
 export function calcularVigencia(

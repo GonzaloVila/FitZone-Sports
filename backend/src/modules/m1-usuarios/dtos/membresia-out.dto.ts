@@ -10,10 +10,6 @@ export class MembresiaOutDto {
   id!: number;
 
   @Expose()
-  @ApiProperty({ example: 1 })
-  socio_id!: number;
-
-  @Expose()
   @ApiProperty({ enum: ['MENSUAL', 'TRIMESTRAL', 'ANUAL'], example: 'MENSUAL' })
   plan!: PlanMembresia;
 

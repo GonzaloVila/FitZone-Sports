@@ -4,6 +4,7 @@ import { PrismaService } from '../../../../commons/database/prisma.service';
 import {
   calcularVigencia,
   Membresia,
+  MembresiaActualizable,
   MembresiaNueva,
 } from '../../entities/membresia.entity';
 import { MembresiaRepository } from '../membresia.repository';
@@ -38,6 +39,35 @@ export class PrismaMembresiaRepository implements MembresiaRepository {
     const fila = await this.prisma.membresia.findUnique({
       where: { socio_id: socioId },
     });
+    return fila ? this.aDominio(fila) : null;
+  }
+
+  async actualizar(
+    socioId: number,
+    cambios: MembresiaActualizable,
+  ): Promise<Membresia | null> {
+    const data: Prisma.MembresiaUpdateInput = {
+      plan: cambios.plan,
+      renueva_automatica: cambios.renueva_automatica,
+      estado: cambios.estado,
+    };
+
+    if (cambios.plan) {
+      data.fecha_fin = calcularVigencia(cambios.plan, new Date()).fecha_fin;
+    }
+
+    const fila = await this.prisma.membresia
+      .update({
+        where: { socio_id: socioId },
+        data,
+      })
+      .catch((err) => {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+          return null;
+        }
+        throw err;
+      });
+
     return fila ? this.aDominio(fila) : null;
   }
 

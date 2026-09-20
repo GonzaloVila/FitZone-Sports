@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Res,
 } from '@nestjs/common';
@@ -21,6 +22,7 @@ import {
 import type { Response } from 'express';
 import { CrearMembresiaDto } from '../dtos/crear-membresia.dto';
 import { MembresiaOutDto } from '../dtos/membresia-out.dto';
+import { MembresiaPatchDto } from '../dtos/membresia-patch.dto';
 import { MembresiasService } from '../services/membresias.service';
 
 @ApiTags('M1 Membresías')
@@ -61,5 +63,21 @@ export class MembresiasController {
     @Param('socioId', ParseIntPipe) socioId: number,
   ): Promise<MembresiaOutDto> {
     return this.membresiasService.obtenerPorSocioId(socioId);
+  }
+
+  @Patch()
+  @ApiOperation({
+    operationId: 'modificarMembresia',
+    summary: 'Cambiar plan o configuración de la membresía',
+  })
+  @ApiParam({ name: 'socioId', type: Number, description: 'ID del socio' })
+  @ApiOkResponse({ type: MembresiaOutDto })
+  @ApiNotFoundResponse()
+  @ApiUnprocessableEntityResponse()
+  modificar(
+    @Param('socioId', ParseIntPipe) socioId: number,
+    @Body() dto: MembresiaPatchDto,
+  ): Promise<MembresiaOutDto> {
+    return this.membresiasService.modificar(socioId, dto);
   }
 }

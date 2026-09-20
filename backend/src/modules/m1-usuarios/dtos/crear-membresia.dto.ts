@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsIn, IsInt, IsOptional, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsOptional } from 'class-validator';
 import { PlanMembresia } from '../entities/socio.entity';
 
 const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];
@@ -28,12 +28,4 @@ export class CrearMembresiaDto {
   @IsOptional()
   @IsDateString()
   fecha_inicio?: string;
-
-  @ApiPropertyOptional({
-    description: 'ID del socio (opcional si se especifica en la ruta).',
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  socio_id?: number;
 }

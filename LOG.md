@@ -123,3 +123,9 @@
 2. **Atomicidad del cambio de rol (fix Bloque 1/Bloque 2) — Exequiel**
    - El rol se movió **dentro de la transacción del adaptador** (`prisma-socio.repository.ts`): `crear` hace `tx.usuario.update({ rol: 'SOCIO' })` junto al socio+membresía, y `eliminar` hace `tx.usuario.update({ rol: 'EXTERNO' })` tras borrar la membresía 1:1 y la fila Socio. Se eliminaron las llamadas a `usuarios.actualizar({ rol })` del service (los pre-chequeos 404/409 quedan vía `UsuarioRepository`). Motivo: el contrato no es transaccional, así que "rol vía el puerto dentro de la transacción" no era implementable sin romper el B0; la escritura con el mismo `tx` garantiza que no quede un socio sin rol (o rol sin socio).
    - [commit ef6e817](https://github.com/GonzaloVila/FitZone-Sports/commit/ef6e817)
+
+3. **FK inexistente (P2003) → 422 + seed de Sede + smoke de `/socios` — Exequiel**
+   - `problem.filter.ts` mapea ahora `P2003` (referencia foránea inexistente) a **422** `application/problem+json` (`Referencia inexistente`), junto a los casos P2002/P2025. Sin esto, `sede_origen_id` inexistente devolvía 500 aunque la spec pide 422.
+   - Se insertó la primera fila en `Sede` (id 1, `Sede Central`) en Supabase: la tabla estaba vacía, por lo que ningún `POST /socios` podía completarse.
+   - Smoke completo verde contra Supabase: POST 201 + `Location` (+ verifico `rol:SOCIO` en la transacción), POST repetido 409, POST usuario inexistente 404, POST/PATCH con sede inexistente **422**, GET 200/404, PATCH 200, DELETE 204 (+ `rol:EXTERNO` y membresía 1:1 eliminada, GET post-DELETE 404). Regresión de usuarios OK (409 dni repetido, 422 whitelist sin `rol`). Base limpia al final (0 socios / 0 membresías).
+   - [commit 1b3744e](https://github.com/GonzaloVila/FitZone-Sports/commit/1b3744e)

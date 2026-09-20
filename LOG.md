@@ -119,7 +119,3 @@
    - Extraído `calcularVigencia` a un util compartido (`repositories/prisma/membresia.util.ts`) para que el Bloque 3 (Membresías) lo reutilice sin duplicar el cálculo de `fecha_fin` por plan.
    - `npm run build` verificado en verde (exit code 0).
    - [commit fe5d9a7](https://github.com/GonzaloVila/FitZone-Sports/commit/fe5d9a7)
-
-### Unidades V–VI — Testing/DevOps/Mobile · Gonzalo Vila (P4)
-
-- _Actividades:_ ...

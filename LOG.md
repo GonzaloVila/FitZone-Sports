@@ -68,6 +68,18 @@
    - `ProblemException` + `ExceptionFilter` global en `commons/filters` respondiendo siempre `application/problem+json`: validación del `ValidationPipe` → 422 con `errors[]`, `BadRequestException` de parseo → 400, Prisma `P2002` (RN-02 `unq_reserva_turno` → 409 `turno-ocupado`, `idempotencia_key` → 409 `idempotencia-repetida`) y `P2025` → 404; el resto de `HttpException` → status + `about:blank` + `instance`, y no controlados → 500 (detalle solo en development). Registrado con `app.useGlobalFilters()` en `main.ts`.
    - [commit c5d49ec](https://github.com/GonzaloVila/FitZone-Sports/commit/c5d49ec)
 
+### Semana 4 · SCRUM-11c — Bloque 0: contrato de repositorios de M1 (Design-First)
+
+#### Actividades
+
+1. **Contrato de repositorios de M1 (Bloque 0) — Exequiel**
+   - Siguiendo el reparto de Módulo 1 (lotes L1 y L4, SCRUM-11c) aprobado por el equipo, se acuerda primero la **interfaz del repositorio** (Design-First llevado a nivel de código): solo firmas + `InjectionToken`, sin lógica ni dependencia de Prisma. Es la referencia que replicarán M2–M4 (microtarea 4 del plan) y la que destraba los Bloques 1–3 para trabajar en paralelo.
+   - `repositories/usuario.repository.ts` → `UsuarioRepository` (`crear`, `buscarPorId`, `buscarPorDniOEmail`, `actualizar`) + token `USUARIO_REPOSITORY`.
+   - `repositories/socio.repository.ts` → `SocioRepository` (`crear`, `buscarPorId`, `actualizar`, `eliminar`) + token `SOCIO_REPOSITORY`.
+   - `repositories/membresia.repository.ts` → `MembresiaRepository` (`crear`, `buscarPorSocioId`) + token `MEMBRESIA_REPOSITORY`.
+   - Cada archivo co-ubica los tipos de dominio mínimos que sus firmas necesitan (espejo del contrato: `Rol[Alta]`, `PlanMembresia`, `EstadoMembresia`, etc.). Tokens de DI como **string**, sin `Symbol`; los Bloques 2 y 3 arrancan con mock del repositorio hasta que exista la implementación Prisma.
+   - [commit 7fd6318](https://github.com/GonzaloVila/FitZone-Sports/commit/7fd6318)
+
 ---
 
 ## Templates de integrantes (completar por cada uno)

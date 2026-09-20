@@ -8,7 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { RolAlta } from '../repositories/usuario.repository';
+import { RolAlta } from '../entities/usuario.entity';
 
 const ROLES_ALTA: RolAlta[] = ['EXTERNO', 'RECEPCION', 'GERENTE'];
 

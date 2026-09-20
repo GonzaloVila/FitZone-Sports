@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
-import { RolUsuario } from '../repositories/usuario.repository';
+import { RolUsuario } from '../entities/usuario.entity';
 
 @Exclude()
 export class UsuarioOutDto {

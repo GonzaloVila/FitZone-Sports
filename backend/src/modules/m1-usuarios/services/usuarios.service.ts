@@ -9,10 +9,9 @@ import { plainToInstance } from 'class-transformer';
 import { CrearUsuarioDto } from '../dtos/crear-usuario.dto';
 import { ModificarUsuarioDto } from '../dtos/modificar-usuario.dto';
 import { UsuarioOutDto } from '../dtos/usuario-out.dto';
+import { Usuario, UsuarioActualizable } from '../entities/usuario.entity';
 import {
   USUARIO_REPOSITORY,
-  Usuario,
-  UsuarioActualizable,
   UsuarioRepository,
 } from '../repositories/usuario.repository';
 

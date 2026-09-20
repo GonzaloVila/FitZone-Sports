@@ -5,8 +5,8 @@ import {
   Usuario,
   UsuarioActualizable,
   UsuarioNuevo,
-  UsuarioRepository,
-} from '../usuario.repository';
+} from '../../entities/usuario.entity';
+import { UsuarioRepository } from '../usuario.repository';
 
 type UsuarioRow = Prisma.UsuarioGetPayload<Record<string, never>>;
 

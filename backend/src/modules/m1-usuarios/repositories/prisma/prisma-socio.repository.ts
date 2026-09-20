@@ -35,6 +35,11 @@ export class PrismaSocioRepository implements SocioRepository {
         });
       }
 
+      await tx.usuario.update({
+        where: { id: socio.usuario_id },
+        data: { rol: 'SOCIO' },
+      });
+
       return nuevoSocio;
     });
 
@@ -68,8 +73,16 @@ export class PrismaSocioRepository implements SocioRepository {
 
   async eliminar(id: number): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      const socio = await tx.socio.findUnique({ where: { id } });
+      if (!socio) {
+        return;
+      }
       await tx.membresia.deleteMany({ where: { socio_id: id } });
       await tx.socio.delete({ where: { id } });
+      await tx.usuario.update({
+        where: { id: socio.usuario_id },
+        data: { rol: 'EXTERNO' },
+      });
     });
   }
 

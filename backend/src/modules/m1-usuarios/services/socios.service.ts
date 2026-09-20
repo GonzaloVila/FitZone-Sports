@@ -34,8 +34,6 @@ export class SociosService {
       plan: dto.plan,
     });
 
-    await this.usuarios.actualizar(dto.usuario_id, { rol: 'SOCIO' });
-
     return this.aOut(socio);
   }
 
@@ -66,7 +64,6 @@ export class SociosService {
       throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
     }
     await this.socios.eliminar(id);
-    await this.usuarios.actualizar(socio.usuario_id, { rol: 'EXTERNO' });
   }
 
   private aOut(socio: Socio): SocioOutDto {

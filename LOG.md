@@ -134,3 +134,8 @@
    - La regla que calcula `fecha_fin` por plan se movió de `repositories/prisma/membresia.util.ts` (infra) a `entities/membresia.entity.ts` (dominio, junto a la entidad `Membresia`). El adaptador de Socios ahora la importa desde `../../entities/membresia.entity`; la capa de infraestructura no es lugar para reglas de negocio puras. Se normalizaron las comillas del entity al estilo del repo.
    - Verificado: build OK + smoke (POST /socios con `plan:MENSUAL` → `fecha_fin` = +1 mes, 20/09 → 20/10); base limpia al final.
    - [commit 6a1372a](https://github.com/GonzaloVila/FitZone-Sports/commit/6a1372a)
+
+5. **DTOs strict-clean (definite-assignment `!`) - Exequiel**
+   - Los campos **no opcionales** de las DTOs de M1 llevan ahora asignación definitiva (`!`): `CrearUsuarioDto` (`rol`, `dni`, `nombre`, `email`, `contrasenia`), `CrearSocioDto` (`usuario_id`, `sede_origen_id`), `UsuarioOutDto` (`id`, `rol`, `dni`, `nombre`, `email`) y `SocioOutDto` (`id`, `usuario_id`, `sede_origen_id`, `fecha_alta`). Los `?` (`plan`, `telefono`, `foto_url`, …) quedan igual.
+   - El motivo: quedan compilables bajo `strictPropertyInitialization` (el editor de TS 6 lo aplica aunque el tsconfig del proyecto no tenga `strict`); en runtime no cambia nada, el `ValidationPipe`/`plainToInstance` asigna los campos al validar. Sinefto: `npm run build` + `npx tsc --noEmit` en verde.
+   - [commit 95629dc](https://github.com/GonzaloVila/FitZone-Sports/commit/95629dc)

@@ -139,3 +139,20 @@
    - Los campos **no opcionales** de las DTOs de M1 llevan ahora asignación definitiva (`!`): `CrearUsuarioDto` (`rol`, `dni`, `nombre`, `email`, `contrasenia`), `CrearSocioDto` (`usuario_id`, `sede_origen_id`), `UsuarioOutDto` (`id`, `rol`, `dni`, `nombre`, `email`) y `SocioOutDto` (`id`, `usuario_id`, `sede_origen_id`, `fecha_alta`). Los `?` (`plan`, `telefono`, `foto_url`, …) quedan igual.
    - El motivo: quedan compilables bajo `strictPropertyInitialization` (el editor de TS 6 lo aplica aunque el tsconfig del proyecto no tenga `strict`); en runtime no cambia nada, el `ValidationPipe`/`plainToInstance` asigna los campos al validar. Sinefto: `npm run build` + `npx tsc --noEmit` en verde.
    - [commit 95629dc](https://github.com/GonzaloVila/FitZone-Sports/commit/95629dc)
+
+---
+
+### Semana 4 · SCRUM-11c — Bloque 3: Membresías (resto de L4) · Santiago Rayn
+
+#### Actividades
+
+1. **CRUD y ciclo de vida de membresías — Santiago Rayn**
+   - Implementado `MembresiaRepository` con Prisma (`repositories/prisma/prisma-membresia.repository.ts`) para operaciones de persistencia (`crear` y `buscarPorSocioId`), aplicando la regla de negocio de cálculo de vigencia (`calcularVigencia` desde `entities/membresia.entity.ts`) según el plan (`MENSUAL` +1 mes, `TRIMESTRAL` +3 meses, `ANUAL` +1 año) y respetando la fecha de inicio (`fecha_inicio` indicada o por defecto la fecha actual).
+   - Capa de aplicación en `services/membresias.service.ts` con inyección de dependencias desacoplada mediante tokens string (`MEMBRESIA_REPOSITORY` y `SOCIO_REPOSITORY`):
+     - `POST /socios/{socioId}/membresias`: valida existencia del socio (404 si no existe), regla 1:1 socio↔membresía (409 si el socio ya tiene membresía activa) y retorna 201 Created con cabecera `Location: /api/v1/socios/{socioId}/membresias`.
+     - `GET /socios/{socioId}/membresias`: verifica que el socio exista (404 si no existe) y devuelve su membresía vigente (200 con `MembresiaOutDto`, o 404 si no posee membresía).
+   - Controlador HTTP en `controllers/membresias.controller.ts` con decoradores OpenAPI/Swagger bajo el tag `M1 Membresías`, validación de parámetro de ruta entero con `ParseIntPipe`, y manejo de respuestas HTTP tipadas (200, 201, 400, 404, 409, 422).
+   - DTOs tipados estrictos con asignación definitiva (`!`): `CrearMembresiaDto` (`dtos/crear-membresia.dto.ts`) validando enum de planes con `class-validator`, y `MembresiaOutDto` (`dtos/membresia-out.dto.ts`) con serialización segura vía `class-transformer` (`@Exclude()` / `@Expose()`).
+   - Registrado en `UsuariosModule` (`usuarios.module.ts`) proveyendo `MembresiasController`, `MembresiasService` y `{ provide: MEMBRESIA_REPOSITORY, useClass: PrismaMembresiaRepository }`, y agregado del tag `M1 Membresías` a la configuración de Swagger en `main.ts`.
+   - Validación integral: `npm run build` y `npx tsc --noEmit` en verde sin errores. Suite de smoke test ejecutada exitosamente contra Supabase cubriendo todos los casos de borde (socio inexistente 404, socio sin membresía 404, plan inválido 422, alta con cálculo de fechas 201, lectura 200, duplicado 409, parámetro inválido 400, y borrado 204), dejando la base de datos íntegra y limpia al finalizar.
+

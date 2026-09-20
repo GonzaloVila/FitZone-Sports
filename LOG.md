@@ -82,6 +82,18 @@
 
 ---
 
+### Semana 4 · SCRUM-11c — Bloque 1: Usuarios (L1)
+
+#### Actividades
+
+1. **CRUD de usuarios — Exequiel**
+   - Implementado `UsuarioRepository` con Prisma (`repositories/prisma/prisma-usuario.repository.ts`) y las capas service/controller con DI por token string (`USUARIO_REPOSITORY` → `useClass`), reemplazando el placeholder `usuarios.module.ts` e importando `UsuariosModule` en `AppModule`.
+   - Endpoints contra el contrato: `POST /usuarios` (201 + `Location`, `contrasenia` `writeOnly`; unicidad `dni`/`email` → 409; hash bcryptjs), `GET /usuarios/{id}` (200/404) y `PATCH /usuarios/{id}` (campos presentes, re-hash si cambia `contrasenia`); `UsuarioOutDto` con `@Exclude` garantiza que `contrasenia` nunca viaja en una respuesta.
+   - Smoke verificado contra Supabase: 201 sin `contrasenia`, 409 `problem+json`, 404 de id inexistente, 200 con PATCH de `nombre` y de nueva contraseña.
+   - [commit a73d15c](https://github.com/GonzaloVila/FitZone-Sports/commit/a73d15c)
+
+---
+
 ## Templates de integrantes (completar por cada uno)
 
 ### Unidad I — Arquitectura · Santiago Rayn (P1)

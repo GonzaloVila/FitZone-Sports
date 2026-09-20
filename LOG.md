@@ -103,7 +103,7 @@
 #### Decisiones
 
 1. **`UsuarioActualizable.rol` para la transición `SOCIO↔EXTERNO` — Exequiel**
-   - `UsuarioActualizable` incorpora `rol?: RolUsuario` para que el Bloque 2 (Socios) mute el rol dentro de la transacción atómica vía el puerto `UsuarioRepository.actualizar` (alta → `SOCIO`, baja → `EXTERNO`), sin tocar `PrismaService` en el adaptador de Socios ni exponer `rol` en el `PATCH /usuarios` del contrato (`ModificarUsuarioDto` no lo incluye).
+   - `UsuarioActualizable` incorpora `rol?: RolUsuario` para que el Bloque 2 mute el rol en el alta/baja (→ `SOCIO` en `POST /socios`, → `EXTERNO` en `DELETE /socios`). El cambio se aplica **dentro de la transacción atómica del adaptador Prisma de Socios** (`prisma-socio.repository.ts`): como el contrato de repositorio no es transaccional, la escritura del rol se hace con el mismo `tx`, no vía el puerto `UsuarioRepository.actualizar` (que opera fuera de la transacción). El `rol` sigue vedado en el `PATCH /usuarios` (`ModificarUsuarioDto` no lo incluye).
    - [commit 85b9b03](https://github.com/GonzaloVila/FitZone-Sports/commit/85b9b03)
 
 ---
@@ -119,3 +119,7 @@
    - Extraído `calcularVigencia` a un util compartido (`repositories/prisma/membresia.util.ts`) para que el Bloque 3 (Membresías) lo reutilice sin duplicar el cálculo de `fecha_fin` por plan.
    - `npm run build` verificado en verde (exit code 0).
    - [commit fe5d9a7](https://github.com/GonzaloVila/FitZone-Sports/commit/fe5d9a7)
+
+2. **Atomicidad del cambio de rol (fix Bloque 1/Bloque 2) — Exequiel**
+   - El rol se movió **dentro de la transacción del adaptador** (`prisma-socio.repository.ts`): `crear` hace `tx.usuario.update({ rol: 'SOCIO' })` junto al socio+membresía, y `eliminar` hace `tx.usuario.update({ rol: 'EXTERNO' })` tras borrar la membresía 1:1 y la fila Socio. Se eliminaron las llamadas a `usuarios.actualizar({ rol })` del service (los pre-chequeos 404/409 quedan vía `UsuarioRepository`). Motivo: el contrato no es transaccional, así que "rol vía el puerto dentro de la transacción" no era implementable sin romper el B0; la escritura con el mismo `tx` garantiza que no quede un socio sin rol (o rol sin socio).
+   - [commit ef6e817](https://github.com/GonzaloVila/FitZone-Sports/commit/ef6e817)

@@ -4,6 +4,8 @@ node_modules/
 # Build
 dist/
 build/
+# Incremental TS build info
+*.tsbuildinfo
 
 # Entorno (nunca secretos en el repo)
 .env

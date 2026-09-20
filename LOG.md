@@ -108,6 +108,20 @@
 
 ---
 
+### Semana 4 · SCRUM-11c — Bloque 2: Socios (parte de L4)
+
+#### Actividades
+
+1. **CRUD de socios — Santino**
+   - Implementado `SocioRepository` con Prisma (`repositories/prisma/prisma-socio.repository.ts`) y las capas service/controller con DI por token string (`SOCIO_REPOSITORY` → `useClass`), agregando `SociosController` y `SociosService` a `usuarios.module.ts`.
+   - Endpoints contra el contrato: `POST /socios` (201 + `Location`; si se envía `plan`, crea Socio + Membresía en la misma transacción; actualiza el rol del usuario a `SOCIO`), `GET /socios/{socioId}` (200/404), `PATCH /socios/{socioId}` (actualiza `sede_origen_id`) y `DELETE /socios/{socioId}` (elimina Socio + Membresía 1:1 y devuelve el usuario a rol `EXTERNO`; preserva historial de pagos/reservas).
+   - Mapeo dominio↔esquema: el contrato y `socio.entity.ts` usan `sede_origen_id`, mientras que la columna real en `schema.prisma` es `sede_id`; el mapeo queda resuelto en el adaptador Prisma (`crear`, `actualizar`, `aDominio`), sin tocar el contrato ni el service.
+   - Extraído `calcularVigencia` a un util compartido (`repositories/prisma/membresia.util.ts`) para que el Bloque 3 (Membresías) lo reutilice sin duplicar el cálculo de `fecha_fin` por plan.
+   - `npm run build` verificado en verde (exit code 0).
+   - [commit fe5d9a7](https://github.com/GonzaloVila/FitZone-Sports/commit/fe5d9a7)
+
+---
+
 ## Templates de integrantes (completar por cada uno)
 
 ### Unidad I — Arquitectura · Santiago Rayn (P1)

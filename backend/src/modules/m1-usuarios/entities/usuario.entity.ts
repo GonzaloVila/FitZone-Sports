@@ -28,4 +28,5 @@ export interface UsuarioActualizable {
   telefono?: string | null;
   foto_url?: string | null;
   contrasenia?: string;
+  rol?: RolUsuario;
 }

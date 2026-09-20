@@ -92,6 +92,10 @@
    - Smoke verificado contra Supabase: 201 sin `contrasenia`, 409 `problem+json`, 404 de id inexistente, 200 con PATCH de `nombre` y de nueva contraseña.
    - [commit a73d15c](https://github.com/GonzaloVila/FitZone-Sports/commit/a73d15c)
 
+2. **Entidades de dominio en `entities/` (refactor de Bloque 0/Bloque 1) — Exequiel**
+   - Los tipos de dominio pasan de estar co-ubicados en los contratos a la capa `entities/` (`usuario.entity.ts`, `socio.entity.ts`, `membresia.entity.ts`), quedando los contratos de repositorio **puros** (solo firma + `InjectionToken`) e importando desde `../entities/…`, en línea con el README. El adaptador Prisma, service y DTOs actualizan sus imports; `npm run build` y smoke de regresión OK (404 y GET del usuario 1 sin `contrasenia`).
+   - [commit 0891e9e](https://github.com/GonzaloVila/FitZone-Sports/commit/0891e9e)
+
 ---
 
 ## Templates de integrantes (completar por cada uno)

@@ -129,3 +129,8 @@
    - Se insertó la primera fila en `Sede` (id 1, `Sede Central`) en Supabase: la tabla estaba vacía, por lo que ningún `POST /socios` podía completarse.
    - Smoke completo verde contra Supabase: POST 201 + `Location` (+ verifico `rol:SOCIO` en la transacción), POST repetido 409, POST usuario inexistente 404, POST/PATCH con sede inexistente **422**, GET 200/404, PATCH 200, DELETE 204 (+ `rol:EXTERNO` y membresía 1:1 eliminada, GET post-DELETE 404). Regresión de usuarios OK (409 dni repetido, 422 whitelist sin `rol`). Base limpia al final (0 socios / 0 membresías).
    - [commit 1b3744e](https://github.com/GonzaloVila/FitZone-Sports/commit/1b3744e)
+
+4. **`calcularVigencia` a la capa de dominio — Exequiel**
+   - La regla que calcula `fecha_fin` por plan se movió de `repositories/prisma/membresia.util.ts` (infra) a `entities/membresia.entity.ts` (dominio, junto a la entidad `Membresia`). El adaptador de Socios ahora la importa desde `../../entities/membresia.entity`; la capa de infraestructura no es lugar para reglas de negocio puras. Se normalizaron las comillas del entity al estilo del repo.
+   - Verificado: build OK + smoke (POST /socios con `plan:MENSUAL` → `fecha_fin` = +1 mes, 20/09 → 20/10); base limpia al final.
+   - [commit 6a1372a](https://github.com/GonzaloVila/FitZone-Sports/commit/6a1372a)

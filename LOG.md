@@ -137,7 +137,7 @@
 
 5. **DTOs strict-clean (definite-assignment `!`) - Exequiel**
    - Los campos **no opcionales** de las DTOs de M1 llevan ahora asignación definitiva (`!`): `CrearUsuarioDto` (`rol`, `dni`, `nombre`, `email`, `contrasenia`), `CrearSocioDto` (`usuario_id`, `sede_origen_id`), `UsuarioOutDto` (`id`, `rol`, `dni`, `nombre`, `email`) y `SocioOutDto` (`id`, `usuario_id`, `sede_origen_id`, `fecha_alta`). Los `?` (`plan`, `telefono`, `foto_url`, …) quedan igual.
-   - El motivo: quedan compilables bajo `strictPropertyInitialization` (el editor de TS 6 lo aplica aunque el tsconfig del proyecto no tenga `strict`); en runtime no cambia nada, el `ValidationPipe`/`plainToInstance` asigna los campos al validar. Sinefto: `npm run build` + `npx tsc --noEmit` en verde.
+   - El motivo: quedan compilables bajo `strictPropertyInitialization` (el editor de TS 6 lo aplica aunque el tsconfig del proyecto no tenga `strict`); en runtime no cambia nada, el `ValidationPipe`/`plainToInstance` asigna los campos al validar. Verificación: `npm run build` + `npx tsc --noEmit` en verde.
    - [commit 95629dc](https://github.com/GonzaloVila/FitZone-Sports/commit/95629dc)
 
 ---
@@ -155,4 +155,11 @@
    - DTOs tipados estrictos con asignación definitiva (`!`): `CrearMembresiaDto` (`dtos/crear-membresia.dto.ts`) validando enum de planes con `class-validator`, y `MembresiaOutDto` (`dtos/membresia-out.dto.ts`) con serialización segura vía `class-transformer` (`@Exclude()` / `@Expose()`).
    - Registrado en `UsuariosModule` (`usuarios.module.ts`) proveyendo `MembresiasController`, `MembresiasService` y `{ provide: MEMBRESIA_REPOSITORY, useClass: PrismaMembresiaRepository }`, y agregado del tag `M1 Membresías` a la configuración de Swagger en `main.ts`.
    - Validación integral: `npm run build` y `npx tsc --noEmit` en verde sin errores. Suite de smoke test ejecutada exitosamente contra Supabase cubriendo todos los casos de borde (socio inexistente 404, socio sin membresía 404, plan inválido 422, alta con cálculo de fechas 201, lectura 200, duplicado 409, parámetro inválido 400, y borrado 204), dejando la base de datos íntegra y limpia al finalizar.
+   - [commit 77e707e](https://github.com/GonzaloVila/FitZone-Sports/commit/77e707e)
+
+2. **PATCH `modificarMembresia` + alineación del contrato en DTOs — Exequiel**
+   - Completa el CRUD de membresías que el contrato (YAML) define: se agrega `PATCH /socios/{socioId}/membresias` (`operationId modificarMembresia`). El caso de uso es el **cambio sobre la misma fila** (relación 1:1 sin historial): `MembresiaRepository` gana `actualizar(socioId, cambios)`, con `MembresiaActualizable` (`plan?`, `renueva_automatica?`, `estado?`) en `entities/membresia.entity.ts`. Si viene `plan`, el adaptador **recalcula `fecha_fin` desde la fecha actual** reusando `calcularVigencia` (regla de dominio, Decisión 3 del Bloque 2); si el PATCH toca solo estado/renovación, la `fecha_fin` queda intacta. `MembresiaPatchDto` nuevo (todo opcional); el service hace los pre-chequeos (socio inexistente → 404, socio sin membresía → 404).
+   - Alineación contract-first en DTOs: se **saca `socio_id` de `CrearMembresiaDto`** (el contrato `MembresiaIn` es `additionalProperties:false` y el service usaba el id de la ruta; ahora enviarlo en el body da 422 por `forbidNonWhitelisted`) y **se saca `@Expose()` de `socio_id` en `MembresiaOutDto`** (el `MembresiaOut` del YAML no lo lleva). 
+   - Verificado: build + `npx tsc --noEmit` en verde + smoke contra Supabase (PATCH plan MENSUAL→TRIMESTRAL 200 con `plan` persistido y `fecha_fin` +91 días desde hoy con `fecha_inicio` intacta, PATCH `estado:SUSPENDIDA` 200 conservando `fecha_fin`, PATCH `renueva_automatica:true` 200, PATCH a socio sin membresía 404, socio inexistente 404, plan inválido 422, POST con `socio_id` en body 422, GET sin `socio_id` en la respuesta). Base limpia al final (0 socios / 0 membresías; usuario de prueba eliminado; usuario 1 → `EXTERNO`).
+   - [commit c8042e6](https://github.com/GonzaloVila/FitZone-Sports/commit/c8042e6)
 

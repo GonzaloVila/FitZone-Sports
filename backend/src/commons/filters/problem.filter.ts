@@ -136,6 +136,16 @@ export class ProblemFilter implements ExceptionFilter {
       };
     }
 
+    if (exception.code === 'P2003') {
+      return {
+        type: GENERIC_TYPE,
+        title: 'Referencia inexistente',
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        detail: 'El valor referenciado en la solicitud no existe o no esta disponible.',
+        instance: request.originalUrl ?? request.url,
+      };
+    }
+
     return this.toInternalProblem(exception, request);
   }
 

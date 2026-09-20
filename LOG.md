@@ -98,6 +98,16 @@
 
 ---
 
+### Semana 4 · SCRUM-11c — Bloque 2: preparación (Socios)
+
+#### Decisiones
+
+1. **`UsuarioActualizable.rol` para la transición `SOCIO↔EXTERNO` — Exequiel**
+   - `UsuarioActualizable` incorpora `rol?: RolUsuario` para que el Bloque 2 (Socios) mute el rol dentro de la transacción atómica vía el puerto `UsuarioRepository.actualizar` (alta → `SOCIO`, baja → `EXTERNO`), sin tocar `PrismaService` en el adaptador de Socios ni exponer `rol` en el `PATCH /usuarios` del contrato (`ModificarUsuarioDto` no lo incluye).
+   - [commit 85b9b03](https://github.com/GonzaloVila/FitZone-Sports/commit/85b9b03)
+
+---
+
 ## Templates de integrantes (completar por cada uno)
 
 ### Unidad I — Arquitectura · Santiago Rayn (P1)

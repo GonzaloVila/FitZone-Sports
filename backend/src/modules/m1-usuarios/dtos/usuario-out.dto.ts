@@ -6,23 +6,23 @@ import { RolUsuario } from '../entities/usuario.entity';
 export class UsuarioOutDto {
   @Expose()
   @ApiProperty()
-  id: number;
+  id!: number;
 
   @Expose()
   @ApiProperty({ enum: ['SOCIO', 'EXTERNO', 'RECEPCION', 'GERENTE'] })
-  rol: RolUsuario;
+  rol!: RolUsuario;
 
   @Expose()
   @ApiProperty({ example: '35123456' })
-  dni: string;
+  dni!: string;
 
   @Expose()
   @ApiProperty({ example: 'Ana Gómez' })
-  nombre: string;
+  nombre!: string;
 
   @Expose()
   @ApiProperty({ example: 'ana.gomez@fitzone.com.ar' })
-  email: string;
+  email!: string;
 
   @Expose()
   @ApiProperty({ nullable: true, example: '+54 351 555-1234' })

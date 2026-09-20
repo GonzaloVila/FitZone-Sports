@@ -5,17 +5,17 @@ import { Exclude, Expose } from 'class-transformer';
 export class SocioOutDto {
   @Expose()
   @ApiProperty()
-  id: number;
+id!: number;
 
   @Expose()
   @ApiProperty()
-  usuario_id: number;
+  usuario_id!: number;
 
   @Expose()
   @ApiProperty()
-  sede_origen_id: number;
+  sede_origen_id!: number;
 
   @Expose()
   @ApiProperty({ example: '2026-09-15' })
-  fecha_alta: Date;
+  fecha_alta!: Date;
 }

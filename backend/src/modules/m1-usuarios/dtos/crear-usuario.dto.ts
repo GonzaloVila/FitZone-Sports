@@ -15,25 +15,25 @@ const ROLES_ALTA: RolAlta[] = ['EXTERNO', 'RECEPCION', 'GERENTE'];
 export class CrearUsuarioDto {
   @ApiProperty({ enum: ROLES_ALTA, description: 'SOCIO no aplica acá: solo por POST /socios.' })
   @IsIn(ROLES_ALTA)
-  rol: RolAlta;
+  rol!: RolAlta;
 
   @ApiProperty({ example: '35123456', minLength: 7, maxLength: 20 })
   @IsString()
   @MinLength(7)
   @MaxLength(20)
   @Matches(/^\d+$/, { message: 'dni solo admite dígitos' })
-  dni: string;
+  dni!: string;
 
   @ApiProperty({ example: 'Ana Gómez', minLength: 1, maxLength: 100 })
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  nombre: string;
+  nombre!: string;
 
   @ApiProperty({ example: 'ana.gomez@fitzone.com.ar', format: 'email' })
   @IsEmail()
   @MaxLength(254)
-  email: string;
+  email!: string;
 
   @ApiProperty({
     minLength: 8,
@@ -42,7 +42,7 @@ export class CrearUsuarioDto {
   })
   @IsString()
   @MinLength(8)
-  contrasenia: string;
+  contrasenia!: string;
 
   @ApiPropertyOptional({ example: '+54 351 555-1234', maxLength: 20 })
   @IsOptional()

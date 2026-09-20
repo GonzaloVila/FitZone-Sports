@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../commons/database/prisma.service';
 import { Socio, SocioActualizable, SocioNuevo } from '../../entities/socio.entity';
+import { calcularVigencia } from '../../entities/membresia.entity';
 import { SocioRepository } from '../socio.repository';
-import { calcularVigencia } from './membresia.util';
 
 type SocioRow = Prisma.SocioGetPayload<Record<string, never>>;
 

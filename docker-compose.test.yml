@@ -1,0 +1,20 @@
+# Postgres efímero solo para tests e2e. No usar para desarrollo normal
+# (para eso seguimos usando la Supabase compartida vía .env).
+# Uso: docker compose -f docker-compose.test.yml up -d
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: fitzone-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fitzone
+      POSTGRES_PASSWORD: fitzone
+      POSTGRES_DB: fitzone_test
+    ports:
+      # host:container -> 55432 para no chocar con un Postgres local en 5432
+      - "55432:5432"
+    volumes:
+      - fitzone_test_data:/var/lib/postgresql/data
+
+volumes:
+  fitzone_test_data:

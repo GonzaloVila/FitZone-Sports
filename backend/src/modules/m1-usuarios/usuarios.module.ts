@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CommonsModule } from '../../commons/commons.module';
 import { MembresiasController } from './controllers/membresias.controller';
 import { SociosController } from './controllers/socios.controller';
 import { UsuariosController } from './controllers/usuarios.controller';
@@ -13,6 +14,7 @@ import { SociosService } from './services/socios.service';
 import { UsuariosService } from './services/usuarios.service';
 
 @Module({
+  imports: [CommonsModule],
   controllers: [UsuariosController, SociosController, MembresiasController],
   providers: [
     { provide: USUARIO_REPOSITORY, useClass: PrismaUsuarioRepository },

@@ -170,3 +170,36 @@
    - Verificado: build + `npx tsc --noEmit` en verde + smoke contra Supabase (PATCH plan MENSUAL→TRIMESTRAL 200 con `plan` persistido y `fecha_fin` +91 días desde hoy con `fecha_inicio` intacta, PATCH `estado:SUSPENDIDA` 200 conservando `fecha_fin`, PATCH `renueva_automatica:true` 200, PATCH a socio sin membresía 404, socio inexistente 404, plan inválido 422, POST con `socio_id` en body 422, GET sin `socio_id` en la respuesta). Base limpia al final (0 socios / 0 membresías; usuario de prueba eliminado; usuario 1 → `EXTERNO`).
    - [commit c8042e6](https://github.com/GonzaloVila/FitZone-Sports/commit/c8042e6)
 
+---
+
+### Semana 4 · SCRUM-11c — Bloque 4 : infraestructura de testing e2e de M1 · Gonzalo
+
+#### Actividades
+
+1. **Aislamiento de la base de datos de test — Gonzalo**
+   - El equipo usa Supabase free tier (2 proyectos gratis por organización, sin margen para duplicar la base de desarrollo). Se descartó un segundo proyecto Supabase y un schema separado dentro del mismo proyecto compartido, y se optó por un Postgres efímero en Docker (`docker-compose.test.yml`, puerto `55432`) exclusivo para los tests e2e, sin tocar la Supabase de desarrollo del equipo.
+   - [commit 398a1c5]
+
+2. 2. **Test runner: Vitest — Gonzalo**
+   - Se eligió Vitest como test runner para el backend (Nest 12.x), coherente con el resto del stack: el frontend del proyecto ya es Vue + Vite, y Vitest —hecho por el mismo equipo de Vite— permite un único test runner para todo el proyecto en vez de dos herramientas distintas para backend y frontend.
+   - Agregado `backend/.swcrc` (con `decoratorMetadata: true`) y `unplugin-swc` en `vitest.e2e.config.ts`: Vitest usa `esbuild` por default, que no emite la metadata de decoradores que la inyección de dependencias de Nest necesita: sin esto el `TestingModule` no resuelve los providers.
+   - `backend/test/vitest.e2e.setup.ts` carga `.env.test` (variables del contenedor Docker) antes de instanciar cualquier módulo de Nest, para que los tests nunca puedan apuntar por error a la Supabase compartida.
+   - Agregado `postinstall: "prisma generate"` en `package.json` para que el cliente de Prisma se regenere solo después de cualquier `npm install` (evita un cliente desalineado en la máquina de cualquier integrante).
+   - `@vitest/coverage-v8` instalado junto con el resto: la Unidad V del TFI pide explícitamente "reporte de cobertura" como entregable ponderado (15%), y queda resuelto de una.
+   - [commit 398a1c5]
+
+3. **Test e2e del flujo completo de M1 — Gonzalo**
+   - `test/m1.e2e-spec.ts`: flujo `POST /usuarios` → `POST /socios` (con plan, verificando transacción socio+membresía y cambio de rol a `SOCIO`) → `GET /socios/{socioId}/membresias` (verificando `fecha_fin` calculada) → `DELETE /socios/{socioId}` (verificando 204, rol de vuelta a `EXTERNO` y membresía eliminada). Casos negativos cubiertos: usuario inexistente (404), usuario ya socio (409), socio con membresía duplicada (409).
+   - Como M1 no expone un endpoint propio para crear `Sede` (corresponde a M2, todavía no implementado), la `Sede` necesaria para `sede_origen_id` se inserta directo con Prisma en el `beforeAll` del test, no vía HTTP.
+   - Import de `supertest` ajustado a `import request from 'supertest'` (en vez de `import * as request`): el interop de módulos CommonJS de Vite/Vitest expone el default distinto al de `ts-jest`.
+   - Verificado: `npm run test:e2e` en verde (4/4 tests).
+   - [commit 398a1c5]
+
+#### Decisiones
+
+1. **Docker en vez de un segundo proyecto Supabase:** con el equipo en el plan free de Supabase, aislar los tests con un Postgres local en Docker no consume el límite de proyectos gratis del equipo y es la misma pieza que se va a necesitar para el pipeline de CI/CD de la Unidad V (Semana 12) — se resuelve una sola vez para las dos cosas.
+2. **Vitest como test runner del proyecto:** un solo runner para backend y frontend (coherente con Vue + Vite), en vez de dos herramientas de testing distintas según el módulo.
+
+#### Pendiente (cierre de Bloque 4)
+
+- Auditoría de Swagger consolidado en `/docs`: tags, ejemplos con ids numéricos y códigos 404/409/422 completos en los 9 endpoints de M1.

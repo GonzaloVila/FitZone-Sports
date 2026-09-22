@@ -68,6 +68,13 @@
    - `ProblemException` + `ExceptionFilter` global en `commons/filters` respondiendo siempre `application/problem+json`: validación del `ValidationPipe` → 422 con `errors[]`, `BadRequestException` de parseo → 400, Prisma `P2002` (RN-02 `unq_reserva_turno` → 409 `turno-ocupado`, `idempotencia_key` → 409 `idempotencia-repetida`) y `P2025` → 404; el resto de `HttpException` → status + `about:blank` + `instance`, y no controlados → 500 (detalle solo en development). Registrado con `app.useGlobalFilters()` en `main.ts`.
    - [commit c5d49ec](https://github.com/GonzaloVila/FitZone-Sports/commit/c5d49ec)
 
+5. **Mediador mínimo (micro 5) — Santiago Rayn**
+   - `MediadorService` en `commons/mediador` que expone el **puerto de entrada de M5** (`ProcesarPagoPort`, ADR-01) para que M1/M4 lo inyecten **sin acoplar M5**: `solicitarCobro(solicitud)` delega en el port; inyectado con `@Optional()`, la app arranca hoy sin M5 y, cuando `PagosModule` provea `PROCESAR_PAGO_PORT`, el service lo resuelve solo (solo falta `imports: [PagosModule]` en `MediadorModule`).
+   - El contrato (`SolicitudCobro` / `ComprobanteDto` / token `PROCESAR_PAGO_PORT` como string) vive en `commons/mediador/procesar-pago.port.ts` y se moverá a `m5-pagos` cuando se implemente el módulo, sin reescrituras (mismo criterio Design-First del Bloque 0).
+   - `MediadorModule` (providers + exports) y `CommonsModule` real (imports/exports `MediadorModule`); `AppModule` y `UsuariosModule` lo importan → M1 queda habilitado a inyectar `MediadorService` sin conocer a los adaptadores de M5 ni a la pasarela.
+   - Verificado: `npm run build` + `npx tsc --noEmit` en verde.
+   - [commit a87744e](https://github.com/GonzaloVila/FitZone-Sports/commit/a87744e)
+
 ### Semana 4 · SCRUM-11c — Bloque 0: contrato de repositorios de M1 (Design-First)
 
 #### Actividades

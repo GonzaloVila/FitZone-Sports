@@ -178,7 +178,7 @@
 
 1. **Aislamiento de la base de datos de test — Gonzalo**
    - El equipo usa Supabase free tier (2 proyectos gratis por organización, sin margen para duplicar la base de desarrollo). Se descartó un segundo proyecto Supabase y un schema separado dentro del mismo proyecto compartido, y se optó por un Postgres efímero en Docker (`docker-compose.test.yml`, puerto `55432`) exclusivo para los tests e2e, sin tocar la Supabase de desarrollo del equipo.
-   - [commit 398a1c5]
+   - [commit 398a1c5](https://github.com/GonzaloVila/FitZone-Sports/commit/398a1c5)
 
 2. 2. **Test runner: Vitest — Gonzalo**
    - Se eligió Vitest como test runner para el backend (Nest 12.x), coherente con el resto del stack: el frontend del proyecto ya es Vue + Vite, y Vitest —hecho por el mismo equipo de Vite— permite un único test runner para todo el proyecto en vez de dos herramientas distintas para backend y frontend.
@@ -186,14 +186,14 @@
    - `backend/test/vitest.e2e.setup.ts` carga `.env.test` (variables del contenedor Docker) antes de instanciar cualquier módulo de Nest, para que los tests nunca puedan apuntar por error a la Supabase compartida.
    - Agregado `postinstall: "prisma generate"` en `package.json` para que el cliente de Prisma se regenere solo después de cualquier `npm install` (evita un cliente desalineado en la máquina de cualquier integrante).
    - `@vitest/coverage-v8` instalado junto con el resto: la Unidad V del TFI pide explícitamente "reporte de cobertura" como entregable ponderado (15%), y queda resuelto de una.
-   - [commit 398a1c5]
+   - [commit 398a1c5](https://github.com/GonzaloVila/FitZone-Sports/commit/398a1c5)
 
 3. **Test e2e del flujo completo de M1 — Gonzalo**
    - `test/m1.e2e-spec.ts`: flujo `POST /usuarios` → `POST /socios` (con plan, verificando transacción socio+membresía y cambio de rol a `SOCIO`) → `GET /socios/{socioId}/membresias` (verificando `fecha_fin` calculada) → `DELETE /socios/{socioId}` (verificando 204, rol de vuelta a `EXTERNO` y membresía eliminada). Casos negativos cubiertos: usuario inexistente (404), usuario ya socio (409), socio con membresía duplicada (409).
    - Como M1 no expone un endpoint propio para crear `Sede` (corresponde a M2, todavía no implementado), la `Sede` necesaria para `sede_origen_id` se inserta directo con Prisma en el `beforeAll` del test, no vía HTTP.
    - Import de `supertest` ajustado a `import request from 'supertest'` (en vez de `import * as request`): el interop de módulos CommonJS de Vite/Vitest expone el default distinto al de `ts-jest`.
    - Verificado: `npm run test:e2e` en verde (4/4 tests).
-   - [commit 398a1c5]
+   - [commit 398a1c5](https://github.com/GonzaloVila/FitZone-Sports/commit/398a1c5)
 
 #### Decisiones
 
@@ -207,7 +207,7 @@
    - En `usuarios.controller.ts`, `socios.controller.ts` y `membresias.controller.ts`: todas las respuestas 400/404/409/422 ahora llevan `content: PROBLEM_JSON` (antes documentaban `application/json` vacío o sin schema), los 201 ganaron la cabecera `Location` con ejemplo numérico (`/api/v1/usuarios/1`, `/api/v1/socios/2`, `/api/v1/socios/2/membresias`) y todos los `@ApiParam` de ruta (`id`, `socioId`) llevan `example` numérico (usuario 1, socio 2). Se agregó `@ApiExtraModels(ProblemDetailsDto)` por controller para que el schema quede registrado en `components.schemas` aunque se referencie por `$ref`.
    - Ejemplos numéricos completados en DTOs: `UsuarioOutDto.id: 1`, `SocioOutDto.{id: 2, usuario_id: 1, sede_origen_id: 3}`, `CrearSocioDto.{usuario_id: 1, sede_origen_id: 3}`, `ModificarSocioDto.sede_origen_id: 3`.
    - Verificado: `npx tsc --noEmit` + `npm run build` en verde, y `/docs-json` real (app levantada en `:3199`) confirmó `application/problem+json` → `$ref ProblemDetailsDto`, `Location` ejemplificadas y `ProblemDetailsDto` en `components.schemas` con las 6 propiedades.
-   - [commit 3b2107d]
+   - [commit 3b2107d](https://github.com/GonzaloVila/FitZone-Sports/commit/3b2107d)
 
 2. **Extensión del contrato OpenAPI para M2 (Ingresos/Aforo) y M3 (Lista de espera) — Exequiel**
    - Antes de programar M2 y M3 se extiende el contrato en `TFI FitZone - OpenAPI.yaml` (Design-First, sigue la nota «Por qué hay que extender el contrato» del 24/09): el YAML ya es la fuente de los tipos del frontend (`schema.d.ts`) y de la documentación de `/docs`.

@@ -200,6 +200,24 @@
 1. **Docker en vez de un segundo proyecto Supabase:** con el equipo en el plan free de Supabase, aislar los tests con un Postgres local en Docker no consume el límite de proyectos gratis del equipo y es la misma pieza que se va a necesitar para el pipeline de CI/CD de la Unidad V (Semana 12) — se resuelve una sola vez para las dos cosas.
 2. **Vitest como test runner del proyecto:** un solo runner para backend y frontend (coherente con Vue + Vite), en vez de dos herramientas de testing distintas según el módulo.
 
+#### Actividades
+
+1. **Auditoría de Swagger consolidada en `/docs` (cierre de Bloque 4) — Exequiel**
+   - Se cierra el pendiente del Bloque 4 con la auditoría del Swagger de M1 (los 10 endpoints, no 9: `POST /socios/{socioId}/membresias` suma un `@ApiParam` propio). Se creó `commons/swagger/problem-details.dto.ts` (`ProblemDetailsDto`, RFC 9457: `type/title/status/detail/instance/errors`) y `commons/swagger/problem-json.ts` (`PROBLEM_JSON`, media type `application/problem+json` apuntando por `$ref` al DTO compartido).
+   - En `usuarios.controller.ts`, `socios.controller.ts` y `membresias.controller.ts`: todas las respuestas 400/404/409/422 ahora llevan `content: PROBLEM_JSON` (antes documentaban `application/json` vacío o sin schema), los 201 ganaron la cabecera `Location` con ejemplo numérico (`/api/v1/usuarios/1`, `/api/v1/socios/2`, `/api/v1/socios/2/membresias`) y todos los `@ApiParam` de ruta (`id`, `socioId`) llevan `example` numérico (usuario 1, socio 2). Se agregó `@ApiExtraModels(ProblemDetailsDto)` por controller para que el schema quede registrado en `components.schemas` aunque se referencie por `$ref`.
+   - Ejemplos numéricos completados en DTOs: `UsuarioOutDto.id: 1`, `SocioOutDto.{id: 2, usuario_id: 1, sede_origen_id: 3}`, `CrearSocioDto.{usuario_id: 1, sede_origen_id: 3}`, `ModificarSocioDto.sede_origen_id: 3`.
+   - Verificado: `npx tsc --noEmit` + `npm run build` en verde, y `/docs-json` real (app levantada en `:3199`) confirmó `application/problem+json` → `$ref ProblemDetailsDto`, `Location` ejemplificadas y `ProblemDetailsDto` en `components.schemas` con las 6 propiedades.
+   - [commit __C1__]
+
+2. **Extensión del contrato OpenAPI para M2 (Ingresos/Aforo) y M3 (Lista de espera) — Exequiel**
+   - Antes de programar M2 y M3 se extiende el contrato en `TFI FitZone - OpenAPI.yaml` (Design-First, sigue la nota «Por qué hay que extender el contrato» del 24/09): el YAML ya es la fuente de los tipos del frontend (`schema.d.ts`) y de la documentación de `/docs`.
+   - **M2 (RF-04/RF-05):** `POST /ingresos` (`registrarIngreso`: body `IngresoIn` con `qr_token` —revisable hasta definir el QR en Unidad III— y `fecha_hora_ingreso` opcional por RNF-01 offline; respuestas 201+`Location`, 403 `MembresiaInactiva`, 404, 409 `ConflictoAcceso` con los casos `acceso-duplicado` (RN-01) y `aforo-lleno` (RF-05), 422), `POST /ingresos/{ingresoId}/egreso` (`registrarEgreso`, 204/404/409 `EgresoDuplicado`) y `GET /sedes/{sedeId}/aforo` (`obtenerAforo`, 200 `AforoOut {aforo_actual, aforo_maximo, restante}`/404).
+   - **M3 (RF-08):** `POST /clases/{claseId}/espera` (`anotarseEnEspera`, 201+`Location`, 404, 409 `ConflictoEspera` con `espera-existente`/`cupo-disponible`, 422), `GET/DELETE /esperas-clases/{esperaId}` (`obtenerEspera` / `salirDeEspera` con **baja lógica** → `EstadoEspera.CANCELADO`, 204/404/409 `EsperaConfirmada`) y `POST /esperas-clases/{esperaId}/confirmacion` (`confirmarEspera`, first-come: 204 creando la `ReservaClase`, 404, 409 `ConfirmacionRechazada` con `no-notificada`/`cupo-tomado`).
+   - Componentes nuevos: parámetros `ClaseId`/`IngresoId`/`EsperaId`, schemas `IngresoIn/Out`, `AforoOut`, `EsperaIn/Out`, `EstadoEspera`, y 6 responses problem+json reutilizables. El YAML sigue siendo OpenAPI 3.0.3; el mismo estilo (`nullable: true`, `examples` mapeados para 409 de doble causa).
+   - Validado estructuralmente: parseo YAML + resolución de todos los `$ref` (26 paths, 39 schemas, 13 parámetros, 19 respuestas, ninguna referencia rota).
+   - El YAML vive en el vault de Obsidian (fuera del repo), por eso no hay commit de este punto.
+
 #### Pendiente (cierre de Bloque 4)
 
-- Auditoría de Swagger consolidado en `/docs`: tags, ejemplos con ids numéricos y códigos 404/409/422 completos en los 9 endpoints de M1.
+- ~~Auditoría de Swagger consolidado en `/docs`: tags, ejemplos con ids numéricos y códigos 404/409/422 completos en los 9 endpoints de M1.~~ Hecho: 10 endpoints, problem+json compartido, `Location` y ejemplos numéricos.
+- Los tests e2e de M1 (`npm run test:e2e`) no se releejaron en esta pasada (requiere levantar el Postgres de `docker-compose.test.yml`); el cambio de la auditoría es solo de decoradores OpenAPI — sin afectar el comportamiento HTTP verificado en el bloque de testing.

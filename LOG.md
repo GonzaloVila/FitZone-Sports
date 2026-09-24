@@ -207,7 +207,7 @@
    - En `usuarios.controller.ts`, `socios.controller.ts` y `membresias.controller.ts`: todas las respuestas 400/404/409/422 ahora llevan `content: PROBLEM_JSON` (antes documentaban `application/json` vacío o sin schema), los 201 ganaron la cabecera `Location` con ejemplo numérico (`/api/v1/usuarios/1`, `/api/v1/socios/2`, `/api/v1/socios/2/membresias`) y todos los `@ApiParam` de ruta (`id`, `socioId`) llevan `example` numérico (usuario 1, socio 2). Se agregó `@ApiExtraModels(ProblemDetailsDto)` por controller para que el schema quede registrado en `components.schemas` aunque se referencie por `$ref`.
    - Ejemplos numéricos completados en DTOs: `UsuarioOutDto.id: 1`, `SocioOutDto.{id: 2, usuario_id: 1, sede_origen_id: 3}`, `CrearSocioDto.{usuario_id: 1, sede_origen_id: 3}`, `ModificarSocioDto.sede_origen_id: 3`.
    - Verificado: `npx tsc --noEmit` + `npm run build` en verde, y `/docs-json` real (app levantada en `:3199`) confirmó `application/problem+json` → `$ref ProblemDetailsDto`, `Location` ejemplificadas y `ProblemDetailsDto` en `components.schemas` con las 6 propiedades.
-   - [commit __C1__]
+   - [commit 3b2107d]
 
 2. **Extensión del contrato OpenAPI para M2 (Ingresos/Aforo) y M3 (Lista de espera) — Exequiel**
    - Antes de programar M2 y M3 se extiende el contrato en `TFI FitZone - OpenAPI.yaml` (Design-First, sigue la nota «Por qué hay que extender el contrato» del 24/09): el YAML ya es la fuente de los tipos del frontend (`schema.d.ts`) y de la documentación de `/docs`.

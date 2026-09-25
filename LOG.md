@@ -301,8 +301,6 @@ Auditoría de M2 contra el plan de trabajo, el OpenAPI del vault y la arquitectu
 
 6. **Sincronización con el vault (fuera de este repositorio)**
    - `TFI FitZone - OpenAPI.yaml`: `validado_offline` agregado a `IngresoIn` (opcional) y a `IngresoOut` (`required`, `properties` y `example`). En `IngresoIn` no era cosmético: declara `additionalProperties: false`, así que un request que mandara el campo era rechazado por cualquier validador estricto mientras el DTO lo aceptaba.
-   - `Plan_de_Trabajo_M2` (MD y DOCX) y `Plan_de_Trabajo_M3` (MD y DOCX) regenerados con la decisión 4 reescrita.
-   - Estos archivos viven en el vault de Obsidian y en `Downloads`, así que no tienen commit acá.
 
 #### Pendientes de la entrada anterior, resueltos en esta
 

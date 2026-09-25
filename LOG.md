@@ -315,7 +315,7 @@ Auditoría de M2 contra el plan de trabajo, el OpenAPI del vault y la arquitectu
 
 ---
 
-## Unidad II — Módulo 4: Canchas Deportivas (RF-09/RF-12) · Santino
+## Unidad II — Módulo 4: Canchas Deportivas (RF-09/RF-12) · Santino + Exequiel
 
 ### Semana 6 · SCRUM-11c — Bloque 0: coordinación con M1/M2 y migración de concurrencia
 
@@ -329,4 +329,10 @@ Auditoría de M2 contra el plan de trabajo, el OpenAPI del vault y la arquitectu
    - `unq_reserva_turno` (unique parcial sobre `cancha_id, fecha_hora_inicio`) solo detectaba colisión exacta de inicio y dejaba pasar solapamientos (ej. 18:00–19:30 con 18:30–19:30). Reemplazado por `exq_reserva_turno`: `EXCLUDE USING gist` sobre `(cancha_id WITH =, tsrange(fecha_hora_inicio, fecha_hora_fin) WITH &&) WHERE estado <> 'CANCELADA'`, requiere `CREATE EXTENSION btree_gist`.
    - `tsrange` y no `tstzrange` a propósito: las columnas son `TIMESTAMP(3)` sin zona; con `tstzrange` Postgres castearía según el `TimeZone` de cada sesión y la constraint dependería de quién escribe.
    - Migración a mano (`20260925020000_reserva_solapamiento_exclude`): Prisma no modela `EXCLUDE` ni índices parciales.
-   - **Hallazgo verificado empíricamente**: a diferencia de `P2002`/`P2003` (que Prisma tipa como
+   - **Hallazgo verificado empíricamente**: a diferencia de `P2002`/`P2003` (que Prisma tipa como `PrismaClientKnownRequestError` con `.code`), la violación de una constraint de exclusión llega como `PrismaClientUnknownRequestError` con `.code` en `undefined` — el código Postgres real (`23P01 exclusion_violation`) solo aparece embebido en el mensaje. El `catch` del Bloque 3 no puede replicar el patrón `error.code === 'P2002'` de M2; necesita chequear `error instanceof Prisma.PrismaClientUnknownRequestError` + matchear el nombre de la constraint en el mensaje.
+   - `npx prisma migrate status` confirmado sin drift tras aplicar.
+
+3. **Nota de entorno (Windows, no bloqueante)**
+   - `core.autocrlf=true` local convirtió LF→CRLF en una migración ya aplicada, lo que casi dispara un reset completo de la Supabase compartida al correr `prisma migrate dev`. Se evitó a tiempo; se aplicó con `prisma migrate deploy` en su lugar. Se agrega `.gitattributes` (`*.sql text eol=lf`) para que no le pase a nadie más.
+
+   - [commit ad306b9](https://github.com/GonzaloVila/FitZone-Sports/commit/ad306b9)

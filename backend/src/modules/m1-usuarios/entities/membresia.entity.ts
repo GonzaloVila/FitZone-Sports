@@ -46,3 +46,12 @@ export function calcularVigencia(
 
   return { fecha_inicio, fecha_fin };
 }
+
+// M1 nunca transiciona `estado` a VENCIDA en el momento (solo el cron diario
+// lo hace, ver crons/membresias.cron.ts). M2 no puede confiar solo en
+// `estado === 'ACTIVA'` para validar el acceso (RF-04): una membresía vencida
+// hace unos minutos seguiría marcada ACTIVA hasta la próxima corrida del cron.
+// Por eso la vigencia real también exige `fecha_fin >= ahora`.
+export function estaVigente(m: Membresia, ahora: Date = new Date()): boolean {
+  return m.estado !== 'SUSPENDIDA' && m.fecha_fin.getTime() >= ahora.getTime();
+}

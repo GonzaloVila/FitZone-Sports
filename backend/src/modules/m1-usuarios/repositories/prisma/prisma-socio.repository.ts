@@ -51,6 +51,11 @@ export class PrismaSocioRepository implements SocioRepository {
     return fila ? this.aDominio(fila) : null;
   }
 
+  async buscarPorUsuarioId(usuarioId: number): Promise<Socio | null> {
+    const fila = await this.prisma.socio.findUnique({ where: { usuario_id: usuarioId } });
+    return fila ? this.aDominio(fila) : null;
+  }
+
   async actualizar(id: number, cambios: SocioActualizable): Promise<Socio | null> {
     try {
       const fila = await this.prisma.socio.update({

@@ -150,6 +150,7 @@ Table "Ingreso (acceso)" {
   id_usuario int [not null]
   fecha_hora_ingreso timestamp [not null]
   fecha_hora_egreso timestamp
+  validado_offline boolean [not null, default: 'false']
 }
 
 // Usuario - Socio: 1:1 (Socio.id_usuario única)

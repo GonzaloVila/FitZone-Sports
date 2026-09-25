@@ -28,6 +28,8 @@ async function bootstrap() {
     .addTag('M1 Usuarios')
     .addTag('M1 Socios')
     .addTag('M1 Membresías')
+    .addTag('M2 Sedes')
+    .addTag('M2 Ingresos')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument);

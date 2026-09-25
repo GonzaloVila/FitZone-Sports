@@ -71,6 +71,14 @@ export class PrismaMembresiaRepository implements MembresiaRepository {
     return fila ? this.aDominio(fila) : null;
   }
 
+  async marcarVencidas(): Promise<number> {
+    const resultado = await this.prisma.membresia.updateMany({
+      where: { estado: 'ACTIVA', fecha_fin: { lt: new Date() } },
+      data: { estado: 'VENCIDA' },
+    });
+    return resultado.count;
+  }
+
   private aDominio(fila: MembresiaRow): Membresia {
     return {
       id: fila.id,

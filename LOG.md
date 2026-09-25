@@ -221,3 +221,39 @@
 
 - ~~Auditoría de Swagger consolidado en `/docs`: tags, ejemplos con ids numéricos y códigos 404/409/422 completos en los 9 endpoints de M1.~~ Hecho: 10 endpoints, problem+json compartido, `Location` y ejemplos numéricos.
 - Los tests e2e de M1 (`npm run test:e2e`) no se releejaron en esta pasada (requiere levantar el Postgres de `docker-compose.test.yml`); el cambio de la auditoría es solo de decoradores OpenAPI — sin afectar el comportamiento HTTP verificado en el bloque de testing.
+
+---
+
+## Unidad II — Módulo 2: Gimnasio y Acceso (RF-04/RF-05) · Gonzalo + Santiago
+
+### Semana 5 · SCRUM-11c — Bloque 0 a 4: implementación completa de M2
+
+Sigue `Plan_de_Trabajo_M2_FitZone.md` (5 bloques). Se deja explícitamente **fuera de alcance** (pendiente de definir con la cátedra): el mecanismo de QR dinámico y dónde persistir su secreto/credencial. `qr_token` queda como campo opaco: se exige presente en `IngresoIn`, no se valida criptográficamente ni se persiste ninguna credencial nueva.
+
+#### Actividades
+
+1. **Bloque 0 — Coordinación con M1: vigencia real de membresía**
+   - `estaVigente(m, ahora)` agregada a `entities/membresia.entity.ts` (junto a `calcularVigencia`): `estado !== 'SUSPENDIDA' && fecha_fin >= ahora`. Necesaria porque M1 nunca transiciona `estado` de `ACTIVA` a `VENCIDA` por sí solo — confiar solo en `estado` dejaría pasar a un socio vencido hasta la próxima corrida del cron.
+   - `MembresiasCron` (`m1-usuarios/crons/membresias.cron.ts`, `@nestjs/schedule`, `EVERY_DAY_AT_MIDNIGHT`) llama a `MembresiaRepository.marcarVencidas()` (nuevo método, `updateMany` de `ACTIVA` con `fecha_fin` pasada → `VENCIDA`). Registrado en `usuarios.module.ts` junto a `ScheduleModule.forRoot()`.
+   - `Ingreso.validado_offline` (boolean, default `false`) agregado a `schema.prisma` y `docs/db/fitzone.dbml` (RNF-01: auditoría online/offline). Migración `20260925000000_ingreso_validado_offline` generada; **pendiente de aplicar en Supabase** (`npx prisma migrate deploy`, ver nota abajo).
+
+2. **Puente M1 → M2: `MembershipValidationPort`**
+   - Puerto nuevo en `commons/membresia/membership-validation.port.ts` (`consultarVigencia(usuarioId) → { vigente }`), mismo patrón que `ProcesarPagoPort`/`MediadorService` (ADR-01). Adaptador real `MembresiaValidationAdapter` en `m1-usuarios/adapters/`, que resuelve `Socio` → `Membresia` → `estaVigente`.
+   - `SocioRepository` gana `buscarPorUsuarioId(usuarioId)` (interfaz + adaptador Prisma) para que el adaptador pueda ubicar al socio a partir del `usuario_id` que llega en `IngresoIn`.
+   - `UsuariosModule` provee y **exporta** `MEMBERSHIP_VALIDATION_PORT`; `GimnasioModule` importa `UsuariosModule` solo para ver ese token — el código de M2 nunca importa `SOCIO_REPOSITORY` ni `MEMBRESIA_REPOSITORY` de M1 directamente (aislamiento entre módulos, ADR-07).
+
+3. **Bloque 1/2/3 — Sede, Ingresos, Egreso y Aforo**
+   - Estructura idéntica a `m1-usuarios` (entity → repository interfaz+token → adaptador Prisma → service → controller Swagger): `GET/POST /sedes`, `GET /sedes/{sedeId}/aforo`, `POST /ingresos`, `POST /ingresos/{ingresoId}/egreso`.
+   - Aforo sigue siendo `COUNT` derivado (sin columna contador). `PrismaIngresoRepository.crear` hace `SELECT aforo_maximo FROM "Sede" ... FOR UPDATE` + `count` + `insert` dentro de un mismo `$transaction` (lock pesimista de fila, evita inventar un contador con versión u optimistic locking).
+   - Errores de negocio (`membresia-inactiva` 403, `acceso-duplicado`/`aforo-lleno` 409, `egreso-duplicado` 409) lanzados con `ProblemException` directo (no dependen de mapear constraints de Prisma en `ProblemFilter`, porque no son violaciones de esquema sino reglas de dominio).
+
+4. **Bloque 4 — QA e integración**
+   - `npx tsc --noEmit` y `npm run build` en verde.
+   - `test/m2.e2e-spec.ts` (mismo patrón Vitest+supertest que `m1.e2e-spec.ts`): alta de sede, flujo ingreso→aforo→egreso, RN-01 (409 acceso-duplicado), egreso duplicado (409), aforo lleno con `aforo_maximo:1` (409), membresía vencida (403), sede/ingreso inexistente (404). No corrido en este entorno por falta de Docker levantado; pendiente correrlo con `docker compose -f docker-compose.test.yml up -d && npm run test:e2e`.
+   - `@nestjs/schedule` agregado a `package.json` (`^12.0.2`, la única serie compatible con la versión de Nest 12.x ya instalada en el repo).
+
+#### Decisiones
+
+1. **CRUD de Sede sí entra en M2:** `Plan_de_Trabajo_M2_FitZone.md` (Bloque 1) y `TFI FitZone - OpenAPI.yaml` (tag `sedes`, paths `GET/POST /sedes`) lo definen como parte del módulo, así que se implementó como CRUD completo (alta + listado).
+2. **Migración de `validado_offline` no aplicada todavía:** se generó el SQL pero no se ejecutó contra la Supabase compartida del equipo — requiere que alguien con acceso la corra a propósito (`npx prisma migrate deploy` desde `backend/`).
+3. **Contrato OpenAPI (vault de Obsidian) pendiente de sincronizar:** falta agregar `validado_offline` a `IngresoIn`/`IngresoOut` en el YAML real. El código y `fitzone.dbml` ya lo reflejan.

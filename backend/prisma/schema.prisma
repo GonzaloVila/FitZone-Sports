@@ -232,12 +232,15 @@ model PagoMembresia {
 }
 
 // Turno de acceso (RF-04/RF-05): aforo actual = ingresos sin fecha_hora_egreso (RN-01).
+// validado_offline (RNF-01, ADR-08 D3): true cuando el puesto de control lo
+// registró sin conexión y lo sincronizó después con la hora real del acceso.
 model Ingreso {
   id                 Int   @id @default(autoincrement())
   sede_id            Int
   usuario_id         Int
   fecha_hora_ingreso DateTime
   fecha_hora_egreso  DateTime?
+  validado_offline   Boolean   @default(false)
   sede               Sede     @relation(fields: [sede_id], references: [id])
   usuario            Usuario  @relation(fields: [usuario_id], references: [id])
 }

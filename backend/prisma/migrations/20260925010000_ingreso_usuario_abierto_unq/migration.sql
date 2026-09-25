@@ -1,0 +1,37 @@
+-- RN-01: un usuario no puede tener dos ingresos abiertos a la vez, ni en la
+-- misma sede ni en sedes distintas. El service ya rechaza el duplicado con un
+-- chequeo previo, pero ese chequeo corre FUERA de la transaccion de crear():
+-- dos accesos simultaneos (doble toque, reintento por timeout, o el lote de
+-- sincronizacion offline de RNF-01) podrian pasar los dos el chequeo antes de
+-- que ninguno haya insertado.
+--
+-- Este indice parcial pone la regla en la base, que es atomica por definicion:
+-- el segundo INSERT es rechazado por el motor sin importar el timing. Se
+-- reaplica al hacer el UPDATE del egreso, porque al dejar de estar abierto la
+-- fila sale del indice y el usuario vuelve a poder ingresar.
+--
+-- Nota: este indice va como SQL a mano porque el lenguaje de schema de Prisma
+-- no puede expresar un indice parcial. Prisma ya lo soporta, pero detras del
+-- preview feature `partialIndexes`, que todavia no existe en la version
+-- instalada (6.19.3). Se puede comprobar: `npx prisma validate` con
+-- previewFeatures = ["partialIndexes"] responde que el feature no es conocido y
+-- lista los disponibles, entre los que no figura. Ese preview feature aparece
+-- en Prisma 7.4+.
+--
+-- Cuando el equipo actualice Prisma, esto se puede declarar en schema.prisma y
+-- la migracion deja de ser necesaria para instalaciones nuevas:
+--   @@unique([usuario_id], where: raw("\"fecha_hora_egreso\" IS NULL"),
+--             map: "ingreso_usuario_abierto_unq")
+-- El `map` conserva el mismo nombre, para que no se cree un indice duplicado
+-- en la base que ya tiene este.
+--
+-- Sobre el drift: `prisma migrate diff` entre la base y schema.prisma devuelve
+-- una migracion vacia. Prisma no modela indices parciales, asi que no lo ve ni
+-- para marcarlo como diferencia. No hay drift, y la razon no es que "no le
+-- importe" sino que directamente no lo representa. Lo que si conviene evitar es
+-- `prisma migrate dev` contra la Supabase compartida: necesita crear una shadow
+-- database (el usuario del pooler normalmente no tiene permiso) y si la
+-- pudiera crear, propondria resetear la base.
+CREATE UNIQUE INDEX "ingreso_usuario_abierto_unq"
+  ON "Ingreso" ("usuario_id")
+  WHERE "fecha_hora_egreso" IS NULL;

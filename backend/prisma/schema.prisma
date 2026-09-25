@@ -234,6 +234,18 @@ model PagoMembresia {
 // Turno de acceso (RF-04/RF-05): aforo actual = ingresos sin fecha_hora_egreso (RN-01).
 // validado_offline (RNF-01, ADR-08 D3): true cuando el puesto de control lo
 // registró sin conexión y lo sincronizó después con la hora real del acceso.
+//
+// Ojo: la migración 20260925010000_ingreso_usuario_abierto_unq crea además el
+// índice parcial único ingreso_usuario_abierto_unq sobre (usuario_id) WHERE
+// fecha_hora_egreso IS NULL. Ahí es donde RN-01 queda atómica frente a accesos
+// simultáneos, y es lo que el service traduce de P2002 a 409 acceso-duplicado.
+// No se declara en este archivo porque Prisma 6.19.3 no modela índices
+// parciales: requiere el preview feature `partialIndexes`, que todavía no
+// existe en esta versión (aparece en Prisma 7.4+). Si algún día se actualiza,
+// se puede escribir acá como
+//   @@unique([usuario_id], where: raw("\"fecha_hora_egreso\" IS NULL"),
+//             map: "ingreso_usuario_abierto_unq")
+// manteniendo el map para no duplicar el índice en bases ya migradas.
 model Ingreso {
   id                 Int   @id @default(autoincrement())
   sede_id            Int

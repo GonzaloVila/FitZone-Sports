@@ -11,39 +11,51 @@ export class PrismaIngresoRepository implements IngresoRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async crear(ingreso: IngresoNuevo): Promise<ResultadoCrearIngreso> {
-    return this.prisma.$transaction(async (tx) => {
-      // Lock pesimista de la fila Sede (ADR-08 D5): serializa los ingresos
-      // concurrentes de la misma sede sin agregar una columna contador ni un
-      // retry-loop optimista. El aforo sigue siendo un COUNT derivado.
-      const filasSede = await tx.$queryRaw<{ aforo_maximo: number }[]>`
-        SELECT "aforo_maximo" FROM "Sede" WHERE "id" = ${ingreso.sede_id} FOR UPDATE
-      `;
-      const sede = filasSede[0];
-      if (!sede) {
-        throw new Error(
-          `Sede ${ingreso.sede_id} no existe (debe validarse antes de llamar a crear()).`,
-        );
-      }
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // Lock pesimista de la fila Sede (ADR-08 D5): serializa los ingresos
+        // concurrentes de la misma sede sin agregar una columna contador ni un
+        // retry-loop optimista. El aforo sigue siendo un COUNT derivado.
+        const filasSede = await tx.$queryRaw<{ aforo_maximo: number }[]>`
+          SELECT "aforo_maximo" FROM "Sede" WHERE "id" = ${ingreso.sede_id} FOR UPDATE
+        `;
+        const sede = filasSede[0];
+        if (!sede) {
+          throw new Error(
+            `Sede ${ingreso.sede_id} no existe (debe validarse antes de llamar a crear()).`,
+          );
+        }
 
-      const aforoActual = await tx.ingreso.count({
-        where: { sede_id: ingreso.sede_id, fecha_hora_egreso: null },
+        const aforoActual = await tx.ingreso.count({
+          where: { sede_id: ingreso.sede_id, fecha_hora_egreso: null },
+        });
+
+        if (aforoActual >= sede.aforo_maximo) {
+          return { ok: false as const, motivo: 'AFORO_LLENO' as const };
+        }
+
+        const fila = await tx.ingreso.create({
+          data: {
+            sede_id: ingreso.sede_id,
+            usuario_id: ingreso.usuario_id,
+            fecha_hora_ingreso: ingreso.fecha_hora_ingreso ?? new Date(),
+            validado_offline: ingreso.validado_offline ?? false,
+          },
+        });
+
+        return { ok: true as const, ingreso: this.aDominio(fila) };
       });
-
-      if (aforoActual >= sede.aforo_maximo) {
-        return { ok: false as const, motivo: 'AFORO_LLENO' as const };
+    } catch (error) {
+      // RN-01: el índice parcial único ingreso_usuario_abierto_unq rechaza el
+      // segundo ingreso abierto del mismo usuario. Cuando el service no lo ve a
+      // tiempo (dos accesos simultáneos, o el lote de sincronización offline
+      // de RNF-01), el motor es el que decide y el P2002 se traduce a la misma
+      // respuesta de negocio en vez de exploitar como 500.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return { ok: false as const, motivo: 'ACCESO_DUPLICADO' as const };
       }
-
-      const fila = await tx.ingreso.create({
-        data: {
-          sede_id: ingreso.sede_id,
-          usuario_id: ingreso.usuario_id,
-          fecha_hora_ingreso: ingreso.fecha_hora_ingreso ?? new Date(),
-          validado_offline: ingreso.validado_offline ?? false,
-        },
-      });
-
-      return { ok: true as const, ingreso: this.aDominio(fila) };
-    });
+      throw error;
+    }
   }
 
   async buscarPorId(id: number): Promise<Ingreso | null> {

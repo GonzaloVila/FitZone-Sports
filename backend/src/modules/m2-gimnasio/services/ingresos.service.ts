@@ -43,14 +43,14 @@ export class IngresosService {
       });
     }
 
+    // Atajo para el caso común: evita llegar al INSERT cuando ya sabemos que
+    // el usuario está dentro. Corre fuera de la transacción, así que no es la
+    // garantía de RN-01: dos accesos simultáneos pueden pasar los dos este
+    // chequeo. Quien cierra eso es el índice parcial único, que rechaza el
+    // segundo INSERT y vuelve por crear() como ACCESO_DUPLICADO.
     const ingresoActivo = await this.ingresos.buscarActivoPorUsuario(dto.usuario_id);
     if (ingresoActivo) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/acceso-duplicado',
-        title: 'Acceso duplicado',
-        status: HttpStatus.CONFLICT,
-        detail: `El usuario ${dto.usuario_id} ya tiene un ingreso sin egreso registrado (RN-01).`,
-      });
+      throw this.accesoDuplicado(dto.usuario_id);
     }
 
     const resultado = await this.ingresos.crear({
@@ -61,6 +61,12 @@ export class IngresosService {
     });
 
     if (!resultado.ok) {
+      // El motivo importa: los dos casos son 409 pero con problemas distintos.
+      // Si llegamos aquí con ACCESO_DUPLICADO, es que el índice único atajó un
+      // acceso duplicado que el chequeo previo no llegó a ver.
+      if (resultado.motivo === 'ACCESO_DUPLICADO') {
+        throw this.accesoDuplicado(dto.usuario_id);
+      }
       throw new ProblemException({
         type: 'https://fitzone.app/errores/aforo-lleno',
         title: 'Aforo de la sede completo',
@@ -106,5 +112,17 @@ export class IngresosService {
 
   private aOut(ingreso: Ingreso): IngresoOutDto {
     return plainToInstance(IngresoOutDto, ingreso);
+  }
+
+  // 409 acceso-duplicado (RN-01), compartido entre el atajo previo y el que
+  // devuelve el índice único, para que los dos caminos emitan exactamente la
+  // misma problem+json.
+  private accesoDuplicado(usuarioId: number): ProblemException {
+    return new ProblemException({
+      type: 'https://fitzone.app/errores/acceso-duplicado',
+      title: 'Acceso duplicado',
+      status: HttpStatus.CONFLICT,
+      detail: `El usuario ${usuarioId} ya tiene un ingreso sin egreso registrado (RN-01).`,
+    });
   }
 }

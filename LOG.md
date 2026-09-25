@@ -311,9 +311,6 @@ Auditoría de M2 contra el plan de trabajo, el OpenAPI del vault y la arquitectu
 3. **Import entre módulos de dominio: eliminado**, según la actividad 3.
 
 #### Pendientes que siguen abiertos
-
-1. **`test/m2.e2e-spec.ts` sin ejecutar**: la máquina no tiene Docker. Queda `docker compose -f docker-compose.test.yml up -d && npm run test:e2e`.
-2. **`docs/TESTING.md`**: los specs e2E lo referencian y el archivo todavía no existe en el repo.
-3. **Prueba funcional del índice de RN-01** contra la base real: requiere escribir datos de prueba en la Supabase compartida, así que no se hizo sin autorización explícita.
-4. **QR/TOTP**: sigue diferido a Unidad III, pendiente de definir con la cátedra el mecanismo del QR dinámico y dónde persistir su secreto.
-5. **Nombres de schema del contrato**: el YAML define `IngresoIn`/`IngresoOut` y Nest genera `IngresoInDto`/`IngresoOutDto`. Diferencia cosmética, se difiere.
+1. **Prueba funcional del índice de RN-01** contra la base real: requiere escribir datos de prueba en la Supabase compartida, así que no se hizo sin autorización explícita.
+2. **QR/TOTP**: sigue diferido a Unidad III, pendiente de definir con la cátedra el mecanismo del QR dinámico y dónde persistir su secreto.
+3. **Nombres de schema del contrato**: el YAML define `IngresoIn`/`IngresoOut` y Nest genera `IngresoInDto`/`IngresoOutDto`. Diferencia cosmética, se difiere.

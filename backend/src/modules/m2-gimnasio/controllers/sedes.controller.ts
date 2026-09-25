@@ -19,7 +19,7 @@ import { SedeOutDto } from '../dtos/sede-out.dto';
 import { IngresosService } from '../services/ingresos.service';
 import { SedesService } from '../services/sedes.service';
 
-@ApiTags('M2 Sedes')
+@ApiTags('sedes')
 @ApiExtraModels(ProblemDetailsDto)
 @Controller('sedes')
 export class SedesController {

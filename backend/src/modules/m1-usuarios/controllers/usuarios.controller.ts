@@ -28,7 +28,7 @@ import { ModificarUsuarioDto } from '../dtos/modificar-usuario.dto';
 import { UsuarioOutDto } from '../dtos/usuario-out.dto';
 import { UsuariosService } from '../services/usuarios.service';
 
-@ApiTags('M1 Usuarios')
+@ApiTags('usuarios')
 @ApiExtraModels(ProblemDetailsDto)
 @Controller('usuarios')
 export class UsuariosController {

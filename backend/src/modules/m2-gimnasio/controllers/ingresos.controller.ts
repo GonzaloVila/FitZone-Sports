@@ -18,7 +18,7 @@ import { IngresoInDto } from '../dtos/ingreso-in.dto';
 import { IngresoOutDto } from '../dtos/ingreso-out.dto';
 import { IngresosService } from '../services/ingresos.service';
 
-@ApiTags('M2 Ingresos')
+@ApiTags('ingresos')
 @ApiExtraModels(ProblemDetailsDto)
 @Controller('ingresos')
 export class IngresosController {

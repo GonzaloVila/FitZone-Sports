@@ -32,7 +32,7 @@ import { ModificarSocioDto } from '../dtos/modificar-socio.dto';
 import { SocioOutDto } from '../dtos/socio-out.dto';
 import { SociosService } from '../services/socios.service';
 
-@ApiTags('M1 Socios')
+@ApiTags('socios')
 @ApiExtraModels(ProblemDetailsDto)
 @Controller('socios')
 export class SociosController {

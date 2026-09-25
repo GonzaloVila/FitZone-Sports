@@ -28,7 +28,7 @@ import { MembresiaOutDto } from '../dtos/membresia-out.dto';
 import { MembresiaPatchDto } from '../dtos/membresia-patch.dto';
 import { MembresiasService } from '../services/membresias.service';
 
-@ApiTags('M1 Membresías')
+@ApiTags('membresias')
 @ApiExtraModels(ProblemDetailsDto)
 @Controller('socios/:socioId/membresias')
 export class MembresiasController {

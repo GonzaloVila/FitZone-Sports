@@ -25,11 +25,11 @@ async function bootstrap() {
     .setTitle('FitZone Sports API')
     .setDescription('Backend de FitZone Sports — Unidad II · SCRUM-11')
     .setVersion('1.0')
-    .addTag('M1 Usuarios')
-    .addTag('M1 Socios')
-    .addTag('M1 Membresías')
-    .addTag('M2 Sedes')
-    .addTag('M2 Ingresos')
+    .addTag('usuarios')
+    .addTag('socios')
+    .addTag('membresias')
+    .addTag('sedes')
+    .addTag('ingresos')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument);

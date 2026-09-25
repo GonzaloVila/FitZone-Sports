@@ -153,12 +153,22 @@ model Clase {
   espera         EsperaClase[]
 }
 
-// RN-02 (dos reservas a la vez): el constraint UNIQUE PARCIAL vive en la BD, no en un if.
-// Prisma no expresa partial unique en schema => se agrega como raw migration:
+// RN-02 / RF-10 (dos reservas solapadas a la vez): el unique parcial original
+// (cancha_id, fecha_hora_inicio) solo detectaba colisión exacta de inicio y
+// dejaba pasar el solapamiento (18:00-19:30 / 18:30-19:30). Se reemplazó por
+// una constraint de EXCLUSION que vive en la BD, no en un if:
 //
-//   CREATE UNIQUE INDEX unq_reserva_turno
-//     ON "Reserva"("cancha_id", "fecha_hora_inicio")
-//     WHERE "estado" != 'CANCELADA';
+//   CREATE EXTENSION IF NOT EXISTS btree_gist;
+//   ALTER TABLE "Reserva" ADD CONSTRAINT exq_reserva_turno
+//     EXCLUDE USING gist (
+//       "cancha_id" WITH =,
+//       tsrange("fecha_hora_inicio", "fecha_hora_fin") WITH &&
+//     )
+//     WHERE ("estado" <> 'CANCELADA');
+//
+// tsrange y NO tstzrange: las columnas son TIMESTAMP(3) sin zona, y con
+// tstzrange PostgreSQL castearía usando el TimeZone de cada sesión. Prisma no
+// modela EXCLUDE ni índices parciales => va como raw migration.
 //
 // El @@index de abajo cubre las búsquedas de disponibilidad (RNF-03).
 model Reserva {

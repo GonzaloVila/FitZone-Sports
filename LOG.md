@@ -312,3 +312,21 @@ Auditoría de M2 contra el plan de trabajo, el OpenAPI del vault y la arquitectu
 1. **Prueba funcional del índice de RN-01** contra la base real: requiere escribir datos de prueba en la Supabase compartida, así que no se hizo sin autorización explícita.
 2. **QR/TOTP**: sigue diferido a Unidad III, pendiente de definir con la cátedra el mecanismo del QR dinámico y dónde persistir su secreto.
 3. **Nombres de schema del contrato**: el YAML define `IngresoIn`/`IngresoOut` y Nest genera `IngresoInDto`/`IngresoOutDto`. Diferencia cosmética, se difiere.
+
+---
+
+## Unidad II — Módulo 4: Canchas Deportivas (RF-09/RF-12) · Santino
+
+### Semana 6 · SCRUM-11c — Bloque 0: coordinación con M1/M2 y migración de concurrencia
+
+#### Actividades
+
+1. **Puerto de sede (`SEDE_VALIDATION_PORT`)**
+   - Puerto nuevo en `commons/sede/sede-validation.port.ts` (`existeSede(sedeId) → boolean`), mismo patrón que `MembershipValidationPort`/`MediadorService` (ADR-01). Adaptador real `SedeValidationAdapter` en `m2-gimnasio/adapters/`, resuelve contra `SEDE_REPOSITORY`.
+   - `GimnasioModule` pasa a `@Global()` y **exporta únicamente** `SEDE_VALIDATION_PORT` — `SEDE_REPOSITORY`, `INGRESO_REPOSITORY` y los services de M2 siguen privados (aislamiento entre módulos, ADR-07). M4 va a consumir el puerto sin importar `GimnasioModule` completo.
+
+2. **Migración: constraint de exclusión reemplaza al unique parcial (RN-02/RF-10)**
+   - `unq_reserva_turno` (unique parcial sobre `cancha_id, fecha_hora_inicio`) solo detectaba colisión exacta de inicio y dejaba pasar solapamientos (ej. 18:00–19:30 con 18:30–19:30). Reemplazado por `exq_reserva_turno`: `EXCLUDE USING gist` sobre `(cancha_id WITH =, tsrange(fecha_hora_inicio, fecha_hora_fin) WITH &&) WHERE estado <> 'CANCELADA'`, requiere `CREATE EXTENSION btree_gist`.
+   - `tsrange` y no `tstzrange` a propósito: las columnas son `TIMESTAMP(3)` sin zona; con `tstzrange` Postgres castearía según el `TimeZone` de cada sesión y la constraint dependería de quién escribe.
+   - Migración a mano (`20260925020000_reserva_solapamiento_exclude`): Prisma no modela `EXCLUDE` ni índices parciales.
+   - **Hallazgo verificado empíricamente**: a diferencia de `P2002`/`P2003` (que Prisma tipa como

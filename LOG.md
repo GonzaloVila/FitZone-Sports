@@ -261,3 +261,59 @@ Sigue `Plan_de_Trabajo_M2_FitZone.md` (5 bloques). Se deja explícitamente **fue
 1. **CRUD de Sede sí entra en M2:** `Plan_de_Trabajo_M2_FitZone.md` (Bloque 1) y `TFI FitZone - OpenAPI.yaml` (tag `sedes`, paths `GET/POST /sedes`) lo definen como parte del módulo, así que se implementó como CRUD completo (alta + listado).
 2. **Migración de `validado_offline` no aplicada todavía:** se generó el SQL pero no se ejecutó contra la Supabase compartida del equipo — requiere que alguien con acceso la corra a propósito (`npx prisma migrate deploy` desde `backend/`).
 3. **Contrato OpenAPI (vault de Obsidian) pendiente de sincronizar:** falta agregar `validado_offline` a `IngresoIn`/`IngresoOut` en el YAML real. El código y `fitzone.dbml` ya lo reflejan.
+
+---
+
+### Semana 5 · SCRUM-11c - cierre de M2: auditoría de contrato, RN-01 atómico y aislamiento de módulos
+
+Auditoría de M2 contra el plan de trabajo, el OpenAPI del vault y la arquitectura ya documentada. Salieron cinco correcciones de código, todas verificadas con `tsc --noEmit`, `npm run build` y pruebas reales de resolución de DI.
+
+#### Actividades
+
+1. **RN-01 pasa a ser atómica en la base, no solo en el service**
+   - El chequeo previo de acceso duplicado corre **fuera** de la transacción de `crear()`, así que dos accesos simultáneos (doble toque, reintento por timeout, o el lote de sincronización offline de RNF-01) podían pasar los dos antes de que ninguno hubiera insertado.
+   - Migración `20260925010000_ingreso_usuario_abierto_unq`: índice único parcial sobre `(usuario_id) WHERE fecha_hora_egreso IS NULL`. Al hacer el `UPDATE` del egreso la fila sale del índice y el usuario vuelve a poder ingresar.
+   - Va como SQL a mano porque Prisma 6.19.3 no modela índices parciales: requiere el preview feature `partialIndexes`, que no existe en esta versión.
+   - `ResultadoCrearIngreso` suma el motivo `ACCESO_DUPLICADO`; `PrismaIngresoRepository.crear()` traduce `P2002` a ese motivo en vez de dejarlo explotar como 500; `IngresosService` comparte la misma `problem+json` entre el atajo previo y el camino que vuelve del índice, para que los dos emitan respuesta idéntica.
+   - **Aplicada en la Supabase compartida**: `prisma migrate status` al día y `migrate diff` sin drift.
+   - [commit f76b396](https://github.com/GonzaloVila/FitZone-Sports/commit/f76b396)
+
+2. **Tags de Swagger alineados con el contrato**
+   - Los controladores declaraban los tags en PascalCase (`Usuarios`, `Socios`, `Membresias`, `Sedes`, `Ingresos`) mientras el YAML del vault los define en minúscula. El contrato manda sobre el código.
+   - Verificado: las 14 operaciones quedan agrupadas en sus 5 tags y ninguna queda sin tag.
+   - [commit 347650d](https://github.com/GonzaloVila/FitZone-Sports/commit/347650d)
+
+3. **Aislamiento real entre módulos de dominio (arquitectura, no estilo)**
+   - `GimnasioModule` importaba `UsuariosModule` solo para ver `MEMBERSHIP_VALIDATION_PORT`. Eso viola la regla de que los módulos de dominio no se importen entre sí (`Diagramas C4.md:228`, ADR-07), y el patrón no iba a poder repetirse en M5, donde `ModuloPagos` tiene que publicarse sin que M1 ni M4 lo importen (`Unidad II - Backend.md:134`).
+   - `UsuariosModule` pasa a `@Global()` y su array `exports` queda como filtro: sale únicamente `MEMBERSHIP_VALIDATION_PORT`. Los repositorios y services de M1 siguen privados, comprobado con un módulo ajeno que intenta inyectarlos y falla el DI en los tres casos.
+   - Comportamiento observable sin cambios: `IngresosService` sigue recibiendo `MembresiaValidationAdapter` en su `@Optional()`.
+   - La regla quedó documentada en el plan M2 (decisión 4 y dependencia del Bloque 0) y replicada en el plan M3, que ahora referencia la interfaz real `MembershipValidationPort` en lugar del nombre tentativo `ConsultaMembresiaPort`.
+   - [commit 425991f](https://github.com/GonzaloVila/FitZone-Sports/commit/425991f)
+
+4. **`fecha_hora_egreso` tipada como `string/date-time`**
+   - `@ApiPropertyOptional` sobre `Date | null` no es inferible por Nest, así que publicaba `type: object`, que no valida un date-time y contradecía el contrato del vault. Se declaran `type` y `format` explícitos. Es el único `Date | null` del proyecto.
+   - [commit 1e73eca](https://github.com/GonzaloVila/FitZone-Sports/commit/1e73eca)
+
+5. **`package-lock.json` desincronizado (rompía `npm ci`)**
+   - Faltaban las 27 entradas de binarios opcionales por plataforma de vite 8 (`rolldown` 1.2.9, `lightningcss` 1.33.0, `fsevents` 2.3.3), todas dev-only. `npm ci` fallaba con EUSAGE y 27 errores `Missing ... from lock file`: clonar el repo e instalar era imposible.
+   - Sin cambios de versión en dependencias existentes. `npm ci --dry-run` queda en exit 0.
+   - [commit f3b8faf](https://github.com/GonzaloVila/FitZone-Sports/commit/f3b8faf)
+
+6. **Sincronización con el vault (fuera de este repositorio)**
+   - `TFI FitZone - OpenAPI.yaml`: `validado_offline` agregado a `IngresoIn` (opcional) y a `IngresoOut` (`required`, `properties` y `example`). En `IngresoIn` no era cosmético: declara `additionalProperties: false`, así que un request que mandara el campo era rechazado por cualquier validador estricto mientras el DTO lo aceptaba.
+   - `Plan_de_Trabajo_M2` (MD y DOCX) y `Plan_de_Trabajo_M3` (MD y DOCX) regenerados con la decisión 4 reescrita.
+   - Estos archivos viven en el vault de Obsidian y en `Downloads`, así que no tienen commit acá.
+
+#### Pendientes de la entrada anterior, resueltos en esta
+
+1. **Migración de `validado_offline`: aplicada** en la Supabase compartida, junto con la nueva del índice de RN-01. Base al día y sin drift.
+2. **Contrato OpenAPI: sincronizado.** `validado_offline` ya está en `IngresoIn` e `IngresoOut` del YAML real.
+3. **Import entre módulos de dominio: eliminado**, según la actividad 3.
+
+#### Pendientes que siguen abiertos
+
+1. **`test/m2.e2e-spec.ts` sin ejecutar**: la máquina no tiene Docker. Queda `docker compose -f docker-compose.test.yml up -d && npm run test:e2e`.
+2. **`docs/TESTING.md`**: los specs e2E lo referencian y el archivo todavía no existe en el repo.
+3. **Prueba funcional del índice de RN-01** contra la base real: requiere escribir datos de prueba en la Supabase compartida, así que no se hizo sin autorización explícita.
+4. **QR/TOTP**: sigue diferido a Unidad III, pendiente de definir con la cátedra el mecanismo del QR dinámico y dónde persistir su secreto.
+5. **Nombres de schema del contrato**: el YAML define `IngresoIn`/`IngresoOut` y Nest genera `IngresoInDto`/`IngresoOutDto`. Diferencia cosmética, se difiere.

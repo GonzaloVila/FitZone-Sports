@@ -21,6 +21,10 @@ export class IngresoOutDto {
 
   @Expose()
   @ApiPropertyOptional({
+    // Sin type/format explicitos Nest no infiere nada de `Date | null` y publica
+    // type: object, que no valida un date-time. El contrato lo declara string/date-time.
+    type: String,
+    format: 'date-time',
     example: null,
     nullable: true,
     description: 'Null mientras el usuario permanezca dentro de la sede (define el aforo, RN-01).',

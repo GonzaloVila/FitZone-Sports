@@ -5,6 +5,7 @@ import { CommonsModule } from './commons/commons.module';
 import { DatabaseModule } from './commons/database/database.module';
 import { UsuariosModule } from './modules/m1-usuarios/usuarios.module';
 import { GimnasioModule } from './modules/m2-gimnasio/gimnasio.module';
+import { CanchasModule } from './modules/m4-canchas/canchas.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { GimnasioModule } from './modules/m2-gimnasio/gimnasio.module';
     CommonsModule,
     UsuariosModule,
     GimnasioModule,
+    CanchasModule,
   ],
 })
 export class AppModule {}

@@ -30,6 +30,7 @@ async function bootstrap() {
     .addTag('membresias')
     .addTag('sedes')
     .addTag('ingresos')
+    .addTag('canchas')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument);

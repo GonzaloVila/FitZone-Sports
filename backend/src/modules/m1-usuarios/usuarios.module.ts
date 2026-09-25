@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CommonsModule } from '../../commons/commons.module';
 import { MEMBERSHIP_VALIDATION_PORT } from '../../commons/membresia/membership-validation.port';
@@ -17,6 +17,9 @@ import { MembresiasService } from './services/membresias.service';
 import { SociosService } from './services/socios.service';
 import { UsuariosService } from './services/usuarios.service';
 
+// @Global + exports acotado: publica el contrato de M1 hacia el resto de la app
+// sin que ningun modulo de dominio tenga que importarlo (C4, ADR-07).
+@Global()
 @Module({
   imports: [CommonsModule, ScheduleModule.forRoot()],
   controllers: [UsuariosController, SociosController, MembresiasController],
@@ -30,8 +33,10 @@ import { UsuariosService } from './services/usuarios.service';
     MembresiasService,
     MembresiasCron,
   ],
-  // Exporta el puerto para que GimnasioModule (M2) lo inyecte sin tocar los
-  // repositorios internos de M1 (ADR-07): importa UsuariosModule solo por esto.
+  // El array exports es el filtro de @Global(): de todo M1 sale unicamente
+  // MEMBERSHIP_VALIDATION_PORT. USUARIO_REPOSITORY, SOCIO_REPOSITORY,
+  // MEMBRESIA_REPOSITORY y los services siguen privados para el resto de la app.
+  // M5 aplicara la misma regla con PROCESAR_PAGO_PORT en ModuloPagos.
   exports: [MEMBERSHIP_VALIDATION_PORT],
 })
 export class UsuariosModule {}

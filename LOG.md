@@ -336,3 +336,34 @@ Auditoría de M2 contra el plan de trabajo, el OpenAPI del vault y la arquitectu
    - `core.autocrlf=true` local convirtió LF→CRLF en una migración ya aplicada, lo que casi dispara un reset completo de la Supabase compartida al correr `prisma migrate dev`. Se evitó a tiempo; se aplicó con `prisma migrate deploy` en su lugar. Se agrega `.gitattributes` (`*.sql text eol=lf`) para que no le pase a nadie más.
 
    - [commit ad306b9](https://github.com/GonzaloVila/FitZone-Sports/commit/ad306b9)
+
+---
+
+## Unidad II — Módulo 4: Canchas Deportivas (RF-09/RF-12) · Santino
+
+### Semana 6 · SCRUM-11c — Bloque 1: Canchas (RF-09/RNF-04)
+
+#### Actividades
+
+1. **CRUD de canchas — Santino**
+   - `CanchaRepository` con Prisma (`repositories/prisma/prisma-cancha.repository.ts`), DI por token string (`CANCHA_REPOSITORY`), y `CanchasService`/`CanchasController` inyectando `SEDE_VALIDATION_PORT` del Bloque 0 para validar la sede antes de crear una cancha.
+   - Endpoints: `GET /sedes/{sedeId}/canchas` (filtro `estado` opcional, **incluye** las no operativas, RF-12) · `POST /sedes/{sedeId}/canchas` (201 + `Location`, 404 si la sede no existe) · `GET /canchas/{id}` · `PATCH /canchas/{id}` (costo y/o estado; pasar a `EN_MANTENIMIENTO` no toca ninguna `Reserva`).
+   - `costo_por_hora` es `Decimal` en Prisma: mapeado a `number` con `.toNumber()` en el adaptador.
+   - Verificado manualmente contra `/api/v1` real (no solo Swagger): filtro por estado, paginado, 404/422 con `problem+json`, y el caso RF-12 (`GET` sin filtro devuelve la cancha en mantenimiento, no la esconde).
+   - `npx tsc --noEmit` y `npm run build` en verde.
+   - [commit dd11243](https://github.com/GonzaloVila/FitZone-Sports/commit/dd11243)
+
+---
+
+### Semana 6 · SCRUM-11c — Bloque 2: Precio dinámico (RF-11)
+
+#### Actividades
+
+1. **Strategy de precio — Santino**
+   - Cadena fija de 3 estrategias (`pricing/`), compuesta por `PricingStrategyFactory.cotizar(ctx)`: `StandardPricing` (tarifa externo, sin cambios) → `MemberDiscountPricing` (−15% si `socioVigente`, RN-03: socio con cuota vencida paga precio de externo) → `PeakHourPricing` (+20% si el turno se solapa con `[19:00, 21:00)` hora local de sede, ventana medio-abierta). Descuento y recargo son acumulables, no excluyentes.
+   - Es lógica de dominio pura: `PricingContext` recibe los datos ya leídos (`costoBase`, `socioVigente`, `inicio`, `fin`); ningún archivo de `pricing/` toca Prisma ni consulta la base.
+   - Comparación de horario contra `TIMEZONE_SEDE` con `Intl.DateTimeFormat` (`hourCycle: 'h23'`), no contra el `TZ` del proceso — evita que el resultado dependa de en qué máquina/huso corre el server.
+   - Sin infraestructura de test unitario en el repo todavía (solo `vitest.e2e.config.ts`, que exige Docker): agregado `vitest.unit.config.ts` propio, sin Docker ni `.env.test`, y script `test:unit` en `package.json`.
+   - 5 casos de `pricing-strategy.factory.spec.ts` en verde: externo 5000→5000 · socio 5000→4250 (ejemplo del contrato) · socio en pico→5100 · externo en pico→6000 · socio a las 21:00 en punto→4250 (confirma el límite medio-abierto, sin recargo).
+   - **Nota:** el 20% de recargo por horario pico no sale del enunciado del caso — es una decisión del equipo, pendiente de confirmar con la cátedra.
+   - [commit 4d537b3](https://github.com/GonzaloVila/FitZone-Sports/commit/4d537b3)

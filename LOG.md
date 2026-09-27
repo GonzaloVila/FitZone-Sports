@@ -336,3 +336,24 @@ Auditoría de M2 contra el plan de trabajo, el OpenAPI del vault y la arquitectu
    - `core.autocrlf=true` local convirtió LF→CRLF en una migración ya aplicada, lo que casi dispara un reset completo de la Supabase compartida al correr `prisma migrate dev`. Se evitó a tiempo; se aplicó con `prisma migrate deploy` en su lugar. Se agrega `.gitattributes` (`*.sql text eol=lf`) para que no le pase a nadie más.
 
    - [commit ad306b9](https://github.com/GonzaloVila/FitZone-Sports/commit/ad306b9)
+
+---
+
+## Unidad II — Módulo 3: Clases Grupales (RF-06..RF-08) · Santiago Rayn + Gonzalo Vila (Pair Programming)
+
+### Semana 6 · SCRUM-11c — Implementación completa de M3 (agenda, reservas y lista de espera)
+
+**Fecha:** 26/09/2026 · **Rama:** `desarrollo-m3`
+
+#### Actividades
+
+1. **RF-06 — Gestión de agenda:** Endpoints `POST /clases`, `GET /clases` y `GET /clases/:id`. DTOs con `horario` ISO-8601 UTC, validación de sede vía `SEDE_VALIDATION_PORT` y cálculo dinámico de aforo disponible en `PrismaClaseRepository`.
+2. **RF-07 — Reservas y cancelación:** Transacción atómica en `PrismaReservaClaseRepository` con lock pesimista (`SELECT ... FOR UPDATE`) sobre la clase e índice parcial único `unq_reserva_clase_socio_activa`. Validaciones de regla de negocio en `ReservasClasesService`: ventana de reserva (48 hs antes), cancelación sin penalidad (2 hs antes) y control de mora vía extensión de `MembershipValidationPort` (403 `socio-en-mora`).
+3. **RF-08 — Lista de espera y Observer:** Patrón GoF (`CupoLiberadoSubject` y `NotificarSociosEsperaObserver`) disparado al cancelar una reserva. Enlistado solo en clases llenas, baja lógica a `CANCELADO` (enum `EstadoEspera` ampliado) y confirmación first-come atómica en `POST /esperas-clases/:id/confirmacion`.
+4. **Integración y QA:** `ClasesModule` registrado en `AppModule` con Swagger en `main.ts`, casos de uso documentados en `docs/UserCaseDiagrams/Modulo3_Clases_CasosDeUso.md` y suite e2e en `test/m3.e2e-spec.ts` (incluye prueba de estrés concurrente con `Promise.all`: 1 éxito, 9 rechazos 409). Build y tipado en verde (`npm run build`).
+
+#### Decisiones tomadas
+
+1. **Lock Pesimista sobre Optimistic Locking:** `SELECT ... FOR UPDATE` sobre la fila de `Clase` garantiza serialización sin sobreventa ni loops de reintento.
+2. **`horario` como ISO-8601 UTC string:** Estandarizado a `YYYY-MM-DDTHH:mm:ssZ` (20 caracteres) para mantener compatibilidad con la columna de base de datos.
+3. **Baja lógica en lista de espera:** Se agrega `CANCELADO` a `EstadoEspera` en Prisma para permitir salir de la espera preservando auditoría.

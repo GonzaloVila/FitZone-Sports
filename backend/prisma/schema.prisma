@@ -57,6 +57,7 @@ enum EstadoEspera {
   EN_ESPERA
   NOTIFICADO
   CONFIRMADO
+  CANCELADO
 }
 
 enum EstadoPago {

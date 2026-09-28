@@ -3,7 +3,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../commons/database/prisma.service';
 import { Socio, SocioActualizable, SocioNuevo } from '../../entities/socio.entity';
 import { calcularVigencia } from '../../entities/membresia.entity';
-import { SocioRepository } from '../socio.repository';
+import { SocioRepository, FiltrosSocios } from '../socio.repository';
+import type { OpcionesPaginacion } from '../../../../commons/paginacion';
 
 // SocioOut expone nombre/email, asi que toda lectura de Socio necesita la
 // relacion con Usuario. Se declara el payload a mano (no `typeof` de la const)
@@ -19,6 +20,40 @@ type SocioRow = Prisma.SocioGetPayload<{
 @Injectable()
 export class PrismaSocioRepository implements SocioRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listar(
+    { sede_origen_id, estado_membresia, plan, nombre }: FiltrosSocios,
+    { page, perPage }: OpcionesPaginacion,
+  ): Promise<Socio[]> {
+    const where: Prisma.SocioWhereInput = {
+      ...(sede_origen_id !== undefined && {
+        sede_origen_id: sede_origen_id,
+      }),
+      ...(nombre !== undefined && {
+        usuario: { nombre: { contains: nombre, mode: 'insensitive' } },
+      }),
+    };
+
+    // Los dos filtros de membresia se acumulan en el MISMO objeto para que
+    // Prisma los ANDee sobre la relacion. Ademas, como `membresia` es opcional
+    // en el schema, cualquier filtro de membresia excluye a los socios que no
+    // tienen ninguna: es la semantica correcta, no un olvido.
+    if (estado_membresia !== undefined || plan !== undefined) {
+      where.membresia = {
+        ...(estado_membresia !== undefined && { estado: estado_membresia }),
+        ...(plan !== undefined && { plan }),
+      };
+    }
+
+    const filas = await this.prisma.socio.findMany({
+      where,
+      skip: (page - 1) * perPage,
+      take: perPage,
+      orderBy: { id: 'asc' },
+      include: USUARIO_SELECCION,
+    });
+    return filas.map((fila) => this.aDominio(fila));
+  }
 
   async crear(socio: SocioNuevo): Promise<Socio> {
     const fila = await this.prisma.$transaction(async (tx) => {

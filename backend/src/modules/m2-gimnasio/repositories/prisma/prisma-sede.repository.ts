@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../commons/database/prisma.service';
 import { Sede, SedeNueva } from '../../entities/sede.entity';
-import { OpcionesPaginacion, SedeRepository } from '../sede.repository';
+import type { OpcionesPaginacion } from '../../../../commons/paginacion';
+import { SedeRepository } from '../sede.repository';
 
 type SedeRow = Prisma.SedeGetPayload<Record<string, never>>;
 

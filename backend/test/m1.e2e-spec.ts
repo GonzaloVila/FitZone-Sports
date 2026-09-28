@@ -145,6 +145,195 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .expect(404);
   });
 
+  it('GET /usuarios: listado plano, filtros y lista blanca', async () => {
+    const emailAna = emailUnico();
+    await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Ana Gómez',
+        email: emailAna,
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+
+    // Sin filtros devuelve un array plano, no un objeto paginado. No se puede
+    // afirmar length: la base puede traer datos de otros tests y el default de
+    // per_page es 20, asi que se busca al usuario dentro del array.
+    const todos = await request(app.getHttpServer()).get('/api/v1/usuarios').expect(200);
+    expect(Array.isArray(todos.body)).toBe(true);
+    const ana = todos.body.find((u) => u.email === emailAna);
+    expect(ana).toBeDefined();
+    expect(ana.contrasenia).toBeUndefined();
+
+    // nombre parcial sin distinguir mayusculas: 'ana' tiene que encontrar 'Ana Gómez'
+    const porNombre = await request(app.getHttpServer())
+      .get('/api/v1/usuarios')
+      .query({ nombre: 'ana' })
+      .expect(200);
+    expect(porNombre.body.map((u) => u.email)).toContain(emailAna);
+
+    // email exacto (es @unique, asi que el resultado es exactamente uno)
+    const porEmail = await request(app.getHttpServer())
+      .get('/api/v1/usuarios')
+      .query({ email: emailAna })
+      .expect(200);
+    expect(porEmail.body).toHaveLength(1);
+    expect(porEmail.body[0].email).toBe(emailAna);
+
+    // coincidencia negativa -> array vacio, no 404
+    const sinNada = await request(app.getHttpServer())
+      .get('/api/v1/usuarios')
+      .query({ nombre: 'zzz-no-existe-zzz' })
+      .expect(200);
+    expect(sinNada.body).toHaveLength(0);
+
+    // filtro por rol
+    const gerentes = await request(app.getHttpServer())
+      .get('/api/v1/usuarios')
+      .query({ rol: 'GERENTE' })
+      .expect(200);
+    expect(gerentes.body.every((u) => u.rol === 'GERENTE')).toBe(true);
+
+    // paginacion. Ademas de acotar la pagina, prueba que el @Type(() => Number)
+    // convierte: si per_page quedara como string, @IsInt() responderia 422.
+    const primeraPagina = await request(app.getHttpServer())
+      .get('/api/v1/usuarios')
+      .query({ page: 1, per_page: 1 })
+      .expect(200);
+    expect(primeraPagina.body).toHaveLength(1);
+
+    // lista blanca: parametro fuera del contrato -> 422
+    await request(app.getHttpServer())
+      .get('/api/v1/usuarios')
+      .query({ parametroInvalido: 'x' })
+      .expect(422);
+
+    // rol fuera del enum -> 422
+    await request(app.getHttpServer())
+      .get('/api/v1/usuarios')
+      .query({ rol: 'INVENTADO' })
+      .expect(422);
+  });
+
+  it('GET /socios: listado, filtros sobre relaciones y lista blanca', async () => {
+    // Socio CON membresia ACTIVA/MENSUAL.
+    const emailCarlos = emailUnico();
+    const usuarioCarlos = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Carlos Gomez',
+        email: emailCarlos,
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+    const socioConMembresia = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioCarlos.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .expect(201);
+
+    // Socio SIN membresia (plan es opcional): sirve para probar que los filtros
+    // de membresia lo excluyen, ya que la relacion es opcional en el schema.
+    const emailZoe = emailUnico();
+    const usuarioZoe = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Zoe Diaz',
+        email: emailZoe,
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+    const socioSinMembresia = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioZoe.body.id, sede_origen_id: sedeId })
+      .expect(201);
+
+    const idCon = socioConMembresia.body.id;
+    const idSin = socioSinMembresia.body.id;
+
+    // Sin filtros: array plano, y trae nombre/email (contrato, Paso 1).
+    const todos = await request(app.getHttpServer()).get('/api/v1/socios').expect(200);
+    expect(Array.isArray(todos.body)).toBe(true);
+    const encontrado = todos.body.find((s) => s.id === idCon);
+    expect(encontrado).toBeDefined();
+    expect(encontrado.nombre).toBe('Carlos Gomez');
+    expect(encontrado.email).toBe(emailCarlos);
+
+    // Filtro por sede de origen (columna, no relacion)
+    const porSede = await request(app.getHttpServer())
+      .get('/api/v1/socios')
+      .query({ sede_origen_id: sedeId })
+      .expect(200);
+    expect(porSede.body.map((s) => s.id)).toContain(idCon);
+
+    const otraSede = await request(app.getHttpServer())
+      .get('/api/v1/socios')
+      .query({ sede_origen_id: sedeId + 9999 })
+      .expect(200);
+    expect(otraSede.body).toHaveLength(0);
+
+    // Los filtros de membresia cruzan la relacion 1:1
+    const porEstado = await request(app.getHttpServer())
+      .get('/api/v1/socios')
+      .query({ estado_membresia: 'ACTIVA' })
+      .expect(200);
+    expect(porEstado.body.map((s) => s.id)).toContain(idCon);
+
+    const porPlan = await request(app.getHttpServer())
+      .get('/api/v1/socios')
+      .query({ plan: 'MENSUAL' })
+      .expect(200);
+    expect(porPlan.body.map((s) => s.id)).toContain(idCon);
+
+    // estado + plan se ANDean sobre la MISMA relacion
+    const combinado = await request(app.getHttpServer())
+      .get('/api/v1/socios')
+      .query({ estado_membresia: 'ACTIVA', plan: 'MENSUAL' })
+      .expect(200);
+    expect(combinado.body.map((s) => s.id)).toContain(idCon);
+
+    // Contradiccion: la membresia es MENSUAL, no ANUAL
+    const porPlanAnual = await request(app.getHttpServer())
+      .get('/api/v1/socios')
+      .query({ plan: 'ANUAL' })
+      .expect(200);
+    expect(porPlanAnual.body.map((s) => s.id)).not.toContain(idCon);
+
+    // `membresia` es opcional: un filtro de membresia excluye al socio que no
+    // tiene ninguna. Es la semantica correcta, no un dato sin revisar.
+    expect(porPlan.body.map((s) => s.id)).not.toContain(idSin);
+    expect(porEstado.body.map((s) => s.id)).not.toContain(idSin);
+    // Sin filtro de membresia si tiene que aparecer.
+    expect(todos.body.map((s) => s.id)).toContain(idSin);
+
+    // nombre parcial sin distinguir mayusculas: 'carlos' -> 'Carlos Gomez'
+    const porNombre = await request(app.getHttpServer())
+      .get('/api/v1/socios')
+      .query({ nombre: 'carlos' })
+      .expect(200);
+    expect(porNombre.body.map((s) => s.id)).toContain(idCon);
+    expect(porNombre.body.map((s) => s.id)).not.toContain(idSin);
+
+    // lista blanca + enums invalidos -> 422
+    await request(app.getHttpServer())
+      .get('/api/v1/socios')
+      .query({ parametroInvalido: 'x' })
+      .expect(422);
+    await request(app.getHttpServer())
+      .get('/api/v1/socios')
+      .query({ plan: 'INVENTADO' })
+      .expect(422);
+    await request(app.getHttpServer())
+      .get('/api/v1/socios')
+      .query({ estado_membresia: 'INVENTADO' })
+      .expect(422);
+  });
+
   it('POST /socios responde 404 si usuario_id no existe', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/socios')

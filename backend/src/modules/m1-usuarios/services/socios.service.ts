@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { CrearSocioDto } from '../dtos/crear-socio.dto';
+import { ListarSociosQueryDto } from '../dtos/listar-socios-query.dto';
 import { ModificarSocioDto } from '../dtos/modificar-socio.dto';
 import { SocioOutDto } from '../dtos/socio-out.dto';
 import { Socio, SocioActualizable } from '../entities/socio.entity';
@@ -35,6 +36,19 @@ export class SociosService {
     });
 
     return this.aOut(socio);
+  }
+
+  async listar(dto: ListarSociosQueryDto): Promise<SocioOutDto[]> {
+    const socios = await this.socios.listar(
+      {
+        sede_origen_id: dto.sede_origen_id,
+        estado_membresia: dto.estado_membresia,
+        plan: dto.plan,
+        nombre: dto.nombre,
+      },
+      { page: dto.page ?? 1, perPage: dto.per_page ?? 20 },
+    );
+    return socios.map((socio) => this.aOut(socio));
   }
 
   async obtenerPorId(id: number): Promise<SocioOutDto> {

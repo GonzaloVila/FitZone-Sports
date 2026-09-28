@@ -7,6 +7,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
 import { CrearUsuarioDto } from '../dtos/crear-usuario.dto';
+import { ListarUsuariosQueryDto } from '../dtos/listar-usuarios-query.dto';
 import { ModificarUsuarioDto } from '../dtos/modificar-usuario.dto';
 import { UsuarioOutDto } from '../dtos/usuario-out.dto';
 import { Usuario, UsuarioActualizable } from '../entities/usuario.entity';
@@ -41,6 +42,16 @@ export class UsuariosService {
     });
 
     return this.aOut(usuario);
+  }
+
+  async listar(dto: ListarUsuariosQueryDto): Promise<UsuarioOutDto[]> {
+    const usuarios = await this.usuarios.listar(
+      { rol: dto.rol, nombre: dto.nombre, email: dto.email },
+      // Los defaults del DTO ya cubren el caso sin query params; estos `??`
+      // son la red de seguridad para cuando el service se llame sin el pipe.
+      { page: dto.page ?? 1, perPage: dto.per_page ?? 20 },
+    );
+    return usuarios.map((usuario) => this.aOut(usuario));
   }
 
   async obtenerPorId(id: number): Promise<UsuarioOutDto> {

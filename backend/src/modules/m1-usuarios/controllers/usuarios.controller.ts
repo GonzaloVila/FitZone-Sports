@@ -6,6 +6,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Res,
 } from '@nestjs/common';
 import {
@@ -24,6 +25,7 @@ import type { Response } from 'express';
 import { ProblemDetailsDto } from '../../../commons/swagger/problem-details.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { CrearUsuarioDto } from '../dtos/crear-usuario.dto';
+import { ListarUsuariosQueryDto } from '../dtos/listar-usuarios-query.dto';
 import { ModificarUsuarioDto } from '../dtos/modificar-usuario.dto';
 import { UsuarioOutDto } from '../dtos/usuario-out.dto';
 import { UsuariosService } from '../services/usuarios.service';
@@ -59,6 +61,16 @@ export class UsuariosController {
     const usuario = await this.usuariosService.crear(dto);
     res.setHeader('Location', `/api/v1/usuarios/${usuario.id}`);
     return usuario;
+  }
+
+  // Declarado antes que @Get(':id'): ademas de ser el orden logico de lectura,
+  // deja explicito que /usuarios no cae en la ruta con parametro.
+  @Get()
+  @ApiOperation({ operationId: 'listarUsuarios', summary: 'Listado de usuarios con filtros' })
+  @ApiOkResponse({ description: 'Listado de usuarios', type: [UsuarioOutDto] })
+  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
+  listar(@Query() dto: ListarUsuariosQueryDto): Promise<UsuarioOutDto[]> {
+    return this.usuariosService.listar(dto);
   }
 
   @Get(':id')

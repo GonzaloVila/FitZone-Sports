@@ -30,7 +30,7 @@ import { MembresiasService } from '../services/membresias.service';
 
 @ApiTags('membresias')
 @ApiExtraModels(ProblemDetailsDto)
-@Controller('socios/:socioId/membresias')
+@Controller('socios/:socio_id/membresias')
 export class MembresiasController {
   constructor(private readonly membresiasService: MembresiasService) {}
 
@@ -39,7 +39,7 @@ export class MembresiasController {
     operationId: 'crearMembresia',
     summary: 'Alta de membresía para un socio',
   })
-  @ApiParam({ name: 'socioId', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
   @ApiCreatedResponse({
     description: 'Membresía creada (única vigente por socio)',
     type: MembresiaOutDto,
@@ -61,7 +61,7 @@ export class MembresiasController {
     content: PROBLEM_JSON,
   })
   async crear(
-    @Param('socioId', ParseIntPipe) socioId: number,
+    @Param('socio_id', ParseIntPipe) socioId: number,
     @Body() dto: CrearMembresiaDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<MembresiaOutDto> {
@@ -75,12 +75,12 @@ export class MembresiasController {
     operationId: 'obtenerMembresia',
     summary: 'Membresía vigente del socio',
   })
-  @ApiParam({ name: 'socioId', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Membresía vigente del socio', type: MembresiaOutDto })
-  @ApiBadRequestResponse({ description: 'socioId no numérico', content: PROBLEM_JSON })
+  @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio o membresía inexistente', content: PROBLEM_JSON })
   obtener(
-    @Param('socioId', ParseIntPipe) socioId: number,
+    @Param('socio_id', ParseIntPipe) socioId: number,
   ): Promise<MembresiaOutDto> {
     return this.membresiasService.obtenerPorSocioId(socioId);
   }
@@ -90,16 +90,16 @@ export class MembresiasController {
     operationId: 'modificarMembresia',
     summary: 'Cambiar plan o configuración de la membresía',
   })
-  @ApiParam({ name: 'socioId', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Membresía actualizada', type: MembresiaOutDto })
-  @ApiBadRequestResponse({ description: 'socioId no numérico o JSON inválido', content: PROBLEM_JSON })
+  @ApiBadRequestResponse({ description: 'socio_id no numérico o JSON inválido', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio o membresía inexistente', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({
     description: 'Datos inválidos (ValidationPipe)',
     content: PROBLEM_JSON,
   })
   modificar(
-    @Param('socioId', ParseIntPipe) socioId: number,
+    @Param('socio_id', ParseIntPipe) socioId: number,
     @Body() dto: MembresiaPatchDto,
   ): Promise<MembresiaOutDto> {
     return this.membresiasService.modificar(socioId, dto);

@@ -61,6 +61,8 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
   const dniUnico = () => String(10000000 + Math.floor(Math.random() * 89999999));
 
   it('flujo completo: usuario -> socio -> membresia -> baja', async () => {
+    const emailDelSocio = emailUnico();
+
     // 1) POST /usuarios
     const crearUsuarioRes = await request(app.getHttpServer())
       .post('/api/v1/usuarios')
@@ -68,7 +70,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
         rol: 'EXTERNO',
         dni: dniUnico(),
         nombre: 'Socio E2E',
-        email: emailUnico(),
+        email: emailDelSocio,
         contrasenia: 'clave12345',
       })
       .expect(201);
@@ -90,11 +92,31 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     const socioId: number = crearSocioRes.body.id;
     expect(crearSocioRes.body.usuario_id).toBe(usuarioId);
 
+    // SocioOut expone nombre/email, tomados del Usuario relacionado. El contrato
+    // los marca required, asi que tienen que venir en el POST, no solo en el GET.
+    expect(crearSocioRes.body.nombre).toBe('Socio E2E');
+    expect(crearSocioRes.body.email).toBe(emailDelSocio);
+
     // El usuario ahora es SOCIO
     const usuarioComoSocio = await request(app.getHttpServer())
       .get(`/api/v1/usuarios/${usuarioId}`)
       .expect(200);
     expect(usuarioComoSocio.body.rol).toBe('SOCIO');
+
+    // GET /socios/{id}: mismo shape, con nombre/email
+    const socioObtenido = await request(app.getHttpServer())
+      .get(`/api/v1/socios/${socioId}`)
+      .expect(200);
+    expect(socioObtenido.body.nombre).toBe('Socio E2E');
+    expect(socioObtenido.body.email).toBe(emailDelSocio);
+
+    // PATCH /socios/{id}: los sigue exponiendo (mismo camino de actualizar)
+    const socioPatched = await request(app.getHttpServer())
+      .patch(`/api/v1/socios/${socioId}`)
+      .send({ sede_origen_id: sedeId })
+      .expect(200);
+    expect(socioPatched.body.nombre).toBe('Socio E2E');
+    expect(socioPatched.body.email).toBe(emailDelSocio);
 
     // 3) GET /socios/{socioId}/membresias -> fecha_fin = fecha_inicio + 1 mes
     const membresiaRes = await request(app.getHttpServer())

@@ -3,6 +3,8 @@ export type PlanMembresia = "MENSUAL" | "TRIMESTRAL" | "ANUAL";
 export interface Socio {
   id: number;
   usuario_id: number;
+  nombre: string;
+  email: string;
   sede_origen_id: number;
   fecha_alta: Date;
 }

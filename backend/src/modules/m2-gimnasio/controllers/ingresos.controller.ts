@@ -46,14 +46,14 @@ export class IngresosController {
     return ingreso;
   }
 
-  @Post(':ingresoId/egreso')
+  @Post(':ingreso_id/egreso')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ operationId: 'registrarEgreso', summary: 'Registrar egreso de la sede (RF-05)' })
-  @ApiParam({ name: 'ingresoId', type: Number, description: 'ID numérico del ingreso', example: 9 })
+  @ApiParam({ name: 'ingreso_id', type: Number, description: 'ID numérico del ingreso', example: 9 })
   @ApiNoContentResponse({ description: 'Egreso registrado (sin cuerpo)' })
   @ApiNotFoundResponse({ description: 'Ingreso inexistente', content: PROBLEM_JSON })
   @ApiConflictResponse({ description: 'El ingreso ya fue egresado', content: PROBLEM_JSON })
-  registrarEgreso(@Param('ingresoId', ParseIntPipe) ingresoId: number): Promise<void> {
+  registrarEgreso(@Param('ingreso_id', ParseIntPipe) ingresoId: number): Promise<void> {
     return this.ingresosService.registrarEgreso(ingresoId);
   }
 }

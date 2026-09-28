@@ -66,41 +66,41 @@ export class SociosController {
     return socio;
   }
 
-  @Get(':socioId')
+  @Get(':socio_id')
   @ApiOperation({ operationId: 'obtenerSocio', summary: 'Socio por id' })
-  @ApiParam({ name: 'socioId', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Socio encontrado', type: SocioOutDto })
-  @ApiBadRequestResponse({ description: 'socioId no numérico', content: PROBLEM_JSON })
+  @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
-  obtener(@Param('socioId', ParseIntPipe) socioId: number): Promise<SocioOutDto> {
+  obtener(@Param('socio_id', ParseIntPipe) socioId: number): Promise<SocioOutDto> {
     return this.sociosService.obtenerPorId(socioId);
   }
 
-  @Patch(':socioId')
+  @Patch(':socio_id')
   @ApiOperation({ operationId: 'modificarSocio', summary: 'Modifica la sede de origen' })
-  @ApiParam({ name: 'socioId', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Socio actualizado', type: SocioOutDto })
-  @ApiBadRequestResponse({ description: 'socioId no numérico o JSON inválido', content: PROBLEM_JSON })
+  @ApiBadRequestResponse({ description: 'socio_id no numérico o JSON inválido', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({
     description: 'Datos inválidos o sede de origen inexistente (P2003)',
     content: PROBLEM_JSON,
   })
   modificar(
-    @Param('socioId', ParseIntPipe) socioId: number,
+    @Param('socio_id', ParseIntPipe) socioId: number,
     @Body() dto: ModificarSocioDto,
   ): Promise<SocioOutDto> {
     return this.sociosService.modificar(socioId, dto);
   }
 
-  @Delete(':socioId')
+  @Delete(':socio_id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ operationId: 'dejarDeSerSocio', summary: 'Deja de ser socio (usuario vuelve a EXTERNO)' })
-  @ApiParam({ name: 'socioId', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
   @ApiNoContentResponse({ description: 'Socio dado de baja (sin cuerpo)' })
-  @ApiBadRequestResponse({ description: 'socioId no numérico', content: PROBLEM_JSON })
+  @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
-  eliminar(@Param('socioId', ParseIntPipe) socioId: number): Promise<void> {
+  eliminar(@Param('socio_id', ParseIntPipe) socioId: number): Promise<void> {
     return this.sociosService.dejarDeSerSocio(socioId);
   }
 }

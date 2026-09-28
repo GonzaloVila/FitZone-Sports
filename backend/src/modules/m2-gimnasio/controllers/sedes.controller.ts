@@ -55,12 +55,12 @@ export class SedesController {
     return sede;
   }
 
-  @Get(':sedeId/aforo')
+  @Get(':sede_id/aforo')
   @ApiOperation({ operationId: 'obtenerAforo', summary: 'Aforo actual de una sede (RF-05)' })
-  @ApiParam({ name: 'sedeId', type: Number, description: 'ID numérico de la sede', example: 3 })
+  @ApiParam({ name: 'sede_id', type: Number, description: 'ID numérico de la sede', example: 3 })
   @ApiOkResponse({ description: 'Aforo actual de la sede', type: AforoOutDto })
   @ApiNotFoundResponse({ description: 'Sede inexistente', content: PROBLEM_JSON })
-  obtenerAforo(@Param('sedeId', ParseIntPipe) sedeId: number): Promise<AforoOutDto> {
+  obtenerAforo(@Param('sede_id', ParseIntPipe) sedeId: number): Promise<AforoOutDto> {
     return this.ingresosService.obtenerAforo(sedeId);
   }
 }

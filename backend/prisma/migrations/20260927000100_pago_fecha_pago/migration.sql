@@ -1,0 +1,12 @@
+-- AlterTable
+--
+-- Pago no tenia ninguna columna de tiempo: id, usuario_id, idempotencia_key,
+-- monto, moneda, estado, token y comprobante_pdf_url. Sin fecha no se puede
+-- saber CUANDO ocurrio el cobro, que es lo que necesita el listado de pagos
+-- (PagoOut.fecha_pago es required y ademas ordena y filtra por ?desde/?hasta)
+-- y la conciliacion contra el reporte de la pasarela (RF-14).
+--
+-- DEFAULT now() porque el pago se registra en el momento del cobro, asi que
+-- la fecha de insercion ES la fecha de pago. Ojo al aplicar sobre una base con
+-- filas: las preexistentes quedan con la fecha de la migracion, no con la real.
+ALTER TABLE "Pago" ADD COLUMN "fecha_pago" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

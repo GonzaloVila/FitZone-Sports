@@ -3,13 +3,21 @@ import { Exclude, Expose } from 'class-transformer';
 
 @Exclude()
 export class SocioOutDto {
-@Expose()
+  @Expose()
   @ApiProperty({ example: 2 })
   id!: number;
 
   @Expose()
   @ApiProperty({ example: 1 })
   usuario_id!: number;
+
+  @Expose()
+  @ApiProperty({ example: 'Ana Gómez' })
+  nombre!: string;
+
+  @Expose()
+  @ApiProperty({ example: 'ana.gomez@fitzone.com.ar' })
+  email!: string;
 
   @Expose()
   @ApiProperty({ example: 3 })

@@ -39,7 +39,7 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
     const socio = await prisma.socio.create({
       data: {
         usuario_id: usuario.id,
-        sede_id: opts.sedeOrigenId,
+        sede_origen_id: opts.sedeOrigenId,
         fecha_alta: new Date(),
       },
     });

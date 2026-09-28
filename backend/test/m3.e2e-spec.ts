@@ -419,9 +419,16 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       expect(resEsperaActualizada.body.fecha_notificacion).not.toBeNull();
 
       // Socio B confirma el cupo liberado (First-Come)
-      await request(app.getHttpServer())
+      const resConfirmada = await request(app.getHttpServer())
         .post(`/api/v1/esperas-clases/${esperaIdB}/confirmaciones`)
-        .expect(204);
+        .expect(201);
+
+      // La confirmacion responde 201 con la ReservaClase creada y su Location
+      expect(resConfirmada.body.estado).toBe('CONFIRMADA');
+      expect(resConfirmada.body.clase_id).toBe(claseId);
+      expect(resConfirmada.body.socio_id).toBe(socioB.socioId);
+      expect(resConfirmada.body.id).toEqual(expect.any(Number));
+      expect(resConfirmada.headers.location).toBe(`/api/v1/reservas-clases/${resConfirmada.body.id}`);
 
       // La espera pasa a CONFIRMADO
       const resEsperaConfirmada = await request(app.getHttpServer())
@@ -431,11 +438,12 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       expect(resEsperaConfirmada.body.estado).toBe('CONFIRMADO');
       expect(resEsperaConfirmada.body.fecha_confirmacion).not.toBeNull();
 
-      // Socio B ahora tiene una ReservaClase confirmada
+      // Socio B ahora tiene una ReservaClase confirmada, y es la que devolvio el 201
       const reservaB = await prisma.reservaClase.findFirst({
         where: { clase_id: claseId, socio_id: socioB.socioId, estado: 'CONFIRMADA' },
       });
       expect(reservaB).toBeDefined();
+      expect(reservaB!.id).toBe(resConfirmada.body.id);
     });
 
     it('baja lógica de lista de espera actualiza el estado a CANCELADO', async () => {

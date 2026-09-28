@@ -31,6 +31,7 @@ import { CrearEsperaDto } from '../dtos/crear-espera.dto';
 import { EsperaOutDto } from '../dtos/espera-out.dto';
 import { ListarEsperaDeClaseQueryDto } from '../dtos/listar-espera-de-clase-query.dto';
 import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
+import { ReservaClaseOutDto } from '../dtos/reserva-clase-out.dto';
 import { EsperasClasesService } from '../services/esperas-clases.service';
 
 @ApiTags('esperas-clases')
@@ -104,20 +105,33 @@ export class EsperasClasesController {
   }
 
   @Post('esperas-clases/:espera_id/confirmaciones')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     operationId: 'confirmarEspera',
     summary: 'Confirmar cupo liberado (modalidad First-Come, First-Served) (RF-08)',
   })
   @ApiParam({ name: 'espera_id', type: Number, description: 'ID de la espera notificada', example: 4 })
-  @ApiNoContentResponse({ description: 'Cupo confirmado y convertido a reserva de clase exitosamente' })
+  @ApiCreatedResponse({
+    description: 'Cupo confirmado y convertido a reserva de clase exitosamente',
+    type: ReservaClaseOutDto,
+    headers: {
+      Location: {
+        description: 'URL de acceso a la reserva creada',
+        schema: { type: 'string', example: '/api/v1/reservas-clases/5' },
+      },
+    },
+  })
   @ApiNotFoundResponse({ description: 'Solicitud no encontrada', content: PROBLEM_JSON })
   @ApiConflictResponse({
     description: 'La espera no está notificada o el cupo fue tomado por otro socio',
     content: PROBLEM_JSON,
   })
-  confirmar(@Param('espera_id', ParseIntPipe) espera_id: number): Promise<void> {
-    return this.esperasService.confirmarEspera(espera_id);
+  async confirmar(
+    @Param('espera_id', ParseIntPipe) espera_id: number,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ReservaClaseOutDto> {
+    const reserva = await this.esperasService.confirmarEspera(espera_id);
+    res.setHeader('Location', `/api/v1/reservas-clases/${reserva.id}`);
+    return reserva;
   }
 
   @Get('clases/:clase_id/espera')

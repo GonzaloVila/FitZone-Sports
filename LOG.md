@@ -455,5 +455,40 @@ El contrato del vault, `schema.prisma`, el DBML y la base compartida habían que
 #### Pendientes que siguen abiertos
 
 1. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado: nadie lo recibe con un `git pull`. Esta entrada deja registrada la enmienda de los 409 y del `ClaseOut`, pero un `git pull` no la reproduce. Sigue siendo decisión pendiente de Gonzalo.
-2. **`confirmarEspera` devuelve 204 sin cuerpo:** el contrato original argumentaba 201 con `Location` para que el cliente conociera el id de la `ReservaClase` creada. El código devuelve 204 y descarta ese id, así que el cliente tiene que barrer `GET /reservas-clases` para descubrirlo. Queda como decisión de diseño a revisar, no como error.
-3. **Auditorías de M1, M2 y M3:** sin hacer. El contrato y el código ya están alineados, así que se pueden arrancar.
+2. **Auditorías de M1, M2 y M3:** sin hacer. El contrato y el código ya están alineados, así que se pueden arrancar.
+
+---
+
+## Unidad II — Módulo 3: respuesta de la confirmación de espera · Gonzalo Vila
+
+### Semana 7 · SCRUM-11c — `confirmarEspera` pasa de 204 a 201
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **`POST /esperas-clases/{espera_id}/confirmaciones` pasa de 204 a 201:** la confirmación creaba la `ReservaClase` correcta pero descartaba su id, así que el socio no tenía forma de referenciar la reserva creada sin barrer `GET /reservas-clases` y cruzar la respuesta con la clase. Ahora responde 201 con el `ReservaClaseOutDto` completo y el header `Location`.
+2. **El id se perdía en el service, no en la base:** `PrismaEsperaClaseRepository.confirmarEsperaConLock` ya devolvía `{ ok: true, reserva: { id, clase_id, socio_id, estado } }`, la forma exacta del DTO. Lo que lo descartaba era la firma `Promise<void>` de `EsperasClasesService.confirmarEspera`, que se agregó una línea `plainToInstance(ReservaClaseOutDto, resultado.reserva)`. El repositorio no necesitó cambios.
+3. **Unificación con la convención de creación:** el endpoint replica el patrón de los otros siete que crean recursos — `@ApiCreatedResponse` con `type`, `@Res({ passthrough: true })` y `res.setHeader('Location', ...)`. Se saca el `@HttpCode(NO_CONTENT)` explícito porque el default de `@Post` ya es 201.
+4. **Contrato actualizado:** el vault pasa a declarar `"201"` con `content: application/json` referenciando `ReservaClaseOut` y el header `Location`, y se reescribe el párrafo de la `description` que describía el 204 sin cuerpo. El `Plan de Trabajo M3` se corrige en la lista de endpoints, en el paso 11 del service y en el paso 12 del controller.
+
+#### Decisiones tomadas
+
+1. **201 con el DTO completo en vez de un DTO mínimo:** se reutiliza `ReservaClaseOutDto` / `ReservaClaseOut` en vez de inventar un schema con solo `reserva_id` y `clase_id`. Los cuatro campos ya existen en el vault y en el DTO, y responder lo mismo que `crearReservaClase` evita que el cliente tenga dos formatos para leer una reserva.
+2. **`Location` apunta a `/api/v1/reservas-clases/{id}`:** ese endpoint ya existe (`obtenerReservaClase`), así que la URL es resoluble y sirve para el `GET` de seguimiento sin cambiar la ruta de la reserva.
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **38/38 en 4 specs**.
+- El caso de first-come pasa a exigir 201 y agrega aserciones de body (`estado`, `clase_id`, `socio_id`, `id`) y del header `Location`. Se suma la comprobación de que el `id` devuelto en el body es el mismo que quedó persistido en `reservaClase`, que es exactamente el bug que se estaba corrigiendo. Los otros tres `expect(204)` del spec (cancelación ×2 y `salirDeEspera`) no se tocan porque siguen siendo 204 legítimos.
+- Vault: YAML parsea, la operación expone 201/404/409, el `$ref` apunta a `ReservaClaseOut` (`required: [id, clase_id, socio_id, estado]`), 243 `$ref` totales con 0 rotas y 0 schemas huérfanos. Backups `pre-fase4.bak` de vault y Plan.
+- Contraste contra el Swagger que generan los decoradores: 201/404/409, header `Location`, `content: application/json` y `$ref: ReservaClaseOutDto`, idéntico a lo que declara el vault.
+
+#### Commits
+
+- `fix(m3): confirmarEspera devuelve 201 con la reserva creada` — este mismo commit. A diferencia de las entradas anteriores, acá el código y esta bitácora van en un solo commit, así que no se cita hash: un commit no puede contener el suyo propio. Para el detalle de qué cambió, ver el `#### Actividades` de arriba y el `git show` del commit.
+
+#### Pendientes que siguen abiertos
+
+1. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado: nadie lo recibe con un `git pull`. Esta entrada deja registrada la enmienda de los 409, del `ClaseOut` y del 201, pero un `git pull` no la reproduce. Sigue siendo decisión pendiente de Gonzalo.
+2. **Auditorías de M1, M2 y M3:** sin hacer. El contrato y el código ya están alineados, así que se pueden arrancar.

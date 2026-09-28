@@ -15,6 +15,7 @@ import { CrearEsperaDto } from '../dtos/crear-espera.dto';
 import { EsperaOutDto } from '../dtos/espera-out.dto';
 import { ListarEsperaDeClaseQueryDto } from '../dtos/listar-espera-de-clase-query.dto';
 import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
+import { ReservaClaseOutDto } from '../dtos/reserva-clase-out.dto';
 import {
   CLASE_REPOSITORY,
   type ClaseRepository,
@@ -160,7 +161,7 @@ export class EsperasClasesService {
     await this.esperasRepo.marcarCancelada(esperaId);
   }
 
-  async confirmarEspera(esperaId: number): Promise<void> {
+  async confirmarEspera(esperaId: number): Promise<ReservaClaseOutDto> {
     const resultado = await this.esperasRepo.confirmarEsperaConLock(esperaId);
 
     if (!resultado.ok) {
@@ -193,5 +194,7 @@ export class EsperasClasesService {
         detail: 'El socio ya posee una reserva confirmada para esta clase.',
       });
     }
+
+    return plainToInstance(ReservaClaseOutDto, resultado.reserva);
   }
 }

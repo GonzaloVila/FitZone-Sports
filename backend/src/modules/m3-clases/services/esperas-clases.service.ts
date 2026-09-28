@@ -2,11 +2,10 @@ import {
   HttpStatus,
   Inject,
   Injectable,
-  NotFoundException,
   Optional,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { ProblemException } from '../../../commons/filters/problem.exception';
+import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import {
   MEMBERSHIP_VALIDATION_PORT,
   type MembershipValidationPort,
@@ -43,7 +42,7 @@ export class EsperasClasesService {
   ): Promise<EsperaOutDto[]> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
-      throw new NotFoundException('No existe la clase indicada.');
+      throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
     const esperas = await this.esperasRepo.listar(
@@ -72,7 +71,7 @@ export class EsperasClasesService {
   async anotarseEnEspera(claseId: number, dto: CrearEsperaDto): Promise<EsperaOutDto> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
-      throw new NotFoundException('No existe la clase indicada.');
+      throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
     if (new Date(clase.horario).getTime() <= Date.now()) {
@@ -87,7 +86,7 @@ export class EsperasClasesService {
     if (this.membresias) {
       const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
       if (!estado.esSocio) {
-        throw new NotFoundException('El socio indicado no existe.');
+        throw recursoNoEncontrado('El socio indicado no existe.');
       }
       if (estado.enMora || !estado.vigente) {
         throw new ProblemException({
@@ -125,7 +124,7 @@ export class EsperasClasesService {
         });
       }
 
-      throw new NotFoundException('No existe la clase indicada.');
+      throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
     return plainToInstance(EsperaOutDto, resultado.espera);
@@ -134,7 +133,7 @@ export class EsperasClasesService {
   async obtenerEspera(esperaId: number): Promise<EsperaOutDto> {
     const espera = await this.esperasRepo.buscarPorId(esperaId);
     if (!espera) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return plainToInstance(EsperaOutDto, espera);
   }
@@ -142,7 +141,7 @@ export class EsperasClasesService {
   async salirDeEspera(esperaId: number): Promise<void> {
     const espera = await this.esperasRepo.buscarPorId(esperaId);
     if (!espera) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
 
     if (espera.estado === 'CONFIRMADO') {
@@ -166,7 +165,7 @@ export class EsperasClasesService {
 
     if (!resultado.ok) {
       if (resultado.motivo === 'ESPERA_INEXISTENTE') {
-        throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+        throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
       }
 
       if (resultado.motivo === 'NO_NOTIFICADA') {

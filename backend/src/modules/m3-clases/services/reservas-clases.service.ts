@@ -2,11 +2,10 @@ import {
   HttpStatus,
   Inject,
   Injectable,
-  NotFoundException,
   Optional,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { ProblemException } from '../../../commons/filters/problem.exception';
+import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import {
   MEMBERSHIP_VALIDATION_PORT,
   type MembershipValidationPort,
@@ -44,7 +43,7 @@ export class ReservasClasesService {
   ): Promise<ReservaClaseOutDto[]> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
-      throw new NotFoundException('No existe la clase indicada.');
+      throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
     const reservas = await this.reservasRepo.listar(
@@ -76,14 +75,14 @@ export class ReservasClasesService {
   ): Promise<ReservaClaseOutDto> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
-      throw new NotFoundException('No existe la clase indicada.');
+      throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
     // Regla de Mora y Membresía: el socio con cuota vencida no puede reservar con descuento
     if (this.membresias) {
       const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
       if (!estado.esSocio) {
-        throw new NotFoundException('El socio indicado no existe.');
+        throw recursoNoEncontrado('El socio indicado no existe.');
       }
       if (estado.enMora || !estado.vigente) {
         throw new ProblemException({
@@ -139,7 +138,7 @@ export class ReservasClasesService {
         });
       }
 
-      throw new NotFoundException('No existe la clase indicada.');
+      throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
     return plainToInstance(ReservaClaseOutDto, resultado.reserva);
@@ -148,7 +147,7 @@ export class ReservasClasesService {
   async obtenerReservaClase(reservaClaseId: number): Promise<ReservaClaseOutDto> {
     const reserva = await this.reservasRepo.buscarPorId(reservaClaseId);
     if (!reserva) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return plainToInstance(ReservaClaseOutDto, reserva);
   }
@@ -156,7 +155,7 @@ export class ReservasClasesService {
   async cancelarReservaClase(reservaClaseId: number): Promise<void> {
     const reserva = await this.reservasRepo.buscarPorId(reservaClaseId);
     if (!reserva) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
 
     if (reserva.estado === 'CANCELADA') {
@@ -165,7 +164,7 @@ export class ReservasClasesService {
 
     const clase = await this.clasesRepo.buscarPorId(reserva.clase_id);
     if (!clase) {
-      throw new NotFoundException('No existe la clase vinculada a la reserva.');
+      throw recursoNoEncontrado('No existe la clase vinculada a la reserva.');
     }
 
     // Regla de Cancelación (RF-07): sin penalidad hasta 2 hs antes

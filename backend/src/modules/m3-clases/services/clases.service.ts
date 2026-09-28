@@ -2,11 +2,10 @@ import {
   HttpStatus,
   Inject,
   Injectable,
-  NotFoundException,
   Optional,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { ProblemException } from '../../../commons/filters/problem.exception';
+import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import {
   SEDE_VALIDATION_PORT,
   type SedeValidationPort,
@@ -33,7 +32,7 @@ export class ClasesService {
     if (this.sedeValidation) {
       const existeSede = await this.sedeValidation.existeSede(dto.sede_id);
       if (!existeSede) {
-        throw new NotFoundException('No existe la sede indicada.');
+        throw recursoNoEncontrado('No existe la sede indicada.');
       }
     }
 
@@ -85,7 +84,7 @@ export class ClasesService {
   async obtenerClase(claseId: number): Promise<ClaseOutDto> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return plainToInstance(ClaseOutDto, clase);
   }

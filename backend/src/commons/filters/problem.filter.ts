@@ -49,8 +49,12 @@ export class ProblemFilter implements ExceptionFilter {
   }
 
   private toProblemBody(exception: unknown, request: Request): ProblemDetails {
+    // `instance` no es required en el schema Problem, pero el resto de las ramas
+    // de este filtro lo mandan. Se completa aca para que las respuestas de
+    // ProblemException no sean la unica que no lo trae.
     if (exception instanceof ProblemException) {
-      return exception.getResponse() as ProblemDetails;
+      const details = exception.getResponse() as ProblemDetails;
+      return { ...details, instance: details.instance ?? this.instanceOf(request) };
     }
 
     if (exception instanceof HttpException) {
@@ -84,7 +88,7 @@ export class ProblemFilter implements ExceptionFilter {
       title,
       status,
       detail,
-      instance: request.originalUrl ?? request.url,
+      instance: this.instanceOf(request),
     };
   }
 
@@ -129,7 +133,7 @@ export class ProblemFilter implements ExceptionFilter {
       title: 'Error de validación',
       status: HttpStatus.UNPROCESSABLE_ENTITY,
       detail: 'Uno o más campos no cumplen las reglas de validación.',
-      instance: request.originalUrl ?? request.url,
+      instance: this.instanceOf(request),
       errors,
     };
   }
@@ -146,7 +150,7 @@ export class ProblemFilter implements ExceptionFilter {
           title: 'El turno seleccionado ya fue reservado',
           status: HttpStatus.CONFLICT,
           detail: 'Otro usuario reservó el turno para esa fecha y hora antes que vos.',
-          instance: request.originalUrl ?? request.url,
+          instance: this.instanceOf(request),
         };
       }
       if (target.includes('idempotencia_key')) {
@@ -155,7 +159,7 @@ export class ProblemFilter implements ExceptionFilter {
           title: 'Idempotency-Key repetida',
           status: HttpStatus.CONFLICT,
           detail: 'Ya existe un pago con esa Idempotency-Key.',
-          instance: request.originalUrl ?? request.url,
+          instance: this.instanceOf(request),
         };
       }
       return {
@@ -163,7 +167,7 @@ export class ProblemFilter implements ExceptionFilter {
         title: 'Conflicto de unicidad',
         status: HttpStatus.CONFLICT,
         detail: 'La operación intentó crear un dato duplicado.',
-        instance: request.originalUrl ?? request.url,
+        instance: this.instanceOf(request),
       };
     }
 
@@ -173,7 +177,7 @@ export class ProblemFilter implements ExceptionFilter {
         title: 'Recurso no encontrado',
         status: HttpStatus.NOT_FOUND,
         detail: 'No existe el recurso solicitado.',
-        instance: request.originalUrl ?? request.url,
+        instance: this.instanceOf(request),
       };
     }
 
@@ -183,7 +187,7 @@ export class ProblemFilter implements ExceptionFilter {
         title: 'Referencia inexistente',
         status: HttpStatus.UNPROCESSABLE_ENTITY,
         detail: 'El valor referenciado en la solicitud no existe o no esta disponible.',
-        instance: request.originalUrl ?? request.url,
+        instance: this.instanceOf(request),
       };
     }
 
@@ -201,7 +205,7 @@ export class ProblemFilter implements ExceptionFilter {
       title: 'Error interno del servidor',
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       detail: revealDetails ? message : 'Ocurrió un error inesperado en el servidor.',
-      instance: request.originalUrl ?? request.url,
+      instance: this.instanceOf(request),
     };
   }
 
@@ -240,5 +244,9 @@ export class ProblemFilter implements ExceptionFilter {
       return target.join(',');
     }
     return '';
+  }
+
+  private instanceOf(request: Request): string {
+    return request.originalUrl ?? request.url;
   }
 }

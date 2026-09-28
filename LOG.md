@@ -427,14 +427,14 @@ El contrato del vault, `schema.prisma`, el DBML y la base compartida habían que
 
 #### Actividades
 
-1. **Detalles 4xx en español (`fix(commons)`):** los 400 de `ParseIntPipe` y body-parser, y el 404 de ruta inexistente, llegaban con el detalle crudo del framework — en inglés, y en el 404 solo se repetía el path que ya viaja en `instance`. Se agrega `CLIENT_DETAILS` (detalle fijo por status) y `resolveDetail()`, que sustituye el detalle de todo 4xx y deja el original en `logger.debug` para diagnóstico servidor. Los 5xx conservan el detalle. El flujo de `ProblemException` y el 422 del `ValidationPipe` no cambian.
+1. **Detalles 4xx en español (`fix(commons)`):** los 400 de `ParseIntPipe` y body-parser, y el 404 de ruta inexistente, llegaban con el detalle crudo del framework — en inglés, y en el 404 solo se repetía el path que ya viaja en `instance`. Se agrega `CLIENT_DETAILS` (detalle fijo por status) y `resolveDetail()`, que sustituye el detalle de todo 4xx y deja el original en `logger.debug` para diagnóstico servidor. Los 5xx conservan el detalle. El flujo de `ProblemException` y el 422 del `ValidationPipe` no cambian. **Corregido después:** este commit sustituía también el detalle de los errores de dominio, no solo del framework. Ver la entrada de la auditoría de M1.
 2. **Listados paginados de M3 (`feat(m3)`):** el contrato declaraba cuatro endpoints que faltaban: `GET /clases/{clase_id}/reservas`, `GET /reservas-clases`, `GET /clases/{clase_id}/espera` y `GET /esperas-clases`. DTOs de query con lista blanca de filtros y paginación, orden estable (fecha desc + id desc) y 404 por clase inexistente también en los listados. `GET /clases` pierde el filtro `fecha`, que no estaba en el contrato.
 3. **Contrato e2e de 4xx (`test(e2e)`):** 7 casos nuevos en `test/errores-4xx.e2e-spec.ts` que fijan el comportamiento transversal de los errores del framework: JSON mal formado, path param no numérico, ruta inexistente, método no soportado y DTO inválido, todos en `application/problem+json`.
 4. **Alineación del vault:** `TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md` quedan alineados con el comportamiento real. El contrato corregía decisiones previas: las ventanas temporales de 48 h y 2 h devuelven 409 (no 422) porque son conflictos con el estado del recurso; `confirmarEspera` devuelve 204 sin cuerpo; `crearClase` declara su 409; los nueve endpoints de M1 declaran su 400. Se agregan los componentes `SocioEnMora`, `ConflictoReservaClase`, `ClaseFueraDeHorario` y `VentanaCancelacionCerrada`, se elimina `CupoCompleto` y se corrige `ClaseOut`, que declaraba `cupos_disponibles` cuando el DTO expone `cupo_disponible` y `reservas_confirmadas`.
 
 #### Decisiones tomadas
 
-1. **Los 4xx del framework se sustituyen, no se traducen:** en `src/` no hay ningún `throw new` de Nest, todo el código propio tira `ProblemException` y corta antes en `toProblemBody()`. Los 4xx que llegan a `resolveDetail()` son siempre del framework, así que no hay detalle propio en español que preservar y el original se puede sustituir sin perder información. Queda en el log por si hay que diagnosticarlo.
+1. ~~**Los 4xx del framework se sustituyen, no se traducen:** en `src/` no hay ningún `throw new` de Nest, todo el código propio tira `ProblemException` y corta antes en `toProblemBody()`.~~ **Esta premisa era falsa** y la decisión quedó anulada. En `src/` hay 33 `throw new` de Nest (14 de M1, 3 de M2, 16 de M3), así que `resolveDetail()` estaba borrando el mensaje de los 404 y 409 de dominio: un 404 respondía *"La ruta solicitada no existe"* con la ruta existiendo, y los 409 perdían el motivo del conflicto. La premisa correcta es la inversa: **todo 4xx de dominio debe lanzarse como `ProblemException`** y cortar antes en `toProblemBody()`; lo que llega a `resolveDetail()` es framework. Corregido en la entrada de la auditoría de M1.
 2. **No se implementa 405:** Express 5 no lo distingue de forma nativa y el vault no lo declara en ninguna operación. Se acepta 404 tanto para ruta inexistente como para método no soportado; agregar 405 exigiría un middleware global con el costo que no se justifica para este alcance.
 3. **422 declarado donde el ValidationPipe lo produce:** `crearReservaClase` y `anotarseEnEspera` reciben DTO con `ParseIntPipe` + `ValidationPipe`, que producen 422 en runtime. El contrato lo declaraba solo en algunos endpoints; se completa.
 4. **Los commits van en tres, no en uno:** el filtro de errores es transversal (toca toda la API) y su prueba e2e cruza M1 y M3, mientras que los listados son de M3. Mezclarlos habría dejado el cambio transversal clasificado como trabajo de un módulo. El `ApiBadRequestResponse` de `clases.controller.ts` quedó en el commit de M3 completo: partir un archivo de 9 líneas no compensaba y se documenta acá su origen transversal.
@@ -492,3 +492,63 @@ El contrato del vault, `schema.prisma`, el DBML y la base compartida habían que
 
 1. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado: nadie lo recibe con un `git pull`. Esta entrada deja registrada la enmienda de los 409, del `ClaseOut` y del 201, pero un `git pull` no la reproduce. Sigue siendo decisión pendiente de Gonzalo.
 2. **Auditorías de M1, M2 y M3:** sin hacer. El contrato y el código ya están alineados, así que se pueden arrancar.
+
+---
+
+## Unidad II — Auditoría del módulo 1 · Gonzalo Vila
+
+### Semana 7 · SCRUM-11d — M1 contra el contrato: errores de dominio, `UsuarioOut` y validaciones
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El filtro borraba el mensaje de los errores de dominio (crítico).** `cf97644` hizo que `resolveDetail()` sustituyera el `detail` de todo 4xx, y su justificación —"en `src/` no hay ningún `throw new` de Nest"— era falsa: hay 33. Los 30 de 404 volvían con *"La ruta solicitada no existe o el recurso no fue encontrado."* cuando la ruta existía, y los 3 de 409 perdían el motivo con *"La solicitud no pudo procesarse."*. La suite no lo detectaba porque ningún spec assertaba el body de un 404 o 409 de dominio: solo el status.
+2. **`resolveDetail()` pasa a fail-safe.** Sustituye solo las cinco formas que puede producir el framework (ruta o método inexistente, `ParseIntPipe` y las tres variantes del body-parser de Node). Cualquier otro 4xx conserva su `detail` y emite un `logger.warn` con método, ruta y mensaje, de modo que un `NotFoundException` de dominio que se cuele a futuro avisa en lugar de perder el mensaje en silencio. El default es preservar, no sustituir.
+3. **Las 33 excepciones se migran a `ProblemException`,** en tres commits por módulo. Los 30 `NotFoundException` pasan por `recursoNoEncontrado()` conservando el texto; los 3 `ConflictException` por `conflictoDeDominio()`. `GENERIC_TYPE` y `TITLES` se mueven a `problem.exception.ts` para que el filtro y los helpers no dupliquen las constantes.
+4. **Los 409 de M1 pierden el `title` genérico.** El filtro devolvía `"Conflicto"` para los tres; el contrato declara tres distintos en `Conflict`, `SocioExistente` y `MembresiaExistente`. Pasan a ser `"Conflicto de unicidad"`, `"El usuario ya es socio"` y `"Conflicto de membresía existente"`.
+5. **Los `detail` de los 409 se alinean al vault, no al revés,** por decisión de Gonzalo. El de dni o email ahora distingue el campo, comparando `existente.dni` contra el dni recibido; `buscarPorDniOEmail` ya devuelve la entidad completa, así que no hizo falta tocar la query. El de socio lleva el id del usuario. El de membresía pasa a *"El socio ya tiene una membresía activa."*
+6. **`instance` se completa en las respuestas de `ProblemException`.** `toProblemBody()` las devolvía sin el path, y el contrato lo declara opcional en `components.schemas.Problem`, así que no era violación; pero dejaba a las 20 `ProblemException` de M2 y M3 como las únicas respuestas de la API sin `instance`.
+7. **Nuevo `test/errores-dominio.e2e-spec.ts`** con 10 casos que assertan `type`, `title`, `status`, `detail` e `instance` de 6 de 404 (M1, M2 y M3) y de los 4 de 409 de M1, incluidas las dos ramas de dni y email. Se escribió **antes** de la migración y falló 4 de 10: los 6 de 404 ya pasaban con el fail-safe y los 4 de 409 seguían cayendo en el `title` colapsado. Ese reparto es la evidencia de que el spec cubre el bug.
+8. **`UsuarioOut` tenía el `required` mal en los dos lados, en direcciones opuestas.** El vault no declaraba `required` (cero campos obligatorios) y el decorador marcaba los 7. Prisma es la fuente de la verdad: `id`, `rol`, `dni`, `nombre` y `email` son `String`/`Int` sin `?`; `telefono` y `foto_url` son `String?`. El vault pasa a `required: [id, rol, dni, nombre, email]` y los dos opcionales reciben `required: false`.
+9. **Seis campos nullable salían con `type: object` en el Swagger.** El plugin no infiere una unión con `null` y cae al default: `telefono` y `foto_url` en `UsuarioOutDto` y `ModificarUsuarioDto`, y `fecha_notificacion` y `fecha_confirmacion` en `EsperaOutDto`. Es **preexistente** y hacía que el Swagger generado no coincidiera con el vault. Se declara `type` explícito.
+10. **Cinco restricciones que el código aplicaba y no declaraba,** ahora visibles en el contrato: `dni.pattern`, `email.maxLength: 254`, `minimum: 1` en `usuario_id` y `sede_origen_id`, y `format: email` en el email de los dos `*Out`. La revisión inicial, que reportaba siete ausencias, exageraba: `contrasenia`, `nombre`, `telefono`, `rol`, `plan` y los límites de `page`/`per_page` ya coincidían.
+11. **`UsuarioPatch` no aceptaba el `null` que el contrato promete.** `telefono` y `foto_url` se declaran `nullable: true` en el vault pero el tipo era `string | undefined`. Pasaron a `string | null`. El test nuevo manda `null`, verifica que el PATCH responde `null` y que el `GET` siguiente lo confirma en la base, o sea que llega a Prisma: `modificar()` compara con `!== undefined` y no con falsy, así que no había defecto de lógica, solo de tipos.
+12. **El vault tenía `format: date` donde la API devuelve timestamp.** `SocioOut.fecha_alta`, `MembresiaOut.fecha_inicio` y `MembresiaOut.fecha_fin` estaban como `date`; Prisma serializa `DateTime` a ISO completo, verificado contra la base (`2026-05-30T01:53:51.988Z`). Corregidos a `date-time`. El código ya decía `date-time`.
+
+#### Decisiones tomadas
+
+1. **Migrar a `ProblemException` en vez de revertir el filtro.** El código ya estaba a mitad de migración: 20 casos con URIs `https://fitzone.app/errores/...` en M2 y M3. Revertir `resolveDetail()` devolvía los 33 mensajes pero dejaba el 400 de JSON mal formado en inglés otra vez. La alternativa de distinguir por la forma del mensaje era frágil. Migrar hace verdadera la premisa y deja cada error de dominio con su `type` documentable.
+2. **El fail-safe va más allá de la migración:** sustituir solo lo reconocido y avisar con `warn` ante lo desconocido. Cubre el error de hoy y además evita que se repita en silencio.
+3. **Los `detail` de los 409 los manda el vault, no el código,** por decisión explícita de Gonzalo. Se invierte el criterio que se había usado en las fases anteriores y por eso cambian tres mensajes que el consumidor ve.
+4. **Los 30 `detail` de 404 conservan su texto específico** ("No existe la sede indicada.", "No existe la clase indicada.") en vez de unificarlos al del componente `NotFound`. El vault tiene un solo componente con un example representativo y el `detail` es texto libre, así que no había conflicto real; aplanarlos perdería información.
+5. **El filtro fail-safe con `warn` se acepta como red de seguridad permanente,** no como deuda a pagar después.
+6. **Se corrige el `LOG.md` de la entrada anterior en el lugar,** sin reescribir historia: la decisión anulada queda tachada con la premisa falsa explícita y el enlace a esta entrada.
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **49/49 en 5 specs** (antes 38/38 en 4). El spec nuevo se ejecutó primero contra el código sin migrar y falló 4 de 10, que es la prueba de que cubre el defecto.
+- Contraste automático entre el Swagger que generan los decoradores y el vault, sobre los 9 schemas de M1: **0 divergencias de `required` y 0 de restricciones.** El `required` de `UsuarioOut` pasó de 7 a 5, el que declara Prisma.
+- `type: object` restantes en los 21 schemas del documento generado: **ninguno** (eran 6).
+- Vault: YAML parsea, 243 `$ref` con 0 rotas, 0 schemas huérfanos, 30 paths y 47 operaciones sin cambios. Encoding preservado (CRLF, sin BOM). Backup `pre-m1.bak`.
+- Un defecto del spec nuevo lo detectó la suite: creaba un Socio que no registraba para la limpieza, y el borrado del Usuario fallaba por la FK `Socio_usuario_id_fkey`. Corregido.
+- **Fragilidad latente corregida:** `m1.e2e-spec.ts` listaba `/usuarios` con el `per_page` por defecto de 20 y buscaba su fixture en esa página. Con otra suite agregando usuarios en paralelo —y vitest corre los archivos concurrentemente contra la misma base— el fixture se caía de la página. Pasa a pedir `per_page=100`. No lo había detectado ninguna corrida anterior; el spec nuevo lo expuso.
+
+#### Commits
+
+- [ab99e7b](https://github.com/GonzaloVila/FitZone-Sports/commit/ab99e7b) — `fix(commons)`: `resolveDetail` pasa a fail-safe y distingue dominio de framework.
+- [22450d3](https://github.com/GonzaloVila/FitZone-Sports/commit/22450d3) — `fix(commons)`: completa `instance` en las respuestas `ProblemException`.
+- [2949850](https://github.com/GonzaloVila/FitZone-Sports/commit/2949850) — `fix(m1)`: migra las 14 excepciones de M1.
+- [792d9eb](https://github.com/GonzaloVila/FitZone-Sports/commit/792d9eb) — `fix(m2)`: migra las 3 excepciones de `IngresosService`.
+- [14bddfa](https://github.com/GonzaloVila/FitZone-Sports/commit/14bddfa) — `fix(m3)`: migra las 16 excepciones de M3.
+- [e702aa3](https://github.com/GonzaloVila/FitZone-Sports/commit/e702aa3) — `test(e2e)`: fija el `detail` y el `title` de los 404 y 409 de dominio.
+- [44a4772](https://github.com/GonzaloVila/FitZone-Sports/commit/44a4772) — `fix(m1)`: alinea el Swagger generado con el contrato en `UsuarioOut` y las validaciones.
+- [b99a3ea](https://github.com/GonzaloVila/FitZone-Sports/commit/b99a3ea) — `fix(m3)`: declara `type` en las fechas nullable de `EsperaOutDto`.
+- `docs(log)`: corrección de la premisa anulada y esta entrada — este mismo commit.
+
+#### Pendientes que siguen abiertos
+
+1. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado: nadie lo recibe con un `git pull`. Esta entrada deja registrada la enmienda de `UsuarioOut`, de las validaciones y de los `format: date-time`, pero un `git pull` no la reproduce. Sigue siendo decisión pendiente de Gonzalo.
+2. **`number` contra `integer` en 36 campos numéricos.** El vault declara `type: integer` y el Swagger generado dice `type: number`: 8 en M1, 11 en M2, 17 en M3. En JSON no hay diferencia, pero un generador de clientes puede elegir `int` o `number`. La corrección correcta es declarar `type: integer` en los decoradores, y son 36 campos en tres módulos — **no se hizo porque el alcance de esta auditoría era M1 y M2/M3 no están auditados.** Queda como decisión.
+3. **Sin validar: `foto_url` no se valida como URL.** Ni el código ni el contrato lo hacen: solo `@IsString()`. Por decisión de Gonzalo no se agrega `@IsUrl()`, porque rechazaría payloads que hoy pasan, así que la limitación queda documentada y no corregida.
+4. **Auditorías de M2 y M3:** sin hacer. El mismo diff automático que se usó acá está listo para correrlas: expone 36 divergencias de tipo más las de restricciones que reportó el contraste de M1, incluyendo `Problem.errors` —el array de errores de validación del 422— que el código expone y el vault no declara.

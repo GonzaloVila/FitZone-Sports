@@ -25,11 +25,23 @@ export class EsperaOutDto {
   @Expose()
   fecha_anotacion!: Date;
 
-  @ApiProperty({ example: null, nullable: true })
+  @ApiProperty({
+    type: 'string',
+    format: 'date-time',
+    required: false,
+    example: null,
+    nullable: true,
+  })
   @Expose()
   fecha_notificacion!: Date | null;
 
-  @ApiProperty({ example: null, nullable: true })
+  @ApiProperty({
+    type: 'string',
+    format: 'date-time',
+    required: false,
+    example: null,
+    nullable: true,
+  })
   @Expose()
   fecha_confirmacion!: Date | null;
 }

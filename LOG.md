@@ -330,3 +330,62 @@ Auditoría de M2 contra el plan de trabajo, el OpenAPI del vault y la arquitectu
    - `tsrange` y no `tstzrange` a propósito: las columnas son `TIMESTAMP(3)` sin zona; con `tstzrange` Postgres castearía según el `TimeZone` de cada sesión y la constraint dependería de quién escribe.
    - Migración a mano (`20260925020000_reserva_solapamiento_exclude`): Prisma no modela `EXCLUDE` ni índices parciales.
    - **Hallazgo verificado empíricamente**: a diferencia de `P2002`/`P2003` (que Prisma tipa como
+
+---
+
+## Unidad II — Consistencia de contrato, base de datos y listados · Gonzalo
+
+### Semana 6 · SCRUM-11c — cierre de consistencia de M1/M2 y listados de M1
+
+El contrato del vault, `schema.prisma`, el DBML y la base compartida habían quedado con la nomenclatura de datos en `snake_case` pero la base todavía conservaba nombres cortos en dos columnas. Además el código no había alcanzado dos cosas que el contrato ya declaraba. Esta entrada cierra esa brecha y agrega los listados de M1.
+
+**Respaldo previo:** `pg_dump -Fc` de la Supabase compartida en `_backups/supabase-pre-fase1-20260927-205514.dump` (320,85 KB, 552 entradas, con datos de las 14 tablas), verificado con `pg_restore -l` antes de tocar nada.
+
+#### Actividades
+
+1. **`Socio.sede_id` → `sede_origen_id`**
+   - El dominio y la API ya usaban el nombre largo; la columna era la última capa con el corto. El nombre largo distingue la sede de alta de las sedes a las que el socio accede.
+   - Migración `20260927000000_socio_sede_origen_id`, con su FK. **Aplicada en la Supabase compartida** con `migrate deploy` (nunca `migrate dev`: Prisma 6.19.3 no modela `exq_reserva_turno` ni el índice parcial de RN-01, y los borraría).
+   - [commit e11c9c8](https://github.com/GonzaloVila/FitZone-Sports/commit/e11c9c8)
+
+2. **`Pago.fecha_pago`**
+   - El contrato la declara `required` y no había forma de obtenerla de la fila. `timestamp(3) not null default now`.
+   - Migración `20260927000100_pago_fecha_pago`, **aplicada en la Supabase compartida**.
+   - Las 3 filas de `Pago` que ya existían quedaron con la fecha de la migración, no su fecha real de cobro. Se aceptó así por ser datos de prueba.
+   - [commit e11c9c8](https://github.com/GonzaloVila/FitZone-Sports/commit/e11c9c8)
+
+3. **`SocioOut` expone `nombre` y `email`**
+   - El contrato los marca `required` y el código no los devolvía. Se toman de la relación con `Usuario`, así que toda lectura de `Socio` ahora incluye ese relation, y las que resolvían por unique pasaron a `findUnique` con `include`.
+   - Por esto los testes de M1 verifican el `POST` y el `PATCH`, no solo el `GET`: si el shape cambia, tiene que cambiar en los tres caminos.
+   - [commit e11c9c8](https://github.com/GonzaloVila/FitZone-Sports/commit/e11c9c8)
+
+4. **Parámetros fantasma en el Swagger generado**
+   - Al renombrar las rutas y los `@Param` a `snake_case`, los `@ApiParam` manuales quedaron con el nombre viejo. Como `@nestjs/swagger` **introspecta los `@Param` en runtime** (no hace falta el plugin de la CLI), cada operación documentaba un parámetro extra inexistente: `POST /ingresos/{ingreso_id}/egreso` declaraba `ingreso_id` **y** `ingresoId`. Un cliente generado pedía el parámetro que no existe.
+   - En `GET /usuarios/{id}` no se veía porque ambos nombres coinciden y colapsan en uno, que es exactamente por lo que el bug pasó inadvertido.
+   - **Verificado empíricamente**: se generó el documento con `SwaggerModule.createDocument` y se comparó operación por operación contra el YAML del vault. Las **17 operaciones de M1/M2 coinciden en path, `operationId` y path params**. Las 29 restantes son módulos todavía no implementados.
+   - [commit e11c9c8](https://github.com/GonzaloVila/FitZone-Sports/commit/e11c9c8)
+
+5. **DBML alineado con el `schema.prisma`**
+   - Las columnas `String` son `text` en la base, no `varchar(N)`. Se sacó el ancho que estaba inventado en el DBML y se documentó que la validación de longitud vive en los DTOs.
+   - Los 9 enums nativos de Postgres se documentan como `varchar` con sus valores permitidos en comentario, porque dbdiagram no soporta enums. Inventario verificado: 34 `int`, 15 `text`, 11 `timestamp`, 9 `varchar`, 3 `decimal`, 2 `boolean` = 74 columnas, y las 20 referencias resuelven contra la base real.
+   - [commit e11c9c8](https://github.com/GonzaloVila/FitZone-Sports/commit/e11c9c8)
+
+6. **`GET /socios` y `GET /usuarios` con filtros y paginación**
+   - Lo que el contrato ya declaraba y faltaba implementar. Filtros de socios: `sede_origen_id`, `estado_membresia`, `plan`, `nombre`. De usuarios: `rol`, `nombre`, `email`.
+   - Los dos filtros de membresía se acumulan en el mismo objeto para que Prisma los ANDee sobre la relación. Como `membresia` es opcional en el schema, filtrar por membresía **excluye** a los socios que no tienen ninguna: es la semántica correcta y queda documentado en el código para que no se lea como un olvido.
+   - `OpcionesPaginacion` se muda de `sede.repository.ts` a `commons/paginacion.ts` porque lo comparten los repos de M1 y M2.
+   - [commit 09696e4](https://github.com/GonzaloVila/FitZone-Sports/commit/09696e4)
+
+#### Verificación
+
+- `tsc --noEmit`, `npm run build` y e2e en verde sobre el estado final (`14/14`). El commit de consistencia se verificó **aislado**, con `git stash --keep-index`, y da `12/12`: los 2 tests que faltan son los del listados, que van en el commit siguiente.
+- Contrato: 46 endpoints, 46 `operationId` únicos, 225 `$ref` resueltos, 39 schemas, 127 propiedades, 0 nombres en camelCase.
+- Base compartida después del deploy: 14 tablas y 74 columnas idénticas al `schema.prisma` en nombre, tipo y nullability; 20 FKs intactas; `exq_reserva_turno` e `ingreso_usuario_abierto_unq` preservados; 39 filas antes y después, sin pérdida.
+
+#### Pendientes que siguen abiertos
+
+1. **`GET /ingresos` y `GET /ingresos/{ingreso_id}`**: el contrato los declara y M2 no los implementó. Es el único faltante de M2.
+2. **Rama `desarrollo-m3`**: quedó con `Socio.sede_id` en su `schema.prisma` y sin las dos migraciones nuevas. Si alguien corre `prisma migrate dev` desde ahí, Prisma va a querer **borrar `Pago.fecha_pago`** y **revertir `sede_origen_id`**, deshaciendo esto en la base compartida. Hay que avisar al equipo y traer los cambios de main.
+3. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml`, en el vault). Es la fuente de verdad de la API y no está versionado: nadie lo recibe con un `git pull`. Decisión pendiente de Gonzalo, no se tocó en esta entrada.
+4. **Convención de integración**: el propio `LOG.md` dice que entra por PR a `main` con revisión de ≥1 integrante, pero estos dos commits se pushearon directo a `main` por indicación de Gonzalo.
+5. **Auditorías de M1 y M2**: siguen sin hacer, son el siguiente bloque de trabajo.

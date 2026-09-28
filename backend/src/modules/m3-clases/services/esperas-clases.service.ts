@@ -13,6 +13,8 @@ import {
 } from '../../../commons/membresia/membership-validation.port';
 import { CrearEsperaDto } from '../dtos/crear-espera.dto';
 import { EsperaOutDto } from '../dtos/espera-out.dto';
+import { ListarEsperaDeClaseQueryDto } from '../dtos/listar-espera-de-clase-query.dto';
+import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
 import {
   CLASE_REPOSITORY,
   type ClaseRepository,
@@ -34,6 +36,38 @@ export class EsperasClasesService {
     private readonly membresias: MembershipValidationPort | null,
   ) {}
 
+  async listarEsperaDeClase(
+    claseId: number,
+    filtros: ListarEsperaDeClaseQueryDto,
+  ): Promise<EsperaOutDto[]> {
+    const clase = await this.clasesRepo.buscarPorId(claseId);
+    if (!clase) {
+      throw new NotFoundException('No existe la clase indicada.');
+    }
+
+    const esperas = await this.esperasRepo.listar(
+      { clase_id: claseId, estado: filtros.estado },
+      { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
+    );
+
+    return plainToInstance(EsperaOutDto, esperas);
+  }
+
+  async listarEsperasClase(
+    filtros: ListarEsperasClaseQueryDto,
+  ): Promise<EsperaOutDto[]> {
+    const esperas = await this.esperasRepo.listar(
+      {
+        clase_id: filtros.clase_id,
+        socio_id: filtros.socio_id,
+        estado: filtros.estado,
+      },
+      { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
+    );
+
+    return plainToInstance(EsperaOutDto, esperas);
+  }
+
   async anotarseEnEspera(claseId: number, dto: CrearEsperaDto): Promise<EsperaOutDto> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
@@ -44,7 +78,7 @@ export class EsperasClasesService {
       throw new ProblemException({
         type: 'https://fitzone.app/errores/clase-pasada',
         title: 'Clase no disponible',
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        status: HttpStatus.CONFLICT,
         detail: 'No es posible anotarse en espera para una clase que ya comenzó o ha finalizado.',
       });
     }

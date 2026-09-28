@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import type { OpcionesPaginacion } from '../../../../commons/paginacion';
 import { PrismaService } from '../../../../commons/database/prisma.service';
 import type { ReservaClase } from '../../entities/reserva-clase.entity';
 import type {
+  FiltrosReservasClase,
   ReservaClaseRepository,
   ResultadoCrearReserva,
 } from '../reserva-clase.repository';
@@ -10,6 +12,26 @@ import type {
 @Injectable()
 export class PrismaReservaClaseRepository implements ReservaClaseRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listar(
+    { clase_id, socio_id, estado }: FiltrosReservasClase,
+    { page, perPage }: OpcionesPaginacion,
+  ): Promise<ReservaClase[]> {
+    const where: Prisma.ReservaClaseWhereInput = {
+      ...(clase_id !== undefined && { clase_id }),
+      ...(socio_id !== undefined && { socio_id }),
+      ...(estado !== undefined && { estado }),
+    };
+
+    const filas = await this.prisma.reservaClase.findMany({
+      where,
+      skip: (page - 1) * perPage,
+      take: perPage,
+      orderBy: { id: 'asc' },
+    });
+
+    return filas.map((fila) => this.aDominio(fila));
+  }
 
   async crearConLock(claseId: number, socioId: number): Promise<ResultadoCrearReserva> {
     try {

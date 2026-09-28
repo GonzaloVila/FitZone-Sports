@@ -8,6 +8,7 @@
   Param,
   ParseIntPipe,
   Post,
+  Query,
   Res,
 } from '@nestjs/common';
 import {
@@ -28,6 +29,8 @@ import { ProblemDetailsDto } from '../../../commons/swagger/problem-details.dto'
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { CrearEsperaDto } from '../dtos/crear-espera.dto';
 import { EsperaOutDto } from '../dtos/espera-out.dto';
+import { ListarEsperaDeClaseQueryDto } from '../dtos/listar-espera-de-clase-query.dto';
+import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
 import { EsperasClasesService } from '../services/esperas-clases.service';
 
 @ApiTags('esperas-clases')
@@ -55,16 +58,18 @@ export class EsperasClasesController {
   @ApiForbiddenResponse({ description: 'Socio en mora', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Clase o socio no encontrado', content: PROBLEM_JSON })
   @ApiConflictResponse({
-    description: 'La clase tiene cupos libres o el socio ya se encuentra anotado',
+    description:
+      'La clase todavía tiene cupos libres, el socio ya tiene una espera o una reserva activa ' +
+      'para esa clase, o la clase ya comenzó o finalizó.',
     content: PROBLEM_JSON,
   })
-  @ApiUnprocessableEntityResponse({ description: 'Clase ya finalizada o fecha pasada', content: PROBLEM_JSON })
-    async anotarse(
-      @Param('clase_id', ParseIntPipe) clase_id: number,
-      @Body() dto: CrearEsperaDto,
-      @Res({ passthrough: true }) res: Response,
-    ): Promise<EsperaOutDto> {
-      const espera = await this.esperasService.anotarseEnEspera(clase_id, dto);
+  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
+  async anotarse(
+    @Param('clase_id', ParseIntPipe) clase_id: number,
+    @Body() dto: CrearEsperaDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<EsperaOutDto> {
+    const espera = await this.esperasService.anotarseEnEspera(clase_id, dto);
     res.setHeader('Location', `/api/v1/esperas-clases/${espera.id}`);
     return espera;
   }
@@ -113,5 +118,38 @@ export class EsperasClasesController {
   })
   confirmar(@Param('espera_id', ParseIntPipe) espera_id: number): Promise<void> {
     return this.esperasService.confirmarEspera(espera_id);
+  }
+
+  @Get('clases/:clase_id/espera')
+  @ApiOperation({
+    operationId: 'listarEsperaDeClase',
+    summary: 'Listar solicitudes en lista de espera de una clase (RF-08)',
+  })
+  @ApiParam({ name: 'clase_id', type: Number, description: 'ID de la clase', example: 1 })
+  @ApiOkResponse({
+    description: 'Listado de solicitudes en lista de espera de la clase',
+    type: [EsperaOutDto],
+  })
+  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
+  @ApiNotFoundResponse({ description: 'Clase no encontrada', content: PROBLEM_JSON })
+  listarDeClase(
+    @Param('clase_id', ParseIntPipe) clase_id: number,
+    @Query() query: ListarEsperaDeClaseQueryDto,
+  ): Promise<EsperaOutDto[]> {
+    return this.esperasService.listarEsperaDeClase(clase_id, query);
+  }
+
+  @Get('esperas-clases')
+  @ApiOperation({
+    operationId: 'listarEsperasClase',
+    summary: 'Listar solicitudes en lista de espera de clases (RF-08)',
+  })
+  @ApiOkResponse({
+    description: 'Listado de solicitudes en lista de espera',
+    type: [EsperaOutDto],
+  })
+  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
+  listar(@Query() query: ListarEsperasClaseQueryDto): Promise<EsperaOutDto[]> {
+    return this.esperasService.listarEsperasClase(query);
   }
 }

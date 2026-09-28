@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import type { OpcionesPaginacion } from '../../../../commons/paginacion';
 import { PrismaService } from '../../../../commons/database/prisma.service';
 import type { Clase, ClaseConCupo, ClaseNueva } from '../../entities/clase.entity';
 import type { ClaseFiltros, ClaseRepository } from '../clase.repository';
@@ -45,13 +47,17 @@ export class PrismaClaseRepository implements ClaseRepository {
     };
   }
 
-  async listar(filtros?: ClaseFiltros): Promise<ClaseConCupo[]> {
+  async listar(
+    { sede_id, tipo }: ClaseFiltros,
+    { page, perPage }: OpcionesPaginacion,
+  ): Promise<ClaseConCupo[]> {
+    const where: Prisma.ClaseWhereInput = {
+      ...(sede_id !== undefined && { sede_id }),
+      ...(tipo !== undefined && { tipo: { contains: tipo, mode: 'insensitive' } }),
+    };
+
     const filas = await this.prisma.clase.findMany({
-      where: {
-        ...(filtros?.sede_id ? { sede_id: filtros.sede_id } : {}),
-        ...(filtros?.tipo ? { tipo: { contains: filtros.tipo, mode: 'insensitive' } } : {}),
-        ...(filtros?.fecha ? { horario: { startsWith: filtros.fecha } } : {}),
-      },
+      where,
       include: {
         _count: {
           select: {
@@ -60,6 +66,8 @@ export class PrismaClaseRepository implements ClaseRepository {
         },
       },
       orderBy: { horario: 'asc' },
+      skip: (page - 1) * perPage,
+      take: perPage,
     });
 
     return filas.map((fila) => {

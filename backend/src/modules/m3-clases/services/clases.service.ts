@@ -42,7 +42,7 @@ export class ClasesService {
       throw new ProblemException({
         type: 'https://fitzone.app/errores/fecha-invalida',
         title: 'Horario inválido',
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        status: HttpStatus.CONFLICT,
         detail: 'El formato de fecha y hora no corresponde a un ISO-8601 válido.',
       });
     }
@@ -51,7 +51,7 @@ export class ClasesService {
       throw new ProblemException({
         type: 'https://fitzone.app/errores/clase-pasada',
         title: 'Clase en horario pasado',
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        status: HttpStatus.CONFLICT,
         detail: 'No se puede programar una clase en una fecha u hora pasada.',
       });
     }
@@ -71,8 +71,14 @@ export class ClasesService {
     });
   }
 
-  async listarClases(filtros?: ListarClasesQueryDto): Promise<ClaseOutDto[]> {
-    const clases = await this.clasesRepo.listar(filtros);
+  async listarClases(filtros: ListarClasesQueryDto): Promise<ClaseOutDto[]> {
+    const clases = await this.clasesRepo.listar(
+      {
+        sede_id: filtros.sede_id,
+        tipo: filtros.tipo,
+      },
+      { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
+    );
     return plainToInstance(ClaseOutDto, clases);
   }
 

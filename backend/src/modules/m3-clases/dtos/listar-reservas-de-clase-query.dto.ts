@@ -1,19 +1,18 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsPositive, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import type { EstadoReservaClase } from '../entities/reserva-clase.entity';
 
-export class ListarClasesQueryDto {
-  @ApiPropertyOptional({ description: 'Filtrar por ID de la sede', example: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  sede_id?: number;
+const ESTADOS: EstadoReservaClase[] = ['CONFIRMADA', 'CANCELADA'];
 
-  @ApiPropertyOptional({ description: 'Filtrar por disciplina o tipo', example: 'Spinning' })
+export class ListarReservasDeClaseQueryDto {
+  @ApiPropertyOptional({
+    enum: ESTADOS,
+    description: 'Estado de la reserva.',
+  })
   @IsOptional()
-  @IsString()
-  tipo?: string;
+  @IsIn(ESTADOS)
+  estado?: EstadoReservaClase;
 
   @ApiPropertyOptional({ minimum: 1, default: 1 })
   @IsOptional()

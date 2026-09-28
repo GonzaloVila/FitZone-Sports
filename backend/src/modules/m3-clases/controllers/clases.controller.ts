@@ -9,7 +9,7 @@ import {
   Res,
 } from '@nestjs/common';
 import {
-  ApiBadRequestResponse,
+  ApiConflictResponse,
   ApiCreatedResponse,
   ApiExtraModels,
   ApiNotFoundResponse,
@@ -45,9 +45,14 @@ export class ClasesController {
       },
     },
   })
-  @ApiBadRequestResponse({ description: 'Parámetros inválidos en la solicitud', content: PROBLEM_JSON })
+  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'La sede referenciada no existe', content: PROBLEM_JSON })
-  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos o fecha en el pasado', content: PROBLEM_JSON })
+  @ApiConflictResponse({
+    description:
+      'El horario enviado no es una fecha-hora ISO-8601 válida, o la clase quedaría ' +
+      'programada en un momento ya pasado.',
+    content: PROBLEM_JSON,
+  })
   async crear(
     @Body() dto: CrearClaseDto,
     @Res({ passthrough: true }) res: Response,
@@ -66,7 +71,7 @@ export class ClasesController {
     description: 'Listado de clases con cupos en tiempo real',
     type: [ClaseOutDto],
   })
-  @ApiBadRequestResponse({ description: 'Parámetros de búsqueda inválidos', content: PROBLEM_JSON })
+  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
   listar(@Query() query: ListarClasesQueryDto): Promise<ClaseOutDto[]> {
     return this.clasesService.listarClases(query);
   }

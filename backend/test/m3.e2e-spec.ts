@@ -151,7 +151,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .expect(404);
     });
 
-    it('POST /clases con horario pasado responde 422', async () => {
+    it('POST /clases con horario pasado responde 409', async () => {
       const fechaPasada = new Date(Date.now() - 3600 * 1000).toISOString();
 
       await request(app.getHttpServer())
@@ -163,7 +163,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           horario: fechaPasada,
           capacidad: 15,
         })
-        .expect(422);
+        .expect(409);
     });
   });
 
@@ -188,8 +188,8 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       clasesCreadas.push(claseId);
 
       const resReserva = await request(app.getHttpServer())
-        .post(`/api/v1/clases/${claseId}/reservas`)
-        .send({ socio_id: socioId })
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioId })
         .expect(201);
 
       expect(resReserva.headers.location).toBe(`/api/v1/reservas-clases/${resReserva.body.id}`);
@@ -204,7 +204,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       expect(resDetalle.body.cupo_disponible).toBe(9);
     });
 
-    it('intento de reserva fuera de la ventana de 48 hs (ej. en 5 días) responde 422', async () => {
+    it('intento de reserva fuera de la ventana de 48 hs (ej. en 5 días) responde 409', async () => {
       const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
 
       // Clase en 120 horas (> 48 hs)
@@ -224,9 +224,9 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       clasesCreadas.push(claseId);
 
       await request(app.getHttpServer())
-        .post(`/api/v1/clases/${claseId}/reservas`)
-        .send({ socio_id: socioId })
-        .expect(422);
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioId })
+        .expect(409);
     });
 
     it('socio en mora (membresía vencida) no puede reservar con descuento (403)', async () => {
@@ -248,8 +248,8 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       clasesCreadas.push(claseId);
 
       await request(app.getHttpServer())
-        .post(`/api/v1/clases/${claseId}/reservas`)
-        .send({ socio_id: socioId })
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioId })
         .expect(403);
     });
 
@@ -273,14 +273,14 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       // Primera reserva exitosa
       await request(app.getHttpServer())
-        .post(`/api/v1/clases/${claseId}/reservas`)
-        .send({ socio_id: socioId })
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioId })
         .expect(201);
 
       // Segunda reserva responde 409 Conflict
       await request(app.getHttpServer())
-        .post(`/api/v1/clases/${claseId}/reservas`)
-        .send({ socio_id: socioId })
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioId })
         .expect(409);
     });
 
@@ -304,15 +304,15 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       clasesCreadas.push(claseId);
 
       const resReserva = await request(app.getHttpServer())
-        .post(`/api/v1/clases/${claseId}/reservas`)
-        .send({ socio_id: socioId })
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioId })
         .expect(201);
 
       const reservaId: number = resReserva.body.id;
 
       // Cancelación exitosa
       await request(app.getHttpServer())
-        .delete(`/api/v1/reservas-clases/${reservaId}`)
+        .post(`/api/v1/reservas-clases/${reservaId}/cancelaciones`)
         .expect(204);
 
       // La reserva queda en estado CANCELADA
@@ -343,14 +343,14 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       clasesCreadas.push(claseId);
 
       const resReserva = await request(app.getHttpServer())
-        .post(`/api/v1/clases/${claseId}/reservas`)
-        .send({ socio_id: socioId })
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioId })
         .expect(201);
 
       const reservaId: number = resReserva.body.id;
 
       await request(app.getHttpServer())
-        .delete(`/api/v1/reservas-clases/${reservaId}`)
+        .post(`/api/v1/reservas-clases/${reservaId}/cancelaciones`)
         .expect(409);
     });
   });
@@ -384,8 +384,8 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       // Socio A reserva el único cupo disponible
       const resReservaA = await request(app.getHttpServer())
-        .post(`/api/v1/clases/${claseId}/reservas`)
-        .send({ socio_id: socioA.socioId })
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioA.socioId })
         .expect(201);
 
       const reservaIdA: number = resReservaA.body.id;
@@ -407,7 +407,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       // Socio A cancela su reserva con > 2 hs de anticipación
       await request(app.getHttpServer())
-        .delete(`/api/v1/reservas-clases/${reservaIdA}`)
+        .post(`/api/v1/reservas-clases/${reservaIdA}/cancelaciones`)
         .expect(204);
 
       // Verificamos que el Observer actualizó a Socio B a estado NOTIFICADO
@@ -459,8 +459,8 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       // Socio A llena la clase
       await request(app.getHttpServer())
-        .post(`/api/v1/clases/${claseId}/reservas`)
-        .send({ socio_id: socioA.socioId })
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioA.socioId })
         .expect(201);
 
       // Socio B se anota en espera
@@ -482,6 +482,308 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .expect(200);
 
       expect(resConsulta.body.estado).toBe('CANCELADO');
+    });
+  });
+
+  describe('Listados con filtros y paginación (RF-06 / RF-07 / RF-08)', () => {
+    it('GET /clases/{clase_id}/reservas lista, filtra por estado y pagina', async () => {
+      const fechaClase = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+      const resClase = await request(app.getHttpServer())
+        .post('/api/v1/clases')
+        .send({
+          sede_id: sedeId,
+          tipo: 'Listado Reservas',
+          instructor: 'Profe Listado',
+          horario: fechaClase,
+          capacidad: 3,
+        })
+        .expect(201);
+
+      const claseId: number = resClase.body.id;
+      clasesCreadas.push(claseId);
+
+      for (let i = 0; i < 3; i++) {
+        const socio = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+        await request(app.getHttpServer())
+          .post('/api/v1/reservas-clases')
+          .send({ clase_id: claseId, socio_id: socio.socioId })
+          .expect(201);
+      }
+
+      const resTodas = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/reservas`)
+        .expect(200);
+
+      expect(Array.isArray(resTodas.body)).toBe(true);
+      expect(resTodas.body).toHaveLength(3);
+      for (const reserva of resTodas.body) {
+        expect(reserva.clase_id).toBe(claseId);
+        expect(reserva.estado).toBe('CONFIRMADA');
+        expect(typeof reserva.id).toBe('number');
+        expect(typeof reserva.socio_id).toBe('number');
+      }
+
+      const resConfirmadas = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/reservas?estado=CONFIRMADA`)
+        .expect(200);
+      expect(resConfirmadas.body).toHaveLength(3);
+
+      const resCanceladas = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/reservas?estado=CANCELADA`)
+        .expect(200);
+      expect(resCanceladas.body).toHaveLength(0);
+
+      const resPagina1 = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/reservas?per_page=2&page=1`)
+        .expect(200);
+      expect(resPagina1.body).toHaveLength(2);
+
+      const resPagina2 = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/reservas?per_page=2&page=2`)
+        .expect(200);
+      expect(resPagina2.body).toHaveLength(1);
+
+      const resPagina3 = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/reservas?per_page=2&page=3`)
+        .expect(200);
+      expect(resPagina3.body).toHaveLength(0);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/clases/999999999/reservas')
+        .expect(404);
+    });
+
+    it('GET /reservas-clases filtra por clase, socio y estado', async () => {
+      const fechaClase = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+      const resClase = await request(app.getHttpServer())
+        .post('/api/v1/clases')
+        .send({
+          sede_id: sedeId,
+          tipo: 'Listado Global Reservas',
+          instructor: 'Profe Global',
+          horario: fechaClase,
+          capacidad: 5,
+        })
+        .expect(201);
+
+      const claseId: number = resClase.body.id;
+      clasesCreadas.push(claseId);
+
+      const socioA = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+      const socioB = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioA.socioId })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioB.socioId })
+        .expect(201);
+
+      const resPorClase = await request(app.getHttpServer())
+        .get(`/api/v1/reservas-clases?clase_id=${claseId}`)
+        .expect(200);
+      expect(resPorClase.body).toHaveLength(2);
+
+      const resPorSocio = await request(app.getHttpServer())
+        .get(`/api/v1/reservas-clases?socio_id=${socioA.socioId}`)
+        .expect(200);
+      expect(resPorSocio.body).toHaveLength(1);
+      expect(resPorSocio.body[0].socio_id).toBe(socioA.socioId);
+
+      const resPorEstado = await request(app.getHttpServer())
+        .get(`/api/v1/reservas-clases?clase_id=${claseId}&estado=CONFIRMADA`)
+        .expect(200);
+      expect(resPorEstado.body).toHaveLength(2);
+
+      const resCombinado = await request(app.getHttpServer())
+        .get(`/api/v1/reservas-clases?clase_id=${claseId}&socio_id=${socioB.socioId}`)
+        .expect(200);
+      expect(resCombinado.body).toHaveLength(1);
+      expect(resCombinado.body[0].socio_id).toBe(socioB.socioId);
+
+      await request(app.getHttpServer())
+        .get(`/api/v1/reservas-clases?estado=INVALIDO`)
+        .expect(422);
+
+      await request(app.getHttpServer())
+        .get(`/api/v1/reservas-clases?fecha=2026-10-15`)
+        .expect(422);
+    });
+
+    it('GET /clases/{clase_id}/espera lista, filtra por estado y pagina', async () => {
+      const fechaClase = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
+      const resClase = await request(app.getHttpServer())
+        .post('/api/v1/clases')
+        .send({
+          sede_id: sedeId,
+          tipo: 'Listado Espera',
+          instructor: 'Profe Espera',
+          horario: fechaClase,
+          capacidad: 1,
+        })
+        .expect(201);
+
+      const claseId: number = resClase.body.id;
+      clasesCreadas.push(claseId);
+
+      const socioOcupante = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+      await request(app.getHttpServer())
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioOcupante.socioId })
+        .expect(201);
+
+      for (let i = 0; i < 2; i++) {
+        const socio = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+        await request(app.getHttpServer())
+          .post(`/api/v1/clases/${claseId}/espera`)
+          .send({ socio_id: socio.socioId })
+          .expect(201);
+      }
+
+      const resTodas = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/espera`)
+        .expect(200);
+
+      expect(Array.isArray(resTodas.body)).toBe(true);
+      expect(resTodas.body).toHaveLength(2);
+      for (const espera of resTodas.body) {
+        expect(espera.clase_id).toBe(claseId);
+        expect(espera.estado).toBe('EN_ESPERA');
+        expect(espera.fecha_anotacion).toBeDefined();
+        expect(espera.fecha_notificacion).toBeNull();
+        expect(espera.fecha_confirmacion).toBeNull();
+      }
+
+      const resEnEspera = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/espera?estado=EN_ESPERA`)
+        .expect(200);
+      expect(resEnEspera.body).toHaveLength(2);
+
+      const resConfirmadas = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/espera?estado=CONFIRMADO`)
+        .expect(200);
+      expect(resConfirmadas.body).toHaveLength(0);
+
+      const resPagina1 = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/espera?per_page=1&page=1`)
+        .expect(200);
+      expect(resPagina1.body).toHaveLength(1);
+
+      const resPagina2 = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/espera?per_page=1&page=2`)
+        .expect(200);
+      expect(resPagina2.body).toHaveLength(1);
+      expect(resPagina1.body[0].id).not.toBe(resPagina2.body[0].id);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/clases/999999999/espera')
+        .expect(404);
+    });
+
+    it('GET /esperas-clases filtra por clase, socio y estado', async () => {
+      const fechaClase = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
+      const resClase = await request(app.getHttpServer())
+        .post('/api/v1/clases')
+        .send({
+          sede_id: sedeId,
+          tipo: 'Listado Global Espera',
+          instructor: 'Profe Global Espera',
+          horario: fechaClase,
+          capacidad: 1,
+        })
+        .expect(201);
+
+      const claseId: number = resClase.body.id;
+      clasesCreadas.push(claseId);
+
+      const socioOcupante = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+      const socioB = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioOcupante.socioId })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/clases/${claseId}/espera`)
+        .send({ socio_id: socioB.socioId })
+        .expect(201);
+
+      const resPorClase = await request(app.getHttpServer())
+        .get(`/api/v1/esperas-clases?clase_id=${claseId}`)
+        .expect(200);
+      expect(resPorClase.body).toHaveLength(1);
+      expect(resPorClase.body[0].clase_id).toBe(claseId);
+
+      const resPorSocio = await request(app.getHttpServer())
+        .get(`/api/v1/esperas-clases?socio_id=${socioB.socioId}`)
+        .expect(200);
+      expect(resPorSocio.body).toHaveLength(1);
+      expect(resPorSocio.body[0].socio_id).toBe(socioB.socioId);
+
+      const resPorEstado = await request(app.getHttpServer())
+        .get(`/api/v1/esperas-clases?clase_id=${claseId}&estado=EN_ESPERA`)
+        .expect(200);
+      expect(resPorEstado.body).toHaveLength(1);
+
+      const resOtroEstado = await request(app.getHttpServer())
+        .get(`/api/v1/esperas-clases?clase_id=${claseId}&estado=CANCELADO`)
+        .expect(200);
+      expect(resOtroEstado.body).toHaveLength(0);
+
+      await request(app.getHttpServer())
+        .get(`/api/v1/esperas-clases?estado=INVALIDO`)
+        .expect(422);
+    });
+
+    it('GET /clases pagina los resultados y ya no acepta el filtro fecha', async () => {
+      for (const horas of [24, 25, 26]) {
+        const resClase = await request(app.getHttpServer())
+          .post('/api/v1/clases')
+          .send({
+            sede_id: sedeId,
+            tipo: 'Demo Paginacion',
+            instructor: 'Profe Paginacion',
+            horario: new Date(Date.now() + horas * 3600 * 1000).toISOString(),
+            capacidad: 5,
+          })
+          .expect(201);
+        clasesCreadas.push(resClase.body.id);
+      }
+
+      const resPagina1 = await request(app.getHttpServer())
+        .get('/api/v1/clases?tipo=Demo Paginacion&per_page=2&page=1')
+        .expect(200);
+      expect(resPagina1.body).toHaveLength(2);
+
+      const resPagina2 = await request(app.getHttpServer())
+        .get('/api/v1/clases?tipo=Demo Paginacion&per_page=2&page=2')
+        .expect(200);
+      expect(resPagina2.body).toHaveLength(1);
+
+      const resPagina3 = await request(app.getHttpServer())
+        .get('/api/v1/clases?tipo=Demo Paginacion&per_page=2&page=3')
+        .expect(200);
+      expect(resPagina3.body).toHaveLength(0);
+
+      const resTodas = await request(app.getHttpServer())
+        .get('/api/v1/clases?tipo=Demo Paginacion&per_page=100')
+        .expect(200);
+      expect(resTodas.body).toHaveLength(3);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/clases?fecha=2026-10-15')
+        .expect(422);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/clases?per_page=0')
+        .expect(422);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/clases?per_page=101')
+        .expect(422);
     });
   });
 
@@ -514,8 +816,8 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const respuestas = await Promise.all(
         socios.map((s) =>
           request(app.getHttpServer())
-            .post(`/api/v1/clases/${claseId}/reservas`)
-            .send({ socio_id: s.socioId }),
+            .post('/api/v1/reservas-clases')
+            .send({ clase_id: claseId, socio_id: s.socioId }),
         ),
       );
 

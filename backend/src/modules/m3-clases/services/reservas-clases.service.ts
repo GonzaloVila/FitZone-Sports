@@ -12,6 +12,8 @@ import {
   type MembershipValidationPort,
 } from '../../../commons/membresia/membership-validation.port';
 import { CrearReservaClaseDto } from '../dtos/crear-reserva-clase.dto';
+import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query.dto';
+import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-query.dto';
 import { ReservaClaseOutDto } from '../dtos/reserva-clase-out.dto';
 import { CupoLiberadoSubject } from '../observers/cupo-liberado.subject';
 import {
@@ -36,7 +38,39 @@ export class ReservasClasesService {
     private readonly cupoSubject: CupoLiberadoSubject,
   ) {}
 
-  async reservarClase(
+  async listarReservasDeClase(
+    claseId: number,
+    filtros: ListarReservasDeClaseQueryDto,
+  ): Promise<ReservaClaseOutDto[]> {
+    const clase = await this.clasesRepo.buscarPorId(claseId);
+    if (!clase) {
+      throw new NotFoundException('No existe la clase indicada.');
+    }
+
+    const reservas = await this.reservasRepo.listar(
+      { clase_id: claseId, estado: filtros.estado },
+      { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
+    );
+
+    return plainToInstance(ReservaClaseOutDto, reservas);
+  }
+
+  async listarReservasClase(
+    filtros: ListarReservasClaseQueryDto,
+  ): Promise<ReservaClaseOutDto[]> {
+    const reservas = await this.reservasRepo.listar(
+      {
+        clase_id: filtros.clase_id,
+        socio_id: filtros.socio_id,
+        estado: filtros.estado,
+      },
+      { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
+    );
+
+    return plainToInstance(ReservaClaseOutDto, reservas);
+  }
+
+  async crearReservaClase(
     claseId: number,
     dto: CrearReservaClaseDto,
   ): Promise<ReservaClaseOutDto> {
@@ -70,7 +104,7 @@ export class ReservasClasesService {
       throw new ProblemException({
         type: 'https://fitzone.app/errores/reserva-anticipada-no-permitida',
         title: 'Reserva anticipada no permitida',
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        status: HttpStatus.CONFLICT,
         detail: 'Las reservas de clases solo se habilitan dentro de las 48 horas previas al inicio.',
       });
     }
@@ -79,7 +113,7 @@ export class ReservasClasesService {
       throw new ProblemException({
         type: 'https://fitzone.app/errores/clase-pasada',
         title: 'Clase no disponible',
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        status: HttpStatus.CONFLICT,
         detail: 'No es posible reservar una clase que ya comenzó o ha finalizado.',
       });
     }
@@ -111,16 +145,16 @@ export class ReservasClasesService {
     return plainToInstance(ReservaClaseOutDto, resultado.reserva);
   }
 
-  async obtenerReserva(reservaId: number): Promise<ReservaClaseOutDto> {
-    const reserva = await this.reservasRepo.buscarPorId(reservaId);
+  async obtenerReservaClase(reservaClaseId: number): Promise<ReservaClaseOutDto> {
+    const reserva = await this.reservasRepo.buscarPorId(reservaClaseId);
     if (!reserva) {
       throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
     }
     return plainToInstance(ReservaClaseOutDto, reserva);
   }
 
-  async cancelarReserva(reservaId: number): Promise<void> {
-    const reserva = await this.reservasRepo.buscarPorId(reservaId);
+  async cancelarReservaClase(reservaClaseId: number): Promise<void> {
+    const reserva = await this.reservasRepo.buscarPorId(reservaClaseId);
     if (!reserva) {
       throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
     }
@@ -148,7 +182,7 @@ export class ReservasClasesService {
       });
     }
 
-    await this.reservasRepo.marcarCancelada(reservaId);
+    await this.reservasRepo.marcarCancelada(reservaClaseId);
 
     // Disparo del Patrón Observer (RF-08): libera lugar y notifica a lista de espera
     await this.cupoSubject.notificar({

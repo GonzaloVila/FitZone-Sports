@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import type { OpcionesPaginacion } from '../../../../commons/paginacion';
 import { PrismaService } from '../../../../commons/database/prisma.service';
 import type { EsperaClase, EsperaClaseNueva } from '../../entities/espera-clase.entity';
 import type { ReservaClase } from '../../entities/reserva-clase.entity';
 import type {
   EsperaClaseRepository,
+  FiltrosEsperasClase,
   ResultadoConfirmarEspera,
   ResultadoCrearEspera,
 } from '../espera-clase.repository';
@@ -12,6 +14,26 @@ import type {
 @Injectable()
 export class PrismaEsperaClaseRepository implements EsperaClaseRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listar(
+    { clase_id, socio_id, estado }: FiltrosEsperasClase,
+    { page, perPage }: OpcionesPaginacion,
+  ): Promise<EsperaClase[]> {
+    const where: Prisma.EsperaClaseWhereInput = {
+      ...(clase_id !== undefined && { clase_id }),
+      ...(socio_id !== undefined && { socio_id }),
+      ...(estado !== undefined && { estado }),
+    };
+
+    const filas = await this.prisma.esperaClase.findMany({
+      where,
+      skip: (page - 1) * perPage,
+      take: perPage,
+      orderBy: { fecha_anotacion: 'asc' },
+    });
+
+    return filas.map((fila) => this.aDominio(fila));
+  }
 
   async crear(espera: EsperaClaseNueva): Promise<ResultadoCrearEspera> {
     const clase = await this.prisma.clase.findUnique({

@@ -1,6 +1,11 @@
-import { HttpStatus, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { ProblemException } from '../../../commons/filters/problem.exception';
+import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import {
   MEMBERSHIP_VALIDATION_PORT,
   MembershipValidationPort,
@@ -27,7 +32,7 @@ export class IngresosService {
   async registrarIngreso(dto: IngresoInDto): Promise<IngresoOutDto> {
     const sede = await this.sedes.buscarPorId(dto.sede_id);
     if (!sede) {
-      throw new NotFoundException('No existe la sede indicada.');
+      throw recursoNoEncontrado('No existe la sede indicada.');
     }
 
     // qr_token solo se exige presente (validación de DTO): el mecanismo de QR
@@ -81,7 +86,7 @@ export class IngresosService {
   async registrarEgreso(ingresoId: number): Promise<void> {
     const ingreso = await this.ingresos.buscarPorId(ingresoId);
     if (!ingreso) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     if (ingreso.fecha_hora_egreso) {
       throw new ProblemException({
@@ -98,7 +103,7 @@ export class IngresosService {
   async obtenerAforo(sedeId: number): Promise<AforoOutDto> {
     const sede = await this.sedes.buscarPorId(sedeId);
     if (!sede) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
 
     const aforoActual = await this.ingresos.contarActivosPorSede(sedeId);

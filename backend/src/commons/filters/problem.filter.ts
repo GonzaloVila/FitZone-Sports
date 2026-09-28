@@ -24,6 +24,14 @@ const TITLES: Record<number, string> = {
   503: 'Servicio no disponible',
 };
 
+// Detalle fijo para los 4xx que produce el framework. Ver resolveDetail(): el
+// detalle crudo del framework viene en ingles y, en el 404, solo repite el path
+// que ya viaja en `instance`.
+const CLIENT_DETAILS: Record<number, string> = {
+  400: 'La solicitud está mal formada: el cuerpo no es JSON válido o algún parámetro tiene un formato inválido.',
+  404: 'La ruta solicitada no existe o el recurso no fue encontrado.',
+};
+
 @Catch()
 export class ProblemFilter implements ExceptionFilter {
   private readonly logger = new Logger(ProblemFilter.name);
@@ -64,11 +72,7 @@ export class ProblemFilter implements ExceptionFilter {
   private toHttpProblem(exception: HttpException, request: Request): ProblemDetails {
     const status = exception.getStatus();
     const title = TITLES[status] ?? (status >= 500 ? TITLES[500] : 'Error de la solicitud');
-    const detail =
-      this.extractMessage(exception.getResponse()) ??
-      (status >= 500
-        ? 'Ocurrió un error inesperado en el servidor.'
-        : 'La solicitud no pudo procesarse.');
+    const detail = this.resolveDetail(status, this.extractMessage(exception.getResponse()));
 
     return {
       type: GENERIC_TYPE,
@@ -77,6 +81,23 @@ export class ProblemFilter implements ExceptionFilter {
       detail,
       instance: request.originalUrl ?? request.url,
     };
+  }
+
+  private resolveDetail(status: number, raw: string | undefined): string {
+    if (status >= 500) {
+      return raw ?? 'Ocurrió un error inesperado en el servidor.';
+    }
+
+    // Los 4xx que llegan hasta acá son todos del framework: ParseIntPipe,
+    // body-parser y la ruta inexistente. En src/ no hay ningun `throw new` de
+    // Nest -- la app tira ProblemException, que corta antes en toProblemBody --
+    // asi que no hay ningun detalle propio en español que preservar acá y el
+    // del framework se puede sustituir sin perder información.
+    // El original queda en el log para el diagnóstico del lado servidor.
+    if (raw !== undefined) {
+      this.logger.debug(`Detalle original del ${status}: ${raw}`);
+    }
+    return CLIENT_DETAILS[status] ?? 'La solicitud no pudo procesarse.';
   }
 
   private toValidationProblem(exception: HttpException, request: Request): ProblemDetails {

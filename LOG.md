@@ -416,3 +416,44 @@ El contrato del vault, `schema.prisma`, el DBML y la base compartida habían que
 1. **Lock Pesimista sobre Optimistic Locking:** `SELECT ... FOR UPDATE` sobre la fila de `Clase` garantiza serialización sin sobreventa ni loops de reintento.
 2. **`horario` como ISO-8601 UTC string:** Estandarizado a `YYYY-MM-DDTHH:mm:ssZ` (20 caracteres) para mantener compatibilidad con la columna de base de datos.
 3. **Baja lógica en lista de espera:** Se agrega `CANCELADO` a `EstadoEspera` en Prisma para permitir salir de la espera preservando auditoría.
+
+---
+
+## Unidad II — Consistencia del contrato de errores y cierre de M3 · Gonzalo Vila
+
+### Semana 6 · SCRUM-11c — Errores 4xx en español y listados paginados de M3
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **Detalles 4xx en español (`fix(commons)`):** los 400 de `ParseIntPipe` y body-parser, y el 404 de ruta inexistente, llegaban con el detalle crudo del framework — en inglés, y en el 404 solo se repetía el path que ya viaja en `instance`. Se agrega `CLIENT_DETAILS` (detalle fijo por status) y `resolveDetail()`, que sustituye el detalle de todo 4xx y deja el original en `logger.debug` para diagnóstico servidor. Los 5xx conservan el detalle. El flujo de `ProblemException` y el 422 del `ValidationPipe` no cambian.
+2. **Listados paginados de M3 (`feat(m3)`):** el contrato declaraba cuatro endpoints que faltaban: `GET /clases/{clase_id}/reservas`, `GET /reservas-clases`, `GET /clases/{clase_id}/espera` y `GET /esperas-clases`. DTOs de query con lista blanca de filtros y paginación, orden estable (fecha desc + id desc) y 404 por clase inexistente también en los listados. `GET /clases` pierde el filtro `fecha`, que no estaba en el contrato.
+3. **Contrato e2e de 4xx (`test(e2e)`):** 7 casos nuevos en `test/errores-4xx.e2e-spec.ts` que fijan el comportamiento transversal de los errores del framework: JSON mal formado, path param no numérico, ruta inexistente, método no soportado y DTO inválido, todos en `application/problem+json`.
+4. **Alineación del vault:** `TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md` quedan alineados con el comportamiento real. El contrato corregía decisiones previas: las ventanas temporales de 48 h y 2 h devuelven 409 (no 422) porque son conflictos con el estado del recurso; `confirmarEspera` devuelve 204 sin cuerpo; `crearClase` declara su 409; los nueve endpoints de M1 declaran su 400. Se agregan los componentes `SocioEnMora`, `ConflictoReservaClase`, `ClaseFueraDeHorario` y `VentanaCancelacionCerrada`, se elimina `CupoCompleto` y se corrige `ClaseOut`, que declaraba `cupos_disponibles` cuando el DTO expone `cupo_disponible` y `reservas_confirmadas`.
+
+#### Decisiones tomadas
+
+1. **Los 4xx del framework se sustituyen, no se traducen:** en `src/` no hay ningún `throw new` de Nest, todo el código propio tira `ProblemException` y corta antes en `toProblemBody()`. Los 4xx que llegan a `resolveDetail()` son siempre del framework, así que no hay detalle propio en español que preservar y el original se puede sustituir sin perder información. Queda en el log por si hay que diagnosticarlo.
+2. **No se implementa 405:** Express 5 no lo distingue de forma nativa y el vault no lo declara en ninguna operación. Se acepta 404 tanto para ruta inexistente como para método no soportado; agregar 405 exigiría un middleware global con el costo que no se justifica para este alcance.
+3. **422 declarado donde el ValidationPipe lo produce:** `crearReservaClase` y `anotarseEnEspera` reciben DTO con `ParseIntPipe` + `ValidationPipe`, que producen 422 en runtime. El contrato lo declaraba solo en algunos endpoints; se completa.
+4. **Los commits van en tres, no en uno:** el filtro de errores es transversal (toca toda la API) y su prueba e2e cruza M1 y M3, mientras que los listados son de M3. Mezclarlos habría dejado el cambio transversal clasificado como trabajo de un módulo. El `ApiBadRequestResponse` de `clases.controller.ts` quedó en el commit de M3 completo: partir un archivo de 9 líneas no compensaba y se documenta acá su origen transversal.
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **38/38 en 4 specs** (31 de M3 + 7 de 4xx).
+- Contraste entre el código y el vault: **31/31 operaciones coinciden en ruta, verbo y status codes**; 0 divergencias. Los 9 schemas `*Out` coinciden campo por campo; 0 referencias `$ref` rotas y 0 componentes huérfanos.
+- `ClaseOut` corregido: `required` pasa a los 8 campos reales y el ejemplo cuadra (18 − 5 = 13).
+- El YAML se editó quirúrgicamente: los 23 comentarios se preservan y el encoding no cambia (vault en CRLF, Plan M3 en LF). Backups `pre-fase2.bak` y `pre-fase3.bak` de ambos archivos.
+
+#### Commits
+
+- [cf97644](https://github.com/GonzaloVila/FitZone-Sports/commit/cf97644) — `fix(commons)`: detalles 4xx en español.
+- [1b70444](https://github.com/GonzaloVila/FitZone-Sports/commit/1b70444) — `feat(m3)`: cuatro listados paginados.
+- [4f6e7a2](https://github.com/GonzaloVila/FitZone-Sports/commit/4f6e7a2) — `test(e2e)`: contrato de errores 4xx.
+
+#### Pendientes que siguen abiertos
+
+1. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado: nadie lo recibe con un `git pull`. Esta entrada deja registrada la enmienda de los 409 y del `ClaseOut`, pero un `git pull` no la reproduce. Sigue siendo decisión pendiente de Gonzalo.
+2. **`confirmarEspera` devuelve 204 sin cuerpo:** el contrato original argumentaba 201 con `Location` para que el cliente conociera el id de la `ReservaClase` creada. El código devuelve 204 y descarta ese id, así que el cliente tiene que barrer `GET /reservas-clases` para descubrirlo. Queda como decisión de diseño a revisar, no como error.
+3. **Auditorías de M1, M2 y M3:** sin hacer. El contrato y el código ya están alineados, así que se pueden arrancar.

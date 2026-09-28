@@ -1,9 +1,8 @@
 import {
-  ConflictException,
   Inject,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
+import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
 import { CrearSocioDto } from '../dtos/crear-socio.dto';
 import { ListarSociosQueryDto } from '../dtos/listar-socios-query.dto';
@@ -23,10 +22,13 @@ export class SociosService {
   async crear(dto: CrearSocioDto): Promise<SocioOutDto> {
     const usuario = await this.usuarios.buscarPorId(dto.usuario_id);
     if (!usuario) {
-      throw new NotFoundException('No existe el usuario indicado.');
+      throw recursoNoEncontrado('No existe el usuario indicado.');
     }
     if (usuario.rol === 'SOCIO') {
-      throw new ConflictException('El usuario ya es socio.');
+      throw conflictoDeDominio(
+        'El usuario ya es socio',
+        `El usuario ${usuario.id} ya tiene un registro de socio.`,
+      );
     }
 
     const socio = await this.socios.crear({
@@ -54,7 +56,7 @@ export class SociosService {
   async obtenerPorId(id: number): Promise<SocioOutDto> {
     const socio = await this.socios.buscarPorId(id);
     if (!socio) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return this.aOut(socio);
   }
@@ -67,7 +69,7 @@ export class SociosService {
 
     const socio = await this.socios.actualizar(id, cambios);
     if (!socio) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return this.aOut(socio);
   }
@@ -75,7 +77,7 @@ export class SociosService {
   async dejarDeSerSocio(id: number): Promise<void> {
     const socio = await this.socios.buscarPorId(id);
     if (!socio) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     await this.socios.eliminar(id);
   }

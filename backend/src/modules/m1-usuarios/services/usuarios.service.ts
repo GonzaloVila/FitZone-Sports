@@ -1,9 +1,8 @@
 import {
-  ConflictException,
   Inject,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
+import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import * as bcrypt from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
 import { CrearUsuarioDto } from '../dtos/crear-usuario.dto';
@@ -27,7 +26,12 @@ export class UsuariosService {
   async crear(dto: CrearUsuarioDto): Promise<UsuarioOutDto> {
     const existente = await this.usuarios.buscarPorDniOEmail(dto.dni, dto.email);
     if (existente) {
-      throw new ConflictException('Ya existe un usuario con ese dni o email.');
+      throw conflictoDeDominio(
+        'Conflicto de unicidad',
+        existente.dni === dto.dni
+          ? `El DNI ${dto.dni} ya está registrado.`
+          : `El email ${dto.email} ya está registrado.`,
+      );
     }
 
     const contrasenia = await bcrypt.hash(dto.contrasenia, SALT_ROUNDS);
@@ -57,7 +61,7 @@ export class UsuariosService {
   async obtenerPorId(id: number): Promise<UsuarioOutDto> {
     const usuario = await this.usuarios.buscarPorId(id);
     if (!usuario) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return this.aOut(usuario);
   }
@@ -79,7 +83,7 @@ export class UsuariosService {
 
     const usuario = await this.usuarios.actualizar(id, cambios);
     if (!usuario) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return this.aOut(usuario);
   }

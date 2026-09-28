@@ -30,6 +30,9 @@ async function bootstrap() {
     .addTag('membresias')
     .addTag('sedes')
     .addTag('ingresos')
+    .addTag('clases')
+    .addTag('reservas-clases')
+    .addTag('esperas-clases')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument);

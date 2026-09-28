@@ -50,9 +50,15 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
   afterAll(async () => {
     // Limpieza en orden inverso a las FKs (membresia -> socio -> usuario -> sede).
-    await prisma.membresia.deleteMany({});
-    await prisma.socio.deleteMany({});
-    await prisma.usuario.deleteMany({ where: { email: { contains: '@e2e.fitzone.test' } } });
+    //
+    // Acotada a los datos de ESTA suite. Antes era `deleteMany({})` a secas sobre
+    // membresia y socio, que borra la base entera: con las tres suites sobre la misma
+    // base, una podia borrar los fixtures de otra a mitad de run. Se filtra por el
+    // prefijo de email de M1 (`socio.`), que es unico; M2 usa `m2.` y M3 usa `m3.`.
+    const mio = { usuario: { email: { startsWith: 'socio.' } } };
+    await prisma.membresia.deleteMany({ where: { socio: mio } });
+    await prisma.socio.deleteMany({ where: mio });
+    await prisma.usuario.deleteMany({ where: { email: { startsWith: 'socio.' } } });
     await prisma.sede.delete({ where: { id: sedeId } });
     await app.close();
   });

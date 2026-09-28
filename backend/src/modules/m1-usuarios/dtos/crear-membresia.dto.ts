@@ -22,6 +22,8 @@ export class CrearMembresiaDto {
   renueva_automatica?: boolean;
 
   @ApiPropertyOptional({
+    type: 'string',
+    format: 'date',
     description: 'Fecha de inicio de la membresía (ISO 8601). Por defecto la fecha actual.',
     example: '2026-09-20',
   })

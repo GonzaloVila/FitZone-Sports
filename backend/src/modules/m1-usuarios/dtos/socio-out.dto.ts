@@ -16,7 +16,7 @@ export class SocioOutDto {
   nombre!: string;
 
   @Expose()
-  @ApiProperty({ example: 'ana.gomez@fitzone.com.ar' })
+  @ApiProperty({ format: 'email', example: 'ana.gomez@fitzone.com.ar' })
   email!: string;
 
   @Expose()

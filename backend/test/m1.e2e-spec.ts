@@ -354,6 +354,44 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .expect(404);
   });
 
+  it('PATCH /usuarios/{id} acepta null para limpiar telefono y foto_url', async () => {
+    // El contrato declara telefono y foto_url como nullable en UsuarioPatch, asi
+    // que mandarlos en null tiene que persistir el borrado y no un 422. El tipo
+    // del DTO era `string | undefined`, que no permitia el null que el contrato
+    // promete; y modificar() compara con `!== undefined`, no con falsy, asi que
+    // un null llega a Prisma. Este test fija las dos partes.
+    const usuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Patch Null E2E',
+        email: emailUnico(),
+        contrasenia: 'clave12345',
+        telefono: '+54 351 555-0000',
+        foto_url: 'https://cdn.fitzone.com.ar/fotos/patch.jpg',
+      })
+      .expect(201);
+    const usuarioId = usuarioRes.body.id;
+    expect(usuarioRes.body.telefono).toBe('+54 351 555-0000');
+    expect(usuarioRes.body.foto_url).toBe('https://cdn.fitzone.com.ar/fotos/patch.jpg');
+
+    const limpiado = await request(app.getHttpServer())
+      .patch(`/api/v1/usuarios/${usuarioId}`)
+      .send({ telefono: null, foto_url: null })
+      .expect(200);
+
+    expect(limpiado.body.telefono).toBeNull();
+    expect(limpiado.body.foto_url).toBeNull();
+
+    // Y el GET confirma que quedo en la base, no solo en la respuesta del PATCH.
+    const despues = await request(app.getHttpServer())
+      .get(`/api/v1/usuarios/${usuarioId}`)
+      .expect(200);
+    expect(despues.body.telefono).toBeNull();
+    expect(despues.body.foto_url).toBeNull();
+  });
+
   it('POST /socios responde 409 si el usuario ya es socio', async () => {
     const usuarioRes = await request(app.getHttpServer())
       .post('/api/v1/usuarios')

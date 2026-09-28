@@ -8,21 +8,12 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Request, Response } from 'express';
-import { ProblemException, type ProblemDetails } from './problem.exception';
-
-const GENERIC_TYPE = 'about:blank';
-
-const TITLES: Record<number, string> = {
-  400: 'Solicitud incorrecta',
-  401: 'No autorizado',
-  403: 'Acceso prohibido',
-  404: 'Recurso no encontrado',
-  409: 'Conflicto',
-  422: 'Entidad no procesable',
-  429: 'Demasiadas solicitudes',
-  500: 'Error interno del servidor',
-  503: 'Servicio no disponible',
-};
+import {
+  GENERIC_TYPE,
+  ProblemException,
+  TITLES,
+  type ProblemDetails,
+} from './problem.exception';
 
 // Detalle fijo para los 4xx que produce el framework. Ver resolveDetail(): el
 // detalle crudo del framework viene en ingles y, en el 404, solo repite el path
@@ -31,6 +22,16 @@ const CLIENT_DETAILS: Record<number, string> = {
   400: 'La solicitud está mal formada: el cuerpo no es JSON válido o algún parámetro tiene un formato inválido.',
   404: 'La ruta solicitada no existe o el recurso no fue encontrado.',
 };
+
+// Formas que solo puede producir el framework. Todo lo demas se preserva:
+// la app lanza ProblemException, que corta antes en toProblemBody().
+const FRAMEWORK_DETAILS: RegExp[] = [
+  /^Cannot (GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|TRACE)\b/, // ruta o metodo inexistente
+  /^Validation failed\b/, // ParseIntPipe
+  /^Expected .+ in JSON\b/, // body-parser en Node >= 20
+  /^Unexpected token\b/, // body-parser en Node < 20
+  /^Unexpected end of JSON input\b/, // body-parser: body truncado
+];
 
 @Catch()
 export class ProblemFilter implements ExceptionFilter {
@@ -72,7 +73,11 @@ export class ProblemFilter implements ExceptionFilter {
   private toHttpProblem(exception: HttpException, request: Request): ProblemDetails {
     const status = exception.getStatus();
     const title = TITLES[status] ?? (status >= 500 ? TITLES[500] : 'Error de la solicitud');
-    const detail = this.resolveDetail(status, this.extractMessage(exception.getResponse()));
+    const detail = this.resolveDetail(
+      status,
+      this.extractMessage(exception.getResponse()),
+      request,
+    );
 
     return {
       type: GENERIC_TYPE,
@@ -83,21 +88,36 @@ export class ProblemFilter implements ExceptionFilter {
     };
   }
 
-  private resolveDetail(status: number, raw: string | undefined): string {
+  private resolveDetail(
+    status: number,
+    raw: string | undefined,
+    request: Request,
+  ): string {
     if (status >= 500) {
       return raw ?? 'Ocurrió un error inesperado en el servidor.';
     }
 
-    // Los 4xx que llegan hasta acá son todos del framework: ParseIntPipe,
-    // body-parser y la ruta inexistente. En src/ no hay ningun `throw new` de
-    // Nest -- la app tira ProblemException, que corta antes en toProblemBody --
-    // asi que no hay ningun detalle propio en español que preservar acá y el
-    // del framework se puede sustituir sin perder información.
-    // El original queda en el log para el diagnóstico del lado servidor.
-    if (raw !== undefined) {
+    if (raw !== undefined && this.isFrameworkDetail(raw)) {
       this.logger.debug(`Detalle original del ${status}: ${raw}`);
+      return CLIENT_DETAILS[status] ?? 'La solicitud no pudo procesarse.';
     }
+
+    // Invariante: todo 4xx de dominio se lanza como ProblemException y corta
+    // antes en toProblemBody(). Un 4xx en español que llega hasta acá es una
+    // excepcion de dominio todavia sin migrar, asi que se preserva el mensaje
+    // y se avisa en vez de reemplazarlo por un generico.
+    if (raw !== undefined) {
+      this.logger.warn(
+        `HttpException de dominio sin migrar a ProblemException: ${request.method} ${request.originalUrl ?? request.url} (${status}): ${raw}`,
+      );
+      return raw;
+    }
+
     return CLIENT_DETAILS[status] ?? 'La solicitud no pudo procesarse.';
+  }
+
+  private isFrameworkDetail(raw: string): boolean {
+    return FRAMEWORK_DETAILS.some((pattern) => pattern.test(raw));
   }
 
   private toValidationProblem(exception: HttpException, request: Request): ProblemDetails {

@@ -167,7 +167,14 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     // Sin filtros devuelve un array plano, no un objeto paginado. No se puede
     // afirmar length: la base puede traer datos de otros tests y el default de
     // per_page es 20, asi que se busca al usuario dentro del array.
-    const todos = await request(app.getHttpServer()).get('/api/v1/usuarios').expect(200);
+    //
+    // per_page=100 explicito: con el default 20, los fixtures de este spec se
+    // caian fuera de la pagina cuando otra suite agrega usuarios en paralelo
+    // (vitest corre los archivos concurrentemente contra la misma base).
+    const todos = await request(app.getHttpServer())
+      .get('/api/v1/usuarios')
+      .query({ per_page: 100 })
+      .expect(200);
     expect(Array.isArray(todos.body)).toBe(true);
     const ana = todos.body.find((u) => u.email === emailAna);
     expect(ana).toBeDefined();

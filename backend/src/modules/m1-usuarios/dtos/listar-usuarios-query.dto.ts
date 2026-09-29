@@ -31,6 +31,7 @@ export class ListarUsuariosQueryDto {
   nombre?: string;
 
   @ApiPropertyOptional({
+    format: 'email',
     description: 'Email exacto (es unico en el esquema).',
     example: 'ana.gomez@fitzone.com.ar',
   })
@@ -38,14 +39,14 @@ export class ListarUsuariosQueryDto {
   @IsEmail()
   email?: string;
 
-  @ApiPropertyOptional({ minimum: 1, default: 1 })
+  @ApiPropertyOptional({ type: 'integer', minimum: 1, default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 20 })
+  @ApiPropertyOptional({ type: 'integer', minimum: 1, maximum: 100, default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

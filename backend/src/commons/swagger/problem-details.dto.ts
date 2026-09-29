@@ -7,7 +7,7 @@ export class ProblemDetailsDto {
   @ApiProperty({ example: 'Recurso no encontrado' })
   title!: string;
 
-  @ApiProperty({ example: 404 })
+  @ApiProperty({ type: 'integer', example: 404 })
   status!: number;
 
   @ApiProperty({ example: 'No existe el recurso solicitado para el id indicado.' })

@@ -39,7 +39,7 @@ export class MembresiasController {
     operationId: 'crearMembresia',
     summary: 'Alta de membresía para un socio',
   })
-  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiCreatedResponse({
     description: 'Membresía creada (única vigente por socio)',
     type: MembresiaOutDto,
@@ -75,7 +75,7 @@ export class MembresiasController {
     operationId: 'obtenerMembresia',
     summary: 'Membresía vigente del socio',
   })
-  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Membresía vigente del socio', type: MembresiaOutDto })
   @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio o membresía inexistente', content: PROBLEM_JSON })
@@ -90,7 +90,7 @@ export class MembresiasController {
     operationId: 'modificarMembresia',
     summary: 'Cambiar plan o configuración de la membresía',
   })
-  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Membresía actualizada', type: MembresiaOutDto })
   @ApiBadRequestResponse({ description: 'socio_id no numérico o JSON inválido', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio o membresía inexistente', content: PROBLEM_JSON })

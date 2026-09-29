@@ -75,7 +75,7 @@ export class UsuariosController {
 
   @Get(':id')
   @ApiOperation({ operationId: 'obtenerUsuario', summary: 'Usuario por id (sin datos de contraseña)' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID numérico del usuario', example: 1 })
+  @ApiParam({ name: 'id', type: 'integer', description: 'ID numérico del usuario', example: 1 })
   @ApiOkResponse({ description: 'Usuario encontrado', type: UsuarioOutDto })
   @ApiBadRequestResponse({ description: 'id no numérico', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Usuario inexistente', content: PROBLEM_JSON })
@@ -85,7 +85,7 @@ export class UsuariosController {
 
   @Patch(':id')
   @ApiOperation({ operationId: 'modificarUsuario', summary: 'Actualiza solo los campos presentes' })
-  @ApiParam({ name: 'id', type: Number, description: 'ID numérico del usuario', example: 1 })
+  @ApiParam({ name: 'id', type: 'integer', description: 'ID numérico del usuario', example: 1 })
   @ApiOkResponse({ description: 'Usuario actualizado', type: UsuarioOutDto })
   @ApiBadRequestResponse({ description: 'id no numérico o JSON inválido', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Usuario inexistente', content: PROBLEM_JSON })

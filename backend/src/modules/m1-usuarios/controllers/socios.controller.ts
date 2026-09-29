@@ -79,7 +79,7 @@ export class SociosController {
 
   @Get(':socio_id')
   @ApiOperation({ operationId: 'obtenerSocio', summary: 'Socio por id' })
-  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Socio encontrado', type: SocioOutDto })
   @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
@@ -89,7 +89,7 @@ export class SociosController {
 
   @Patch(':socio_id')
   @ApiOperation({ operationId: 'modificarSocio', summary: 'Modifica la sede de origen' })
-  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Socio actualizado', type: SocioOutDto })
   @ApiBadRequestResponse({ description: 'socio_id no numérico o JSON inválido', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
@@ -107,7 +107,7 @@ export class SociosController {
   @Delete(':socio_id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ operationId: 'dejarDeSerSocio', summary: 'Deja de ser socio (usuario vuelve a EXTERNO)' })
-  @ApiParam({ name: 'socio_id', type: Number, description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiNoContentResponse({ description: 'Socio dado de baja (sin cuerpo)' })
   @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })

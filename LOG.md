@@ -584,3 +584,44 @@ El contrato del vault, `schema.prisma`, el DBML y la base compartida habían que
 2. **Ocho restricciones que el vault declara y el código no.** Seis de M2: `SedeIn.nombre` con `minLength: 1` y `maxLength: 100`, `SedeIn.direccion` con `minLength: 1` y `maxLength: 200`, `SedeIn.aforo_maximo` con `minimum: 1`, y `IngresoIn.fecha_hora_ingreso` con `format: date-time`. Dos de M3: `ClaseIn.horario` y `ClaseOut.horario` con `format: date-time`. **No son metadata: son validadores ausentes**, así que a diferencia del punto 1 hay que decidir si el backend debe validar lo que el contrato ya promete o si el vault sobre-declara. Se difieren a las auditorías de M2 y M3.
 3. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
 4. **Sin validar: `foto_url` no se valida como URL.** Ni el código ni el contrato lo hacen: sólo `@IsString()`. Por decisión de Gonzalo no se agrega `@IsUrl()`, porque rechazaría payloads que hoy pasan.
+### Semana 7 · SCRUM-11f — Capa de operaciones de M1: parámetros, `Problem.errors` y `Problem.status`
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El contraste anterior estaba incompleto, y el `LOG.md` de la entrada previa lo daba por cerrado.** Los comparadores usados hasta acá miraban los nueve schemas de M1: `required`, restricciones y tipo. Nunca compararon la capa de operaciones — verbos, status codes, parámetros, cuerpos y cuerpos de respuesta — que es donde el documento declara la mayor parte de su información. Al medirla aparecieron cuatro causas raíz que ya estaban en el código desde antes de la auditoría. Queda anotado acá porque el número "0/0/0" de la entrada SCRUM-11e era cierto sólo para los schemas, y la frase con la que se cerró sonaba más amplia de lo que era.
+2. **`Problem.errors` no estaba en el contrato.** El backend lo emite desde siempre: `problem.filter.ts:129` toma `response.message` del `ValidationPipe` y lo pasa tal cual en el `errors` del 422, y `ProblemDetailsDto` ya lo declaraba como `type: [String]` con la descripción *"Solo en errores de validación (422): lista de reglas incumplidas."* El vault, en cambio, no lo tenía. **Se corrige el vault, no el código:** RFC 9457 admite miembros de extensión, el valor es real y el swagger ya lo declaraba. Se agrega `errors` a `components.schemas.Problem` fuera de `required`, y se suma al example de `components.responses.ValidationError`, que es la única respuesta donde efectivamente aparece. Con esto quedan documentadas de una vez las 51 referencias a `Problem` del documento.
+3. **`Problem.status` decía `number` en el código y `integer` en el vault.** Se agrega `type: 'integer'` en `problem-details.dto.ts`. Es un archivo de `commons` y afecta a los tres módulos, pero se incluye acá porque es el mismo `Problem` que ya se estaba enmendando en el punto 2, y dejar la mitad sin corregir obligaría a volver.
+4. **Los 14 parámetros de M1.** Ocho `@ApiParam` con `type: Number` —el constructor de JavaScript, que el plugin traduce a `type: number`— pasan a `type: 'integer'`: dos de `id` en `usuarios.controller.ts` y seis de `socio_id` repartidos en `socios.controller.ts` (3) y `membresias.controller.ts` (3). Y seis campos de los query DTO: `page` y `per_page` de `ListarUsuariosQueryDto`, `sede_origen_id`, `page` y `per_page` de `ListarSociosQueryDto` reciben `type: 'integer'`, y el filtro `email` de `ListarUsuariosQueryDto` recibe `format: 'email'`.
+5. **El backend ya validaba lo que el contrato pedía; faltaba el metadato.** Es lo relevante del punto 4: `email` ya tenía `@IsEmail()`, y `page`, `per_page` y `sede_origen_id` ya tenían `@IsInt()`. La validación nunca estuvo ausente — lo que faltaba era que el Swagger lo dijera, así que un cliente generado no podía enterarse de que `page=1.5` se rechaza. Por eso los quince cambios son metadato puro y ninguno toca un validador.
+6. **`additionalProperties: false` en los seis request bodies de M1 se acepta como limitación del generador.** El vault lo declara y el Swagger generado no. Ojo con el diagnóstico: acá el código **no** está mintiendo. `main.ts:15-18` configura el `ValidationPipe` con `whitelist: true` y `forbidNonWhitelisted: true`, o sea que los campos desconocidos se rechazan de verdad; lo que no se refleja es en el documento. Decisión de Gonzalo: dejarlo así y documentarlo, en vez de escribir un decorador propio por DTO para una propiedad que `@nestjs/swagger` no expone de forma nativa.
+7. **Dos falsos positivos que costaron una revisión de más.** El `required` de `SocioOut` aparece en el código como `[id, usuario_id, nombre, email, sede_origen_id, fecha_alta]` y en el vault como `[id, usuario_id, sede_origen_id, fecha_alta, nombre, email]`. Es el mismo conjunto de seis: en OpenAPI 3 `required` es un array sin orden, así que se normaliza por conjunto antes de comparar. Y el orden de las claves en el JSON serializado (`properties` antes o después de `required`) no es una diferencia. Sin esas dos normalizaciones el comparador reporta 67 divergencias donde hay cero.
+
+#### Decisiones tomadas
+
+1. **M1 solamente en los parámetros**, por decisión de Gonzalo: se está auditando módulo por módulo y M2 y M3 todavía no pasaron por el contraste. Por lo mismo, el arreglo de los `@ApiParam` y query DTO de los otros módulos queda para sus auditorías.
+2. **`Problem.errors` se documenta en el contrato en lugar de quitarse del código.** El backend lo devuelve, el DTO ya lo describía y RFC 9457 lo permite; la alternativa habría sido perder información que el cliente recibe hoy.
+3. **`Problem.status` entra aunque sea `commons`.** Se hace la excepción a la regla de no tocar fuera de M1 porque compartir el mismo schema hacia medias correcciones sería peor que la regla.
+4. **`additionalProperties: false` no se implementa.** Limitación del generador aceptada y documentada, no deuda a pagar después.
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **49/49 en 5 specs**, idéntico a las tres entradas anteriores — otra vez la suite no lo exercise porque no hay cambio de runtime.
+- Comparador de operaciones sobre las doce de M1, con `$ref` resueltos, claves ordenadas y `required` normalizado por conjunto: **0 divergencias reales.** Antes de este commit eran 14 de parámetros, 30 de `Problem.status`, 30 de `Problem.errors` y 4 por orden de `required`.
+- Comparador de schemas sobre los nueve de M1: sigue en **0 de `required`, 0 de restricciones y 0 de tipo.**
+- Las 6 divergencias de `additionalProperties` se excluyen del resultado por decisión, no porque el comparador no lo mire; si se cuentan, M1 queda en 6 y todas son la misma limitación del punto 6.
+- `git diff` revisado a mano: seis archivos, quince inserciones, trece eliminaciones. Todas las líneas tocadas agregan `type` o `format`; ningún decorador de `class-validator` aparece en el diff.
+- Vault: YAML parsea, 243 `$ref` con 0 rotas, 0 schemas huérfanos, 30 paths y 47 operaciones sin cambios, encoding preservado (CRLF, sin BOM). Backup `pre-errors.bak`.
+- Una caída durante la edición: el `description` de `errors` quedó sin comillas y contenía `": "`, que YAML lee como inicio de mapping; el archivo no parseaba. Lo detectó el validador en la verificación inmediata y se entrecomilló. No llegó a commitearse.
+
+#### Commits
+
+- `fix(m1): declara type integer en los parametros de M1 y documenta Problem.errors` — este mismo commit.
+
+#### Pendientes que siguen abiertos
+
+1. **`additionalProperties: false` ausente en el Swagger.** Los seis request bodies de M1; y los de M2, M3, M4 y M5 también lo declararán en el contrato sin que el generador lo refleje. Aceptado como limitación del generador, no corregido.
+2. **Los mismos dos defectos en M2, M3, M4 y M5:** `type: number` donde el vault dice `integer` en los `@ApiParam` y query DTO, y las divergencias de propiedades ya documentadas en la entrada SCRUM-11e (27 campos de tipo más ocho restricciones ausentes en M2 y M3). El comparador de operaciones usado acá es reutilizable tal cual.
+3. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
+4. **Sin validar: `foto_url` no se valida como URL.** Ni el código ni el contrato lo hacen: sólo `@IsString()`. Por decisión de Gonzalo no se agrega `@IsUrl()`, porque rechazaría payloads que hoy pasan.

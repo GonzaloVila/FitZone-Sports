@@ -49,7 +49,7 @@ export class IngresosService {
         type: 'https://fitzone.app/errores/membresia-inactiva',
         title: 'Membresía inactiva',
         status: HttpStatus.FORBIDDEN,
-        detail: `El usuario ${dto.usuario_id} no posee una membresía ACTIVA para ingresar a la sede ${dto.sede_id}.`,
+        detail: `El usuario ${dto.usuario_id} no posee una membresía vigente para ingresar a la sede ${dto.sede_id}.`,
       });
     }
 

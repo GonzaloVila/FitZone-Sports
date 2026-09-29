@@ -442,4 +442,80 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .send({ plan: 'ANUAL' })
       .expect(409);
   });
+
+  // El enum de entrada de MembresiaPatch.estado es [ACTIVA, SUSPENDIDA]: VENCIDA
+  // queda afuera porque solo lo produce el proceso diario que vence las membresias
+  // con fecha_fin ya pasada. Aceptarlo por API dejaba un VENCIDA con fecha_fin
+  // futura, y esa fila la daba por vigente `estaVigente`
+  // (m.estado !== 'SUSPENDIDA' && m.fecha_fin >= ahora), dejando entrar al socio.
+  it('PATCH /socios/{id}/membresias con estado VENCIDA responde 422', async () => {
+    const usuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Vencida Manual E2E',
+        email: emailUnico(),
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+
+    const socioRes = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioRes.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .expect(201);
+    const socioId: number = socioRes.body.id;
+
+    const res = await request(app.getHttpServer())
+      .patch(`/api/v1/socios/${socioId}/membresias`)
+      .send({ estado: 'VENCIDA' })
+      .expect(422);
+
+    expect(res.body.status).toBe(422);
+    expect(res.body.title).toBe('Error de validación');
+    expect(Array.isArray(res.body.errors)).toBe(true);
+    expect(res.body.errors.join(' ')).toContain('estado');
+
+    // La fila no se toco: sigue ACTIVA y con fecha_fin en el futuro.
+    const get = await request(app.getHttpServer())
+      .get(`/api/v1/socios/${socioId}/membresias`)
+      .expect(200);
+    expect(get.body.estado).toBe('ACTIVA');
+    expect(new Date(get.body.fecha_fin).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('PATCH /socios/{id}/membresias suspende y reactiva una membresia', async () => {
+    const usuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Suspender E2E',
+        email: emailUnico(),
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+
+    const socioRes = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioRes.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .expect(201);
+    const socioId: number = socioRes.body.id;
+
+    const suspender = await request(app.getHttpServer())
+      .patch(`/api/v1/socios/${socioId}/membresias`)
+      .send({ estado: 'SUSPENDIDA' })
+      .expect(200);
+    expect(suspender.body.estado).toBe('SUSPENDIDA');
+
+    // Reactivar solo cambia `estado`: la fecha_fin no se recalcula porque el PATCH
+    // no manda `plan`, y la membresia sigue vigente en el tiempo.
+    const fechaFin = suspender.body.fecha_fin;
+    const reactivar = await request(app.getHttpServer())
+      .patch(`/api/v1/socios/${socioId}/membresias`)
+      .send({ estado: 'ACTIVA' })
+      .expect(200);
+    expect(reactivar.body.estado).toBe('ACTIVA');
+    expect(reactivar.body.fecha_fin).toBe(fechaFin);
+  });
 });

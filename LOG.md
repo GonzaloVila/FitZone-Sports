@@ -752,10 +752,65 @@ Van en dos commits y no en tres por una razon concreta: los renombres de clase y
 
 1. **Once schemas de M2 a M5 conservan el sufijo `Dto`** (106 referencias). El rename de M1 deja esos cuatro modulos con la convencion anterior; alinearlos es trabajo de cada modulo, no de M1.
 2. **`summary` difiere en 15 operaciones de M2 y M3** (sedes, clases, reservas-clases, esperas-clases), con el mismo desajuste de prosa que se acaba de corregir en M1.
-3. **Los `example` a nivel de schema del vault usan fecha sola donde el `format` es `date-time`**: `SocioOut.fecha_alta`, `MembresiaOut.fecha_inicio` y `MembresiaOut.fecha_fin`. Es una inconsistencia interna del vault, anterior a este trabajo, y no se corrigio por quedar fuera de lo aprobado. Los 11 examples nuevos si usan ISO completo.
+3. **CERRADO en SCRUM-11i: los `example` a nivel de schema del vault usaban fecha sola donde el `format` es `date-time`**, en `SocioOut.fecha_alta`, `MembresiaOut.fecha_inicio` y `MembresiaOut.fecha_fin`. Era una inconsistencia interna del vault, anterior a este trabajo, y no se corrigio en esta entrada por quedar fuera de lo aprobado. Los 11 examples nuevos si usaban ISO completo.
 4. **M4 tiene cuatro request schemas en el vault sin implementacion**: `CanchaIn`, `CanchaPatch`, `PagoIn` y `ReservaCanchaIn`. El post-proceso los cubrira solo cuando exista el codigo que los referencie.
 5. **Dos convenciones distintas de base path entre codigo y vault.** No es un defecto, pero conviene fijar una sola: hoy el codigo incluye `/api/v1` en los paths y el vault lo declara en `servers`.
 6. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no esta versionado. Sigue siendo decision pendiente de Gonzalo.
 7. **Sin validar: `foto_url` no se valida como URL** en ni el codigo ni el contrato. Solo `@IsString()`. Decision de Gonzalo, revertida dos veces.
 8. **El comparador contrato/codigo no esta versionado.** Toda esta medicion corrio sobre scripts `node` ad-hoc en el directorio temporal. No hay forma de reproducir un "0" de forma independiente ni de detectarle regresiones, y esta tanda demostro el costo: dos de los tres fallos fueron del propio comparador. Deberia vivir en el repo como un script o test antes de auditar M2.
+
+### Semana 8 · SCRUM-11i - Corrección de los ejemplos de fecha de M1
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El pendiente 3 de SCRUM-11h era una incoherencia real del vault, no un detalle de estilo.** Los `example` a nivel de schema de `SocioOut` y `MembresiaOut` declaraban `fecha_alta`, `fecha_inicio` y `fecha_fin` con fecha sola (`"2026-09-15"` y `"2026-10-15"`) mientras esas mismas propiedades declaran `format: date-time` en las lineas 1769, 1831 y 1834. El contrato se contradice a sí mismo: el ejemplo no cumple el formato que el propio schema exige. Son 3 valores, en las lineas 1781, 1841 y 1842.
+
+2. **La auditoría confirma que son exactamente 3 y que el resto de las fechas del vault están bien.** Se recorrieron `components.schemas` (example a nivel de schema y example por propiedad), los `requestBody` y `responses` de cada operación, los parámetros de operación, `components.parameters` y `components.responses`. Resultado: 3 problemas, todos los de arriba. Los otros 10 ejemplos con fecha del vault son legítimos: 5 son `format: date` con fecha sola, que es lo que corresponde (los parámetros de query `fecha` de reservas y `desde`/`hasta` de ingresos), y 5 son `format: date-time` con ISO completo de M2 a M4.
+
+3. **`Z` y `-03:00` no son dos formas de escribir lo mismo: son instantes con 3 horas de diferencia.** Este es el punto que ordenó el resto de la ronda. `2026-09-15T00:00:00Z` son las 21:00 del 14 de septiembre en Córdoba. El código usaba `Z` en los tres DTO de M1 y el vault usaba `-03:00` en los ejemplos de M2 a M4, así que antes de tocar nada había dos notaciones conviviendo. Gonzalo eligió la de Argentina, `-03:00`, porque el gimnasio está en el país. Para `fecha_alta` y `fecha_inicio`, que son campos de fecha y no de instante, las 00:00 tienen que ser medianoche local: con `Z` habrían apuntado al día anterior.
+
+4. **Aplicar el offset solo a las 3 líneas del defecto habría creado una incoherencia nueva.** Si solo se tocaran esas 3, el mismo campo `SocioOut.fecha_alta` quedaría con `T00:00:00-03:00` en el example de schema y `T00:00:00.000Z` en los 4 examples de media type, o sea dos instantes distintos para el mismo campo dentro del mismo schema. Se aplica entonces a los **16 valores de fecha de M1**: 3 del example de schema, 10 de los examples de media type y 3 de los DTO. Sin milisegundos, que es el estilo que ya usaba el vault en M2 y M4.
+
+5. **Se unifica también el juego de fechas, no solo la notación.** El vault usaba `2026-09-15` y `2026-10-15`; el código usaba `2026-09-20T12:00:00.000Z` y `2026-10-20T12:00:00.000Z` para membresía. Los dos eran date-time válidos, o sea que no era un defecto, pero quedaban dos juegos de fechas distintos entre el contrato y el código. Manda el del vault: `2026-09-15T00:00:00-03:00` para `fecha_alta` y `fecha_inicio`, y `2026-10-15T00:00:00-03:00` para `fecha_fin`. En `membresia-out.dto.ts` eso cambia además el día, de 09-20/10-20 a 09-15/10-15.
+
+6. **13 líneas del vault, 3 del código.** En el vault, 10 de los examples de media type y 3 de los examples de schema. Las sustituciones se hicieron sobre cadenas exactas y con la cantidad de ocurrencias verificada antes de escribir: `"2026-09-15T00:00:00.000Z"` 7 veces, `"2026-10-15T00:00:00.000Z"` 3 veces, `"2026-09-15"` 2 veces y `"2026-10-15"` 1 vez. Los dos únicos `Z` que quedan en el vault son los de `fecha_pago` de M3, con milisegundos, y no se tocan.
+
+7. **Dos errores míos en esta ronda, los dos en las herramientas de medición y ninguno en el resultado.** El primero: el sumario de la auditoría imprimía `TOTAL 0` cuando la sección de arriba había detectado 3. El agregador anteponía la categoría al arreglo y después filtraba por la posición 0, que ya no era la categoría; el filtro no podía encontrar nada. Si se hubiera confiado en ese total, se habría cerrado el punto dando por hecho que no había nada que corregir. El segundo: el comparador de operaciones reportaba las 12 operaciones de M1 como "ausentes en el código" porque buscaba `/usuarios` en el documento generado, que los emite con el prefijo `/api/v1`. Ninguno de los dos tocó un archivo: los dos se detectaron porque la salida se contrastó con la sección que sí funcionaba. Este comparador tampoco resolvía los `$ref` del vault a sus enums con nombre antes de comparar, como hacía el de SCRUM-11h, y por eso marcó 4 schemas de M1 como divergentes: en los cuatro la diferencia es que el vault usa `$ref: Plan` y el código el enum inline, con los mismos valores. Se comprobó que esos 4 ya divergían antes de esta ronda comparando el backup contra el vault actual: 0 schemas cambiaron de estructura.
+
+#### Decisiones tomadas
+
+1. **`-03:00` en los 16 valores de M1, no solo en los 3 del defecto.** Aceptar el offset argentino obligaba a corregir también los 10 examples de media type y los 3 DTO; hacerlo era preferible a dejar un campo con dos instantes distintos. Decisión de Gonzalo.
+2. **Manda el juego de fechas del vault, no el del código.** El contrato es la fuente de verdad, igual que en el resto de las decisiones de esta tanda.
+3. **Sin milisegundos.** `T00:00:00-03:00` y no `T00:00:00.000-03:00`: para un example que representa medianoche el subcomponente de milisegundos es ruido, y el vault ya usaba el estilo corto en M2 y M4.
+4. **No se normalizan los ejemplos de M2 a M4.** Quedan en `-03:00` con el juego de fechas propio de cada módulo. Cambiarlos sería trabajo de cada módulo, no de M1.
+
+#### Verificación
+
+- `npx tsc --noEmit -p tsconfig.json` y `npm run build` en verde. e2e: **49/49 en 5 specs**, sexta entrada consecutiva con el mismo resultado. Los examples no participan de la serialización ni de la validación, así que era esperable; se corrieron igual.
+- **Auditoría de formatos: 0 problemas en el vault y 0 en el código**, con cobertura de los 6 lugares donde puede aparecer un `example`: a nivel de schema, por propiedad, media type de request y response, parámetro de operación, `components.parameters` y `components.responses`. Antes de la ronda eran 3 y 0.
+- **Los 16 valores de fecha de M1 usan `-03:00`, 0 usan `Z`.** Verificado con regex de date-time sobre todo el vault, sin heurística por nombre de campo: los únicos 2 `Z` que quedan en el documento son los `fecha_pago` de M3.
+- **12 operaciones de M1: 0 divergencias de `summary` y 0 de `operationId`.** Y **9 de 9** schemas de M1 nombrados como el contrato.
+- **0 schemas cambiaron de estructura** entre el backup y el vault actual. El único cambio del vault es de valor, dentro de `example`.
+- Vault: YAML parsea, 39 schemas, **13 líneas modificadas, 0 agregadas y 0 quitadas**, encoding preservado (CRLF, sin BOM, sin LF sueltos), 94754 bytes contra 94699 del backup. Backup `pre-11i.bak` de 94699 bytes, SHA256 `4F91C58B...`, intacto.
+- `git diff`: 2 archivos, 3 inserciones y 3 borrados, los tres dentro de cadenas de `example` en `@ApiProperty`.
+
+#### Commits
+
+- `docs(m1): unifica los ejemplos de fecha de M1 en la zona horaria de Argentina`
+- `docs(log): registra la corrección de los ejemplos de fecha de M1`
+
+Los **13 cambios del vault no van en ningún commit**, igual que los 11 examples de SCRUM-11h: el contrato está fuera del repo. Quedan solo en el backup `pre-11i.bak` y en este registro.
+
+#### Pendientes que siguen abiertos
+
+1. **Once schemas de M2 a M5 conservan el sufijo `Dto`** (106 referencias). El rename de M1 deja esos cuatro módulos con la convención anterior; alinearlos es trabajo de cada módulo.
+2. **`summary` difiere en 15 operaciones de M2 y M3** (sedes, clases, reservas-clases, esperas-clases), con el mismo desajuste de prosa que se corrige acá.
+3. **M4 tiene cuatro request schemas en el vault sin implementación**: `CanchaIn`, `CanchaPatch`, `PagoIn` y `ReservaCanchaIn`. El post-proceso los cubrirá solo cuando exista el código que los referencie.
+4. **El vault usa `$ref` a enums con nombre y el código los emite inline.** No es un defecto: los valores coinciden en los cuatro casos de M1 revisados. Pero hace que un comparador ingenuo reporte divergencias donde no las hay, y por eso el de SCRUM-11h resolvía los `$ref` antes de comparar. Esa resolución debería vivir en el comparador, no en el schema.
+5. **Dos convenciones distintas de base path entre código y vault.** Hoy el código incluye `/api/v1` en los paths y el vault lo declara en `servers`.
+6. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
+7. **Sin validar: `foto_url` no se valida como URL** en ni el código ni el contrato. Solo `@IsString()`. Decisión de Gonzalo, revertida dos veces.
+8. **El comparador contrato/código no está versionado.** Esta ronda lo confirma otra vez: dos de los tres fallos fueron del propio comparador, uno de ellos un total que reportaba 0 cuando había 3. Debería vivir en el repo como un script o test antes de auditar M2.
 

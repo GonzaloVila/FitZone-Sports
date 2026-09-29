@@ -814,3 +814,58 @@ Los **13 cambios del vault no van en ningún commit**, igual que los 11 examples
 7. **Sin validar: `foto_url` no se valida como URL** en ni el código ni el contrato. Solo `@IsString()`. Decisión de Gonzalo, revertida dos veces.
 8. **El comparador contrato/código no está versionado.** Esta ronda lo confirma otra vez: dos de los tres fallos fueron del propio comparador, uno de ellos un total que reportaba 0 cuando había 3. Debería vivir en el repo como un script o test antes de auditar M2.
 
+## Unidad II - Auditoría del módulo 2
+
+### Semana 9 - SCRUM-11j - Cierre de M2: dos endpoints faltantes, naming y VENCIDA
+
+M2 estaba implementado, commiteado y con e2e en verde, pero **no coincidía con el contrato**. El plan declaraba 5 endpoints y el contrato tiene 7: faltaban `GET /ingresos` y `GET /ingresos/{ingreso_id}`. Además arrastraba la convención de naming anterior (sufijo `Dto`) y textos que describían "membresía ACTIVA" cuando la regla real es de vigencia.
+
+**Trabajo sobre el código**
+
+- Agregados `GET /ingresos` y `GET /ingresos/{ingreso_id}`: filtros de `sede_id`, `usuario_id`, `fecha` y `dentro`, más `page`/`per_page`, con orden estable `fecha_hora_ingreso desc, id desc` para que la paginación no repita ni pierda filas.
+- `fecha` se resuelve con `rangoDelDia()` (helper nuevo en `commons/fechas.ts`) en hora local de la sede (`-03:00`), de media noche a media noche con extremo superior exclusivo. `dentro=true` filtra por `fecha_hora_egreso IS NULL`; `dentro=false` no filtra, porque el contrato solo define el caso `true`.
+- Renombrados los DTO de M2 para coincidir con los nombres del vault, sin sufijo `Dto`. Esto resuelve el pendiente 1 de SCRUM-11i para M2.
+- Ajustados `summary`, `tags`, tipos de parámetro y ejemplos de Swagger. Resuelve el pendiente 2 de SCRUM-11i para M2.
+- `Problem.errors` del `ValidationPipe` documentado en el `ProblemDetails` y el filtro de problemas centralizado.
+
+**Cierre de `VENCIDA` (el hallazgo de fondo)**
+
+`PATCH /socios/{id}/membresias` aceptaba `{"estado": "VENCIDA"}`. Como `estaVigente` no mira el estado sino la fecha, esa membresía se podía escribir con `fecha_fin` **futura** y quedaba vigente: el socio pasaba el control de ingreso.
+
+Se cerró en la frontera, que es el único lugar donde el sistema controla la entrada: `MembresiaPatch.estado` ahora acepta solo `ACTIVA` y `SUSPENDIDA`. `VENCIDA` queda reservado al cron, que (verificado en el repositorio) solo lo aplica cuando `fecha_fin` ya pasó. Con el enum cerrado, **todo `VENCIDA` viene del cron y por lo tanto tiene la fecha vencida por construcción**: la regla de la fecha queda Sound sin tocarla.
+
+Se descartó la alternativa de validar en `estaVigente`, porque con el enum abierto el sistema seguía aceptando un estado que contradice su propia regla.
+
+También se unificó el vocabulario: el 403 de registro de ingreso decía "membresía ACTIVA" y ahora dice "membresía vigente", igual que el contrato. El texto del vault pasó de "membresía ACTIVA" a la regla de vigencia en los tres lugares que lo repetían.
+
+**Verificación**
+
+- `npx tsc --noEmit` y `npm run build`: en verde.
+- e2e local y contra Supabase compartida: **58/58** en ambas. Conteos de las 7 tablas idénticos antes y después (`Sede=3`, `Socio=3`, `Usuario=6`, `Ingreso=3`, `Membresia=3`, `Pago=3`, `Clase=4`).
+- Comparador contra el YAML del vault: **M1 = 0 diferencias, M2 = 0 diferencias**. El único test en rojo es el global, por diferencias que pertenecen a M3.
+- 2 tests nuevos en `m1.e2e-spec.ts`: `VENCIDA` devuelve `422` y deja la fila intacta; suspender y reactivar sigue funcionando.
+- 1 detalle verificado y descartado como bug: los dos `404` de `membresias.service.ts` dicen "membresía activa", pero `buscarPorSocioId` consulta `where: { socio_id }` **sin filtro de estado**, así que una `VENCIDA` no vencida se devuelve con `200`. Es redacción, no lógica.
+
+**Vault (fuera de git)**
+
+- `TFI FitZone - OpenAPI.yaml`: enum de `MembresiaPatch.estado` reducido a `[ACTIVA, SUSPENDIDA]`, más los textos de vigencia. Backup `pre-b1-20260929-182039.bak` de 94754 bytes. El vault quedó en 94722 bytes, 30 paths, 39 schemas, 22 responses, encoding preservado (CRLF, sin LF sueltos, 0 caracteres corruptos).
+- `TFI FitZone - Plan de Trabajo M2.md`: de 5 a 7 endpoints, 4 path params corregidos (`{ingresoId}`/`{sedeId}` → `{ingreso_id}`/`{sede_id}`), "contrato congelado" eliminado, y el punto 7.2 corregido: el ADR de M2 va al vault, no a `docs/`, porque los ADR del proyecto viven en `Definicion Tecnica.md` junto a ADR-05/06/07.
+- `TFI FitZone - Definicion Tecnica.md`: **ADR-08** (regla de vigencia de membresía y expiración por cron) y **ADR-09** (acceso entre módulos por puerto con inyección opcional, fail-closed). Nueva sección 7 con la **deuda técnica conocida** (autenticación y roles, coherencia de ingresos offline, canal de email de M3, QR/TOTP, contrato fuera del repo, códigos `400` declarados).
+
+#### Commits
+
+- `feat(m2): completa sedes e ingresos alineado con el contrato`
+- `fix(m2): cierra VENCIDA en el contrato de entrada de membresia`
+
+Los cambios del vault **no van en ningún commit**: el contrato y los planes viven en el vault de Obsidian, fuera del repositorio. Quedan solo en los backups y en este registro.
+
+#### Pendientes que siguen abiertos
+
+1. **M3 arrastra los mismos dos problemas que acabamos de corregir en M2**, y además los agrava: sus DTO se llaman `CrearClaseDto`, `ClaseOutDto`, `CrearReservaClaseDto`, `ReservaClaseOutDto`, `CrearEsperaDto` y `EsperaOutDto`, cuando el contrato pide `ClaseIn`, `ClaseOut`, `ReservaClaseIn`, `ReservaClaseOut`, `EsperaIn` y `EsperaOut`. El vault además declara `EstadoEspera` y `EstadoReservaClase`, que **no existen como enum en el código**. Sus 14 endpoints sí están implementados y los e2e pasan; lo que falta es la alineación.
+2. **`summary` difiere en 5 operaciones de M3** (clases, reservas-clases, esperas-clases), el mismo desajuste de prosa que se acaba de corregir en M2.
+3. **El canal de email de la lista de espera de M3 no está implementado.** El plan lo pide (decisiones 9 y 10, tarea 7 del Bloque 3), pero `nodemailer` no está en `package.json` y no existe la carpeta `notifications/`. El código usa `observers/` con el patrón Observer clásico, que cumple la misma idea con otra forma. Tampoco existe el puerto para obtener el email del socio: los tres puertos actuales son pago, vigencia de membresía y existencia de sede.
+4. **M4 tiene cuatro request schemas en el vault sin implementación**: `CanchaIn`, `CanchaPatch`, `PagoIn` y `ReservaCanchaIn`.
+5. **El comparador sigue sin versionarse**, confirmado por tercera ronda. Como no hay evidencia en el repo, la salida se vuelca como texto en esta entrada.
+6. **Sin validar: `foto_url` no se valida como URL.** Decisión de Gonzalo, revertida dos veces.
+7. **El contrato vive fuera del repo.** Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
+

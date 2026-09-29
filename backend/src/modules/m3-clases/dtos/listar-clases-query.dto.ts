@@ -3,7 +3,8 @@ import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsPositive, IsString, Max, Min } from 'class-validator';
 
 export class ListarClasesQueryDto {
-  @ApiPropertyOptional({ description: 'Filtrar por ID de la sede', example: 1 })
+  @ApiPropertyOptional({
+    type: 'integer', description: 'Filtrar por ID de la sede', example: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -15,14 +16,16 @@ export class ListarClasesQueryDto {
   @IsString()
   tipo?: string;
 
-  @ApiPropertyOptional({ minimum: 1, default: 1 })
+  @ApiPropertyOptional({
+    type: 'integer', minimum: 1, default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 20 })
+  @ApiPropertyOptional({
+    type: 'integer', minimum: 1, maximum: 100, default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

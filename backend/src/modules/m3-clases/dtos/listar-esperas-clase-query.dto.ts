@@ -6,14 +6,16 @@ import type { EstadoEspera } from '../entities/espera-clase.entity';
 const ESTADOS: EstadoEspera[] = ['EN_ESPERA', 'NOTIFICADO', 'CONFIRMADO', 'CANCELADO'];
 
 export class ListarEsperasClaseQueryDto {
-  @ApiPropertyOptional({ description: 'ID numérico de la clase', example: 1 })
+  @ApiPropertyOptional({
+    type: 'integer', description: 'ID numérico de la clase', example: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   clase_id?: number;
 
-  @ApiPropertyOptional({ description: 'ID numérico del socio', example: 2 })
+  @ApiPropertyOptional({
+    type: 'integer', description: 'ID numérico del socio', example: 2 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -28,14 +30,16 @@ export class ListarEsperasClaseQueryDto {
   @IsIn(ESTADOS)
   estado?: EstadoEspera;
 
-  @ApiPropertyOptional({ minimum: 1, default: 1 })
+  @ApiPropertyOptional({
+    type: 'integer', minimum: 1, default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 20 })
+  @ApiPropertyOptional({
+    type: 'integer', minimum: 1, maximum: 100, default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

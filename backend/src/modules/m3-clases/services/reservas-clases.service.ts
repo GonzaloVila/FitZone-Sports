@@ -10,10 +10,10 @@ import {
   MEMBERSHIP_VALIDATION_PORT,
   type MembershipValidationPort,
 } from '../../../commons/membresia/membership-validation.port';
-import { CrearReservaClaseDto } from '../dtos/crear-reserva-clase.dto';
+import { ReservaClaseIn } from '../dtos/reserva-clase-in.dto';
 import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query.dto';
 import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-query.dto';
-import { ReservaClaseOutDto } from '../dtos/reserva-clase-out.dto';
+import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
 import { CupoLiberadoSubject } from '../observers/cupo-liberado.subject';
 import {
   CLASE_REPOSITORY,
@@ -40,7 +40,7 @@ export class ReservasClasesService {
   async listarReservasDeClase(
     claseId: number,
     filtros: ListarReservasDeClaseQueryDto,
-  ): Promise<ReservaClaseOutDto[]> {
+  ): Promise<ReservaClaseOut[]> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
       throw recursoNoEncontrado('No existe la clase indicada.');
@@ -51,12 +51,12 @@ export class ReservasClasesService {
       { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
     );
 
-    return plainToInstance(ReservaClaseOutDto, reservas);
+    return plainToInstance(ReservaClaseOut, reservas);
   }
 
   async listarReservasClase(
     filtros: ListarReservasClaseQueryDto,
-  ): Promise<ReservaClaseOutDto[]> {
+  ): Promise<ReservaClaseOut[]> {
     const reservas = await this.reservasRepo.listar(
       {
         clase_id: filtros.clase_id,
@@ -66,13 +66,13 @@ export class ReservasClasesService {
       { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
     );
 
-    return plainToInstance(ReservaClaseOutDto, reservas);
+    return plainToInstance(ReservaClaseOut, reservas);
   }
 
   async crearReservaClase(
     claseId: number,
-    dto: CrearReservaClaseDto,
-  ): Promise<ReservaClaseOutDto> {
+    dto: ReservaClaseIn,
+  ): Promise<ReservaClaseOut> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
       throw recursoNoEncontrado('No existe la clase indicada.');
@@ -141,15 +141,15 @@ export class ReservasClasesService {
       throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
-    return plainToInstance(ReservaClaseOutDto, resultado.reserva);
+    return plainToInstance(ReservaClaseOut, resultado.reserva);
   }
 
-  async obtenerReservaClase(reservaClaseId: number): Promise<ReservaClaseOutDto> {
+  async obtenerReservaClase(reservaClaseId: number): Promise<ReservaClaseOut> {
     const reserva = await this.reservasRepo.buscarPorId(reservaClaseId);
     if (!reserva) {
       throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
-    return plainToInstance(ReservaClaseOutDto, reserva);
+    return plainToInstance(ReservaClaseOut, reserva);
   }
 
   async cancelarReservaClase(reservaClaseId: number): Promise<void> {

@@ -1,8 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsInt, IsISO8601, IsNotEmpty, IsPositive, IsString } from 'class-validator';
 
-export class CrearClaseDto {
-  @ApiProperty({ description: 'ID de la sede donde se dicta la clase', example: 1 })
+export class ClaseIn {
+  @ApiProperty({
+    type: 'integer',
+    description: 'ID de la sede donde se dicta la clase',
+    example: 1,
+  })
   @IsInt()
   @IsPositive()
   sede_id!: number;
@@ -18,13 +22,20 @@ export class CrearClaseDto {
   instructor!: string;
 
   @ApiProperty({
+    type: 'string',
+    format: 'date-time',
     description: 'Fecha y hora de inicio de la clase (formato ISO-8601 UTC)',
     example: '2026-10-15T18:00:00Z',
   })
   @IsISO8601()
   horario!: string;
 
-  @ApiProperty({ description: 'Capacidad máxima de asistentes', example: 20, minimum: 1 })
+  @ApiProperty({
+    type: 'integer',
+    description: 'Capacidad máxima de asistentes',
+    example: 20,
+    minimum: 1,
+  })
   @IsInt()
   @IsPositive()
   capacidad!: number;

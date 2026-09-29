@@ -4,6 +4,7 @@ import { ClasesController } from './controllers/clases.controller';
 import { EsperasClasesController } from './controllers/esperas-clases.controller';
 import { ReservasClasesController } from './controllers/reservas-clases.controller';
 import { CupoLiberadoSubject } from './observers/cupo-liberado.subject';
+import { EmailCupoLiberadoObserver } from './observers/email-cupo-liberado.observer';
 import { NotificarSociosEsperaObserver } from './observers/notificar-socios-espera.observer';
 import { CLASE_REPOSITORY } from './repositories/clase.repository';
 import { ESPERA_CLASE_REPOSITORY } from './repositories/espera-clase.repository';
@@ -31,6 +32,7 @@ import { ReservasClasesService } from './services/reservas-clases.service';
     EsperasClasesService,
     CupoLiberadoSubject,
     NotificarSociosEsperaObserver,
+    EmailCupoLiberadoObserver,
   ],
   exports: [CLASE_REPOSITORY, RESERVA_CLASE_REPOSITORY, ESPERA_CLASE_REPOSITORY],
 })
@@ -38,10 +40,16 @@ export class ClasesModule implements OnModuleInit {
   constructor(
     private readonly cupoSubject: CupoLiberadoSubject,
     private readonly notificarEsperaObserver: NotificarSociosEsperaObserver,
+    private readonly emailObserver: EmailCupoLiberadoObserver,
   ) {}
 
   onModuleInit(): void {
-    // Registro de observadores en el Subject GoF al inicializar el módulo
+    // Registro de observadores en el Subject GoF al inicializar el módulo.
+    // La cadena es [estado, email]: el primero lleva EN_ESPERA -> NOTIFICADO y el
+    // segundo avisa por correo. El observer de email usa listarSociosEnEsperaPorClase
+    // (cola viva, sin CANCELADO) y no buscarEnEsperaPorClase, asi que le da igual
+    // correr antes o despues del cambio de estado.
     this.cupoSubject.registrarObserver(this.notificarEsperaObserver);
+    this.cupoSubject.registrarObserver(this.emailObserver);
   }
 }

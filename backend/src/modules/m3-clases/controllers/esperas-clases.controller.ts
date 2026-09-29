@@ -27,11 +27,10 @@ import {
 import type { Response } from 'express';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
-import { CrearEsperaDto } from '../dtos/crear-espera.dto';
-import { EsperaOutDto } from '../dtos/espera-out.dto';
-import { ListarEsperaDeClaseQueryDto } from '../dtos/listar-espera-de-clase-query.dto';
+import { EsperaIn } from '../dtos/espera-in.dto';
+import { EsperaOut } from '../dtos/espera-out.dto';
 import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
-import { ReservaClaseOutDto } from '../dtos/reserva-clase-out.dto';
+import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
 import { EsperasClasesService } from '../services/esperas-clases.service';
 
 @ApiTags('esperas-clases')
@@ -43,12 +42,12 @@ export class EsperasClasesController {
   @Post('clases/:clase_id/espera')
   @ApiOperation({
     operationId: 'anotarseEnEspera',
-    summary: 'Anotarse en lista de espera de una clase completa (RF-08)',
+    summary: 'Anotarse en la lista de espera de una clase (RF-08)',
   })
-  @ApiParam({ name: 'clase_id', type: Number, description: 'ID de la clase completa', example: 1 })
+  @ApiParam({ name: 'clase_id', type: 'integer', description: 'ID de la clase completa', example: 1 })
   @ApiCreatedResponse({
     description: 'Inscripción en lista de espera registrada exitosamente',
-    type: EsperaOutDto,
+    type: EsperaOut,
     headers: {
       Location: {
         description: 'URL de acceso a la solicitud de espera',
@@ -67,9 +66,9 @@ export class EsperasClasesController {
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
   async anotarse(
     @Param('clase_id', ParseIntPipe) clase_id: number,
-    @Body() dto: CrearEsperaDto,
+    @Body() dto: EsperaIn,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<EsperaOutDto> {
+  ): Promise<EsperaOut> {
     const espera = await this.esperasService.anotarseEnEspera(clase_id, dto);
     res.setHeader('Location', `/api/v1/esperas-clases/${espera.id}`);
     return espera;
@@ -78,12 +77,12 @@ export class EsperasClasesController {
   @Get('esperas-clases/:espera_id')
   @ApiOperation({
     operationId: 'obtenerEspera',
-    summary: 'Consultar estado de una solicitud en lista de espera (RF-08)',
+    summary: 'Obtener anotación de espera por id',
   })
-  @ApiParam({ name: 'espera_id', type: Number, description: 'ID de la solicitud de espera', example: 4 })
-  @ApiOkResponse({ description: 'Detalle de la solicitud de espera', type: EsperaOutDto })
+  @ApiParam({ name: 'espera_id', type: 'integer', description: 'ID de la solicitud de espera', example: 4 })
+  @ApiOkResponse({ description: 'Detalle de la solicitud de espera', type: EsperaOut })
   @ApiNotFoundResponse({ description: 'Solicitud de espera no encontrada', content: PROBLEM_JSON })
-  obtener(@Param('espera_id', ParseIntPipe) espera_id: number): Promise<EsperaOutDto> {
+  obtener(@Param('espera_id', ParseIntPipe) espera_id: number): Promise<EsperaOut> {
     return this.esperasService.obtenerEspera(espera_id);
   }
 
@@ -91,9 +90,9 @@ export class EsperasClasesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     operationId: 'salirDeEspera',
-    summary: 'Salir voluntariamente de la lista de espera (RF-08 - Baja Lógica)',
+    summary: 'Salir de la lista de espera (baja lógica)',
   })
-  @ApiParam({ name: 'espera_id', type: Number, description: 'ID de la espera a cancelar', example: 4 })
+  @ApiParam({ name: 'espera_id', type: 'integer', description: 'ID de la espera a cancelar', example: 4 })
   @ApiNoContentResponse({ description: 'Solicitud de espera dada de baja lógicamente (CANCELADO)' })
   @ApiNotFoundResponse({ description: 'Solicitud no encontrada', content: PROBLEM_JSON })
   @ApiConflictResponse({
@@ -107,12 +106,12 @@ export class EsperasClasesController {
   @Post('esperas-clases/:espera_id/confirmaciones')
   @ApiOperation({
     operationId: 'confirmarEspera',
-    summary: 'Confirmar cupo liberado (modalidad First-Come, First-Served) (RF-08)',
+    summary: 'Confirmar cupo desde la lista de espera (RF-08)',
   })
-  @ApiParam({ name: 'espera_id', type: Number, description: 'ID de la espera notificada', example: 4 })
+  @ApiParam({ name: 'espera_id', type: 'integer', description: 'ID de la espera notificada', example: 4 })
   @ApiCreatedResponse({
     description: 'Cupo confirmado y convertido a reserva de clase exitosamente',
-    type: ReservaClaseOutDto,
+    type: ReservaClaseOut,
     headers: {
       Location: {
         description: 'URL de acceso a la reserva creada',
@@ -128,42 +127,23 @@ export class EsperasClasesController {
   async confirmar(
     @Param('espera_id', ParseIntPipe) espera_id: number,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<ReservaClaseOutDto> {
+  ): Promise<ReservaClaseOut> {
     const reserva = await this.esperasService.confirmarEspera(espera_id);
     res.setHeader('Location', `/api/v1/reservas-clases/${reserva.id}`);
     return reserva;
   }
 
-  @Get('clases/:clase_id/espera')
-  @ApiOperation({
-    operationId: 'listarEsperaDeClase',
-    summary: 'Listar solicitudes en lista de espera de una clase (RF-08)',
-  })
-  @ApiParam({ name: 'clase_id', type: Number, description: 'ID de la clase', example: 1 })
-  @ApiOkResponse({
-    description: 'Listado de solicitudes en lista de espera de la clase',
-    type: [EsperaOutDto],
-  })
-  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  @ApiNotFoundResponse({ description: 'Clase no encontrada', content: PROBLEM_JSON })
-  listarDeClase(
-    @Param('clase_id', ParseIntPipe) clase_id: number,
-    @Query() query: ListarEsperaDeClaseQueryDto,
-  ): Promise<EsperaOutDto[]> {
-    return this.esperasService.listarEsperaDeClase(clase_id, query);
-  }
-
   @Get('esperas-clases')
   @ApiOperation({
     operationId: 'listarEsperasClase',
-    summary: 'Listar solicitudes en lista de espera de clases (RF-08)',
+    summary: 'Listado de anotaciones de espera con filtros',
   })
   @ApiOkResponse({
     description: 'Listado de solicitudes en lista de espera',
-    type: [EsperaOutDto],
+    type: [EsperaOut],
   })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  listar(@Query() query: ListarEsperasClaseQueryDto): Promise<EsperaOutDto[]> {
+  listar(@Query() query: ListarEsperasClaseQueryDto): Promise<EsperaOut[]> {
     return this.esperasService.listarEsperasClase(query);
   }
 }

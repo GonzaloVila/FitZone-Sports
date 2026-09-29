@@ -1,36 +1,44 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
 
-export class ClaseOutDto {
-  @ApiProperty({ example: 1 })
+export class ClaseOut {
   @Expose()
+  @ApiProperty({ type: 'integer', example: 1 })
   id!: number;
 
-  @ApiProperty({ example: 1 })
   @Expose()
+  @ApiProperty({ type: 'integer', example: 1 })
   sede_id!: number;
 
-  @ApiProperty({ example: 'Spinning' })
   @Expose()
+  @ApiProperty({ example: 'Spinning' })
   tipo!: string;
 
-  @ApiProperty({ example: 'Martín Palermo' })
   @Expose()
+  @ApiProperty({ example: 'Martín Palermo' })
   instructor!: string;
 
-  @ApiProperty({ example: '2026-10-15T18:00:00Z' })
   @Expose()
+  @ApiProperty({ type: 'string', format: 'date-time', example: '2026-10-15T18:00:00Z' })
   horario!: string;
 
-  @ApiProperty({ example: 20 })
   @Expose()
+  @ApiProperty({ type: 'integer', example: 20 })
   capacidad!: number;
 
-  @ApiProperty({ example: 5, description: 'Cantidad de reservas confirmadas activas' })
   @Expose()
+  @ApiProperty({
+    type: 'integer',
+    example: 5,
+    description: 'Cantidad de reservas confirmadas activas',
+  })
   reservas_confirmadas!: number;
 
-  @ApiProperty({ example: 15, description: 'Cupo disponible en tiempo real' })
   @Expose()
+  @ApiProperty({
+    type: 'integer',
+    example: 15,
+    description: 'Cupo disponible en tiempo real',
+  })
   cupo_disponible!: number;
 }

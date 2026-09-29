@@ -10,8 +10,8 @@ import {
   SEDE_VALIDATION_PORT,
   type SedeValidationPort,
 } from '../../../commons/sede/sede-validation.port';
-import { ClaseOutDto } from '../dtos/clase-out.dto';
-import { CrearClaseDto } from '../dtos/crear-clase.dto';
+import { ClaseOut } from '../dtos/clase-out.dto';
+import { ClaseIn } from '../dtos/clase-in.dto';
 import { ListarClasesQueryDto } from '../dtos/listar-clases-query.dto';
 import {
   CLASE_REPOSITORY,
@@ -28,7 +28,7 @@ export class ClasesService {
     private readonly sedeValidation: SedeValidationPort | null,
   ) {}
 
-  async crearClase(dto: CrearClaseDto): Promise<ClaseOutDto> {
+  async crearClase(dto: ClaseIn): Promise<ClaseOut> {
     if (this.sedeValidation) {
       const existeSede = await this.sedeValidation.existeSede(dto.sede_id);
       if (!existeSede) {
@@ -63,14 +63,14 @@ export class ClasesService {
       capacidad: dto.capacidad,
     });
 
-    return plainToInstance(ClaseOutDto, {
+    return plainToInstance(ClaseOut, {
       ...clase,
       reservas_confirmadas: 0,
       cupo_disponible: clase.capacidad,
     });
   }
 
-  async listarClases(filtros: ListarClasesQueryDto): Promise<ClaseOutDto[]> {
+  async listarClases(filtros: ListarClasesQueryDto): Promise<ClaseOut[]> {
     const clases = await this.clasesRepo.listar(
       {
         sede_id: filtros.sede_id,
@@ -78,14 +78,14 @@ export class ClasesService {
       },
       { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
     );
-    return plainToInstance(ClaseOutDto, clases);
+    return plainToInstance(ClaseOut, clases);
   }
 
-  async obtenerClase(claseId: number): Promise<ClaseOutDto> {
+  async obtenerClase(claseId: number): Promise<ClaseOut> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
       throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
-    return plainToInstance(ClaseOutDto, clase);
+    return plainToInstance(ClaseOut, clase);
   }
 }

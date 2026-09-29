@@ -1,20 +1,20 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
 
-export class ReservaClaseOutDto {
-  @ApiProperty({ example: 10 })
+export class ReservaClaseOut {
   @Expose()
+  @ApiProperty({ type: 'integer', example: 10 })
   id!: number;
 
-  @ApiProperty({ example: 1 })
   @Expose()
+  @ApiProperty({ type: 'integer', example: 1 })
   clase_id!: number;
 
-  @ApiProperty({ example: 1 })
   @Expose()
+  @ApiProperty({ type: 'integer', example: 1 })
   socio_id!: number;
 
-  @ApiProperty({ example: 'CONFIRMADA', enum: ['CONFIRMADA', 'CANCELADA'] })
   @Expose()
+  @ApiProperty({ example: 'CONFIRMADA', enum: ['CONFIRMADA', 'CANCELADA'] })
   estado!: string;
 }

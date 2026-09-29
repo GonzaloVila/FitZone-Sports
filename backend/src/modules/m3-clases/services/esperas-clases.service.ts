@@ -10,11 +10,11 @@ import {
   MEMBERSHIP_VALIDATION_PORT,
   type MembershipValidationPort,
 } from '../../../commons/membresia/membership-validation.port';
-import { CrearEsperaDto } from '../dtos/crear-espera.dto';
-import { EsperaOutDto } from '../dtos/espera-out.dto';
+import { EsperaIn } from '../dtos/espera-in.dto';
+import { EsperaOut } from '../dtos/espera-out.dto';
 import { ListarEsperaDeClaseQueryDto } from '../dtos/listar-espera-de-clase-query.dto';
 import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
-import { ReservaClaseOutDto } from '../dtos/reserva-clase-out.dto';
+import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
 import {
   CLASE_REPOSITORY,
   type ClaseRepository,
@@ -39,7 +39,7 @@ export class EsperasClasesService {
   async listarEsperaDeClase(
     claseId: number,
     filtros: ListarEsperaDeClaseQueryDto,
-  ): Promise<EsperaOutDto[]> {
+  ): Promise<EsperaOut[]> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
       throw recursoNoEncontrado('No existe la clase indicada.');
@@ -50,12 +50,12 @@ export class EsperasClasesService {
       { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
     );
 
-    return plainToInstance(EsperaOutDto, esperas);
+    return plainToInstance(EsperaOut, esperas);
   }
 
   async listarEsperasClase(
     filtros: ListarEsperasClaseQueryDto,
-  ): Promise<EsperaOutDto[]> {
+  ): Promise<EsperaOut[]> {
     const esperas = await this.esperasRepo.listar(
       {
         clase_id: filtros.clase_id,
@@ -65,10 +65,10 @@ export class EsperasClasesService {
       { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
     );
 
-    return plainToInstance(EsperaOutDto, esperas);
+    return plainToInstance(EsperaOut, esperas);
   }
 
-  async anotarseEnEspera(claseId: number, dto: CrearEsperaDto): Promise<EsperaOutDto> {
+  async anotarseEnEspera(claseId: number, dto: EsperaIn): Promise<EsperaOut> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
       throw recursoNoEncontrado('No existe la clase indicada.');
@@ -127,15 +127,15 @@ export class EsperasClasesService {
       throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
-    return plainToInstance(EsperaOutDto, resultado.espera);
+    return plainToInstance(EsperaOut, resultado.espera);
   }
 
-  async obtenerEspera(esperaId: number): Promise<EsperaOutDto> {
+  async obtenerEspera(esperaId: number): Promise<EsperaOut> {
     const espera = await this.esperasRepo.buscarPorId(esperaId);
     if (!espera) {
       throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
-    return plainToInstance(EsperaOutDto, espera);
+    return plainToInstance(EsperaOut, espera);
   }
 
   async salirDeEspera(esperaId: number): Promise<void> {
@@ -160,7 +160,7 @@ export class EsperasClasesService {
     await this.esperasRepo.marcarCancelada(esperaId);
   }
 
-  async confirmarEspera(esperaId: number): Promise<ReservaClaseOutDto> {
+  async confirmarEspera(esperaId: number): Promise<ReservaClaseOut> {
     const resultado = await this.esperasRepo.confirmarEsperaConLock(esperaId);
 
     if (!resultado.ok) {
@@ -194,6 +194,6 @@ export class EsperasClasesService {
       });
     }
 
-    return plainToInstance(ReservaClaseOutDto, resultado.reserva);
+    return plainToInstance(ReservaClaseOut, resultado.reserva);
   }
 }

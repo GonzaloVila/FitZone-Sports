@@ -40,7 +40,12 @@ export interface EsperaClaseRepository {
   buscarPorId(id: number): Promise<EsperaClase | null>;
   buscarActivaPorClaseYSocio(claseId: number, socioId: number): Promise<EsperaClase | null>;
   marcarCancelada(id: number): Promise<EsperaClase | null>;
-  buscarEnEsperaPorClase(claseId: number): Promise<EsperaClase[]>;
-  marcarNotificados(claseId: number, fecha: Date): Promise<number>;
+    buscarEnEsperaPorClase(claseId: number): Promise<EsperaClase[]>;
+    // Socio_ids de la cola viva: todo lo que no esta CANCELADO (EN_ESPERA y
+    // NOTIFICADO). A diferencia de buscarEnEsperaPorClase NO depende del momento:
+    // el observer de email la consulta en paralelo con marcarNotificados, asi que
+    // tiene que devolver los mismos socios exista o no el cambio de estado.
+    listarSociosEnEsperaPorClase(claseId: number): Promise<number[]>;
+    marcarNotificados(claseId: number, fecha: Date): Promise<number>;
   confirmarEsperaConLock(esperaId: number): Promise<ResultadoConfirmarEspera>;
 }

@@ -6,14 +6,16 @@ import type { EstadoReservaClase } from '../entities/reserva-clase.entity';
 const ESTADOS: EstadoReservaClase[] = ['CONFIRMADA', 'CANCELADA'];
 
 export class ListarReservasClaseQueryDto {
-  @ApiPropertyOptional({ description: 'ID numérico de la clase', example: 1 })
+  @ApiPropertyOptional({
+    type: 'integer', description: 'ID numérico de la clase', example: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   clase_id?: number;
 
-  @ApiPropertyOptional({ description: 'ID numérico del socio', example: 2 })
+  @ApiPropertyOptional({
+    type: 'integer', description: 'ID numérico del socio', example: 2 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -28,14 +30,16 @@ export class ListarReservasClaseQueryDto {
   @IsIn(ESTADOS)
   estado?: EstadoReservaClase;
 
-  @ApiPropertyOptional({ minimum: 1, default: 1 })
+  @ApiPropertyOptional({
+    type: 'integer', minimum: 1, default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 20 })
+  @ApiPropertyOptional({
+    type: 'integer', minimum: 1, maximum: 100, default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

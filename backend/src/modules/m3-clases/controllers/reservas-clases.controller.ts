@@ -26,10 +26,9 @@ import {
 import type { Response } from 'express';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
-import { CrearReservaClaseDto } from '../dtos/crear-reserva-clase.dto';
+import { ReservaClaseIn } from '../dtos/reserva-clase-in.dto';
 import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query.dto';
-import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-query.dto';
-import { ReservaClaseOutDto } from '../dtos/reserva-clase-out.dto';
+import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
 import { ReservasClasesService } from '../services/reservas-clases.service';
 
 @ApiTags('reservas-clases')
@@ -41,11 +40,11 @@ export class ReservasClasesController {
   @Post('reservas-clases')
   @ApiOperation({
     operationId: 'crearReservaClase',
-    summary: 'Reservar un cupo en clase grupal (RF-07)',
+    summary: 'Reservar cupo en una clase',
   })
   @ApiCreatedResponse({
     description: 'Reserva confirmada con éxito',
-    type: ReservaClaseOutDto,
+    type: ReservaClaseOut,
     headers: {
       Location: {
         description: 'URL de acceso a la reserva confirmada',
@@ -66,9 +65,9 @@ export class ReservasClasesController {
   })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
   async crear(
-    @Body() dto: CrearReservaClaseDto,
+    @Body() dto: ReservaClaseIn,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<ReservaClaseOutDto> {
+  ): Promise<ReservaClaseOut> {
     const reserva = await this.reservasService.crearReservaClase(dto.clase_id, dto);
     res.setHeader('Location', `/api/v1/reservas-clases/${reserva.id}`);
     return reserva;
@@ -77,14 +76,14 @@ export class ReservasClasesController {
   @Get('reservas-clases/:reserva_clase_id')
   @ApiOperation({
     operationId: 'obtenerReservaClase',
-    summary: 'Consultar información de una reserva de clase (RF-07)',
+    summary: 'Obtener reserva de cupo por id',
   })
-  @ApiParam({ name: 'reserva_clase_id', type: Number, description: 'ID de la reserva', example: 10 })
-  @ApiOkResponse({ description: 'Detalle de la reserva', type: ReservaClaseOutDto })
+  @ApiParam({ name: 'reserva_clase_id', type: 'integer', description: 'ID de la reserva', example: 10 })
+  @ApiOkResponse({ description: 'Detalle de la reserva', type: ReservaClaseOut })
   @ApiNotFoundResponse({ description: 'Reserva no encontrada', content: PROBLEM_JSON })
   obtener(
     @Param('reserva_clase_id', ParseIntPipe) reserva_clase_id: number,
-  ): Promise<ReservaClaseOutDto> {
+  ): Promise<ReservaClaseOut> {
     return this.reservasService.obtenerReservaClase(reserva_clase_id);
   }
 
@@ -92,11 +91,11 @@ export class ReservasClasesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     operationId: 'cancelarReservaClase',
-    summary: 'Cancelar reserva de clase sin penalidad (RF-07)',
+    summary: 'Cancelar un cupo de clase (RF-07)',
   })
   @ApiParam({
     name: 'reserva_clase_id',
-    type: Number,
+    type: 'integer',
     description: 'ID de la reserva a cancelar',
     example: 10,
   })
@@ -112,36 +111,17 @@ export class ReservasClasesController {
     return this.reservasService.cancelarReservaClase(reserva_clase_id);
   }
 
-  @Get('clases/:clase_id/reservas')
-  @ApiOperation({
-    operationId: 'listarReservasDeClase',
-    summary: 'Listar reservas de una clase grupal (RF-07)',
-  })
-  @ApiParam({ name: 'clase_id', type: Number, description: 'ID de la clase', example: 1 })
-  @ApiOkResponse({
-    description: 'Listado de reservas de la clase',
-    type: [ReservaClaseOutDto],
-  })
-  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  @ApiNotFoundResponse({ description: 'Clase no encontrada', content: PROBLEM_JSON })
-  listarDeClase(
-    @Param('clase_id', ParseIntPipe) clase_id: number,
-    @Query() query: ListarReservasDeClaseQueryDto,
-  ): Promise<ReservaClaseOutDto[]> {
-    return this.reservasService.listarReservasDeClase(clase_id, query);
-  }
-
   @Get('reservas-clases')
   @ApiOperation({
     operationId: 'listarReservasClase',
-    summary: 'Listar reservas de clases grupales (RF-07)',
+    summary: 'Listado de reservas de clase con filtros',
   })
   @ApiOkResponse({
     description: 'Listado de reservas de clases',
-    type: [ReservaClaseOutDto],
+    type: [ReservaClaseOut],
   })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  listar(@Query() query: ListarReservasClaseQueryDto): Promise<ReservaClaseOutDto[]> {
+  listar(@Query() query: ListarReservasClaseQueryDto): Promise<ReservaClaseOut[]> {
     return this.reservasService.listarReservasClase(query);
   }
 }

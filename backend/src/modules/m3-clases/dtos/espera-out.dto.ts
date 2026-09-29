@@ -1,17 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
 
-export class EsperaOutDto {
-  @ApiProperty({ example: 4 })
+export class EsperaOut {
   @Expose()
+  @ApiProperty({ type: 'integer', example: 4 })
   id!: number;
 
-  @ApiProperty({ example: 1 })
   @Expose()
+  @ApiProperty({ type: 'integer', example: 1 })
   clase_id!: number;
 
-  @ApiProperty({ example: 1 })
   @Expose()
+  @ApiProperty({ type: 'integer', example: 1 })
   socio_id!: number;
 
   @ApiProperty({

@@ -139,6 +139,18 @@ export class PrismaEsperaClaseRepository implements EsperaClaseRepository {
     return filas.map((f) => this.aDominio(f));
   }
 
+  async listarSociosEnEsperaPorClase(claseId: number): Promise<number[]> {
+    const filas = await this.prisma.esperaClase.findMany({
+      where: {
+        clase_id: claseId,
+        estado: { not: 'CANCELADO' },
+      },
+      orderBy: { fecha_anotacion: 'asc' },
+      select: { socio_id: true },
+    });
+    return filas.map((f) => f.socio_id);
+  }
+
   async marcarNotificados(claseId: number, fecha: Date): Promise<number> {
     const resultado = await this.prisma.esperaClase.updateMany({
       where: {

@@ -684,3 +684,78 @@ El contrato del vault, `schema.prisma`, el DBML y la base compartida habían que
 5. **Dos convenciones distintas de base path entre codigo y vault.** No es un defecto, pero conviene fijar una sola para no volver a medir mal: hoy el codigo incluye `/api/v1` en los paths y el vault lo declara en `servers`.
 6. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no esta versionado. Sigue siendo decision pendiente de Gonzalo.
 7. **Sin validar: `foto_url` no se valida como URL** en ni el codigo ni el contrato. Solo `@IsString()`. Por decision de Gonzalo no se agrega `@IsUrl()`, porque rechazaria payloads que hoy pasan.
+
+### Semana 8 · SCRUM-11h — Cierre de naming, summary, examples y additionalProperties de M1
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El nombre de la clase TypeScript se filtra al documento, y por eso el naming era el hueco mas relevante de los que quedaban.** `export class SocioOutDto` produce `components.schemas.SocioOutDto` y un `$ref` a `#/components/schemas/SocioOutDto`, mientras el vault lo llama `SocioOut`. No era solo cosmetico: de ahi salen los nombres de clase del cliente generado. Se renombran las nueve clases de M1 para que coincidan con el contrato, en **98 referencias** sobre 22 archivos:
+
+   | codigo | vault | archivo |
+   | --- | --- | --- |
+   | `UsuarioOutDto` | `UsuarioOut` | sin cambio |
+   | `SocioOutDto` | `SocioOut` | sin cambio |
+   | `MembresiaOutDto` | `MembresiaOut` | sin cambio |
+   | `MembresiaPatchDto` | `MembresiaPatch` | sin cambio |
+   | `CrearUsuarioDto` | `UsuarioIn` | `git mv` |
+   | `CrearSocioDto` | `SocioIn` | `git mv` |
+   | `CrearMembresiaDto` | `MembresiaIn` | `git mv` |
+   | `ModificarUsuarioDto` | `UsuarioPatch` | `git mv` |
+   | `ModificarSocioDto` | `SocioPatch` | `git mv` |
+
+   Los cuatro primeros solo perdian el sufijo `Dto` y el nombre quedaba bueno. Los cinco siguientes cambian el concepto: `CrearUsuarioDto` pasa a llamarse `UsuarioIn`. Eso tiene un costo explicito, y se acepta: el proyecto tiene 7 clases `Crear*` y 2 `Modificar*` sobre 29 DTOs, y el vault no usa ninguno de esos prefijos en ningun schema, o sea que el prefijo es convencion del codigo y no requisito del contrato. Renombrarlos deja a M1 como el unico modulo con nombres `*In`/`*Patch` frente a M2 a M5, que conservan `Crear*Dto`. Se priorizo que el contrato, que es la fuente de verdad, se cumpla sin excepciones.
+
+2. **La clase de error tambien diverge de nombre, y vive fuera de M1.** El vault la llama `Problem` y el codigo `ProblemDetailsDto`. Se renombra a `Problem` en `commons/swagger/`, con `git mv` de `problem-details.dto.ts` a `problem.dto.ts`. Esto **toca controladores de M2 y M3** y es una excepcion consciente a la regla de no salir de M1: son 19 referencias (3 en `commons`, 6 en M1, 4 en M2, 6 en M3) de un unico schema compartido, y sin tocarlo M1 no podia llegar a cero divergencias de naming. La alternativa —dejarlo— era registrar la excepcion para siempre. Se verifico que `Problem` no choca con el tipo global homonimo de `lib.dom`: compila sin error porque la clase es de alcance de modulo y lo sombrea.
+
+3. **Los `git mv` son cosmeticos y se hacen igual.** Los nombres de archivo nunca llegan al documento, pero dejar `export class UsuarioIn` adentro de `crear-usuario.dto.ts` desorienta a quien lea el modulo despues. Git los detecta como `R100`, o sea que el contenido no cambio mas alla del nombre de la clase.
+
+4. **Los 7 `summary` de M1 ahora coinciden con el vault.** `POST /usuarios` pasa de "Alta de usuario (perfil EXTERNO/RECEPCION/GERENTE)" a "Registrar usuario"; `GET /usuarios/{id}` de "Usuario por id (sin datos de contrasena)" a "Obtener usuario por id"; `PATCH /usuarios/{id}` de "Actualiza solo los campos presentes" a "Modificar parcialmente un usuario"; `GET /socios/{socio_id}` de "Socio por id" a "Obtener socio por id"; `PATCH /socios/{socio_id}` de "Modifica la sede de origen" a "Modificar parcialmente un socio"; `DELETE /socios/{socio_id}` de "Deja de ser socio (usuario vuelve a EXTERNO)" a "Dejar de ser socio"; y `GET /socios/{socio_id}/membresias` de "Membresia vigente del socio" a "Membresia actual del socio". Los cinco `summary` que ya coincidian no se tocan.
+
+5. **`additionalProperties: false` deja de ser una limitacion aceptada del generador.** Se agrega `commons/swagger/mark-request-schemas.ts`, invocado en `main.ts` entre `createDocument` y `setup`. El helper recolecta los `$ref` alcanzados desde los `requestBody` de nivel superior y les pone `additionalProperties: false`. Marca los **11** request schemas que el documento contiene: los 6 de M1 y los 5 de M2 y M3. Es deliberadamente **no recursivo**: los `$ref` anidados apuntan a enums compartidos (`Rol`, `Plan`, `EstadoMembresia`) que el vault deja abiertos, y bajarlos habria cerrado schemas que el contrato no cierra. Tampoco toca schemas de respuesta, enums ni `Problem`. Con esto se cierra el punto que SCRUM-11f y SCRUM-11g veniran dejando como limitacion aceptada, y el `ValidationPipe` con `forbidNonWhitelisted: true` deja de rechazar en runtime algo que el documento no declaraba.
+
+6. **Los 11 `example` de respuesta se agregan al vault, no al codigo.** Los 11 `200` y `201` de M1 (4 de `UsuarioOut`, 4 de `SocioOut`, 3 de `MembresiaOut`) incorporate `example` a nivel de media type. El vault ya tenia `example` a nivel de schema en `components.schemas`, o sea que la informacion existia de un lado y no del otro: estos son los que faltaban. El cambio es **puramente aditivo, 81 lineas agregadas y 0 quitadas**, verificado con una comprobacion de subsecuencia linea a linea contra el backup. Cada ejemplo se valido contra su schema: `required` completo, tipos, valores dentro de los enums, `format: email` y `format: date-time` parseables.
+
+7. **Ejemplo de `fecha_alta` corregido en el codigo.** `socio-out.dto.ts` declaraba `example: '2026-09-15'` sobre un `fecha_alta!: Date`, cuyo `format` resuelto es `date-time`; la fecha sola no cumple el formato. Pasa a `'2026-09-15T00:00:00.000Z'`, que es el mismo estilo que ya usaba `membresia-out.dto.ts` en `fecha_inicio` y `fecha_fin`.
+
+8. **`foto_url` sigue sin validarse como URL.** Se habia aprobado `@IsUrl()` y despues revertido; queda como estaba: solo `@IsString()`, sin `format: uri` en el contrato. Es la decision que mas veces se reviso en esta tanda y la version final es no tocarlo, porque rechazaria payloads que hoy pasan.
+
+9. **Dos errores mios en la edicion del vault, los dos antes del commit.** El primero: el constructor del ejemplo de array generaba un `- ` por clave,-seven items sueltos en vez de un objeto de siete claves-, lo que rompio la indentacion. El segundo, en el mismo script: la linea `example:` se interpolaba sin `indent(14)` y quedaba en la columna 0. En los dos casos el archivo dejo de parsear, el validador lo detecto en la verificacion inmediata, se restauro del backup y se reejecuto. No llegaron a commitearse. Quedan registrados porque el patron se repite: en esta tanda los tres fallos que me costaron una revision extra fueron mios y ninguno del codigo.
+
+#### Decisiones tomadas
+
+1. **Renombrar las nueve, no solo las cuatro que solo perdian el sufijo.** Se acepta que M1 quede con convencion de naming distinta de M2 a M5 antes que dejar 5 de 9 divergentes. Decision de Gonzalo.
+2. **Renombrar `ProblemDetailsDto` en `commons`, saliendo de M1.** Excepcion consciente: sin ella no se lograba el cero de naming en M1.
+3. **Los examples van solo en el vault.** El codigo ya expone ejemplos por propiedad en los DTO y no se duplican a nivel de media type: la fuente de verdad es el contrato, y agregar el mismo ejemplo en dos lados risk la desincronizacion. Decision de Gonzalo.
+4. **`additionalProperties` con post-proceso generico, no con decoradores por DTO.** Reutilizable tal cual en M4 y M5 sin tocar los DTO.
+5. **No tocar `foto_url`, ni `servers`, ni `description`, ni la convencion de base path.** Cada uno evaluado y descartado por separado: `servers` duplicaria el prefijo y dejaria roto el `/docs`; `description` es prosa y el codigo ya la tiene en los decoradores; la base path son dos convenciones validas para lo mismo y unificarla exige tocar los 30 paths del vault, fuera de alcance.
+
+#### Verificacion
+
+- `npx tsc --noEmit -p tsconfig.json` y `npm run build` en verde. e2e: **49/49 en 5 specs**, identico a las cuatro entradas anteriores. Confirma que el rename de clases no cambio comportamiento: el nombre de clase no participa de la serializacion ni de la validacion, solo del nombre del schema.
+- **Naming de M1: 10 de 10.** Los nueve schemas de M1 mas `Problem` existen en el documento con el nombre del contrato. Los once schemas con sufijo `Dto` que quedan (`AforoOutDto`, `ClaseOutDto`, `CrearClaseDto`, `CrearEsperaDto`, `CrearReservaClaseDto`, `CrearSedeDto`, `EsperaOutDto`, `IngresoInDto`, `IngresoOutDto`, `ReservaClaseOutDto`, `SedeOutDto`) son de M2 a M5 y no se tocaron.
+- **Estructura de los 10 schemas de M1: 0 divergencias** de `required`, tipos, enums y restricciones. El comparador resuelve los `$ref` del vault a sus enums con nombre antes de comparar, porque el codigo emite el enum inline y el vault por `$ref`; los valores coinciden.
+- **12 operaciones de M1: 0 divergencias de `summary` y 0 de `operationId`.** Antes de este commit eran 7 de `summary`.
+- **`additionalProperties`: 11 request schemas** marcados en el codigo por el helper y declarados en el vault. Ninguno marcado de mas, y `Problem` sigue abierto.
+- Vault: YAML parsea, 39 schemas, 11 bloques `example` agregados, 0 lineas quitadas, encoding preservado (CRLF, sin BOM, sin U+FFFD). Backup `pre-m1-closure.bak` de 91614 bytes, SHA256 `09E15898...`, intacto.
+- `git diff`: 6 renames detectados como `R100` y 23 archivos modificados; revision manual de los tres controllers de M1, los nueve DTO, los tres services, los cinco controllers de M2 y M3, `problem-json.ts`, `main.ts` y `m1.e2e-spec.ts`.
+
+#### Commits
+
+- `refactor(m1): alinea los nombres de los schemas y los summary de M1 con el contrato`
+- `docs(log): registra el cierre de naming, summary, examples y additionalProperties de M1`
+
+Van en dos commits y no en tres por una razon concreta: los renombres de clase y los `summary` viven en los mismos archivos (`usuarios.controller.ts`, `socios.controller.ts`, `membresias.controller.ts`), asi que separarlos exigiria un stage interactivo por linea. Y los 11 `example` del vault **no van en ningun commit**: el contrato esta fuera del repo, asi que ese cambio viaja solo con el backup `pre-m1-closure.bak` como referencia.
+
+#### Pendientes que siguen abiertos
+
+1. **Once schemas de M2 a M5 conservan el sufijo `Dto`** (106 referencias). El rename de M1 deja esos cuatro modulos con la convencion anterior; alinearlos es trabajo de cada modulo, no de M1.
+2. **`summary` difiere en 15 operaciones de M2 y M3** (sedes, clases, reservas-clases, esperas-clases), con el mismo desajuste de prosa que se acaba de corregir en M1.
+3. **Los `example` a nivel de schema del vault usan fecha sola donde el `format` es `date-time`**: `SocioOut.fecha_alta`, `MembresiaOut.fecha_inicio` y `MembresiaOut.fecha_fin`. Es una inconsistencia interna del vault, anterior a este trabajo, y no se corrigio por quedar fuera de lo aprobado. Los 11 examples nuevos si usan ISO completo.
+4. **M4 tiene cuatro request schemas en el vault sin implementacion**: `CanchaIn`, `CanchaPatch`, `PagoIn` y `ReservaCanchaIn`. El post-proceso los cubrira solo cuando exista el codigo que los referencie.
+5. **Dos convenciones distintas de base path entre codigo y vault.** No es un defecto, pero conviene fijar una sola: hoy el codigo incluye `/api/v1` en los paths y el vault lo declara en `servers`.
+6. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no esta versionado. Sigue siendo decision pendiente de Gonzalo.
+7. **Sin validar: `foto_url` no se valida como URL** en ni el codigo ni el contrato. Solo `@IsString()`. Decision de Gonzalo, revertida dos veces.
+8. **El comparador contrato/codigo no esta versionado.** Toda esta medicion corrio sobre scripts `node` ad-hoc en el directorio temporal. No hay forma de reproducir un "0" de forma independiente ni de detectarle regresiones, y esta tanda demostro el costo: dos de los tres fallos fueron del propio comparador. Deberia vivir en el repo como un script o test antes de auditar M2.
+

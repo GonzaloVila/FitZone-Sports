@@ -869,3 +869,124 @@ Los cambios del vault **no van en ningún commit**: el contrato y los planes viv
 6. **Sin validar: `foto_url` no se valida como URL.** Decisión de Gonzalo, revertida dos veces.
 7. **El contrato vive fuera del repo.** Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
 
+
+
+---
+
+## Unidad II - Auditoría del módulo 3
+
+### Semana 9 - SCRUM-11k - Cierre de M3: naming, Swagger, códigos de estado y canal de email
+
+Cierra los puntos 1, 2 y 3 que quedaron abiertos en la entrada de M2.
+
+#### 3A - Naming de los DTO
+
+Se renombraron los DTO para que coincidan con los `components.schemas` del contrato:
+
+| Antes                  | Ahora             |
+| ---------------------- | ----------------- |
+| `CrearClaseDto`        | `ClaseIn`         |
+| `ClaseOutDto`          | `ClaseOut`        |
+| `CrearReservaClaseDto` | `ReservaClaseIn`  |
+| `ReservaClaseOutDto`   | `ReservaClaseOut` |
+| `CrearEsperaDto`       | `EsperaIn`        |
+| `EsperaOutDto`         | `EsperaOut`       |
+
+Los archivos de `dtos/` se renombraron con `git mv`, así que el historial sigue al
+archivo y no aparece como borrado más alta.
+
+Sobre `EstadoEspera` y `EstadoReservaClase`: el contrato los declara como schemas
+nombrados, pero **el código no los tiene como enum**, igual que ya pasaba en M1 con
+`Rol`, `Plan` y `EstadoMembresia`. Se mantuvo ese criterio y se los agregó al
+comparador local como schemas equivalentes. En la API los valores siguen siendo los
+del contrato, verificado operación por operación.
+
+#### 3B - Swagger contra el contrato
+
+- `type: 'integer'` en los campos numéricos de los seis DTO y en los cinco query DTO
+  de paginación y filtros, y en todos los `@ApiParam` de path.
+- `format: 'date-time'` en `horario` de `ClaseIn` y `ClaseOut`.
+- Los 14 `summary` quedaron con el texto del contrato.
+- `GET /clases/{clase_id}/reservas` y `GET /clases/{clase_id}/espera` se movieron de
+  `ReservasClasesController` y `EsperasClasesController` a `ClasesController`.
+
+Lo del movimiento merece explicación porque no era cosmético. El contrato agrupa esas
+dos operaciones bajo el tag `clases`, no bajo el de reservas ni el de esperas. Con
+`@ApiTags` a nivel de método, `@nestjs/swagger` **suma** el tag del controller con el del
+método: se emitía `reservas-clases, clases` y el comparador marcaba diferencia. Sacar el
+tag del controller tampoco servía, porque con `autoTagControllers` (activo por defecto)
+la librería deriva uno del nombre de la clase y aparecía `ReservasClases, reservas-clases`.
+La única forma de dejar un único tag era alojar la operación en un controller cuyo tag
+de clase ya fuera `clases`, que es lo que hacen ahora. Son rutas `/clases/:id/...`: son
+vistas de la clase, y el contrato lo refleja así.
+
+La ruta y el comportamiento no cambian, solo el controller que las atiende. Los e2e de
+`/clases/{id}/reservas` y `/clases/{id}/espera` siguen pasando sin tocarlos.
+
+#### 3C - Códigos de estado
+
+Las ventanas temporales ya devolvían 409 y no hubo que cambiar el dominio: la ventana de
+48 h para reservar y la de 2 h para cancelar lanzan `HttpStatus.CONFLICT`, igual que el
+resto de los conflictos (14 casos en total entre los tres servicios). El 422 queda
+reservado para el `ValidationPipe` global, y no hay ningún `UNPROCESSABLE_ENTITY`
+emitido a mano en M3. Se verificó que en el documento ninguna de esas respuestas fuera
+422.
+
+#### Canal de email de la lista de espera
+
+Implementado como **observer adicional** en la carpeta `observers/` que el código ya
+usaba, y no como la carpeta `notifications/` del plan. La decisión es de Gonzalo: si el
+código ya tiene `observers/` con el patrón Observer clásico, gana el código y se actualiza
+el plan. El resultado cumple lo mismo que pedía el plan:
+
+- `observers/cupo-liberado.observer.ts`: interfaz `CupoLiberadoObserver`.
+- `observers/email-cupo-liberado.observer.ts`: nuevo canal con Nodemailer.
+- La cadena en `onModuleInit` queda `[NotificarSociosEsperaObserver, EmailCupoLiberadoObserver]`.
+- `ConsultaSocioPort.obtenerEmail(socioId)` en `commons/socio/`, implementado por
+  `ConsultaSocioAdapter` en M1 y exportado por su `@Global()`, siguiendo el mismo patrón
+  que `SEDE_VALIDATION_PORT`.
+- `nodemailer` y `@types/nodemailer` agregados a `package.json`.
+- `.env.example` con `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
+  `MAIL_FROM` y `ETHEREAL`.
+
+**Una carrera que hubo que evitar.** El `CupoLiberadoSubject` despacha a los observers
+con `Promise.all`, o sea en paralelo. El método `buscarEnEsperaPorClase` filtra por
+`estado: 'EN_ESPERA'`, y es justamente el observer de estado el que los pasa a
+`NOTIFICADO`. Si el canal de email hubiera usado ese método, según cuál de los dos
+terminara primero se habría quedado sin destinatarios y el aviso no se enviaba nunca.
+Por eso se agregó `listarSociosEnEsperaPorClase(claseId)`, que devuelve la **cola viva**
+(todo lo que no está CANCELADO: EN_ESPERA y NOTIFICADO) y por lo tanto da el mismo
+resultado antes o después del cambio de estado. Es la semántica que ya pedía el plan, y
+acá queda como la razón de fondo.
+
+El modo de envío se resuelve una vez por proceso, en este orden: con `SMTP_HOST`,
+`SMTP_USER` y `SMTP_PASS` el envío es real; con `ETHEREAL=true` usa `createTestAccount()`
+y loguea la URL de vista previa con `getTestMessageUrl`; sin ninguno de los dos solo
+loguea y **no sale a la red**. Ese último modo no es un atajo: el e2e de M3 tiene un caso
+"clase llena → socio en espera → cancelación dispara Observer → confirmación first-come",
+así que sin este corte el e2e intentaría crear una cuenta de Ethereal en cada corrida.
+
+#### Evidencia
+
+- `npx tsc --noEmit -p tsconfig.json`: OK.
+- `npm run build`: OK.
+- `npx vitest run --config vitest.e2e.config.ts`: **58/58** en 5 archivos.
+- Comparador del contrato: **M3 = 0 diferencias** (28/28). Antes de este trabajo M3
+  arrastraba 81.
+- La cadena de observers se verificó con un test temporal contra la base local:
+  `[NotificarSociosEsperaObserver, EmailCupoLiberadoObserver]`, con el aviso resolviendo
+  destinatarios por el puerto de M1 y sin tocar la red. El test era de andamiaje y se
+  borró; no queda en el repo.
+
+#### Pendientes que siguen abiertos
+
+1. **M4 tiene cuatro request schemas en el vault sin implementación**: `CanchaIn`,
+   `CanchaPatch`, `PagoIn` y `ReservaCanchaIn`.
+2. **El comparador sigue sin versionarse**, confirmado por cuarta ronda. Como no hay
+   evidencia en el repo, la salida se vuelca como texto en esta entrada.
+3. **Sin validar: `foto_url` no se valida como URL.** Decisión de Gonzalo, revertida dos veces.
+4. **El contrato vive fuera del repo.** Es la fuente de verdad de la API y no está
+   versionado. Sigue siendo decisión pendiente de Gonzalo.
+5. **M3 no tiene tests unitarios.** `npm test` sigue siendo un stub y el único runner de
+   pruebas es el e2e. El canal de email quedó verificado de forma puntual, no con una
+   prueba permanente en el repo.

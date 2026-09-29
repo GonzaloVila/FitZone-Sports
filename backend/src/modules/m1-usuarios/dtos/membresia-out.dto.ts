@@ -6,7 +6,7 @@ import { PlanMembresia } from '../entities/socio.entity';
 @Exclude()
 export class MembresiaOutDto {
   @Expose()
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ type: 'integer', example: 1 })
   id!: number;
 
   @Expose()

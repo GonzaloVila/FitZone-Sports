@@ -552,3 +552,35 @@ El contrato del vault, `schema.prisma`, el DBML y la base compartida habían que
 2. **`number` contra `integer` en 36 campos numéricos.** El vault declara `type: integer` y el Swagger generado dice `type: number`: 8 en M1, 11 en M2, 17 en M3. En JSON no hay diferencia, pero un generador de clientes puede elegir `int` o `number`. La corrección correcta es declarar `type: integer` en los decoradores, y son 36 campos en tres módulos — **no se hizo porque el alcance de esta auditoría era M1 y M2/M3 no están auditados.** Queda como decisión.
 3. **Sin validar: `foto_url` no se valida como URL.** Ni el código ni el contrato lo hacen: solo `@IsString()`. Por decisión de Gonzalo no se agrega `@IsUrl()`, porque rechazaría payloads que hoy pasan, así que la limitación queda documentada y no corregida.
 4. **Auditorías de M2 y M3:** sin hacer. El mismo diff automático que se usó acá está listo para correrlas: expone 36 divergencias de tipo más las de restricciones que reportó el contraste de M1, incluyendo `Problem.errors` —el array de errores de validación del 422— que el código expone y el vault no declara.
+### Semana 7 · SCRUM-11e — Cierre de M1: `type: integer` en los ocho campos numéricos
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El vault declara `type: integer` y el Swagger generado decía `type: number`** en los ocho campos numéricos de M1. La causa es que los ocho `@ApiProperty` no declaraban `type`, así que el plugin del `@nestjs/swagger` caía a su default `number` para un `number` de TypeScript. Se agrega `type: 'integer'` a los ocho. Con esto la auditoría de M1 queda en **0 divergencias de `required`, 0 de restricciones y 0 de tipo** sobre sus nueve schemas.
+2. **Los ocho campos, en cinco archivos:** `UsuarioOut.id`; `SocioOut.id`, `.usuario_id` y `.sede_origen_id`; `MembresiaOut.id`; `SocioIn.usuario_id` y `.sede_origen_id`; y `SocioPatch.sede_origen_id`. Los dos de `SocioIn` y el de `SocioPatch` ya tenían `@IsInt()` y `@Min(1)`; a los `*Out` no se les agrega validación porque son de salida y no los recorre el `ValidationPipe`.
+3. **No se modificó el vault.** En los ocho casos el vault ya decía `integer`: el que estaba mal era el código.
+4. **Sin efecto en runtime.** Es anotación de OpenAPI: en JSON `1` es indistinguible de `1` con o sin `integer`. El único efecto observable es en clientes generados, que pasan a mapear esos campos como `int` en vez de `number`, que es lo que el contrato dice.
+
+#### Decisiones tomadas
+
+1. **Sólo los ocho de M1, no los treinta y cinco del proyecto.** La misma divergencia aparece en 11 campos de M2 y 16 de M3, y el arreglo es idéntico. Se acotó a M1 por decisión de Gonzalo porque M2 y M3 no están auditados: mezclarlos en un commit `fix(m1)` sin haber pasado el resto de la superficie de esos módulos por el contraste automático sería afirmarlos alineados cuando no lo están.
+2. **El vault manda en la dirección de siempre.** En los casos anteriores la acción fue enmendar el vault; acá no hizo falta porque ya era el correcto.
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **49/49 en 5 specs**, idéntico a antes — la suite no lo exercise porque el cambio no altera runtime, y esa es justamente la razón de no haberlo tomado como señal.
+- Contraste automático sobre los nueve schemas de M1: **0 de `required`, 0 de restricciones, 0 de tipo.** Antes de este commit eran 0, 0 y 8.
+- `git diff` revisado a mano: cinco archivos, ocho inserciones y seis eliminaciones, todas las líneas tocadas con `type: 'integer'`. Ningún `@ApiProperty` perdió su `example`, `description` o `minimum`, y `SocioPatch.required` sigue sin incluir `sede_origen_id` porque declarar `type` en un `@ApiPropertyOptional` no lo vuelve obligatorio.
+
+#### Commits
+
+- `fix(m1): declara type integer en los ocho campos numéricos de los DTO de M1` — este mismo commit.
+
+#### Pendientes que siguen abiertos
+
+1. **`number` contra `integer` en 27 campos de M2 y M3, más `Problem.status`.** Once en M2 (`IngresoIn.sede_id`, `IngresoIn.usuario_id`, `IngresoOut.id`, `.sede_id`, `.usuario_id`, `SedeOut.id`, `SedeOut.aforo_maximo`, `AforoOut.aforo_actual`, `AforoOut.aforo_maximo`, `AforoOut.restante`, `SedeIn.aforo_maximo`) y dieciséis en M3 (`ClaseIn.sede_id`, `ClaseIn.capacidad`, `ClaseOut.id`, `.sede_id`, `.capacidad`, `.reservas_confirmadas`, `.cupo_disponible`, `EsperaIn.socio_id`, `EsperaOut.id`, `.clase_id`, `.socio_id`, `ReservaClaseIn.clase_id`, `.socio_id`, `ReservaClaseOut.id`, `.clase_id`, `.socio_id`). Con `Problem.status` son 28 en total; el proyecto tenía 36 antes de esta entrada, de los cuales 8 eran de M1. Mismo arreglo de una línea por campo, a resolver en las auditorías de M2 y M3.
+2. **Ocho restricciones que el vault declara y el código no.** Seis de M2: `SedeIn.nombre` con `minLength: 1` y `maxLength: 100`, `SedeIn.direccion` con `minLength: 1` y `maxLength: 200`, `SedeIn.aforo_maximo` con `minimum: 1`, y `IngresoIn.fecha_hora_ingreso` con `format: date-time`. Dos de M3: `ClaseIn.horario` y `ClaseOut.horario` con `format: date-time`. **No son metadata: son validadores ausentes**, así que a diferencia del punto 1 hay que decidir si el backend debe validar lo que el contrato ya promete o si el vault sobre-declara. Se difieren a las auditorías de M2 y M3.
+3. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
+4. **Sin validar: `foto_url` no se valida como URL.** Ni el código ni el contrato lo hacen: sólo `@IsString()`. Por decisión de Gonzalo no se agrega `@IsUrl()`, porque rechazaría payloads que hoy pasan.

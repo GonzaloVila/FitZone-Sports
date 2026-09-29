@@ -5,7 +5,7 @@ import { RolUsuario } from '../entities/usuario.entity';
 @Exclude()
 export class UsuarioOutDto {
   @Expose()
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ type: 'integer', example: 1 })
   id!: number;
 
   @Expose()

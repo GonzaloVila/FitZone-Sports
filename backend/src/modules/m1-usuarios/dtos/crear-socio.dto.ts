@@ -6,6 +6,7 @@ const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];
 
 export class CrearSocioDto {
   @ApiProperty({
+    type: 'integer',
     description: 'Usuario a convertir en socio (RF-01/RF-02).',
     example: 1,
     minimum: 1,
@@ -15,6 +16,7 @@ export class CrearSocioDto {
   usuario_id!: number;
 
   @ApiProperty({
+    type: 'integer',
     description: 'Sede de origen (informativa; el acceso multi-sede lo garantiza la membresía, RF-03).',
     example: 3,
     minimum: 1,

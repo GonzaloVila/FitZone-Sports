@@ -18,7 +18,7 @@ export class SocioOut {
   sede_origen_id!: number;
 
   @Expose()
-  @ApiProperty({ example: '2026-09-15T00:00:00.000Z' })
+  @ApiProperty({ example: '2026-09-15T00:00:00-03:00' })
   fecha_alta!: Date;
 
   // Datos de contacto

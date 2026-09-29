@@ -16,6 +16,9 @@ build/
 *.log
 npm-debug.log*
 
+# Comparador de contrato (herramienta local, nunca versionada)
+contrato/
+
 # IDE / OS
 .vscode/
 .idea/

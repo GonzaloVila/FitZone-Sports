@@ -1,7 +1,18 @@
 import type { InjectionToken } from '@nestjs/common';
+import type { OpcionesPaginacion } from '../../../commons/paginacion';
 import type { Ingreso, IngresoNuevo } from '../entities/ingreso.entity';
 
 export const INGRESO_REPOSITORY: InjectionToken = 'INGRESO_REPOSITORY';
+
+// Lista blanca de filtros del GET /ingresos. Todos opcionales: sin filtros
+// devuelve el historial paginado completo. `fecha` viene como día (YYYY-MM-DD)
+// y el repository lo traduce a un rango de instantes con rangoDelDia.
+export interface IngresoFiltros {
+  sede_id?: number;
+  usuario_id?: number;
+  fecha?: string;
+  dentro?: boolean;
+}
 
 // Resultado discriminado en vez de lanzar: tanto "aforo lleno" (RF-05) como
 // "acceso duplicado" (RN-01) son reglas de negocio esperadas del flujo, no
@@ -23,6 +34,7 @@ export type ResultadoCrearIngreso =
 
 export interface IngresoRepository {
   crear(ingreso: IngresoNuevo): Promise<ResultadoCrearIngreso>;
+  listar(filtros: IngresoFiltros, opciones: OpcionesPaginacion): Promise<Ingreso[]>;
   buscarPorId(id: number): Promise<Ingreso | null>;
   buscarActivoPorUsuario(usuarioId: number): Promise<Ingreso | null>;
   marcarEgreso(id: number, fecha: Date): Promise<Ingreso | null>;

@@ -4,10 +4,12 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { ProblemFilter } from '../src/commons/filters/problem.filter';
 
-// Contrato de los 4xx que produce el framework: los 10 decoradores
-// ApiBadRequestResponse de M1 declaran 400 por "JSON invalido" y por "path param
-// no numerico", y este spec fija que esos 400 ocurren de verdad, salen como
-// application/problem+json y con `detail` en español.
+// Contrato de los 4xx que produce el framework. El path param no numerico
+// responde 422 y no 400: el contrato declara 422 como codigo de validacion en
+// 36 de sus 47 operaciones y solo 11 declaran 400, ninguna por path param. El
+// unico 400 legitimo es el JSON invalido del body, que muere en el body-parser.
+// Este spec fija que los dos casos salen como application/problem+json y con
+// `detail` en español.
 //
 // Se prueba contra M1 y M3 a proposito, para dejar fijo que el comportamiento es
 // del filtro global y no de un modulo en particular.
@@ -22,6 +24,7 @@ import { ProblemFilter } from '../src/commons/filters/problem.filter';
 
 const DETALLE_400 =
   'La solicitud está mal formada: el cuerpo no es JSON válido o algún parámetro tiene un formato inválido.';
+const DETALLE_422 = 'Uno o más campos no cumplen las reglas de validación.';
 const DETALLE_404 = 'La ruta solicitada no existe o el recurso no fue encontrado.';
 
 // Mensajes que produce Nest/body-parser en ingles. El filtro los reemplaza por
@@ -95,25 +98,26 @@ describe('Errores 4xx de framework - parseo, path params y ruta inexistente (e2e
   });
 
   describe('Path param no numerico', () => {
-    it('GET /socios/{socio_id} no numerico responde 400 problem+json en español', async () => {
+    it('GET /socios/{socio_id} no numerico responde 422 problem+json en español', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/socios/abc')
-        .expect(400);
+        .expect(422);
 
       expect(res.headers['content-type']).toMatch(/application\/problem\+json/);
-      expect(res.body.status).toBe(400);
-      expect(res.body.detail).toBe(DETALLE_400);
+      expect(res.body.status).toBe(422);
+      expect(res.body.title).toBe('Error de validación');
+      expect(res.body.detail).toBe(DETALLE_422);
       sinIngles(res);
     });
 
-    it('GET /clases/{clase_id} no numerico responde 400 problem+json en español', async () => {
+    it('GET /clases/{clase_id} no numerico responde 422 problem+json en español', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/clases/abc')
-        .expect(400);
+        .expect(422);
 
       expect(res.headers['content-type']).toMatch(/application\/problem\+json/);
-      expect(res.body.status).toBe(400);
-      expect(res.body.detail).toBe(DETALLE_400);
+      expect(res.body.status).toBe(422);
+      expect(res.body.detail).toBe(DETALLE_422);
       sinIngles(res);
     });
   });

@@ -23,6 +23,18 @@ const CLIENT_DETAILS: Record<number, string> = {
   404: 'La ruta solicitada no existe o el recurso no fue encontrado.',
 };
 
+// ParseIntPipe lanza BadRequestException con el mensaje en STRING, no con el
+// arreglo de class-validator, asi que sin esta rama el 400 de un path param
+// caeria en toHttpProblem y se responderia 400. El contrato declara 422 como
+// codigo de validacion en 36 de sus 47 operaciones y solo 11 declaran 400, y
+// ninguna de esas 11 es por path param.
+const PARAM_PARSE_DETAIL = /^Validation failed\b/;
+
+// Unico detalle en espanol para las 422 de validacion. Compartido por la rama de
+// DTO y la de path param para que las dos 422 sean indistinguibles para el
+// cliente, que es lo que pide el componente ValidationError del contrato.
+const DETALLE_VALIDACION = 'Uno o más campos no cumplen las reglas de validación.';
+
 // Formas que solo puede producir el framework. Todo lo demas se preserva:
 // la app lanza ProblemException, que corta antes en toProblemBody().
 const FRAMEWORK_DETAILS: RegExp[] = [
@@ -58,11 +70,13 @@ export class ProblemFilter implements ExceptionFilter {
     }
 
     if (exception instanceof HttpException) {
-      if (
-        exception.getStatus() === HttpStatus.BAD_REQUEST &&
-        this.isValidationError(exception)
-      ) {
-        return this.toValidationProblem(exception, request);
+      if (exception.getStatus() === HttpStatus.BAD_REQUEST) {
+        if (this.isValidationError(exception)) {
+          return this.toValidationProblem(exception, request);
+        }
+        if (this.isParamParseError(exception)) {
+          return this.toParamParseProblem(request);
+        }
       }
       return this.toHttpProblem(exception, request);
     }
@@ -132,9 +146,29 @@ export class ProblemFilter implements ExceptionFilter {
       type: GENERIC_TYPE,
       title: 'Error de validación',
       status: HttpStatus.UNPROCESSABLE_ENTITY,
-      detail: 'Uno o más campos no cumplen las reglas de validación.',
+      detail: DETALLE_VALIDACION,
       instance: this.instanceOf(request),
       errors,
+    };
+  }
+
+  // El mensaje crudo de ParseIntPipe ("Validation failed (parsint is expected)")
+  // queda solo en el log: en la respuesta va el mismo detalle en español que la
+  // rama de DTO, porque el helper sinIngles() de los e2e prohibe filtrar texto
+  // en inglés. `errors` va vacio porque un segmento de path no es un campo del
+  // body: no hay nombre de campo que reportar, solo el id que no parseo.
+  private toParamParseProblem(request: Request): ProblemDetails {
+    this.logger.debug(
+      `Path param no numerico: ${request.method} ${request.originalUrl ?? request.url}`,
+    );
+
+    return {
+      type: GENERIC_TYPE,
+      title: 'Error de validación',
+      status: HttpStatus.UNPROCESSABLE_ENTITY,
+      detail: DETALLE_VALIDACION,
+      instance: this.instanceOf(request),
+      errors: [],
     };
   }
 
@@ -216,6 +250,11 @@ export class ProblemFilter implements ExceptionFilter {
       response !== null &&
       Array.isArray((response as { message?: unknown }).message)
     );
+  }
+
+  private isParamParseError(exception: HttpException): boolean {
+    const raw = this.extractMessage(exception.getResponse());
+    return raw !== undefined && PARAM_PARSE_DETAIL.test(raw);
   }
 
   private extractMessage(response: string | object): string | undefined {

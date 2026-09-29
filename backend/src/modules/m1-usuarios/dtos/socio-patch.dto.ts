@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsOptional, Min } from 'class-validator';
 
-export class ModificarSocioDto {
+export class SocioPatch {
   @ApiPropertyOptional({ type: 'integer', description: 'Nueva sede de origen del socio.', example: 3 })
   @IsOptional()
   @IsInt()

@@ -20,7 +20,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { ProblemDetailsDto } from '../../../commons/swagger/problem-details.dto';
+import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { ClaseOutDto } from '../dtos/clase-out.dto';
 import { CrearClaseDto } from '../dtos/crear-clase.dto';
@@ -28,7 +28,7 @@ import { ListarClasesQueryDto } from '../dtos/listar-clases-query.dto';
 import { ClasesService } from '../services/clases.service';
 
 @ApiTags('clases')
-@ApiExtraModels(ProblemDetailsDto)
+@ApiExtraModels(Problem)
 @Controller('clases')
 export class ClasesController {
   constructor(private readonly clasesService: ClasesService) {}

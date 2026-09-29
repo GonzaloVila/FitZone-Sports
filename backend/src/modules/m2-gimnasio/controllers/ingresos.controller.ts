@@ -12,14 +12,14 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { ProblemDetailsDto } from '../../../commons/swagger/problem-details.dto';
+import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { IngresoInDto } from '../dtos/ingreso-in.dto';
 import { IngresoOutDto } from '../dtos/ingreso-out.dto';
 import { IngresosService } from '../services/ingresos.service';
 
 @ApiTags('ingresos')
-@ApiExtraModels(ProblemDetailsDto)
+@ApiExtraModels(Problem)
 @Controller('ingresos')
 export class IngresosController {
   constructor(private readonly ingresosService: IngresosService) {}

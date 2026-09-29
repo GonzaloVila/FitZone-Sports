@@ -10,7 +10,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { ProblemDetailsDto } from '../../../commons/swagger/problem-details.dto';
+import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { AforoOutDto } from '../dtos/aforo-out.dto';
 import { ListarSedesQueryDto } from '../dtos/listar-sedes-query.dto';
@@ -20,7 +20,7 @@ import { IngresosService } from '../services/ingresos.service';
 import { SedesService } from '../services/sedes.service';
 
 @ApiTags('sedes')
-@ApiExtraModels(ProblemDetailsDto)
+@ApiExtraModels(Problem)
 @Controller('sedes')
 export class SedesController {
   constructor(

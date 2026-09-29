@@ -4,7 +4,7 @@ import { PlanMembresia } from '../entities/socio.entity';
 
 const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];
 
-export class CrearMembresiaDto {
+export class MembresiaIn {
   @ApiProperty({
     enum: PLANES,
     description: 'Plan de membresía: MENSUAL (+1 mes), TRIMESTRAL (+3 meses) o ANUAL (+1 año).',

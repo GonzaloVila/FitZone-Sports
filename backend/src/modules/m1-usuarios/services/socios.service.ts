@@ -4,10 +4,10 @@ import {
 } from '@nestjs/common';
 import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
-import { CrearSocioDto } from '../dtos/crear-socio.dto';
+import { SocioIn } from '../dtos/socio-in.dto';
 import { ListarSociosQueryDto } from '../dtos/listar-socios-query.dto';
-import { ModificarSocioDto } from '../dtos/modificar-socio.dto';
-import { SocioOutDto } from '../dtos/socio-out.dto';
+import { SocioPatch } from '../dtos/socio-patch.dto';
+import { SocioOut } from '../dtos/socio-out.dto';
 import { Socio, SocioActualizable } from '../entities/socio.entity';
 import { SOCIO_REPOSITORY, SocioRepository } from '../repositories/socio.repository';
 import { USUARIO_REPOSITORY, UsuarioRepository } from '../repositories/usuario.repository';
@@ -19,7 +19,7 @@ export class SociosService {
     @Inject(USUARIO_REPOSITORY) private readonly usuarios: UsuarioRepository,
   ) {}
 
-  async crear(dto: CrearSocioDto): Promise<SocioOutDto> {
+  async crear(dto: SocioIn): Promise<SocioOut> {
     const usuario = await this.usuarios.buscarPorId(dto.usuario_id);
     if (!usuario) {
       throw recursoNoEncontrado('No existe el usuario indicado.');
@@ -40,7 +40,7 @@ export class SociosService {
     return this.aOut(socio);
   }
 
-  async listar(dto: ListarSociosQueryDto): Promise<SocioOutDto[]> {
+  async listar(dto: ListarSociosQueryDto): Promise<SocioOut[]> {
     const socios = await this.socios.listar(
       {
         sede_origen_id: dto.sede_origen_id,
@@ -53,7 +53,7 @@ export class SociosService {
     return socios.map((socio) => this.aOut(socio));
   }
 
-  async obtenerPorId(id: number): Promise<SocioOutDto> {
+  async obtenerPorId(id: number): Promise<SocioOut> {
     const socio = await this.socios.buscarPorId(id);
     if (!socio) {
       throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
@@ -61,7 +61,7 @@ export class SociosService {
     return this.aOut(socio);
   }
 
-  async modificar(id: number, dto: ModificarSocioDto): Promise<SocioOutDto> {
+  async modificar(id: number, dto: SocioPatch): Promise<SocioOut> {
     const cambios: SocioActualizable = {};
     if (dto.sede_origen_id !== undefined) {
       cambios.sede_origen_id = dto.sede_origen_id;
@@ -82,7 +82,7 @@ export class SociosService {
     await this.socios.eliminar(id);
   }
 
-  private aOut(socio: Socio): SocioOutDto {
-    return plainToInstance(SocioOutDto, socio);
+  private aOut(socio: Socio): SocioOut {
+    return plainToInstance(SocioOut, socio);
   }
 }

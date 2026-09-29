@@ -1,4 +1,4 @@
-﻿import {
+import {
   Body,
   Controller,
   Delete,
@@ -25,7 +25,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { ProblemDetailsDto } from '../../../commons/swagger/problem-details.dto';
+import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { CrearEsperaDto } from '../dtos/crear-espera.dto';
 import { EsperaOutDto } from '../dtos/espera-out.dto';
@@ -35,7 +35,7 @@ import { ReservaClaseOutDto } from '../dtos/reserva-clase-out.dto';
 import { EsperasClasesService } from '../services/esperas-clases.service';
 
 @ApiTags('esperas-clases')
-@ApiExtraModels(ProblemDetailsDto)
+@ApiExtraModels(Problem)
 @Controller()
 export class EsperasClasesController {
   constructor(private readonly esperasService: EsperasClasesService) {}

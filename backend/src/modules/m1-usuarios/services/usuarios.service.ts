@@ -5,10 +5,10 @@ import {
 import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import * as bcrypt from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
-import { CrearUsuarioDto } from '../dtos/crear-usuario.dto';
+import { UsuarioIn } from '../dtos/usuario-in.dto';
 import { ListarUsuariosQueryDto } from '../dtos/listar-usuarios-query.dto';
-import { ModificarUsuarioDto } from '../dtos/modificar-usuario.dto';
-import { UsuarioOutDto } from '../dtos/usuario-out.dto';
+import { UsuarioPatch } from '../dtos/usuario-patch.dto';
+import { UsuarioOut } from '../dtos/usuario-out.dto';
 import { Usuario, UsuarioActualizable } from '../entities/usuario.entity';
 import {
   USUARIO_REPOSITORY,
@@ -23,7 +23,7 @@ export class UsuariosService {
     @Inject(USUARIO_REPOSITORY) private readonly usuarios: UsuarioRepository,
   ) {}
 
-  async crear(dto: CrearUsuarioDto): Promise<UsuarioOutDto> {
+  async crear(dto: UsuarioIn): Promise<UsuarioOut> {
     const existente = await this.usuarios.buscarPorDniOEmail(dto.dni, dto.email);
     if (existente) {
       throw conflictoDeDominio(
@@ -48,7 +48,7 @@ export class UsuariosService {
     return this.aOut(usuario);
   }
 
-  async listar(dto: ListarUsuariosQueryDto): Promise<UsuarioOutDto[]> {
+  async listar(dto: ListarUsuariosQueryDto): Promise<UsuarioOut[]> {
     const usuarios = await this.usuarios.listar(
       { rol: dto.rol, nombre: dto.nombre, email: dto.email },
       // Los defaults del DTO ya cubren el caso sin query params; estos `??`
@@ -58,7 +58,7 @@ export class UsuariosService {
     return usuarios.map((usuario) => this.aOut(usuario));
   }
 
-  async obtenerPorId(id: number): Promise<UsuarioOutDto> {
+  async obtenerPorId(id: number): Promise<UsuarioOut> {
     const usuario = await this.usuarios.buscarPorId(id);
     if (!usuario) {
       throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
@@ -66,7 +66,7 @@ export class UsuariosService {
     return this.aOut(usuario);
   }
 
-  async modificar(id: number, dto: ModificarUsuarioDto): Promise<UsuarioOutDto> {
+  async modificar(id: number, dto: UsuarioPatch): Promise<UsuarioOut> {
     const cambios: UsuarioActualizable = {};
     if (dto.nombre !== undefined) {
       cambios.nombre = dto.nombre;
@@ -88,7 +88,7 @@ export class UsuariosService {
     return this.aOut(usuario);
   }
 
-  private aOut(usuario: Usuario): UsuarioOutDto {
-    return plainToInstance(UsuarioOutDto, usuario);
+  private aOut(usuario: Usuario): UsuarioOut {
+    return plainToInstance(UsuarioOut, usuario);
   }
 }

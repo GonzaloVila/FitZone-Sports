@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ProblemFilter } from './commons/filters/problem.filter';
+import { markRequestSchemasClosed } from './commons/swagger/mark-request-schemas';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -35,6 +36,7 @@ async function bootstrap() {
     .addTag('esperas-clases')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  markRequestSchemasClosed(swaggerDocument);
   SwaggerModule.setup('docs', app, swaggerDocument);
 
   const configService = app.get(ConfigService);

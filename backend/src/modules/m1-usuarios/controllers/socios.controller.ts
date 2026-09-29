@@ -26,16 +26,16 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { ProblemDetailsDto } from '../../../commons/swagger/problem-details.dto';
+import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
-import { CrearSocioDto } from '../dtos/crear-socio.dto';
+import { SocioIn } from '../dtos/socio-in.dto';
 import { ListarSociosQueryDto } from '../dtos/listar-socios-query.dto';
-import { ModificarSocioDto } from '../dtos/modificar-socio.dto';
-import { SocioOutDto } from '../dtos/socio-out.dto';
+import { SocioPatch } from '../dtos/socio-patch.dto';
+import { SocioOut } from '../dtos/socio-out.dto';
 import { SociosService } from '../services/socios.service';
 
 @ApiTags('socios')
-@ApiExtraModels(ProblemDetailsDto)
+@ApiExtraModels(Problem)
 @Controller('socios')
 export class SociosController {
   constructor(private readonly sociosService: SociosService) {}
@@ -44,7 +44,7 @@ export class SociosController {
   @ApiOperation({ operationId: 'crearSocio', summary: 'Alta de socio (RF-02)' })
   @ApiCreatedResponse({
     description: 'Socio creado (y su membresía inicial si se indicó plan)',
-    type: SocioOutDto,
+    type: SocioOut,
     headers: {
       Location: { description: 'URL del recurso creado', schema: { type: 'string', example: '/api/v1/socios/2' } },
     },
@@ -60,9 +60,9 @@ export class SociosController {
     content: PROBLEM_JSON,
   })
   async crear(
-    @Body() dto: CrearSocioDto,
+    @Body() dto: SocioIn,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<SocioOutDto> {
+  ): Promise<SocioOut> {
     const socio = await this.sociosService.crear(dto);
     res.setHeader('Location', `/api/v1/socios/${socio.id}`);
     return socio;
@@ -71,26 +71,26 @@ export class SociosController {
   // Antes que @Get(':socio_id') por el mismo motivo que en UsuariosController.
   @Get()
   @ApiOperation({ operationId: 'listarSocios', summary: 'Listado de socios con filtros' })
-  @ApiOkResponse({ description: 'Listado de socios', type: [SocioOutDto] })
+  @ApiOkResponse({ description: 'Listado de socios', type: [SocioOut] })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  listar(@Query() dto: ListarSociosQueryDto): Promise<SocioOutDto[]> {
+  listar(@Query() dto: ListarSociosQueryDto): Promise<SocioOut[]> {
     return this.sociosService.listar(dto);
   }
 
   @Get(':socio_id')
-  @ApiOperation({ operationId: 'obtenerSocio', summary: 'Socio por id' })
+  @ApiOperation({ operationId: 'obtenerSocio', summary: 'Obtener socio por id' })
   @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
-  @ApiOkResponse({ description: 'Socio encontrado', type: SocioOutDto })
+  @ApiOkResponse({ description: 'Socio encontrado', type: SocioOut })
   @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
-  obtener(@Param('socio_id', ParseIntPipe) socioId: number): Promise<SocioOutDto> {
+  obtener(@Param('socio_id', ParseIntPipe) socioId: number): Promise<SocioOut> {
     return this.sociosService.obtenerPorId(socioId);
   }
 
   @Patch(':socio_id')
-  @ApiOperation({ operationId: 'modificarSocio', summary: 'Modifica la sede de origen' })
+  @ApiOperation({ operationId: 'modificarSocio', summary: 'Modificar parcialmente un socio' })
   @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
-  @ApiOkResponse({ description: 'Socio actualizado', type: SocioOutDto })
+  @ApiOkResponse({ description: 'Socio actualizado', type: SocioOut })
   @ApiBadRequestResponse({ description: 'socio_id no numérico o JSON inválido', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({
@@ -99,14 +99,14 @@ export class SociosController {
   })
   modificar(
     @Param('socio_id', ParseIntPipe) socioId: number,
-    @Body() dto: ModificarSocioDto,
-  ): Promise<SocioOutDto> {
+    @Body() dto: SocioPatch,
+  ): Promise<SocioOut> {
     return this.sociosService.modificar(socioId, dto);
   }
 
   @Delete(':socio_id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ operationId: 'dejarDeSerSocio', summary: 'Deja de ser socio (usuario vuelve a EXTERNO)' })
+  @ApiOperation({ operationId: 'dejarDeSerSocio', summary: 'Dejar de ser socio' })
   @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiNoContentResponse({ description: 'Socio dado de baja (sin cuerpo)' })
   @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })

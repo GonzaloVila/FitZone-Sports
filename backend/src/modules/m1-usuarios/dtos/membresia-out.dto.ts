@@ -4,7 +4,7 @@ import { EstadoMembresia } from '../entities/membresia.entity';
 import { PlanMembresia } from '../entities/socio.entity';
 
 @Exclude()
-export class MembresiaOutDto {
+export class MembresiaOut {
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
   id!: number;

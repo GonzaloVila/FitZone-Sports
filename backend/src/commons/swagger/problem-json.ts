@@ -1,8 +1,8 @@
 import { getSchemaPath } from '@nestjs/swagger';
-import { ProblemDetailsDto } from './problem-details.dto';
+import { Problem } from './problem.dto';
 
 export const PROBLEM_JSON = {
   'application/problem+json': {
-    schema: { $ref: getSchemaPath(ProblemDetailsDto) },
+    schema: { $ref: getSchemaPath(Problem) },
   },
 };

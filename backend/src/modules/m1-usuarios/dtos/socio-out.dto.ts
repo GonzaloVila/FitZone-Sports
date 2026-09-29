@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 
 @Exclude()
-export class SocioOutDto {
+export class SocioOut {
   // Identidad
   @Expose()
   @ApiProperty({ type: 'integer', example: 2 })
@@ -18,7 +18,7 @@ export class SocioOutDto {
   sede_origen_id!: number;
 
   @Expose()
-  @ApiProperty({ example: '2026-09-15' })
+  @ApiProperty({ example: '2026-09-15T00:00:00.000Z' })
   fecha_alta!: Date;
 
   // Datos de contacto

@@ -4,7 +4,7 @@ import { PlanMembresia } from '../entities/socio.entity';
 
 const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];
 
-export class CrearSocioDto {
+export class SocioIn {
   @ApiProperty({
     type: 'integer',
     description: 'Usuario a convertir en socio (RF-01/RF-02).',

@@ -12,7 +12,7 @@ import { RolAlta } from '../entities/usuario.entity';
 
 const ROLES_ALTA: RolAlta[] = ['EXTERNO', 'RECEPCION', 'GERENTE'];
 
-export class CrearUsuarioDto {
+export class UsuarioIn {
   @ApiProperty({ enum: ROLES_ALTA, description: 'SOCIO no aplica acá: solo por POST /socios.' })
   @IsIn(ROLES_ALTA)
   rol!: RolAlta;

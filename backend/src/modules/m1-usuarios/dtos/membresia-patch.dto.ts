@@ -6,7 +6,7 @@ import { PlanMembresia } from '../entities/socio.entity';
 const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];
 const ESTADOS: EstadoMembresia[] = ['ACTIVA', 'VENCIDA', 'SUSPENDIDA'];
 
-export class MembresiaPatchDto {
+export class MembresiaPatch {
   @ApiPropertyOptional({
     enum: PLANES,
     description: 'Cambia el plan y recalcula fecha_fin sobre la fecha actual.',

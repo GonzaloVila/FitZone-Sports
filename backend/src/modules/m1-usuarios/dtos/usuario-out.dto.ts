@@ -3,7 +3,7 @@ import { Exclude, Expose } from 'class-transformer';
 import { RolUsuario } from '../entities/usuario.entity';
 
 @Exclude()
-export class UsuarioOutDto {
+export class UsuarioOut {
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
   id!: number;

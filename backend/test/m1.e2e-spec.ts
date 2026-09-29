@@ -11,7 +11,7 @@ import { PrismaService } from '../src/commons/database/prisma.service';
 //
 // Nota: M1 no tiene endpoint propio para crear Sede (eso vive en M2, que
 // todavia no esta implementado), asi que la sede necesaria para
-// CrearSocioDto.sede_origen_id se inserta directo con Prisma en
+// SocioIn.sede_origen_id se inserta directo con Prisma en
 // beforeAll, no via HTTP.
 
 describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {

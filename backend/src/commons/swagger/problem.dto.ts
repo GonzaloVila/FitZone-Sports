@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class ProblemDetailsDto {
+export class Problem {
   @ApiProperty({ format: 'uri', example: 'about:blank' })
   type!: string;
 

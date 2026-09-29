@@ -625,3 +625,62 @@ El contrato del vault, `schema.prisma`, el DBML y la base compartida habían que
 2. **Los mismos dos defectos en M2, M3, M4 y M5:** `type: number` donde el vault dice `integer` en los `@ApiParam` y query DTO, y las divergencias de propiedades ya documentadas en la entrada SCRUM-11e (27 campos de tipo más ocho restricciones ausentes en M2 y M3). El comparador de operaciones usado acá es reutilizable tal cual.
 3. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
 4. **Sin validar: `foto_url` no se valida como URL.** Ni el código ni el contrato lo hacen: sólo `@IsString()`. Por decisión de Gonzalo no se agrega `@IsUrl()`, porque rechazaría payloads que hoy pasan.
+
+### Semana 7 · SCRUM-11g — Orden de SocioOut.required y correccion de la medicion de paths
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El orden de `required` en `SocioOut` era el unico de los nueve schemas de M1 que no coincidia.** El codigo emitia `[id, usuario_id, nombre, email, sede_origen_id, fecha_alta]` y el vault `[id, usuario_id, sede_origen_id, fecha_alta, nombre, email]`: mismo conjunto de seis campos, distinto orden. En OpenAPI 3 `required` es un array sin orden, asi que el vault ya era correcto y el comparador lo venia marcando como falso positivo. Gonzalo pidio igualar el orden, y se reordena `SocioOutDto` al del vault, con tres separadores (`// Identidad`, `// Origen y alta`, `// Datos de contacto`) para que se lea agrupado. Ningun decorador cambio: solo la posicion de las declaraciones. Como el `required` del vault esta en el mismo orden que su `properties`, alinear el DTO hace coincidir las dos cosas de una. Efecto lateral: el orden de las claves del JSON cambia en las respuestas 200 de `GET /socios`, `GET /socios/{socio_id}` y `PATCH /socios/{socio_id}`; ninguna asercion de los e2e dependia de ese orden.
+
+2. **Correccion: la medicion de paths de la entrada anterior no aplico el prefijo global.** El comparador con el que se cerró SCRUM-11f nunca llamo a `setGlobalPrefix("api/v1")`, de modo que comparo los paths sin prefijo del codigo contra los del vault y dio coincidencia. El documento que la aplicacion sirve en `/docs` trae los paths con el prefijo:
+
+   ```
+   codigo  /api/v1/usuarios, /api/v1/socios/{socio_id}, ...
+   vault   /usuarios,     /socios/{socio_id},     ...
+   vault   servers: [{url: http://localhost:3000/api/v1}]
+   ```
+
+   Son dos convenciones distintas para expresar lo mismo: el codigo hornea el prefijo en los paths y no declara `servers`; el vault lo pone en `servers` y deja los paths limpios. Los cinco paths de M1 mapean 1:1 con las mismas operaciones y resuelven a las mismas URLs, asi que no hay divergencia funcional, pero la frase "5/5 paths coinciden" era inexacta y la diferencia de convencion quedo normalizada en silencio. Queda anotada.
+
+3. **El comparador de esta ronda dio primero unas 30 diferencias falsas, por dos bugs mios.** Uno: resolvia los `$ref` del documento generado contra el vault, donde los nombres de schema no coinciden (`SocioOutDto` contra `SocioOut`), y devolvia `undefined` en decenas de lugares. Dos: ignoraba los `parameters` declarados a nivel de path, que en el vault es donde estan, y los reportaba como ausentes. Ninguno de esos bugs es el responsable del "0" de la entrada anterior —ese viene del punto 2, el prefijo no aplicado—, pero hacia falta un harness con las cuatro correcciones para poder sostener el 0 con confianza y no por accidente. El comparador final resuelve cada `$ref` contra su propio documento, fusiona los parametros de path con los de operacion, los ordena por `(in, name)` — su orden tampoco es significativo — y detecta ciclos con una pila de referencias.
+
+4. **Un error mio que llego a recomendar como si fuera un bug.** Interpretere la ausencia de `servers` en el documento generado como "/docs esta roto y el Try it out da 404", y propuse agregar `.addServer("http://localhost:3000/api/v1")`. Es al reves: como el prefijo ya viene en los paths, agregar ese servidor produciria `/api/v1/api/v1/usuarios` y dejaria roto el `/docs` completo. El documento actual resuelve bien. Decision de Gonzalo: no agregar nada.
+
+5. **Se miden por primera vez `operationId` y `tags`: 0 diferencias en las 12 operaciones.** Habian quedado fuera de los comparadores anteriores como "documentacion". `operationId` no es prosa: es de donde salen los nombres de metodo del cliente generado, asi que era el hueco mas relevante de los que quedaban. Coinciden los doce.
+
+6. **Hallazgo nuevo: `summary` difiere en 7 de las 12 operaciones.** Solo prosa, mismo significado: "Socio por id" contra "Obtener socio por id", "Alta de usuario (perfil EXTERNO/RECEPCION/GERENTE)" contra "Registrar usuario". No se corrige: es ruido de documentacion, no de contrato.
+
+7. **Hallazgo nuevo: los 11 responses de exito de M1 no tienen `example` en el vault.** Los 30 de error si, porque salen de los componentes compartidos; los `200` y `201` de usuarios, socios y membresias van con `schema` pero sin cuerpo de ejemplo. El codigo si tiene ejemplos por propiedad en los DTO, y se verifico que no se contradicen: de 26 ejemplos comparados, 5 identicos y 0 contradictorios. Es informacion complementaria que esta de un lado y no del otro.
+
+8. **`SocioOutDto` contra el schema `SocioOut` del vault: no se renombra.** Es la misma categoria de divergencia cosmetica de documentacion, se resolveria renombrando la clase y los 3 imports, pero queda fuera por instruccion explicita de Gonzalo.
+
+#### Decisiones tomadas
+
+1. **Reordenar el DTO y no el vault.** El vault es la fuente de verdad de la API y ya era correcto; cambiarlo habria que tocar tambien el orden de `properties`, porque en el vault los dos bloques son coherentes entre si. Alinear el codigo deja el vault intacto.
+2. **No agregar `.addServer()`.** El `/docs` funciona; agregarlo con el valor del vault duplicaria el prefijo.
+3. **No renombrar `SocioOutDto`.**
+
+#### Verificacion
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **49/49 en 5 specs**, sin cambios: confirma que el reordenamiento de las claves del JSON no rompio ninguna asercion.
+- Comparador de operaciones con el mapeo de prefijos corregido: **5 paths, 12 operaciones, 0 divergencias reales**, con `$ref` resueltos por documento, parametros de path y de operacion fusionados y ordenados, y `required` comparado por conjunto y ademas por orden.
+- Los 9 schemas de M1: **0 diferencias de orden en `required` y en `properties`, 0 conjuntos distintos.** Antes de este commit, `SocioOut` era el unico con diferencia de orden.
+- Se sigue excluyendo `additionalProperties` (limitacion aceptada del generador, 6 cuerpos de M1) y `description`, `summary`, `example` y `title` (prosa).
+- El vault no se toco en esta ronda: sigue en 91614 bytes, CRLF, sin BOM, 243 `$ref` sin rotas y 0 schemas huerfanos.
+
+#### Commits
+
+- `docs(m1): alinea el orden de required de SocioOut con el contrato`
+- `docs(log): registra la correccion de la medicion de paths y los hallazgos de summary y example`
+
+#### Pendientes que siguen abiertos
+
+1. **`summary` difiere en 7 de las 12 operaciones de M1.** Prosa, sin efecto funcional. El mismo desajuste de descripciones se repite en M2 a M5.
+2. **11 responses 200/201 de M1 sin `example` en el vault**, contra 30 responses de error que si lo tienen.
+3. **`additionalProperties: false` ausente del Swagger** en los 6 cuerpos de M1, y en los que se agreguen en M2 a M5. Aceptado como limitacion del generador.
+4. **Los mismos defectos de tipo `integer` en parametros de M2 a M5**, y las divergencias de propiedades ya documentadas en SCRUM-11e.
+5. **Dos convenciones distintas de base path entre codigo y vault.** No es un defecto, pero conviene fijar una sola para no volver a medir mal: hoy el codigo incluye `/api/v1` en los paths y el vault lo declara en `servers`.
+6. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no esta versionado. Sigue siendo decision pendiente de Gonzalo.
+7. **Sin validar: `foto_url` no se valida como URL** en ni el codigo ni el contrato. Solo `@IsString()`. Por decision de Gonzalo no se agrega `@IsUrl()`, porque rechazaria payloads que hoy pasan.

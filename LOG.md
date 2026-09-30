@@ -1018,3 +1018,45 @@ así que sin este corte el e2e intentaría crear una cuenta de Ethereal en cada 
    - 5 casos de `pricing-strategy.factory.spec.ts` en verde: externo 5000→5000 · socio 5000→4250 (ejemplo del contrato) · socio en pico→5100 · externo en pico→6000 · socio a las 21:00 en punto→4250 (confirma el límite medio-abierto, sin recargo).
    - **Nota:** el 20% de recargo por horario pico no sale del enunciado del caso — es una decisión del equipo, pendiente de confirmar con la cátedra.
    - [commit 4d537b3](https://github.com/GonzaloVila/FitZone-Sports/commit/4d537b3)
+
+---
+
+### Semana 6 - SCRUM-11c - Auditoria de integracion de los bloques 1 y 2
+
+#### Actividades
+
+1. **Merge de la rama de Santino y correccion de la alineacion con el contrato** - auditoria
+   - Merge de `origin/santino` (estaba 35 commits atras de `main`) en el commit `c8e4bc5`. Los conflictos de `main.ts`, `app.module.ts` y `LOG.md` se resolvieron conservando M1-M3 y agregando el modulo de canchas.
+   - La migracion `20260925020000_reserva_solapamiento_exclude` y el puerto `SEDE_VALIDATION_PORT` ya estaban en `main` (merge-base `2e499bc`): el Bloque 0 no venia en la rama.
+   - Los DTO se renombraron a los nombres que declara el contrato: `CanchaIn`, `CanchaPatch` y `CanchaOut`. Se eliminaron `crear-cancha.dto.ts` y `modificar-cancha.dto.ts`.
+   - Rutas y parametros en snake_case (`{sede_id}`, `{cancha_id}`) y `type: integer` en parametros y paginacion, como en M1-M3.
+   - `ProblemDetailsDto` no existia en el codigo: el `import` estaba roto y se sustituyo por `Problem`, que es el schema de error (RFC 9457) que si existe.
+   - `GET /sedes/{sede_id}/canchas` valida la sede por `SEDE_VALIDATION_PORT` y devuelve 404.
+   - Se agrego `minimum: 0` explicito a `costo_por_hora` en `CanchaIn` y `CanchaPatch`: el comparador compara `minimum`, y el contrato lo declara en ambos.
+   - Se quito el `422` del listado de canchas. El plan lo pedia, pero el contrato declara solo 200 y 404 en `GET /sedes/{sede_id}/canchas`; el contrato manda sobre el plan.
+   - El 20% de recargo por pico quedo como constante nombrada con el comentario de que es decision del equipo pendiente de confirmar con la catedra, para que la deuda se vea en el codigo.
+
+2. **Correccion del criterio de alcance del comparador** - auditoria
+   - El alcance se decidia por "¿el codigo expone el tag?", asi que un modulo a medio implementar daba porImplementado lo que aun no existe: marcaba `GET /canchas/{cancha_id}/disponibilidad` como implementado y el comparador exigia sus respuestas y su schema `DisponibilidadEntrada`.
+   - Ahora el alcance se decide por metodo + ruta reales que expone el documento de NestJS. El nombre del parametro se normaliza a `{}` solo para decidir el alcance, y la clave que se reporta sigue siendo la del contrato: una diferencia de naming se reporta en detalle en vez de sacar la operacion del alcance.
+   - Al aparecen el prefijo aparecio un bug latente: `alcance.ts` pasaba `servers` por un helper que devuelve `undefined` para arrays, asi que el prefijo nunca se calculo y quedo vacio. Era codigo muerto, porque hasta ahora el prefijo no se usaba para nada. Corregido para que el documento de NestJS (rutas con `/api/v1` ya aplicado) y el contrato (prefijo en `servers[0].url`) se comparen en la misma base.
+   - Efecto medido: de 38 a comparar / 9 pendientes a **37 a comparar / 10 pendientes**, y lo unico que sale del alcance es `GET /canchas/{cancha_id}/disponibilidad` con su schema `DisponibilidadEntrada`. El guard se escribio comparando conjuntos, no conteos, y se borro al terminar.
+
+3. **Resultado de la verificacion** - auditoria
+   - Comparador de contrato: **28/28**, 37 operaciones y 31 schemas comparados, 10 operaciones y 8 schemas fuera de alcance, **0 diferencias**.
+   - E2E: **58/58** en 5 archivos.
+   - Unitarios de la cadena de precios: **5/5**.
+   - `npx tsc --noEmit` y `npm run build` en verde.
+   - Las 2 diferencias de `minimum` y los 2 `schema-falta` de enum que quedaban (`TipoCancha`, `EstadoCancha`) se resolvieron asi: los `minimum` arreglando los DTO; los enums agregando las dos entradas a `PERMITIDAS`, igual que `Rol`, `Plan`, `EstadoMembresia`, `EstadoEspera` y `EstadoReservaClase`. Los enums siguen inline en el codigo por consistency con M1-M3.
+   - Se verificó contra `/api/v1` real y no solo contra Swagger: `CanchaIn.costo_por_hora` aparece con `minimum: 0`, y el listado expone 200 y 404 y nada mas.
+   - Dos aclaraciones para que no se relean despues como faltantes de M4, cuando son previas y vienen del contrato:
+     - El contrato pone un `example` de objeto en cada schema `*Out` (`CanchaOut`, `SocioOut` y el resto), y el codigo no lo reproduce en ninguno: en todos los modulos los ejemplos van por campo, en el `@ApiProperty`. `CanchaOut` sigue la misma convencion que M1-M3.
+     - Los 404 de canchas son en el contrato el mismo `$ref` compartido a `responses/NotFound` ("Recurso no encontrado (o dado de baja)"), y el codigo los describe por operacion ("La sede no existe", "La cancha no existe"). El comparador no compara `description` a proposito, porque el contrato redacta en prosa larga y el codigo en una linea.
+
+#### Pendientes que siguen abiertos
+
+1. **El comparador sigue sin versionarse.** `backend/contrato/` esta en `.gitignore`, asi que las correcciones de `alcance.ts` y las dos entradas de `PERMITIDAS` de esta ronda **no llegan al equipo por el repo**. Se reimplementan en la maquina de cada uno. Es el mismo pendiente que arrastra el LOG desde M1, y esta ronda lo vuelve a hacer presente.
+2. **Bloque 3 sin empezar** (Santino): disponibilidad, grilla 08:00-22:00 con paso 60 y la paginacion acordada, `ReservaCanchaIn` con `usuario_id` obligatorio mas su entrada en `PERMITIDAS`, y el precio congelado en `precio_aplicado`. La `PricingStrategyFactory` todavia no se registra en `canchas.module.ts` a proposito: es la tarea 9 del Bloque 3, y registrarla ahora seria cablear algo que nadie consume.
+3. **Bloque 4 sin empezar** (Santino): QA, reservas de clase, pagos y cierre.
+4. **Deuda tecnica de M4, registrada en el plan:** validacion de horarios de la sede (en M4 solo se valida `fecha_hora_inicio < fecha_hora_fin`).
+5. **Sin autenticacion ni roles en toda la API.** Es deuda de M1 que arrastra a M4: el contrato no versiona auth, y `usuario_id` en las reservas sigue siendo el unico control de pertenencia.

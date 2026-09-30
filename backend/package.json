@@ -12,6 +12,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:e2e:cov": "vitest run --config vitest.e2e.config.ts --coverage"
   },

@@ -930,5 +930,114 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       });
       expect(totalEnBd).toBe(1);
     });
+
+    it('anotaciones repetidas del mismo socio dejan una sola espera activa y las otras reciben 409', async () => {
+      // El findFirst de crear() corre antes del INSERT y sin lock, asi que dos
+      // peticiones simultaneas del mismo socio pueden pasar ambas el chequeo.
+      // Acá se fuerza ese hueco de forma determinista: se inserta la segunda
+      // espera por Prisma saltando el chequeo de application, que es
+      // exactamente lo que haria la peticion que gano la carrera. Lo decide el
+      // indice parcial unico unq_espera_clase_socio_activa, y el P2002 sale
+      // como 409 por el service.
+      //
+      // No se prueba con N requests en paralelo porque la carrera no se
+      // reproduce en forma fiable: el findFirst suele alcanzar a atrapar el
+      // segundo POST y el test pasaria aunque la constraint no existiera.
+      const fechaClase = new Date(Date.now() + 12 * 3600 * 1000).toISOString();
+      const resClase = await request(app.getHttpServer())
+        .post('/api/v1/clases')
+        .send({
+          sede_id: sedeId,
+          tipo: 'Espera Simultanea',
+          instructor: 'Profe Espera Simultanea',
+          horario: fechaClase,
+          capacidad: 1,
+        })
+        .expect(201);
+
+      const claseId: number = resClase.body.id;
+      clasesCreadas.push(claseId);
+
+      const ocupante = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+      await request(app.getHttpServer())
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: ocupante.socioId })
+        .expect(201);
+
+      const socio = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+
+      const resAlta = await request(app.getHttpServer())
+        .post(`/api/v1/clases/${claseId}/espera`)
+        .send({ socio_id: socio.socioId })
+        .expect(201);
+
+      // Segundo INSERT del mismo par activo, sin pasar por crear().
+      await expect(
+        prisma.esperaClase.create({
+          data: {
+            clase_id: claseId,
+            socio_id: socio.socioId,
+            estado: 'EN_ESPERA',
+            fecha_anotacion: new Date(),
+          },
+        }),
+      ).rejects.toMatchObject({ code: 'P2002' });
+
+      // Y por la API, una anotacion mas del mismo socio sigue siendo 409.
+      const resRepetida = await request(app.getHttpServer())
+        .post(`/api/v1/clases/${claseId}/espera`)
+        .send({ socio_id: socio.socioId })
+        .expect(409);
+      expect(resRepetida.body.type).toBe('https://fitzone.app/errores/espera-existente');
+
+      const totalEnBd = await prisma.esperaClase.count({
+        where: { clase_id: claseId, socio_id: socio.socioId, estado: { in: ['EN_ESPERA', 'NOTIFICADO'] } },
+      });
+      expect(totalEnBd).toBe(1);
+      expect(resAlta.body.estado).toBe('EN_ESPERA');
+    });
+
+    it('un socio que dio de baja puede volver a anotarse en la misma clase', async () => {
+      // El indice parcial solo cubre EN_ESPERA y NOTIFICADO: CANCELADO queda
+      // fuera, asi que la reinscripcion tiene que seguir siendo posible.
+      const fechaClase = new Date(Date.now() + 12 * 3600 * 1000).toISOString();
+      const resClase = await request(app.getHttpServer())
+        .post('/api/v1/clases')
+        .send({
+          sede_id: sedeId,
+          tipo: 'Reinscripcion Espera',
+          instructor: 'Profe Reinscripcion',
+          horario: fechaClase,
+          capacidad: 1,
+        })
+        .expect(201);
+
+      const claseId: number = resClase.body.id;
+      clasesCreadas.push(claseId);
+
+      const ocupante = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+      await request(app.getHttpServer())
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: ocupante.socioId })
+        .expect(201);
+
+      const socio = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+
+      const resAlta = await request(app.getHttpServer())
+        .post(`/api/v1/clases/${claseId}/espera`)
+        .send({ socio_id: socio.socioId })
+        .expect(201);
+      const esperaId: number = resAlta.body.id;
+
+      await request(app.getHttpServer()).delete(`/api/v1/esperas-clases/${esperaId}`).expect(204);
+
+      const resReinscripcion = await request(app.getHttpServer())
+        .post(`/api/v1/clases/${claseId}/espera`)
+        .send({ socio_id: socio.socioId })
+        .expect(201);
+
+      expect(resReinscripcion.body.id).not.toBe(esperaId);
+      expect(resReinscripcion.body.estado).toBe('EN_ESPERA');
+    });
   });
 });

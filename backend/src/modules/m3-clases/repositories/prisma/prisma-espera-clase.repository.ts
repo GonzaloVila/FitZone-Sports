@@ -86,14 +86,35 @@ export class PrismaEsperaClaseRepository implements EsperaClaseRepository {
       return { ok: false as const, motivo: 'ESPERA_EXISTENTE' as const };
     }
 
-    const fila = await this.prisma.esperaClase.create({
-      data: {
-        clase_id: espera.clase_id,
-        socio_id: espera.socio_id,
-        estado: 'EN_ESPERA',
-        fecha_anotacion: espera.fecha_anotacion ?? new Date(),
-      },
-    });
+    let fila: {
+      id: number;
+      clase_id: number;
+      socio_id: number;
+      estado: string;
+      fecha_anotacion: Date;
+      fecha_notificacion: Date | null;
+      fecha_confirmacion: Date | null;
+    };
+    try {
+      fila = await this.prisma.esperaClase.create({
+        data: {
+          clase_id: espera.clase_id,
+          socio_id: espera.socio_id,
+          estado: 'EN_ESPERA',
+          fecha_anotacion: espera.fecha_anotacion ?? new Date(),
+        },
+      });
+    } catch (error) {
+      // El findFirst de arriba es una lectura sin lock: entre esa comprobacion y
+      // este INSERT otra peticion del mismo socio puede haber creado la espera.
+      // El indice parcial unico unq_espera_clase_socio_activa (migracion
+      // 20260928000000) es el que decide en la base, y su P2002 se traduce al
+      // mismo motivo que ya producia la comprobacion en application.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return { ok: false as const, motivo: 'ESPERA_EXISTENTE' as const };
+      }
+      throw error;
+    }
 
     return {
       ok: true as const,

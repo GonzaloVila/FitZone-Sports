@@ -68,7 +68,7 @@ enum EstadoPago {
 }
 
 model Sede {
-  id           Int          @id @default(autoincrement())
+  id           Int           @id @default(autoincrement())
   nombre       String
   direccion    String
   aforo_maximo Int
@@ -80,39 +80,39 @@ model Sede {
 }
 
 model Usuario {
-  id             Int         @id @default(autoincrement())
-  rol            Rol
-  dni            String         @unique
-  nombre         String
-  email          String         @unique
-  contrasenia    String         // hash (bcrypt/argon2); nunca en texto plano
-  telefono       String?
-  foto_url       String?
-  socio          Socio?
-  empleado       EmpleadoSede?
-  reservas       Reserva[]
-  pagos          Pago[]
-  ingresos       Ingreso[]
+  id          Int           @id @default(autoincrement())
+  rol         Rol
+  dni         String        @unique
+  nombre      String
+  email       String        @unique
+  contrasenia String // hash (bcrypt/argon2); nunca en texto plano
+  telefono    String?
+  foto_url    String?
+  socio       Socio?
+  empleado    EmpleadoSede?
+  reservas    Reserva[]
+  pagos       Pago[]
+  ingresos    Ingreso[]
 }
 
 // Staff de sucursal (rol RECEPCION, A3): subtable 1:1 con Usuario y con Sede.
 // ids únicas => a lo sumo un staff por usuario y a lo sumo un staff por sucursal.
 // Gerente (A4) y Externo (A2) no tienen fila acá (sin datos propios; viven en rol).
 model EmpleadoSede {
-  id         Int  @id @default(autoincrement())
-  usuario_id Int  @unique
-  sede_id    Int  @unique
+  id         Int     @id @default(autoincrement())
+  usuario_id Int     @unique
+  sede_id    Int     @unique
   usuario    Usuario @relation(fields: [usuario_id], references: [id])
   sede       Sede    @relation(fields: [sede_id], references: [id])
 }
 
 model Socio {
-  id               Int       @id @default(autoincrement())
-  usuario_id       Int       @unique
-  sede_origen_id   Int
-  fecha_alta       DateTime
-  usuario          Usuario      @relation(fields: [usuario_id], references: [id])
-  sede             Sede         @relation(fields: [sede_origen_id], references: [id])
+  id             Int            @id @default(autoincrement())
+  usuario_id     Int            @unique
+  sede_origen_id Int
+  fecha_alta     DateTime       @db.Timestamptz(3)
+  usuario        Usuario        @relation(fields: [usuario_id], references: [id])
+  sede           Sede           @relation(fields: [sede_origen_id], references: [id])
   membresia      Membresia?
   reservas_clase ReservaClase[]
   espera_clase   EsperaClase[]
@@ -121,37 +121,37 @@ model Socio {
 // Membresia 1:1 con Socio (DBML corregido): un socio = UNA fila; la renovación
 // actualiza fecha_fin sobre la misma fila y cada renovación genera su PagoMembresia.
 model Membresia {
-  id                 Int          @id @default(autoincrement())
-  socio_id           Int          @unique
+  id                 Int             @id @default(autoincrement())
+  socio_id           Int             @unique
   plan               PlanMembresia
   estado             EstadoMembresia
-  fecha_inicio       DateTime
-  fecha_fin          DateTime
+  fecha_inicio       DateTime        @db.Timestamptz(3)
+  fecha_fin          DateTime        @db.Timestamptz(3)
   renueva_automatica Boolean         @default(false)
   socio              Socio           @relation(fields: [socio_id], references: [id])
   pago_membresias    PagoMembresia[]
 }
 
 model Cancha {
-  id             Int         @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   sede_id        Int
   tipo           TipoCancha
   costo_por_hora Decimal
   estado         EstadoCancha
-  sede           Sede           @relation(fields: [sede_id], references: [id])
+  sede           Sede         @relation(fields: [sede_id], references: [id])
   reservas       Reserva[]
 }
 
 model Clase {
-  id             Int           @id @default(autoincrement())
-  sede_id        Int
-  tipo           String
-  instructor     String
-  horario        String
-  capacidad      Int
-  sede           Sede             @relation(fields: [sede_id], references: [id])
-  reservas       ReservaClase[]
-  espera         EsperaClase[]
+  id         Int            @id @default(autoincrement())
+  sede_id    Int
+  tipo       String
+  instructor String
+  horario    String
+  capacidad  Int
+  sede       Sede           @relation(fields: [sede_id], references: [id])
+  reservas   ReservaClase[]
+  espera     EsperaClase[]
 }
 
 // RN-02 / RF-10 (dos reservas solapadas a la vez): el unique parcial original
@@ -176,71 +176,71 @@ model Reserva {
   id                Int           @id @default(autoincrement())
   cancha_id         Int
   usuario_id        Int
-  fecha_hora_inicio DateTime
-  fecha_hora_fin    DateTime
+  fecha_hora_inicio DateTime      @db.Timestamptz(3)
+  fecha_hora_fin    DateTime      @db.Timestamptz(3)
   estado            EstadoReserva
   precio_aplicado   Decimal
-  cancha            Cancha           @relation(fields: [cancha_id], references: [id])
-  usuario           Usuario          @relation(fields: [usuario_id], references: [id])
+  cancha            Cancha        @relation(fields: [cancha_id], references: [id])
+  usuario           Usuario       @relation(fields: [usuario_id], references: [id])
   pago              PagoReserva?
 
   @@index([cancha_id, fecha_hora_inicio])
 }
 
 model ReservaClase {
-  id         Int             @id @default(autoincrement())
-  clase_id   Int
-  socio_id   Int
-  estado     EstadoReservaClase
-  clase      Clase              @relation(fields: [clase_id], references: [id])
-  socio      Socio              @relation(fields: [socio_id], references: [id])
+  id       Int                @id @default(autoincrement())
+  clase_id Int
+  socio_id Int
+  estado   EstadoReservaClase
+  clase    Clase              @relation(fields: [clase_id], references: [id])
+  socio    Socio              @relation(fields: [socio_id], references: [id])
 }
 
 // Lista de espera RF-08: se notifica a TODOS y el cupo lo toma el PRIMERO que confirme
 // (first-come por confirmación => decide fecha_confirmacion, no el orden de anotación).
 model EsperaClase {
-  id                 Int             @id @default(autoincrement())
+  id                 Int          @id @default(autoincrement())
   clase_id           Int
   socio_id           Int
   estado             EstadoEspera
-  fecha_anotacion    DateTime
-  fecha_notificacion DateTime?
-  fecha_confirmacion DateTime?
-  clase              Clase              @relation(fields: [clase_id], references: [id])
-  socio              Socio              @relation(fields: [socio_id], references: [id])
+  fecha_anotacion    DateTime     @db.Timestamptz(3)
+  fecha_notificacion DateTime?    @db.Timestamptz(3)
+  fecha_confirmacion DateTime?    @db.Timestamptz(3)
+  clase              Clase        @relation(fields: [clase_id], references: [id])
+  socio              Socio        @relation(fields: [socio_id], references: [id])
 }
 
 // Supertabla de la herencia parte-todo. RNF-02: nunca datos de tarjeta, solo token.
 // Corrección de cobro: anular (estado = ANULADO) y repagar con NUEVA idempotencia_key.
 model Pago {
-  id                  Int        @id @default(autoincrement())
+  id                  Int            @id @default(autoincrement())
   usuario_id          Int
-  idempotencia_key    String        @unique
-  fecha_pago          DateTime      @default(now())
+  idempotencia_key    String         @unique
+  fecha_pago          DateTime       @default(now()) @db.Timestamptz(3)
   monto               Decimal
-  moneda              String        @default("ARS")
+  moneda              String         @default("ARS")
   estado              EstadoPago
   token               String
   comprobante_pdf_url String?
-  usuario             Usuario       @relation(fields: [usuario_id], references: [id])
+  usuario             Usuario        @relation(fields: [usuario_id], references: [id])
   pago_reserva        PagoReserva?
   pago_membresia      PagoMembresia?
 }
 
 // Subtipo: pago de reserva de cancha (RF-13). reserva_id única => un comprobante por reserva.
 model PagoReserva {
-  id_pago    Int   @id
-  reserva_id Int   @unique
-  pago       Pago     @relation(fields: [id_pago], references: [id])
-  reserva    Reserva  @relation(fields: [reserva_id], references: [id])
+  id_pago    Int     @id
+  reserva_id Int     @unique
+  pago       Pago    @relation(fields: [id_pago], references: [id])
+  reserva    Reserva @relation(fields: [reserva_id], references: [id])
 }
 
 // Subtipo: pago de renovación de membresía (RF-02/RF-13). Una membresía puede tener varios pagos.
 model PagoMembresia {
-  id_pago      Int     @id
+  id_pago      Int       @id
   membresia_id Int
-  pago         Pago       @relation(fields: [id_pago], references: [id])
-  membresia    Membresia  @relation(fields: [membresia_id], references: [id])
+  pago         Pago      @relation(fields: [id_pago], references: [id])
+  membresia    Membresia @relation(fields: [membresia_id], references: [id])
 }
 
 // Turno de acceso (RF-04/RF-05): aforo actual = ingresos sin fecha_hora_egreso (RN-01).
@@ -259,12 +259,12 @@ model PagoMembresia {
 //             map: "ingreso_usuario_abierto_unq")
 // manteniendo el map para no duplicar el índice en bases ya migradas.
 model Ingreso {
-  id                 Int   @id @default(autoincrement())
+  id                 Int       @id @default(autoincrement())
   sede_id            Int
   usuario_id         Int
-  fecha_hora_ingreso DateTime
-  fecha_hora_egreso  DateTime?
+  fecha_hora_ingreso DateTime  @db.Timestamptz(3)
+  fecha_hora_egreso  DateTime? @db.Timestamptz(3)
   validado_offline   Boolean   @default(false)
-  sede               Sede     @relation(fields: [sede_id], references: [id])
-  usuario            Usuario  @relation(fields: [usuario_id], references: [id])
+  sede               Sede      @relation(fields: [sede_id], references: [id])
+  usuario            Usuario   @relation(fields: [usuario_id], references: [id])
 }

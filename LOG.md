@@ -1105,7 +1105,10 @@ así que sin este corte el e2e intentaría crear una cuenta de Ethereal en cada 
 
 #### Pendientes que siguen abiertos
 
-1. **Las dos migraciones de esta ronda todavia no estan aplicadas en produccion.** `.env` apunta a Supabase y `prisma migrate status` reporta `20260928000000_espera_clase_socio_activa_unq` y `20260929000000_fechas_timestamptz` pendientes. Se validaron solo contra la base local de tests.
-2. **Antes de aplicar en produccion, hacer un `pg_dump` de las once columnas de fecha.** El rollback es `SET TIME ZONE 'UTC'; ALTER ... TYPE timestamp(3);` mas restaurar la constraint con `tsrange`, pero es mas barato no necesitarlo.
-3. **Al mergear la rama de Santino hay que correr `prisma migrate status`.** Los bloques 3 y 4 agregan migraciones y los nombres con timestamp no pueden pisarse. `prisma migrate diff` dio "no difference detected" con el schema actual; si el merge introduce una migracion divergente, Prisma propondrá una espuria.
+1. **Las dos migraciones de esta ronda quedaron aplicadas en produccion** (Supabase `sa-east-1`) el 30-09-2026, con ventana y respaldo previo. Antes de aplicar se tomo un `pg_dump --format=custom --schema=public` de la base, verificado con `pg_restore --list` (contiene las 10 tablas con datos + `_prisma_migrations`).
+   - Baseline de 31 instantes leidos antes y despues: **byte-identicos**, sin ningun corrimiento.
+   - `20260928000000_espera_clase_socio_activa_unq` y `20260929000000_fechas_timestamptz` aplicadas; `prisma migrate status` queda en **up to date** y `migrate diff` contra produccion da **no difference detected**.
+   - Verificado en la base real, dentro de una transicion con `ROLLBACK` para no dejar datos: un solapamiento sigue rebotando por `exq_reserva_turno` (que ya usa `tstzrange`), una espera activa duplicada rebota por `unq_espera_clase_socio_activa`, los conteos quedan intactos y el instante se lee igual bajo una sesion en `America/Argentina/Buenos_Aires`.
+   - El respaldo queda en `%TEMP%\opencode\prod-backup\prod-before-timestamptz.dump`, junto con `before.txt` y `after.txt` (los fingerprints de las 31 fechas). **Es local y temporal: no esta en el repo y hay que moverlo a un lugar seguro si se quiere conservar.**
+2. **Al mergear la rama de Santino hay que correr `prisma migrate status` y `prisma migrate deploy`.** Los bloques 3 y 4 agregan migraciones y los nombres con timestamp no pueden pisarse. Si el merge introduce una migracion divergente, Prisma propondrá una espuria.
 4. **El comparador sigue sin versionarse** (`backend/contrato/` esta en `.gitignore`). Mismo pendiente arrastrado desde M1.

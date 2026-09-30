@@ -29,7 +29,11 @@ export class PrismaEsperaClaseRepository implements EsperaClaseRepository {
       where,
       skip: (page - 1) * perPage,
       take: perPage,
-      orderBy: { fecha_anotacion: 'asc' },
+      // El id desempata: fecha_anotacion es TIMESTAMP(3) y la genera la app con
+      // new Date(), así que dos socios que se anotan en el mismo milisegundo
+      // empatan. Sin un orden total, skip/take puede repetir o saltear filas
+      // entre páginas. Mismo criterio que Ingreso.listar.
+      orderBy: [{ fecha_anotacion: 'asc' }, { id: 'asc' }],
     });
 
     return filas.map((fila) => this.aDominio(fila));
@@ -134,7 +138,7 @@ export class PrismaEsperaClaseRepository implements EsperaClaseRepository {
         clase_id: claseId,
         estado: 'EN_ESPERA',
       },
-      orderBy: { fecha_anotacion: 'asc' },
+      orderBy: [{ fecha_anotacion: 'asc' }, { id: 'asc' }],
     });
     return filas.map((f) => this.aDominio(f));
   }
@@ -145,7 +149,9 @@ export class PrismaEsperaClaseRepository implements EsperaClaseRepository {
         clase_id: claseId,
         estado: { not: 'CANCELADO' },
       },
-      orderBy: { fecha_anotacion: 'asc' },
+      // Orden de notificación: la prioridad la define la anotación, y el id
+      // desempata los empates. Ver comentario de listar() por qué hace falta.
+      orderBy: [{ fecha_anotacion: 'asc' }, { id: 'asc' }],
       select: { socio_id: true },
     });
     return filas.map((f) => f.socio_id);

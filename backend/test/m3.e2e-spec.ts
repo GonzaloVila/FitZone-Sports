@@ -690,6 +690,94 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .expect(404);
     });
 
+    it('GET /clases/{clase_id}/espera pagina sin repetir ni saltear filas cuando varias anotaciones empatan en el mismo milisegundo', async () => {
+      // Regresion del desempate por id: fecha_anotacion es TIMESTAMP(3) y la
+      // genera la app con new Date(). Con skip/take y un orderBy no unico,
+      // PostgreSQL puede devolver las filas del empate en cualquier orden entre
+      // paginas, repitiendo una y salteando otra. Aca se fija la misma
+      // fecha_anotacion para todos para forzar el empate y exigir orden total.
+      const fechaClase = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
+      const resClase = await request(app.getHttpServer())
+        .post('/api/v1/clases')
+        .send({
+          sede_id: sedeId,
+          tipo: 'Listado Espera Empate',
+          instructor: 'Profe Empate',
+          horario: fechaClase,
+          capacidad: 1,
+        })
+        .expect(201);
+
+      const claseId: number = resClase.body.id;
+      clasesCreadas.push(claseId);
+
+      const socioOcupante = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+      await request(app.getHttpServer())
+        .post('/api/v1/reservas-clases')
+        .send({ clase_id: claseId, socio_id: socioOcupante.socioId })
+        .expect(201);
+
+      const CANTIDAD = 4;
+      for (let i = 0; i < CANTIDAD; i++) {
+        const socio = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+        await request(app.getHttpServer())
+          .post(`/api/v1/clases/${claseId}/espera`)
+          .send({ socio_id: socio.socioId })
+          .expect(201);
+      }
+
+      // Empate forzado: las cuatro quedan con la misma fecha_anotacion.
+      const empate = new Date('2026-01-02T03:04:05.678Z');
+      await prisma.esperaClase.updateMany({
+        where: { clase_id: claseId },
+        data: { fecha_anotacion: empate },
+      });
+
+      // Solo con el empate no alcanza: un seq scan devuelve orden de heap, que
+      // coincide con el id, asi que el test pasaria aunque faltara el desempate.
+      // Se reescriben las filas en orden inverso al id (cada UPDATE mueve la
+      // version de tupla al final de la pagina) para que el orden fisico quede
+      // al reves del id. Ahi el sort de PostgreSQL, que no es estable, devuelve
+      // las empates en orden de heap y la paginacion se rompe de verdad.
+      const filas = await prisma.esperaClase.findMany({
+        where: { clase_id: claseId },
+        orderBy: { id: 'desc' },
+        select: { id: true },
+      });
+      for (const fila of filas) {
+        await prisma.esperaClase.update({
+          where: { id: fila.id },
+          data: { fecha_notificacion: new Date() },
+        });
+        await prisma.esperaClase.update({
+          where: { id: fila.id },
+          data: { fecha_notificacion: null },
+        });
+      }
+
+      const pagina1 = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/espera?per_page=2&page=1`)
+        .expect(200);
+      const pagina2 = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/espera?per_page=2&page=2`)
+        .expect(200);
+
+      expect(pagina1.body).toHaveLength(2);
+      expect(pagina2.body).toHaveLength(2);
+
+      const ids = [...pagina1.body, ...pagina2.body].map((e: { id: number }) => e.id);
+      expect(new Set(ids).size).toBe(CANTIDAD);
+
+      // Orden total y estable: por anotación y, ante empate, por id ascendente.
+      expect(ids).toEqual([...ids].sort((a: number, b: number) => a - b));
+
+      const listadoCompleto = await request(app.getHttpServer())
+        .get(`/api/v1/clases/${claseId}/espera`)
+        .expect(200);
+      const idsCompleto = listadoCompleto.body.map((e: { id: number }) => e.id);
+      expect(idsCompleto).toEqual(ids);
+    });
+
     it('GET /esperas-clases filtra por clase, socio y estado', async () => {
       const fechaClase = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
       const resClase = await request(app.getHttpServer())

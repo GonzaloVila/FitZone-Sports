@@ -1060,3 +1060,52 @@ así que sin este corte el e2e intentaría crear una cuenta de Ethereal en cada 
 3. **Bloque 4 sin empezar** (Santino): QA, reservas de clase, pagos y cierre.
 4. **Deuda tecnica de M4, registrada en el plan:** validacion de horarios de la sede (en M4 solo se valida `fecha_hora_inicio < fecha_hora_fin`).
 5. **Sin autenticacion ni roles en toda la API.** Es deuda de M1 que arrastra a M4: el contrato no versiona auth, y `usuario_id` en las reservas sigue siendo el unico control de pertenencia.
+
+### Semana 9 - SCRUM-11l - Auditoria de fechas (TIMESTAMPTZ) y del orden de la lista de espera
+
+#### Actividades
+
+1. **Migracion de las once columnas de fecha a TIMESTAMPTZ** - auditoria
+   - Las once columnas de fecha eran `TIMESTAMP(3)` sin zona. Prisma mapea `DateTime` a `timestamp(3)` y escribe los componentes UTC del instante, asi que lo almacenado ya era wall-clock UTC en una columna que declara no tener zona: el tipo miente sobre lo que los datos son.
+   - Nada lo declaraba ni lo forzaba. No hay `SET TIME ZONE` en ninguna migracion, ni `TZ` en la configuracion, y produccion (Supabase en `sa-east-1`) y los tests (Postgres local) son dos entornos distintos confiando en el mismo default no declarado.
+   - Eso ya habia forzado una decision de diseno. `20260925020000_reserva_solapamiento_exclude` uso `tsrange` y **no** `tstzrange` precisamente porque las columnas no tenian zona, y su propio comentario admite que con `tstzrange` PostgreSQL castearia usando el `TimeZone` de cada sesion. La invariante RN-02 (no solapamiento) dependia entonces de que toda sesion escribiera UTC, y eso vivia en un comentario y no en el esquema.
+   - Con `TIMESTAMPTZ` el tipo pasa a declarar lo que los datos ya eran, y `tstzrange` pasa a ser correcto por construccion: los rangos se comparan por instante absoluto y no dependen de quien consulta.
+   - El `SET TIME ZONE 'UTC'` al inicio de la migracion es lo que hace la conversion neutra. `ALTER ... TYPE` interpreta los valores existentes con el `TimeZone` de la sesion en curso; como lo almacenado es wall-clock UTC, fijar UTC deja los instantes intactos. Sin esa linea, los instantes se correrian en el offset de quien ejecutara la migracion.
+   - `exq_reserva_turno` se dropea antes de tocar las columnas y se recrea con `tstzrange`: no se puede alterar la columna con la constraint de exclusion vigente.
+   - `schema.prisma` lleva `@db.Timestamptz(3)` en las once columnas, alineado con el SQL. El cliente generado cambia solo la anotacion nativa: `DateTime` sigue siendo `Date`, asi que no cambio ninguna firma.
+   - Verificado sobre una base de pruebas con las 8 migraciones aplicadas y datos sembrados con instantes reales: los ocho instantes de muestra se leen identicos antes y despues, un solapamiento real sigue rebotando, un turno contiguo se permite, `CANCELADA` sigue fuera del alcance, y bajo sesion en `America/Argentina/Buenos_Aires` el instante es el mismo. `prisma migrate diff` contra la base migrada: **no difference detected**.
+   - [commit 455c357](https://github.com/GonzaloVila/FitZone-Sports/commit/455c357)
+
+2. **Caracterizacion de `rangoDelDia` y unificacion de la zona horaria de la sede** - auditoria
+   - `commons/fechas.ts` era el nucleo del filtro `fecha` de ingresos y no tenia **ningun** test.
+   - La sede tenia dos representaciones distintas de la misma zona: offset fijo `-03:00` en `commons/fechas.ts` y `America/Argentina/Buenos_Aires` en el pricing de canchas. Podian divergir sin que nada lo detectara. Ahora `ZONA_SEDE` es la constante IANA y `pricing-constants` la reexporta.
+   - El test de caracterizacion destapo un bug real: el DTO de `fecha` solo valida el formato (`^\d{4}-\d{2}-\d{2}$`), y `new Date('2026-02-30T00:00:00-03:00')` **no** es `NaN`: rueda solo a `2026-03-02`. El filtro `fecha` devolvia el dia siguiente al pedido, en silencio. `rangoDelDia` ahora rechaza un dia que no existe.
+   - [commit fdc7178](https://github.com/GonzaloVila/FitZone-Sports/commit/fdc7178)
+
+3. **Desempate del orden de la lista de espera** - auditoria
+   - Los tres `orderBy` de espera ordenaban solo por `fecha_anotacion`, que es `TIMESTAMP(3)` y la genera la app con `new Date()`. Dos socios que se anotan en el mismo milisegundo empatan, y con `skip`/`take` eso hace que la paginacion repita una fila y saltee otra.
+   - Se agrego `{ id: 'asc' }` como segundo criterio en los tres repos, siguiendo el criterio que ya aplicaba `Ingreso.listar` para el mismo problema.
+   - El e2e fija la misma `fecha_anotacion` en las cuatro esperas **y** reescribe las filas en orden inverso al id, porque con solo el empate el test pasaba igual: un seq scan devuelve orden de heap, que coincide con el id. Verificado que falla sin el fix (`[220,219,218,217]`) y pasa con el.
+   - Aclaracion importante: el cupo **no** lo decide este orden. `confirmarEsperaConLock` ya serializaba con `SELECT ... FOR UPDATE` sobre `Clase` y asignaba `fecha_confirmacion` despues del lock, asi que el first-come ya era determinista. Esto es determinismo de lectura y equidad en la notificacion, no una carrera de cupo.
+   - [commit dcd2592](https://github.com/GonzaloVila/FitZone-Sports/commit/dcd2592)
+
+4. **Invariante de una sola espera activa, cerrada en la base** - auditoria
+   - `crear()` comprobaba con un `findFirst` que el socio no tuviera otra espera `EN_ESPERA`/`NOTIFICADO`, pero esa lectura y el INSERT posterior no son atomicos: dos peticiones simultaneas del mismo socio para la misma clase pueden pasar ambas el chequeo.
+   - Se agrego el indice parcial unico `unq_espera_clase_socio_activa` sobre `(clase_id, socio_id) WHERE estado IN ('EN_ESPERA','NOTIFICADO')` y se tradujo el `P2002` a `ESPERA_EXISTENTE`, que el service ya mapeaba a 409. Es el mismo esquema que ya usan `unq_reserva_clase_socio_activa` e `ingreso_usuario_abierto_unq`; SQL crudo porque Prisma 6.19.3 no modela indices parciales.
+   - Cubre solo los estados activos, asi que un socio que dio de baja y vuelve a anotarse puede reinscribirse. Eso lo cubre un e2e.
+   - El e2e fuerza el hueco de forma determinista, insertando la segunda espera por Prisma y salteando el chequeo de application. **Con N requests en paralelo la carrera no se reproduce en forma fiable**: el `findFirst` suele alcanzar a atrapar el segundo POST y el test pasaria aunque la constraint no existiera. Se verifico que falla al dropear el indice.
+   - [commit 1e351fc](https://github.com/GonzaloVila/FitZone-Sports/commit/1e351fc)
+
+5. **Resultado de la verificacion** - auditoria
+   - E2E: **61/61** en 5 archivos (contra la base ya migrada a `timestamptz`).
+   - Unitarios: **10/10** (los 5 de la cadena de precios mas 5 nuevos de `fechas.spec.ts`).
+   - Comparador de contrato: **28/28**, **0 diferencias**.
+   - `npx tsc --noEmit` y `npm run build` en verde. `npx prisma validate` y `npx prisma format` aplicados.
+   - Los e2e de ingresos por `fecha` y de solapamiento de reservas se ejecutaron contra la base con `timestamptz` y pasaron sin cambios en el codigo, que es la prueba de que la conversion fue neutra.
+
+#### Pendientes que siguen abiertos
+
+1. **Las dos migraciones de esta ronda todavia no estan aplicadas en produccion.** `.env` apunta a Supabase y `prisma migrate status` reporta `20260928000000_espera_clase_socio_activa_unq` y `20260929000000_fechas_timestamptz` pendientes. Se validaron solo contra la base local de tests.
+2. **Antes de aplicar en produccion, hacer un `pg_dump` de las once columnas de fecha.** El rollback es `SET TIME ZONE 'UTC'; ALTER ... TYPE timestamp(3);` mas restaurar la constraint con `tsrange`, pero es mas barato no necesitarlo.
+3. **Al mergear la rama de Santino hay que correr `prisma migrate status`.** Los bloques 3 y 4 agregan migraciones y los nombres con timestamp no pueden pisarse. `prisma migrate diff` dio "no difference detected" con el schema actual; si el merge introduce una migracion divergente, Prisma propondrá una espuria.
+4. **El comparador sigue sin versionarse** (`backend/contrato/` esta en `.gitignore`). Mismo pendiente arrastrado desde M1.

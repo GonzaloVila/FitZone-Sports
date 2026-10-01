@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type {
+  EstadoSocioMembresia,
   MembershipValidationPort,
   VigenciaMembresia,
 } from '../../../commons/membresia/membership-validation.port';
@@ -9,7 +10,7 @@ import { SOCIO_REPOSITORY, SocioRepository } from '../repositories/socio.reposit
 
 // Adaptador real del MembershipValidationPort (D6): vive en m1-usuarios porque
 // es el único módulo con acceso a SOCIO_REPOSITORY/MEMBRESIA_REPOSITORY. Se
-// registra y exporta en usuarios.module.ts para que M2 lo consuma por token.
+// registra y exporta en usuarios.module.ts para que M2 y M3 lo consuman por token.
 @Injectable()
 export class MembresiaValidationAdapter implements MembershipValidationPort {
   constructor(
@@ -30,4 +31,25 @@ export class MembresiaValidationAdapter implements MembershipValidationPort {
 
     return { vigente: estaVigente(membresia) };
   }
+
+  async consultarVigenciaPorSocio(socioId: number): Promise<EstadoSocioMembresia> {
+    const socio = await this.socios.buscarPorId(socioId);
+    if (!socio) {
+      return { esSocio: false, vigente: false, enMora: false };
+    }
+
+    const membresia = await this.membresias.buscarPorSocioId(socio.id);
+    if (!membresia) {
+      return { esSocio: true, vigente: false, enMora: true };
+    }
+
+    const vigente = estaVigente(membresia);
+    const enMora = !vigente || membresia.estado === 'VENCIDA' || membresia.estado === 'SUSPENDIDA';
+    return {
+      esSocio: true,
+      vigente,
+      enMora,
+    };
+  }
 }
+

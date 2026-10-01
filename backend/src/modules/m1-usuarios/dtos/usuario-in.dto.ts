@@ -12,12 +12,17 @@ import { RolAlta } from '../entities/usuario.entity';
 
 const ROLES_ALTA: RolAlta[] = ['EXTERNO', 'RECEPCION', 'GERENTE'];
 
-export class CrearUsuarioDto {
+export class UsuarioIn {
   @ApiProperty({ enum: ROLES_ALTA, description: 'SOCIO no aplica acá: solo por POST /socios.' })
   @IsIn(ROLES_ALTA)
   rol!: RolAlta;
 
-  @ApiProperty({ example: '35123456', minLength: 7, maxLength: 20 })
+  @ApiProperty({
+    example: '35123456',
+    minLength: 7,
+    maxLength: 20,
+    pattern: '^\\d+$',
+  })
   @IsString()
   @MinLength(7)
   @MaxLength(20)
@@ -30,7 +35,7 @@ export class CrearUsuarioDto {
   @MaxLength(100)
   nombre!: string;
 
-  @ApiProperty({ example: 'ana.gomez@fitzone.com.ar', format: 'email' })
+  @ApiProperty({ example: 'ana.gomez@fitzone.com.ar', format: 'email', maxLength: 254 })
   @IsEmail()
   @MaxLength(254)
   email!: string;

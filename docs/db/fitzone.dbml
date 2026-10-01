@@ -1,22 +1,41 @@
 // FitZone - Modelo de datos (dbdiagram.io)
+// Nombres alineados con prisma/schema.prisma: PK = "id", FK = "<tabla>_id". La unica
+// excepcion es id_pago en PagoReserva / PagoMembresia, que es PK y FK a la vez (parte-todo).
 // Herencia parte-todo: Pago (super) con subtipos PagoReserva / PagoMembresia (PK = FK 1:1).
 // Estado de pago: PENDIENTE | APROBADO | RECHAZADO | ANULADO (un pago anulado no se borra: se deja
 // con estado ANULADO y se genera un nuevo pago con otra idempotencia_key para el cobro correcto).
+// fecha_pago: momento del cobro. Es la unica marca temporal de la tabla; sin ella no se puede
+// ordenar el listado de pagos, filtrar por periodo (GET /pagos?desde=&hasta=) ni conciliar contra
+// el reporte de la pasarela, y el comprobante de la RF-14 queda como un snapshot sin fecha.
+// Socio.sede_origen_id: la sede donde se dio de alta. NO es "la sede del socio": RF-03 distingue
+// la sede de origen de las sedes a las que la membresia da acceso. Por eso la columna se llama
+// sede_origen_id y no sede_id, que era ambiguo.
 // Lista de espera de clases: se notifica a TODOS los anotados y el cupo lo toma el PRIMERO que
-// confirme (first-come por confirmación, decide fecha_confirmacion; no hay orden de anotación).
-// Perfil de usuario por rol (herencia híbrida por clase): Usuario (super) + subtipos SOLO donde
-// existe especialización. Socio = membresía; EmpleadoSede = sucursal de trabajo del rol RECEPCION
-// (A3), 1:1 (unique en ambas FKs). Así Usuario NO tiene columnas nullable de un solo rol.
+// confirme (first-come por confirmacion, decide fecha_confirmacion; no hay orden de anotacion).
+// Perfil de usuario por rol (herencia hibrida por clase): Usuario (super) + subtipos SOLO donde
+// existe especializacion. Socio = membresia; EmpleadoSede = sucursal de trabajo del rol RECEPCION
+// (A3), 1:1 (unique en ambas FKs). Asi Usuario NO tiene columnas nullable de un solo rol.
 // Cliente Externo y Gerente viven solo en rol. Alta de sedes = RNF-04. Deja de decir RF-15.
+//
+// TIPOS: las columnas de texto son "text" (sin limite), no varchar(n). Es el mapeo que Prisma
+// genera para String sobre Postgres; en la base real no hay ni una sola columna varchar. NO se
+//Pon @db.VarChar(n) en el schema, asi que la base no impone ninguna longitud: la validacion de
+//largo vive en la capa de aplicacion (DTOs con class-validator + forbidNonWhitelisted). Las
+//longitudes que antes figuraban aca (varchar(100), varchar(64)...) eran inventadas.
+//
+// ENUMS: la base si usa enums nativos de Postgres (tipo USER-DEFINED). dbdiagram no tiene tipo
+//enum, asi que se representan como varchar y se documentan los valores permitidos en el
+//comentario de cada columna. Si alguna vez se agrega un valor, hay que actualizar el enum del
+//schema Y este comentario.
 
-TableGroup Núcleo {
+TableGroup Nucleo {
   Sede
   Usuario
   Socio
   EmpleadoSede
 }
 
-TableGroup "Socios y membresías" {
+TableGroup "Socios y membresias" {
   Membresia
 }
 
@@ -26,7 +45,7 @@ TableGroup Instalaciones {
 }
 
 TableGroup Reservas {
-  "Reserva (cancha)"
+  Reserva
   ReservaClase
   EsperaClase
 }
@@ -35,144 +54,147 @@ TableGroup "Pagos y accesos" {
   Pago
   PagoReserva
   PagoMembresia
-  "Ingreso (acceso)"
+  Ingreso
 }
 
 Table Sede {
-  id_sede int [pk, increment]
-  nombre varchar(100) [not null]
-  direccion varchar(100) [not null]
+  id int [pk, increment]
+  nombre text [not null]
+  direccion text [not null]
   aforo_maximo int [not null]
 }
 
 Table Usuario {
-  id_usuario int [pk, increment]
-  rol varchar(20) [not null]
-  dni varchar(20) [unique, not null]
-  nombre varchar(100) [not null]
-  email varchar(100) [unique, not null]
-  contrasenia varchar(255) [not null]   // hash (bcrypt/argon2); nunca texto plano
-  telefono varchar(20)
-  foto_url varchar(100)
+  id int [pk, increment]
+  rol varchar(20) [not null]   // enum Rol: SOCIO | EXTERNO | RECEPCION | GERENTE
+  dni text [not null]
+  nombre text [not null]
+  email text [unique, not null]
+  contrasenia text [not null]  // hash (bcrypt/argon2); nunca texto plano
+  telefono text
+  foto_url text
 }
 
 Table EmpleadoSede {
-  id_empleado int [pk, increment]
-  id_usuario int [unique, not null]
-  id_sede int [unique, not null]
+  id int [pk, increment]
+  usuario_id int [unique, not null]
+  sede_id int [unique, not null]
 }
 
 Table Socio {
-  id_socio int [pk, increment]
-  id_usuario int [unique, not null]
-  id_sede int [not null]
-  fecha_alta date [not null]
+  id int [pk, increment]
+  usuario_id int [unique, not null]
+  sede_origen_id int [not null]
+  fecha_alta timestamp [not null]
 }
 
 Table Membresia {
-  id_membresia int [pk, increment]
-  id_socio int [not null, unique]
-  plan varchar(20) [not null]
-  estado varchar(20) [not null]
-  fecha_inicio date [not null]
-  fecha_fin date [not null]
-  renueva_automatica boolean [not null]
+  id int [pk, increment]
+  socio_id int [not null, unique]
+  plan varchar(20) [not null]   // enum PlanMembresia: MENSUAL | TRIMESTRAL | ANUAL
+  estado varchar(20) [not null] // enum EstadoMembresia: ACTIVA | VENCIDA | SUSPENDIDA
+  fecha_inicio timestamp [not null]
+  fecha_fin timestamp [not null]
+  renueva_automatica boolean [not null, default: 'false']
 }
 
 Table Cancha {
-  id_cancha int [pk, increment]
-  id_sede int [not null]
-  tipo varchar(20) [not null]
+  id int [pk, increment]
+  sede_id int [not null]
+  tipo varchar(20) [not null]   // enum TipoCancha: PADDLE | FUTBOL5
   costo_por_hora decimal(10,2) [not null]
-  estado varchar(20) [not null]
+  estado varchar(20) [not null] // enum EstadoCancha: OPERATIVA | EN_MANTENIMIENTO
 }
 
 Table Clase {
-  id_clase int [pk, increment]
-  id_sede int [not null]
-  tipo varchar(30) [not null]
-  instructor varchar(100) [not null]
-  horario varchar(20) [not null]
+  id int [pk, increment]
+  sede_id int [not null]
+  tipo text [not null]          // texto libre (a diferencia de Cancha.tipo, que si es enum)
+  instructor text [not null]
+  horario text [not null]
   capacidad int [not null]
 }
 
-Table "Reserva (cancha)" {
-  id_reserva int [pk, increment]
-  id_cancha int [not null]
-  id_usuario int [not null]
+Table Reserva {
+  id int [pk, increment]
+  cancha_id int [not null]
+  usuario_id int [not null]
   fecha_hora_inicio timestamp [not null]
   fecha_hora_fin timestamp [not null]
-  estado varchar(20) [not null]
+  estado varchar(20) [not null] // enum EstadoReserva: CONFIRMADA | CANCELADA
   precio_aplicado decimal(10,2) [not null]
+  // exq_reserva_turno: EXCLUDE gist (cancha_id, tsrange(inicio, fin)) WHERE estado <> CANCELADA.
+  // Impide turnos solapados en la misma cancha (Prisma 6 no modela EXCLUDE; se crea en SQL).
 }
 
 Table ReservaClase {
-  id_reservaclase int [pk, increment]
-  id_clase int [not null]
-  id_socio int [not null]
-  estado varchar(20) [not null]
+  id int [pk, increment]
+  clase_id int [not null]
+  socio_id int [not null]
+  estado varchar(20) [not null] // enum EstadoReservaClase: CONFIRMADA | CANCELADA
 }
 
 Table EsperaClase {
-  id_esperaclase int [pk, increment]
-  id_clase int [not null]
-  id_socio int [not null]
-  estado varchar(20) [not null]
+  id int [pk, increment]
+  clase_id int [not null]
+  socio_id int [not null]
+  estado varchar(20) [not null] // enum EstadoEspera: EN_ESPERA | NOTIFICADO | CONFIRMADO
   fecha_anotacion timestamp [not null]
   fecha_notificacion timestamp
   fecha_confirmacion timestamp
 }
 
 Table Pago {
-  id_pago int [pk, increment]
-  id_usuario int [not null]
-  idempotencia_key varchar(50) [unique, not null]
+  id int [pk, increment]
+  usuario_id int [not null]
+  idempotencia_key text [unique, not null]
+  fecha_pago timestamp [not null, default: `now()`]
   monto decimal(10,2) [not null]
-  moneda varchar(3) [not null]
-  estado varchar(20) [not null]
-  token varchar(64) [not null]
-  comprobante_pdf_url varchar(100)
+  moneda text [not null, default: 'ARS']
+  estado varchar(20) [not null] // enum EstadoPago: PENDIENTE | APROBADO | RECHAZADO | ANULADO
+  token text [not null]
+  comprobante_pdf_url text
 }
 
 Table PagoReserva {
-  id_pago int [pk, increment]
-  id_reserva int [unique, not null]
+  id_pago int [pk]
+  reserva_id int [unique, not null]
 }
 
 Table PagoMembresia {
-  id_pago int [pk, increment]
-  id_membresia int [not null]
+  id_pago int [pk]
+  membresia_id int [not null]
 }
 
-Table "Ingreso (acceso)" {
-  id_ingreso int [pk, increment]
-  id_sede int [not null]
-  id_usuario int [not null]
+Table Ingreso {
+  id int [pk, increment]
+  sede_id int [not null]
+  usuario_id int [not null]
   fecha_hora_ingreso timestamp [not null]
   fecha_hora_egreso timestamp
   validado_offline boolean [not null, default: 'false']
 }
 
-// Usuario - Socio: 1:1 (Socio.id_usuario única)
-Ref: Usuario.id_usuario - Socio.id_usuario
-Ref: Sede.id_sede < Socio.id_sede
-// EmpleadoSede: staff de sucursal 1:1 con Usuario y con Sede (ids únicos) — solo rol RECEPCION (A3)
-Ref: Usuario.id_usuario - EmpleadoSede.id_usuario
-Ref: Sede.id_sede - EmpleadoSede.id_sede
-// Socio - Membresia: 1:1 (id_socio única) — un socio tiene UNA membresía; la renovación actualiza la misma fila
-Ref: Socio.id_socio - Membresia.id_socio
-Ref: Sede.id_sede < Cancha.id_sede
-Ref: Sede.id_sede < Clase.id_sede
-Ref: Cancha.id_cancha < "Reserva (cancha)".id_cancha
-Ref: Usuario.id_usuario < "Reserva (cancha)".id_usuario
-Ref: Clase.id_clase < ReservaClase.id_clase
-Ref: Socio.id_socio < ReservaClase.id_socio
-Ref: Clase.id_clase < EsperaClase.id_clase
-Ref: Socio.id_socio < EsperaClase.id_socio
-Ref: Usuario.id_usuario < Pago.id_usuario
-Ref: Pago.id_pago - PagoReserva.id_pago
-Ref: "Reserva (cancha)".id_reserva - PagoReserva.id_reserva
-Ref: Pago.id_pago - PagoMembresia.id_pago
-Ref: Membresia.id_membresia < PagoMembresia.id_membresia
-Ref: Sede.id_sede < "Ingreso (acceso)".id_sede
-Ref: Usuario.id_usuario < "Ingreso (acceso)".id_usuario
+// Usuario - Socio: 1:1 (Socio.usuario_id unica)
+Ref: Usuario.id - Socio.usuario_id
+Ref: Sede.id - Socio.sede_origen_id
+// EmpleadoSede: staff de sucursal 1:1 con Usuario y con Sede (ids unicos) — solo rol RECEPCION (A3)
+Ref: Usuario.id - EmpleadoSede.usuario_id
+Ref: Sede.id - EmpleadoSede.sede_id
+// Socio - Membresia: 1:1 (socio_id unica) — un socio tiene UNA membresia; la renovacion actualiza la misma fila
+Ref: Socio.id - Membresia.socio_id
+Ref: Sede.id < Cancha.sede_id
+Ref: Sede.id < Clase.sede_id
+Ref: Cancha.id < Reserva.cancha_id
+Ref: Usuario.id < Reserva.usuario_id
+Ref: Clase.id < ReservaClase.clase_id
+Ref: Socio.id < ReservaClase.socio_id
+Ref: Clase.id < EsperaClase.clase_id
+Ref: Socio.id < EsperaClase.socio_id
+Ref: Usuario.id < Pago.usuario_id
+Ref: Pago.id - PagoReserva.id_pago
+Ref: Reserva.id - PagoReserva.reserva_id
+Ref: Pago.id - PagoMembresia.id_pago
+Ref: Membresia.id < PagoMembresia.membresia_id
+Ref: Sede.id < Ingreso.sede_id
+Ref: Usuario.id < Ingreso.usuario_id

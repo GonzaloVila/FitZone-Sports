@@ -2,6 +2,8 @@ import { Global, Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CommonsModule } from '../../commons/commons.module';
 import { MEMBERSHIP_VALIDATION_PORT } from '../../commons/membresia/membership-validation.port';
+import { CONSULTA_SOCIO_PORT } from '../../commons/socio/consulta-socio.port';
+import { ConsultaSocioAdapter } from './adapters/consulta-socio.adapter';
 import { MembresiaValidationAdapter } from './adapters/membresia-validation.adapter';
 import { MembresiasController } from './controllers/membresias.controller';
 import { SociosController } from './controllers/socios.controller';
@@ -28,15 +30,17 @@ import { UsuariosService } from './services/usuarios.service';
     { provide: SOCIO_REPOSITORY, useClass: PrismaSocioRepository },
     { provide: MEMBRESIA_REPOSITORY, useClass: PrismaMembresiaRepository },
     { provide: MEMBERSHIP_VALIDATION_PORT, useClass: MembresiaValidationAdapter },
+    { provide: CONSULTA_SOCIO_PORT, useClass: ConsultaSocioAdapter },
     UsuariosService,
     SociosService,
     MembresiasService,
     MembresiasCron,
   ],
-  // El array exports es el filtro de @Global(): de todo M1 sale unicamente
-  // MEMBERSHIP_VALIDATION_PORT. USUARIO_REPOSITORY, SOCIO_REPOSITORY,
-  // MEMBRESIA_REPOSITORY y los services siguen privados para el resto de la app.
-  // M5 aplicara la misma regla con PROCESAR_PAGO_PORT en ModuloPagos.
-  exports: [MEMBERSHIP_VALIDATION_PORT],
+  // El array exports es el filtro de @Global(): de todo M1 salen unicamente
+  // MEMBERSHIP_VALIDATION_PORT y CONSULTA_SOCIO_PORT. USUARIO_REPOSITORY,
+  // SOCIO_REPOSITORY, MEMBRESIA_REPOSITORY y los services siguen privados para el
+  // resto de la app. M5 aplicara la misma regla con PROCESAR_PAGO_PORT en
+  // ModuloPagos.
+  exports: [MEMBERSHIP_VALIDATION_PORT, CONSULTA_SOCIO_PORT],
 })
 export class UsuariosModule {}

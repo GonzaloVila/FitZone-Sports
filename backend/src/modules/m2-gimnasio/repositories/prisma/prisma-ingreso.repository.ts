@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { rangoDelDia } from '../../../../commons/fechas';
 import { PrismaService } from '../../../../commons/database/prisma.service';
 import { Ingreso, IngresoNuevo } from '../../entities/ingreso.entity';
-import { IngresoRepository, ResultadoCrearIngreso } from '../ingreso.repository';
+import { IngresoFiltros, IngresoRepository, ResultadoCrearIngreso } from '../ingreso.repository';
+import type { OpcionesPaginacion } from '../../../../commons/paginacion';
 
 type IngresoRow = Prisma.IngresoGetPayload<Record<string, never>>;
 
@@ -56,6 +58,32 @@ export class PrismaIngresoRepository implements IngresoRepository {
       }
       throw error;
     }
+  }
+
+  async listar(filtros: IngresoFiltros, { page, perPage }: OpcionesPaginacion): Promise<Ingreso[]> {
+    const where: Prisma.IngresoWhereInput = {
+      ...(filtros.sede_id !== undefined && { sede_id: filtros.sede_id }),
+      ...(filtros.usuario_id !== undefined && { usuario_id: filtros.usuario_id }),
+      // dentro=false no filtra: el contrato solo define el caso true (los que
+      // siguen en la sede). Pedir los que ya egresaron sería un NOT sobre null,
+      // que en SQL no significa "tiene egreso" sino "no es null".
+      ...(filtros.dentro === true && { fecha_hora_egreso: null }),
+      ...(filtros.fecha !== undefined && (() => {
+        const { desde, hasta } = rangoDelDia(filtros.fecha as string);
+        return { fecha_hora_ingreso: { gte: desde, lt: hasta } };
+      })()),
+    };
+
+    const filas = await this.prisma.ingreso.findMany({
+      where,
+      skip: (page - 1) * perPage,
+      take: perPage,
+      // El id desempata: con la sincronización offline (RNF-01) dos ingresos
+      // pueden compartir fecha_hora_ingreso al segundo, y sin un orden total la
+      // paginación repite filas entre páginas.
+      orderBy: [{ fecha_hora_ingreso: 'desc' }, { id: 'desc' }],
+    });
+    return filas.map((fila) => this.aDominio(fila));
   }
 
   async buscarPorId(id: number): Promise<Ingreso | null> {

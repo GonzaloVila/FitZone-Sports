@@ -4,9 +4,9 @@ import { EstadoMembresia } from '../entities/membresia.entity';
 import { PlanMembresia } from '../entities/socio.entity';
 
 @Exclude()
-export class MembresiaOutDto {
+export class MembresiaOut {
   @Expose()
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ type: 'integer', example: 1 })
   id!: number;
 
   @Expose()
@@ -18,11 +18,11 @@ export class MembresiaOutDto {
   estado!: EstadoMembresia;
 
   @Expose()
-  @ApiProperty({ example: '2026-09-20T12:00:00.000Z' })
+  @ApiProperty({ example: '2026-09-15T00:00:00-03:00' })
   fecha_inicio!: Date;
 
   @Expose()
-  @ApiProperty({ example: '2026-10-20T12:00:00.000Z' })
+  @ApiProperty({ example: '2026-10-15T00:00:00-03:00' })
   fecha_fin!: Date;
 
   @Expose()

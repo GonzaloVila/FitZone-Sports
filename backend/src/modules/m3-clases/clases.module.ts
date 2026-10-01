@@ -1,2 +1,55 @@
-// CAPAS - M3 Clases (RF-06..08).
-// Igual estructura que m1; lista de espera = Observer (ADR-05) en Unidad III.
+import { Module, OnModuleInit } from '@nestjs/common';
+import { CommonsModule } from '../../commons/commons.module';
+import { ClasesController } from './controllers/clases.controller';
+import { EsperasClasesController } from './controllers/esperas-clases.controller';
+import { ReservasClasesController } from './controllers/reservas-clases.controller';
+import { CupoLiberadoSubject } from './observers/cupo-liberado.subject';
+import { EmailCupoLiberadoObserver } from './observers/email-cupo-liberado.observer';
+import { NotificarSociosEsperaObserver } from './observers/notificar-socios-espera.observer';
+import { CLASE_REPOSITORY } from './repositories/clase.repository';
+import { ESPERA_CLASE_REPOSITORY } from './repositories/espera-clase.repository';
+import { PrismaClaseRepository } from './repositories/prisma/prisma-clase.repository';
+import { PrismaEsperaClaseRepository } from './repositories/prisma/prisma-espera-clase.repository';
+import { PrismaReservaClaseRepository } from './repositories/prisma/prisma-reserva-clase.repository';
+import { RESERVA_CLASE_REPOSITORY } from './repositories/reserva-clase.repository';
+import { ClasesService } from './services/clases.service';
+import { EsperasClasesService } from './services/esperas-clases.service';
+import { ReservasClasesService } from './services/reservas-clases.service';
+
+@Module({
+  imports: [CommonsModule],
+  controllers: [
+    ClasesController,
+    ReservasClasesController,
+    EsperasClasesController,
+  ],
+  providers: [
+    { provide: CLASE_REPOSITORY, useClass: PrismaClaseRepository },
+    { provide: RESERVA_CLASE_REPOSITORY, useClass: PrismaReservaClaseRepository },
+    { provide: ESPERA_CLASE_REPOSITORY, useClass: PrismaEsperaClaseRepository },
+    ClasesService,
+    ReservasClasesService,
+    EsperasClasesService,
+    CupoLiberadoSubject,
+    NotificarSociosEsperaObserver,
+    EmailCupoLiberadoObserver,
+  ],
+  exports: [CLASE_REPOSITORY, RESERVA_CLASE_REPOSITORY, ESPERA_CLASE_REPOSITORY],
+})
+export class ClasesModule implements OnModuleInit {
+  constructor(
+    private readonly cupoSubject: CupoLiberadoSubject,
+    private readonly notificarEsperaObserver: NotificarSociosEsperaObserver,
+    private readonly emailObserver: EmailCupoLiberadoObserver,
+  ) {}
+
+  onModuleInit(): void {
+    // Registro de observadores en el Subject GoF al inicializar el módulo.
+    // La cadena es [estado, email]: el primero lleva EN_ESPERA -> NOTIFICADO y el
+    // segundo avisa por correo. El observer de email usa listarSociosEnEsperaPorClase
+    // (cola viva, sin CANCELADO) y no buscarEnEsperaPorClase, asi que le da igual
+    // correr antes o despues del cambio de estado.
+    this.cupoSubject.registrarObserver(this.notificarEsperaObserver);
+    this.cupoSubject.registrarObserver(this.emailObserver);
+  }
+}

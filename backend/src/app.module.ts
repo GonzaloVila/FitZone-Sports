@@ -5,6 +5,7 @@ import { CommonsModule } from './commons/commons.module';
 import { DatabaseModule } from './commons/database/database.module';
 import { UsuariosModule } from './modules/m1-usuarios/usuarios.module';
 import { GimnasioModule } from './modules/m2-gimnasio/gimnasio.module';
+import { ClasesModule } from './modules/m3-clases/clases.module';
 import { CanchasModule } from './modules/m4-canchas/canchas.module';
 
 @Module({
@@ -17,6 +18,7 @@ import { CanchasModule } from './modules/m4-canchas/canchas.module';
     CommonsModule,
     UsuariosModule,
     GimnasioModule,
+    ClasesModule,
     CanchasModule,
   ],
 })

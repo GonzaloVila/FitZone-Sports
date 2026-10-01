@@ -3,22 +3,70 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../commons/database/prisma.service';
 import { Socio, SocioActualizable, SocioNuevo } from '../../entities/socio.entity';
 import { calcularVigencia } from '../../entities/membresia.entity';
-import { SocioRepository } from '../socio.repository';
+import { SocioRepository, FiltrosSocios } from '../socio.repository';
+import type { OpcionesPaginacion } from '../../../../commons/paginacion';
 
-type SocioRow = Prisma.SocioGetPayload<Record<string, never>>;
+// SocioOut expone nombre/email, asi que toda lectura de Socio necesita la
+// relacion con Usuario. Se declara el payload a mano (no `typeof` de la const)
+// porque SocioGetPayload exige los select en literal `true`, no `boolean`.
+const USUARIO_SELECCION = {
+  usuario: { select: { nombre: true, email: true } },
+};
+
+type SocioRow = Prisma.SocioGetPayload<{
+  include: { usuario: { select: { nombre: true; email: true } } };
+}>;
 
 @Injectable()
 export class PrismaSocioRepository implements SocioRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listar(
+    { sede_origen_id, estado_membresia, plan, nombre }: FiltrosSocios,
+    { page, perPage }: OpcionesPaginacion,
+  ): Promise<Socio[]> {
+    const where: Prisma.SocioWhereInput = {
+      ...(sede_origen_id !== undefined && {
+        sede_origen_id: sede_origen_id,
+      }),
+      ...(nombre !== undefined && {
+        usuario: { nombre: { contains: nombre, mode: 'insensitive' } },
+      }),
+    };
+
+    // Los dos filtros de membresia se acumulan en el MISMO objeto para que
+    // Prisma los ANDee sobre la relacion. Ademas, como `membresia` es opcional
+    // en el schema, cualquier filtro de membresia excluye a los socios que no
+    // tienen ninguna: es la semantica correcta, no un olvido.
+    if (estado_membresia !== undefined || plan !== undefined) {
+      where.membresia = {
+        ...(estado_membresia !== undefined && { estado: estado_membresia }),
+        ...(plan !== undefined && { plan }),
+      };
+    }
+
+    const filas = await this.prisma.socio.findMany({
+      where,
+      skip: (page - 1) * perPage,
+      take: perPage,
+      orderBy: { id: 'asc' },
+      include: USUARIO_SELECCION,
+    });
+    return filas.map((fila) => this.aDominio(fila));
+  }
 
   async crear(socio: SocioNuevo): Promise<Socio> {
     const fila = await this.prisma.$transaction(async (tx) => {
       const nuevoSocio = await tx.socio.create({
         data: {
           usuario_id: socio.usuario_id,
-          sede_id: socio.sede_origen_id,
+          sede_origen_id: socio.sede_origen_id,
           fecha_alta: new Date(),
         },
+        // Ojo: este snapshot del Usuario es previo al update de `rol` de mas
+        // abajo. No afecta a SocioOut (no expone `rol`), pero si alguna vez lo
+        // agrega, saldra desactualizado en el POST /socios.
+        include: USUARIO_SELECCION,
       });
 
       if (socio.plan) {
@@ -47,12 +95,18 @@ export class PrismaSocioRepository implements SocioRepository {
   }
 
   async buscarPorId(id: number): Promise<Socio | null> {
-    const fila = await this.prisma.socio.findUnique({ where: { id } });
+    const fila = await this.prisma.socio.findUnique({
+      where: { id },
+      include: USUARIO_SELECCION,
+    });
     return fila ? this.aDominio(fila) : null;
   }
 
   async buscarPorUsuarioId(usuarioId: number): Promise<Socio | null> {
-    const fila = await this.prisma.socio.findUnique({ where: { usuario_id: usuarioId } });
+    const fila = await this.prisma.socio.findUnique({
+      where: { usuario_id: usuarioId },
+      include: USUARIO_SELECCION,
+    });
     return fila ? this.aDominio(fila) : null;
   }
 
@@ -61,8 +115,11 @@ export class PrismaSocioRepository implements SocioRepository {
       const fila = await this.prisma.socio.update({
         where: { id },
         data: {
-          ...(cambios.sede_origen_id !== undefined && { sede_id: cambios.sede_origen_id }),
+          ...(cambios.sede_origen_id !== undefined && {
+            sede_origen_id: cambios.sede_origen_id,
+          }),
         },
+        include: USUARIO_SELECCION,
       });
       return this.aDominio(fila);
     } catch (error) {
@@ -95,7 +152,9 @@ export class PrismaSocioRepository implements SocioRepository {
     return {
       id: fila.id,
       usuario_id: fila.usuario_id,
-      sede_origen_id: fila.sede_id,
+      nombre: fila.usuario.nombre,
+      email: fila.usuario.email,
+      sede_origen_id: fila.sede_origen_id,
       fecha_alta: fila.fecha_alta,
     };
   }

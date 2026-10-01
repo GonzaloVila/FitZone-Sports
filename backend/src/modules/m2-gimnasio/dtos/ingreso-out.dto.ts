@@ -2,17 +2,17 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 
 @Exclude()
-export class IngresoOutDto {
+export class IngresoOut {
   @Expose()
-  @ApiProperty({ example: 9 })
+  @ApiProperty({ type: 'integer', example: 9 })
   id!: number;
 
   @Expose()
-  @ApiProperty({ example: 3 })
+  @ApiProperty({ type: 'integer', example: 3 })
   sede_id!: number;
 
   @Expose()
-  @ApiProperty({ example: 2 })
+  @ApiProperty({ type: 'integer', example: 2 })
   usuario_id!: number;
 
   @Expose()

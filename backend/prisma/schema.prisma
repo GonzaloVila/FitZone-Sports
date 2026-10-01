@@ -57,6 +57,7 @@ enum EstadoEspera {
   EN_ESPERA
   NOTIFICADO
   CONFIRMADO
+  CANCELADO
 }
 
 enum EstadoPago {
@@ -106,12 +107,12 @@ model EmpleadoSede {
 }
 
 model Socio {
-  id             Int       @id @default(autoincrement())
-  usuario_id     Int       @unique
-  sede_id        Int
-  fecha_alta     DateTime
-  usuario        Usuario      @relation(fields: [usuario_id], references: [id])
-  sede           Sede         @relation(fields: [sede_id], references: [id])
+  id               Int       @id @default(autoincrement())
+  usuario_id       Int       @unique
+  sede_origen_id   Int
+  fecha_alta       DateTime
+  usuario          Usuario      @relation(fields: [usuario_id], references: [id])
+  sede             Sede         @relation(fields: [sede_origen_id], references: [id])
   membresia      Membresia?
   reservas_clase ReservaClase[]
   espera_clase   EsperaClase[]
@@ -215,6 +216,7 @@ model Pago {
   id                  Int        @id @default(autoincrement())
   usuario_id          Int
   idempotencia_key    String        @unique
+  fecha_pago          DateTime      @default(now())
   monto               Decimal
   moneda              String        @default("ARS")
   estado              EstadoPago

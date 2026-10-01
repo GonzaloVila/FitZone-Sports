@@ -4,9 +4,14 @@ import { EstadoMembresia } from '../entities/membresia.entity';
 import { PlanMembresia } from '../entities/socio.entity';
 
 const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];
-const ESTADOS: EstadoMembresia[] = ['ACTIVA', 'VENCIDA', 'SUSPENDIDA'];
 
-export class MembresiaPatchDto {
+// Estados que el endpoint acepta de entrada. VENCIDA queda afuera a propósito: solo
+// lo produce el proceso diario que vence las membresías cuya fecha_fin ya pasó.
+// Aceptarlo por API permitía dejar un VENCIDA con fecha_fin futura, y esa fila la
+// daba por vigente `estaVigente` (m.estado !== 'SUSPENDIDA' && fecha_fin >= ahora).
+const ESTADOS: EstadoMembresia[] = ['ACTIVA', 'SUSPENDIDA'];
+
+export class MembresiaPatch {
   @ApiPropertyOptional({
     enum: PLANES,
     description: 'Cambia el plan y recalcula fecha_fin sobre la fecha actual.',

@@ -2,9 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 
 @Exclude()
-export class SedeOutDto {
+export class SedeOut {
   @Expose()
-  @ApiProperty({ example: 3 })
+  @ApiProperty({ type: 'integer', example: 3 })
   id!: number;
 
   @Expose()
@@ -16,6 +16,6 @@ export class SedeOutDto {
   direccion!: string;
 
   @Expose()
-  @ApiProperty({ example: 120 })
+  @ApiProperty({ type: 'integer', example: 120 })
   aforo_maximo!: number;
 }

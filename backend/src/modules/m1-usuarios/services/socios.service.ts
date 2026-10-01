@@ -1,13 +1,13 @@
 import {
-  ConflictException,
   Inject,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
+import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
-import { CrearSocioDto } from '../dtos/crear-socio.dto';
-import { ModificarSocioDto } from '../dtos/modificar-socio.dto';
-import { SocioOutDto } from '../dtos/socio-out.dto';
+import { SocioIn } from '../dtos/socio-in.dto';
+import { ListarSociosQueryDto } from '../dtos/listar-socios-query.dto';
+import { SocioPatch } from '../dtos/socio-patch.dto';
+import { SocioOut } from '../dtos/socio-out.dto';
 import { Socio, SocioActualizable } from '../entities/socio.entity';
 import { SOCIO_REPOSITORY, SocioRepository } from '../repositories/socio.repository';
 import { USUARIO_REPOSITORY, UsuarioRepository } from '../repositories/usuario.repository';
@@ -19,13 +19,16 @@ export class SociosService {
     @Inject(USUARIO_REPOSITORY) private readonly usuarios: UsuarioRepository,
   ) {}
 
-  async crear(dto: CrearSocioDto): Promise<SocioOutDto> {
+  async crear(dto: SocioIn): Promise<SocioOut> {
     const usuario = await this.usuarios.buscarPorId(dto.usuario_id);
     if (!usuario) {
-      throw new NotFoundException('No existe el usuario indicado.');
+      throw recursoNoEncontrado('No existe el usuario indicado.');
     }
     if (usuario.rol === 'SOCIO') {
-      throw new ConflictException('El usuario ya es socio.');
+      throw conflictoDeDominio(
+        'El usuario ya es socio',
+        `El usuario ${usuario.id} ya tiene un registro de socio.`,
+      );
     }
 
     const socio = await this.socios.crear({
@@ -37,15 +40,28 @@ export class SociosService {
     return this.aOut(socio);
   }
 
-  async obtenerPorId(id: number): Promise<SocioOutDto> {
+  async listar(dto: ListarSociosQueryDto): Promise<SocioOut[]> {
+    const socios = await this.socios.listar(
+      {
+        sede_origen_id: dto.sede_origen_id,
+        estado_membresia: dto.estado_membresia,
+        plan: dto.plan,
+        nombre: dto.nombre,
+      },
+      { page: dto.page ?? 1, perPage: dto.per_page ?? 20 },
+    );
+    return socios.map((socio) => this.aOut(socio));
+  }
+
+  async obtenerPorId(id: number): Promise<SocioOut> {
     const socio = await this.socios.buscarPorId(id);
     if (!socio) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return this.aOut(socio);
   }
 
-  async modificar(id: number, dto: ModificarSocioDto): Promise<SocioOutDto> {
+  async modificar(id: number, dto: SocioPatch): Promise<SocioOut> {
     const cambios: SocioActualizable = {};
     if (dto.sede_origen_id !== undefined) {
       cambios.sede_origen_id = dto.sede_origen_id;
@@ -53,7 +69,7 @@ export class SociosService {
 
     const socio = await this.socios.actualizar(id, cambios);
     if (!socio) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return this.aOut(socio);
   }
@@ -61,12 +77,12 @@ export class SociosService {
   async dejarDeSerSocio(id: number): Promise<void> {
     const socio = await this.socios.buscarPorId(id);
     if (!socio) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     await this.socios.eliminar(id);
   }
 
-  private aOut(socio: Socio): SocioOutDto {
-    return plainToInstance(SocioOutDto, socio);
+  private aOut(socio: Socio): SocioOut {
+    return plainToInstance(SocioOut, socio);
   }
 }

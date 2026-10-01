@@ -1,13 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class ProblemDetailsDto {
+export class Problem {
   @ApiProperty({ format: 'uri', example: 'about:blank' })
   type!: string;
 
   @ApiProperty({ example: 'Recurso no encontrado' })
   title!: string;
 
-  @ApiProperty({ example: 404 })
+  @ApiProperty({ type: 'integer', example: 404 })
   status!: number;
 
   @ApiProperty({ example: 'No existe el recurso solicitado para el id indicado.' })

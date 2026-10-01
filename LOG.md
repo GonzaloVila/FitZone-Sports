@@ -339,6 +339,661 @@ Auditoría de M2 contra el plan de trabajo, el OpenAPI del vault y la arquitectu
 
 ---
 
+## Unidad II — Consistencia de contrato, base de datos y listados · Gonzalo
+
+### Semana 6 · SCRUM-11c — cierre de consistencia de M1/M2 y listados de M1
+
+El contrato del vault, `schema.prisma`, el DBML y la base compartida habían quedado con la nomenclatura de datos en `snake_case` pero la base todavía conservaba nombres cortos en dos columnas. Además el código no había alcanzado dos cosas que el contrato ya declaraba. Esta entrada cierra esa brecha y agrega los listados de M1.
+
+**Respaldo previo:** `pg_dump -Fc` de la Supabase compartida en `_backups/supabase-pre-fase1-20260927-205514.dump` (320,85 KB, 552 entradas, con datos de las 14 tablas), verificado con `pg_restore -l` antes de tocar nada.
+
+#### Actividades
+
+1. **`Socio.sede_id` → `sede_origen_id`**
+   - El dominio y la API ya usaban el nombre largo; la columna era la última capa con el corto. El nombre largo distingue la sede de alta de las sedes a las que el socio accede.
+   - Migración `20260927000000_socio_sede_origen_id`, con su FK. **Aplicada en la Supabase compartida** con `migrate deploy` (nunca `migrate dev`: Prisma 6.19.3 no modela `exq_reserva_turno` ni el índice parcial de RN-01, y los borraría).
+   - [commit e11c9c8](https://github.com/GonzaloVila/FitZone-Sports/commit/e11c9c8)
+
+2. **`Pago.fecha_pago`**
+   - El contrato la declara `required` y no había forma de obtenerla de la fila. `timestamp(3) not null default now`.
+   - Migración `20260927000100_pago_fecha_pago`, **aplicada en la Supabase compartida**.
+   - Las 3 filas de `Pago` que ya existían quedaron con la fecha de la migración, no su fecha real de cobro. Se aceptó así por ser datos de prueba.
+   - [commit e11c9c8](https://github.com/GonzaloVila/FitZone-Sports/commit/e11c9c8)
+
+3. **`SocioOut` expone `nombre` y `email`**
+   - El contrato los marca `required` y el código no los devolvía. Se toman de la relación con `Usuario`, así que toda lectura de `Socio` ahora incluye ese relation, y las que resolvían por unique pasaron a `findUnique` con `include`.
+   - Por esto los testes de M1 verifican el `POST` y el `PATCH`, no solo el `GET`: si el shape cambia, tiene que cambiar en los tres caminos.
+   - [commit e11c9c8](https://github.com/GonzaloVila/FitZone-Sports/commit/e11c9c8)
+
+4. **Parámetros fantasma en el Swagger generado**
+   - Al renombrar las rutas y los `@Param` a `snake_case`, los `@ApiParam` manuales quedaron con el nombre viejo. Como `@nestjs/swagger` **introspecta los `@Param` en runtime** (no hace falta el plugin de la CLI), cada operación documentaba un parámetro extra inexistente: `POST /ingresos/{ingreso_id}/egreso` declaraba `ingreso_id` **y** `ingresoId`. Un cliente generado pedía el parámetro que no existe.
+   - En `GET /usuarios/{id}` no se veía porque ambos nombres coinciden y colapsan en uno, que es exactamente por lo que el bug pasó inadvertido.
+   - **Verificado empíricamente**: se generó el documento con `SwaggerModule.createDocument` y se comparó operación por operación contra el YAML del vault. Las **17 operaciones de M1/M2 coinciden en path, `operationId` y path params**. Las 29 restantes son módulos todavía no implementados.
+   - [commit e11c9c8](https://github.com/GonzaloVila/FitZone-Sports/commit/e11c9c8)
+
+5. **DBML alineado con el `schema.prisma`**
+   - Las columnas `String` son `text` en la base, no `varchar(N)`. Se sacó el ancho que estaba inventado en el DBML y se documentó que la validación de longitud vive en los DTOs.
+   - Los 9 enums nativos de Postgres se documentan como `varchar` con sus valores permitidos en comentario, porque dbdiagram no soporta enums. Inventario verificado: 34 `int`, 15 `text`, 11 `timestamp`, 9 `varchar`, 3 `decimal`, 2 `boolean` = 74 columnas, y las 20 referencias resuelven contra la base real.
+   - [commit e11c9c8](https://github.com/GonzaloVila/FitZone-Sports/commit/e11c9c8)
+
+6. **`GET /socios` y `GET /usuarios` con filtros y paginación**
+   - Lo que el contrato ya declaraba y faltaba implementar. Filtros de socios: `sede_origen_id`, `estado_membresia`, `plan`, `nombre`. De usuarios: `rol`, `nombre`, `email`.
+   - Los dos filtros de membresía se acumulan en el mismo objeto para que Prisma los ANDee sobre la relación. Como `membresia` es opcional en el schema, filtrar por membresía **excluye** a los socios que no tienen ninguna: es la semántica correcta y queda documentado en el código para que no se lea como un olvido.
+   - `OpcionesPaginacion` se muda de `sede.repository.ts` a `commons/paginacion.ts` porque lo comparten los repos de M1 y M2.
+   - [commit 09696e4](https://github.com/GonzaloVila/FitZone-Sports/commit/09696e4)
+
+#### Verificación
+
+- `tsc --noEmit`, `npm run build` y e2e en verde sobre el estado final (`14/14`). El commit de consistencia se verificó **aislado**, con `git stash --keep-index`, y da `12/12`: los 2 tests que faltan son los del listados, que van en el commit siguiente.
+- Contrato: 46 endpoints, 46 `operationId` únicos, 225 `$ref` resueltos, 39 schemas, 127 propiedades, 0 nombres en camelCase.
+- Base compartida después del deploy: 14 tablas y 74 columnas idénticas al `schema.prisma` en nombre, tipo y nullability; 20 FKs intactas; `exq_reserva_turno` e `ingreso_usuario_abierto_unq` preservados; 39 filas antes y después, sin pérdida.
+
+#### Pendientes que siguen abiertos
+
+1. **`GET /ingresos` y `GET /ingresos/{ingreso_id}`**: el contrato los declara y M2 no los implementó. Es el único faltante de M2.
+2. **Rama `desarrollo-m3`**: quedó con `Socio.sede_id` en su `schema.prisma` y sin las dos migraciones nuevas. Si alguien corre `prisma migrate dev` desde ahí, Prisma va a querer **borrar `Pago.fecha_pago`** y **revertir `sede_origen_id`**, deshaciendo esto en la base compartida. Hay que avisar al equipo y traer los cambios de main.
+3. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml`, en el vault). Es la fuente de verdad de la API y no está versionado: nadie lo recibe con un `git pull`. Decisión pendiente de Gonzalo, no se tocó en esta entrada.
+4. **Convención de integración**: el propio `LOG.md` dice que entra por PR a `main` con revisión de ≥1 integrante, pero estos dos commits se pushearon directo a `main` por indicación de Gonzalo.
+5. **Auditorías de M1 y M2**: siguen sin hacer, son el siguiente bloque de trabajo.
+
+---
+
+## Unidad II — Módulo 3: Clases Grupales (RF-06..RF-08) · Santiago Rayn + Gonzalo Vila (Pair Programming)
+
+### Semana 6 · SCRUM-11c — Implementación completa de M3 (agenda, reservas y lista de espera)
+
+**Fecha:** 26/09/2026 · **Rama:** `desarrollo-m3`
+
+#### Actividades
+
+1. **RF-06 — Gestión de agenda:** Endpoints `POST /clases`, `GET /clases` y `GET /clases/:id`. DTOs con `horario` ISO-8601 UTC, validación de sede vía `SEDE_VALIDATION_PORT` y cálculo dinámico de aforo disponible en `PrismaClaseRepository`.
+2. **RF-07 — Reservas y cancelación:** Transacción atómica en `PrismaReservaClaseRepository` con lock pesimista (`SELECT ... FOR UPDATE`) sobre la clase e índice parcial único `unq_reserva_clase_socio_activa`. Validaciones de regla de negocio en `ReservasClasesService`: ventana de reserva (48 hs antes), cancelación sin penalidad (2 hs antes) y control de mora vía extensión de `MembershipValidationPort` (403 `socio-en-mora`).
+3. **RF-08 — Lista de espera y Observer:** Patrón GoF (`CupoLiberadoSubject` y `NotificarSociosEsperaObserver`) disparado al cancelar una reserva. Enlistado solo en clases llenas, baja lógica a `CANCELADO` (enum `EstadoEspera` ampliado) y confirmación first-come atómica en `POST /esperas-clases/:id/confirmacion`.
+4. **Integración y QA:** `ClasesModule` registrado en `AppModule` con Swagger en `main.ts`, casos de uso documentados en `docs/UserCaseDiagrams/Modulo3_Clases_CasosDeUso.md` y suite e2e en `test/m3.e2e-spec.ts` (incluye prueba de estrés concurrente con `Promise.all`: 1 éxito, 9 rechazos 409). Build y tipado en verde (`npm run build`).
+
+#### Decisiones tomadas
+
+1. **Lock Pesimista sobre Optimistic Locking:** `SELECT ... FOR UPDATE` sobre la fila de `Clase` garantiza serialización sin sobreventa ni loops de reintento.
+2. **`horario` como ISO-8601 UTC string:** Estandarizado a `YYYY-MM-DDTHH:mm:ssZ` (20 caracteres) para mantener compatibilidad con la columna de base de datos.
+3. **Baja lógica en lista de espera:** Se agrega `CANCELADO` a `EstadoEspera` en Prisma para permitir salir de la espera preservando auditoría.
+
+---
+
+## Unidad II — Consistencia del contrato de errores y cierre de M3 · Gonzalo Vila
+
+### Semana 6 · SCRUM-11c — Errores 4xx en español y listados paginados de M3
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **Detalles 4xx en español (`fix(commons)`):** los 400 de `ParseIntPipe` y body-parser, y el 404 de ruta inexistente, llegaban con el detalle crudo del framework — en inglés, y en el 404 solo se repetía el path que ya viaja en `instance`. Se agrega `CLIENT_DETAILS` (detalle fijo por status) y `resolveDetail()`, que sustituye el detalle de todo 4xx y deja el original en `logger.debug` para diagnóstico servidor. Los 5xx conservan el detalle. El flujo de `ProblemException` y el 422 del `ValidationPipe` no cambian. **Corregido después:** este commit sustituía también el detalle de los errores de dominio, no solo del framework. Ver la entrada de la auditoría de M1.
+2. **Listados paginados de M3 (`feat(m3)`):** el contrato declaraba cuatro endpoints que faltaban: `GET /clases/{clase_id}/reservas`, `GET /reservas-clases`, `GET /clases/{clase_id}/espera` y `GET /esperas-clases`. DTOs de query con lista blanca de filtros y paginación, orden estable (fecha desc + id desc) y 404 por clase inexistente también en los listados. `GET /clases` pierde el filtro `fecha`, que no estaba en el contrato.
+3. **Contrato e2e de 4xx (`test(e2e)`):** 7 casos nuevos en `test/errores-4xx.e2e-spec.ts` que fijan el comportamiento transversal de los errores del framework: JSON mal formado, path param no numérico, ruta inexistente, método no soportado y DTO inválido, todos en `application/problem+json`.
+4. **Alineación del vault:** `TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md` quedan alineados con el comportamiento real. El contrato corregía decisiones previas: las ventanas temporales de 48 h y 2 h devuelven 409 (no 422) porque son conflictos con el estado del recurso; `confirmarEspera` devuelve 204 sin cuerpo; `crearClase` declara su 409; los nueve endpoints de M1 declaran su 400. Se agregan los componentes `SocioEnMora`, `ConflictoReservaClase`, `ClaseFueraDeHorario` y `VentanaCancelacionCerrada`, se elimina `CupoCompleto` y se corrige `ClaseOut`, que declaraba `cupos_disponibles` cuando el DTO expone `cupo_disponible` y `reservas_confirmadas`.
+
+#### Decisiones tomadas
+
+1. ~~**Los 4xx del framework se sustituyen, no se traducen:** en `src/` no hay ningún `throw new` de Nest, todo el código propio tira `ProblemException` y corta antes en `toProblemBody()`.~~ **Esta premisa era falsa** y la decisión quedó anulada. En `src/` hay 33 `throw new` de Nest (14 de M1, 3 de M2, 16 de M3), así que `resolveDetail()` estaba borrando el mensaje de los 404 y 409 de dominio: un 404 respondía *"La ruta solicitada no existe"* con la ruta existiendo, y los 409 perdían el motivo del conflicto. La premisa correcta es la inversa: **todo 4xx de dominio debe lanzarse como `ProblemException`** y cortar antes en `toProblemBody()`; lo que llega a `resolveDetail()` es framework. Corregido en la entrada de la auditoría de M1.
+2. **No se implementa 405:** Express 5 no lo distingue de forma nativa y el vault no lo declara en ninguna operación. Se acepta 404 tanto para ruta inexistente como para método no soportado; agregar 405 exigiría un middleware global con el costo que no se justifica para este alcance.
+3. **422 declarado donde el ValidationPipe lo produce:** `crearReservaClase` y `anotarseEnEspera` reciben DTO con `ParseIntPipe` + `ValidationPipe`, que producen 422 en runtime. El contrato lo declaraba solo en algunos endpoints; se completa.
+4. **Los commits van en tres, no en uno:** el filtro de errores es transversal (toca toda la API) y su prueba e2e cruza M1 y M3, mientras que los listados son de M3. Mezclarlos habría dejado el cambio transversal clasificado como trabajo de un módulo. El `ApiBadRequestResponse` de `clases.controller.ts` quedó en el commit de M3 completo: partir un archivo de 9 líneas no compensaba y se documenta acá su origen transversal.
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **38/38 en 4 specs** (31 de M3 + 7 de 4xx).
+- Contraste entre el código y el vault: **31/31 operaciones coinciden en ruta, verbo y status codes**; 0 divergencias. Los 9 schemas `*Out` coinciden campo por campo; 0 referencias `$ref` rotas y 0 componentes huérfanos.
+- `ClaseOut` corregido: `required` pasa a los 8 campos reales y el ejemplo cuadra (18 − 5 = 13).
+- El YAML se editó quirúrgicamente: los 23 comentarios se preservan y el encoding no cambia (vault en CRLF, Plan M3 en LF). Backups `pre-fase2.bak` y `pre-fase3.bak` de ambos archivos.
+
+#### Commits
+
+- [cf97644](https://github.com/GonzaloVila/FitZone-Sports/commit/cf97644) — `fix(commons)`: detalles 4xx en español.
+- [1b70444](https://github.com/GonzaloVila/FitZone-Sports/commit/1b70444) — `feat(m3)`: cuatro listados paginados.
+- [4f6e7a2](https://github.com/GonzaloVila/FitZone-Sports/commit/4f6e7a2) — `test(e2e)`: contrato de errores 4xx.
+
+#### Pendientes que siguen abiertos
+
+1. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado: nadie lo recibe con un `git pull`. Esta entrada deja registrada la enmienda de los 409 y del `ClaseOut`, pero un `git pull` no la reproduce. Sigue siendo decisión pendiente de Gonzalo.
+2. **Auditorías de M1, M2 y M3:** sin hacer. El contrato y el código ya están alineados, así que se pueden arrancar.
+
+---
+
+## Unidad II — Módulo 3: respuesta de la confirmación de espera · Gonzalo Vila
+
+### Semana 7 · SCRUM-11c — `confirmarEspera` pasa de 204 a 201
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **`POST /esperas-clases/{espera_id}/confirmaciones` pasa de 204 a 201:** la confirmación creaba la `ReservaClase` correcta pero descartaba su id, así que el socio no tenía forma de referenciar la reserva creada sin barrer `GET /reservas-clases` y cruzar la respuesta con la clase. Ahora responde 201 con el `ReservaClaseOutDto` completo y el header `Location`.
+2. **El id se perdía en el service, no en la base:** `PrismaEsperaClaseRepository.confirmarEsperaConLock` ya devolvía `{ ok: true, reserva: { id, clase_id, socio_id, estado } }`, la forma exacta del DTO. Lo que lo descartaba era la firma `Promise<void>` de `EsperasClasesService.confirmarEspera`, que se agregó una línea `plainToInstance(ReservaClaseOutDto, resultado.reserva)`. El repositorio no necesitó cambios.
+3. **Unificación con la convención de creación:** el endpoint replica el patrón de los otros siete que crean recursos — `@ApiCreatedResponse` con `type`, `@Res({ passthrough: true })` y `res.setHeader('Location', ...)`. Se saca el `@HttpCode(NO_CONTENT)` explícito porque el default de `@Post` ya es 201.
+4. **Contrato actualizado:** el vault pasa a declarar `"201"` con `content: application/json` referenciando `ReservaClaseOut` y el header `Location`, y se reescribe el párrafo de la `description` que describía el 204 sin cuerpo. El `Plan de Trabajo M3` se corrige en la lista de endpoints, en el paso 11 del service y en el paso 12 del controller.
+
+#### Decisiones tomadas
+
+1. **201 con el DTO completo en vez de un DTO mínimo:** se reutiliza `ReservaClaseOutDto` / `ReservaClaseOut` en vez de inventar un schema con solo `reserva_id` y `clase_id`. Los cuatro campos ya existen en el vault y en el DTO, y responder lo mismo que `crearReservaClase` evita que el cliente tenga dos formatos para leer una reserva.
+2. **`Location` apunta a `/api/v1/reservas-clases/{id}`:** ese endpoint ya existe (`obtenerReservaClase`), así que la URL es resoluble y sirve para el `GET` de seguimiento sin cambiar la ruta de la reserva.
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **38/38 en 4 specs**.
+- El caso de first-come pasa a exigir 201 y agrega aserciones de body (`estado`, `clase_id`, `socio_id`, `id`) y del header `Location`. Se suma la comprobación de que el `id` devuelto en el body es el mismo que quedó persistido en `reservaClase`, que es exactamente el bug que se estaba corrigiendo. Los otros tres `expect(204)` del spec (cancelación ×2 y `salirDeEspera`) no se tocan porque siguen siendo 204 legítimos.
+- Vault: YAML parsea, la operación expone 201/404/409, el `$ref` apunta a `ReservaClaseOut` (`required: [id, clase_id, socio_id, estado]`), 243 `$ref` totales con 0 rotas y 0 schemas huérfanos. Backups `pre-fase4.bak` de vault y Plan.
+- Contraste contra el Swagger que generan los decoradores: 201/404/409, header `Location`, `content: application/json` y `$ref: ReservaClaseOutDto`, idéntico a lo que declara el vault.
+
+#### Commits
+
+- `fix(m3): confirmarEspera devuelve 201 con la reserva creada` — este mismo commit. A diferencia de las entradas anteriores, acá el código y esta bitácora van en un solo commit, así que no se cita hash: un commit no puede contener el suyo propio. Para el detalle de qué cambió, ver el `#### Actividades` de arriba y el `git show` del commit.
+
+#### Pendientes que siguen abiertos
+
+1. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado: nadie lo recibe con un `git pull`. Esta entrada deja registrada la enmienda de los 409, del `ClaseOut` y del 201, pero un `git pull` no la reproduce. Sigue siendo decisión pendiente de Gonzalo.
+2. **Auditorías de M1, M2 y M3:** sin hacer. El contrato y el código ya están alineados, así que se pueden arrancar.
+
+---
+
+## Unidad II — Auditoría del módulo 1 · Gonzalo Vila
+
+### Semana 7 · SCRUM-11d — M1 contra el contrato: errores de dominio, `UsuarioOut` y validaciones
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El filtro borraba el mensaje de los errores de dominio (crítico).** `cf97644` hizo que `resolveDetail()` sustituyera el `detail` de todo 4xx, y su justificación —"en `src/` no hay ningún `throw new` de Nest"— era falsa: hay 33. Los 30 de 404 volvían con *"La ruta solicitada no existe o el recurso no fue encontrado."* cuando la ruta existía, y los 3 de 409 perdían el motivo con *"La solicitud no pudo procesarse."*. La suite no lo detectaba porque ningún spec assertaba el body de un 404 o 409 de dominio: solo el status.
+2. **`resolveDetail()` pasa a fail-safe.** Sustituye solo las cinco formas que puede producir el framework (ruta o método inexistente, `ParseIntPipe` y las tres variantes del body-parser de Node). Cualquier otro 4xx conserva su `detail` y emite un `logger.warn` con método, ruta y mensaje, de modo que un `NotFoundException` de dominio que se cuele a futuro avisa en lugar de perder el mensaje en silencio. El default es preservar, no sustituir.
+3. **Las 33 excepciones se migran a `ProblemException`,** en tres commits por módulo. Los 30 `NotFoundException` pasan por `recursoNoEncontrado()` conservando el texto; los 3 `ConflictException` por `conflictoDeDominio()`. `GENERIC_TYPE` y `TITLES` se mueven a `problem.exception.ts` para que el filtro y los helpers no dupliquen las constantes.
+4. **Los 409 de M1 pierden el `title` genérico.** El filtro devolvía `"Conflicto"` para los tres; el contrato declara tres distintos en `Conflict`, `SocioExistente` y `MembresiaExistente`. Pasan a ser `"Conflicto de unicidad"`, `"El usuario ya es socio"` y `"Conflicto de membresía existente"`.
+5. **Los `detail` de los 409 se alinean al vault, no al revés,** por decisión de Gonzalo. El de dni o email ahora distingue el campo, comparando `existente.dni` contra el dni recibido; `buscarPorDniOEmail` ya devuelve la entidad completa, así que no hizo falta tocar la query. El de socio lleva el id del usuario. El de membresía pasa a *"El socio ya tiene una membresía activa."*
+6. **`instance` se completa en las respuestas de `ProblemException`.** `toProblemBody()` las devolvía sin el path, y el contrato lo declara opcional en `components.schemas.Problem`, así que no era violación; pero dejaba a las 20 `ProblemException` de M2 y M3 como las únicas respuestas de la API sin `instance`.
+7. **Nuevo `test/errores-dominio.e2e-spec.ts`** con 10 casos que assertan `type`, `title`, `status`, `detail` e `instance` de 6 de 404 (M1, M2 y M3) y de los 4 de 409 de M1, incluidas las dos ramas de dni y email. Se escribió **antes** de la migración y falló 4 de 10: los 6 de 404 ya pasaban con el fail-safe y los 4 de 409 seguían cayendo en el `title` colapsado. Ese reparto es la evidencia de que el spec cubre el bug.
+8. **`UsuarioOut` tenía el `required` mal en los dos lados, en direcciones opuestas.** El vault no declaraba `required` (cero campos obligatorios) y el decorador marcaba los 7. Prisma es la fuente de la verdad: `id`, `rol`, `dni`, `nombre` y `email` son `String`/`Int` sin `?`; `telefono` y `foto_url` son `String?`. El vault pasa a `required: [id, rol, dni, nombre, email]` y los dos opcionales reciben `required: false`.
+9. **Seis campos nullable salían con `type: object` en el Swagger.** El plugin no infiere una unión con `null` y cae al default: `telefono` y `foto_url` en `UsuarioOutDto` y `ModificarUsuarioDto`, y `fecha_notificacion` y `fecha_confirmacion` en `EsperaOutDto`. Es **preexistente** y hacía que el Swagger generado no coincidiera con el vault. Se declara `type` explícito.
+10. **Cinco restricciones que el código aplicaba y no declaraba,** ahora visibles en el contrato: `dni.pattern`, `email.maxLength: 254`, `minimum: 1` en `usuario_id` y `sede_origen_id`, y `format: email` en el email de los dos `*Out`. La revisión inicial, que reportaba siete ausencias, exageraba: `contrasenia`, `nombre`, `telefono`, `rol`, `plan` y los límites de `page`/`per_page` ya coincidían.
+11. **`UsuarioPatch` no aceptaba el `null` que el contrato promete.** `telefono` y `foto_url` se declaran `nullable: true` en el vault pero el tipo era `string | undefined`. Pasaron a `string | null`. El test nuevo manda `null`, verifica que el PATCH responde `null` y que el `GET` siguiente lo confirma en la base, o sea que llega a Prisma: `modificar()` compara con `!== undefined` y no con falsy, así que no había defecto de lógica, solo de tipos.
+12. **El vault tenía `format: date` donde la API devuelve timestamp.** `SocioOut.fecha_alta`, `MembresiaOut.fecha_inicio` y `MembresiaOut.fecha_fin` estaban como `date`; Prisma serializa `DateTime` a ISO completo, verificado contra la base (`2026-05-30T01:53:51.988Z`). Corregidos a `date-time`. El código ya decía `date-time`.
+
+#### Decisiones tomadas
+
+1. **Migrar a `ProblemException` en vez de revertir el filtro.** El código ya estaba a mitad de migración: 20 casos con URIs `https://fitzone.app/errores/...` en M2 y M3. Revertir `resolveDetail()` devolvía los 33 mensajes pero dejaba el 400 de JSON mal formado en inglés otra vez. La alternativa de distinguir por la forma del mensaje era frágil. Migrar hace verdadera la premisa y deja cada error de dominio con su `type` documentable.
+2. **El fail-safe va más allá de la migración:** sustituir solo lo reconocido y avisar con `warn` ante lo desconocido. Cubre el error de hoy y además evita que se repita en silencio.
+3. **Los `detail` de los 409 los manda el vault, no el código,** por decisión explícita de Gonzalo. Se invierte el criterio que se había usado en las fases anteriores y por eso cambian tres mensajes que el consumidor ve.
+4. **Los 30 `detail` de 404 conservan su texto específico** ("No existe la sede indicada.", "No existe la clase indicada.") en vez de unificarlos al del componente `NotFound`. El vault tiene un solo componente con un example representativo y el `detail` es texto libre, así que no había conflicto real; aplanarlos perdería información.
+5. **El filtro fail-safe con `warn` se acepta como red de seguridad permanente,** no como deuda a pagar después.
+6. **Se corrige el `LOG.md` de la entrada anterior en el lugar,** sin reescribir historia: la decisión anulada queda tachada con la premisa falsa explícita y el enlace a esta entrada.
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **49/49 en 5 specs** (antes 38/38 en 4). El spec nuevo se ejecutó primero contra el código sin migrar y falló 4 de 10, que es la prueba de que cubre el defecto.
+- Contraste automático entre el Swagger que generan los decoradores y el vault, sobre los 9 schemas de M1: **0 divergencias de `required` y 0 de restricciones.** El `required` de `UsuarioOut` pasó de 7 a 5, el que declara Prisma.
+- `type: object` restantes en los 21 schemas del documento generado: **ninguno** (eran 6).
+- Vault: YAML parsea, 243 `$ref` con 0 rotas, 0 schemas huérfanos, 30 paths y 47 operaciones sin cambios. Encoding preservado (CRLF, sin BOM). Backup `pre-m1.bak`.
+- Un defecto del spec nuevo lo detectó la suite: creaba un Socio que no registraba para la limpieza, y el borrado del Usuario fallaba por la FK `Socio_usuario_id_fkey`. Corregido.
+- **Fragilidad latente corregida:** `m1.e2e-spec.ts` listaba `/usuarios` con el `per_page` por defecto de 20 y buscaba su fixture en esa página. Con otra suite agregando usuarios en paralelo —y vitest corre los archivos concurrentemente contra la misma base— el fixture se caía de la página. Pasa a pedir `per_page=100`. No lo había detectado ninguna corrida anterior; el spec nuevo lo expuso.
+
+#### Commits
+
+- [ab99e7b](https://github.com/GonzaloVila/FitZone-Sports/commit/ab99e7b) — `fix(commons)`: `resolveDetail` pasa a fail-safe y distingue dominio de framework.
+- [22450d3](https://github.com/GonzaloVila/FitZone-Sports/commit/22450d3) — `fix(commons)`: completa `instance` en las respuestas `ProblemException`.
+- [2949850](https://github.com/GonzaloVila/FitZone-Sports/commit/2949850) — `fix(m1)`: migra las 14 excepciones de M1.
+- [792d9eb](https://github.com/GonzaloVila/FitZone-Sports/commit/792d9eb) — `fix(m2)`: migra las 3 excepciones de `IngresosService`.
+- [14bddfa](https://github.com/GonzaloVila/FitZone-Sports/commit/14bddfa) — `fix(m3)`: migra las 16 excepciones de M3.
+- [e702aa3](https://github.com/GonzaloVila/FitZone-Sports/commit/e702aa3) — `test(e2e)`: fija el `detail` y el `title` de los 404 y 409 de dominio.
+- [44a4772](https://github.com/GonzaloVila/FitZone-Sports/commit/44a4772) — `fix(m1)`: alinea el Swagger generado con el contrato en `UsuarioOut` y las validaciones.
+- [b99a3ea](https://github.com/GonzaloVila/FitZone-Sports/commit/b99a3ea) — `fix(m3)`: declara `type` en las fechas nullable de `EsperaOutDto`.
+- `docs(log)`: corrección de la premisa anulada y esta entrada — este mismo commit.
+
+#### Pendientes que siguen abiertos
+
+1. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado: nadie lo recibe con un `git pull`. Esta entrada deja registrada la enmienda de `UsuarioOut`, de las validaciones y de los `format: date-time`, pero un `git pull` no la reproduce. Sigue siendo decisión pendiente de Gonzalo.
+2. **`number` contra `integer` en 36 campos numéricos.** El vault declara `type: integer` y el Swagger generado dice `type: number`: 8 en M1, 11 en M2, 17 en M3. En JSON no hay diferencia, pero un generador de clientes puede elegir `int` o `number`. La corrección correcta es declarar `type: integer` en los decoradores, y son 36 campos en tres módulos — **no se hizo porque el alcance de esta auditoría era M1 y M2/M3 no están auditados.** Queda como decisión.
+3. **Sin validar: `foto_url` no se valida como URL.** Ni el código ni el contrato lo hacen: solo `@IsString()`. Por decisión de Gonzalo no se agrega `@IsUrl()`, porque rechazaría payloads que hoy pasan, así que la limitación queda documentada y no corregida.
+4. **Auditorías de M2 y M3:** sin hacer. El mismo diff automático que se usó acá está listo para correrlas: expone 36 divergencias de tipo más las de restricciones que reportó el contraste de M1, incluyendo `Problem.errors` —el array de errores de validación del 422— que el código expone y el vault no declara.
+### Semana 7 · SCRUM-11e — Cierre de M1: `type: integer` en los ocho campos numéricos
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El vault declara `type: integer` y el Swagger generado decía `type: number`** en los ocho campos numéricos de M1. La causa es que los ocho `@ApiProperty` no declaraban `type`, así que el plugin del `@nestjs/swagger` caía a su default `number` para un `number` de TypeScript. Se agrega `type: 'integer'` a los ocho. Con esto la auditoría de M1 queda en **0 divergencias de `required`, 0 de restricciones y 0 de tipo** sobre sus nueve schemas.
+2. **Los ocho campos, en cinco archivos:** `UsuarioOut.id`; `SocioOut.id`, `.usuario_id` y `.sede_origen_id`; `MembresiaOut.id`; `SocioIn.usuario_id` y `.sede_origen_id`; y `SocioPatch.sede_origen_id`. Los dos de `SocioIn` y el de `SocioPatch` ya tenían `@IsInt()` y `@Min(1)`; a los `*Out` no se les agrega validación porque son de salida y no los recorre el `ValidationPipe`.
+3. **No se modificó el vault.** En los ocho casos el vault ya decía `integer`: el que estaba mal era el código.
+4. **Sin efecto en runtime.** Es anotación de OpenAPI: en JSON `1` es indistinguible de `1` con o sin `integer`. El único efecto observable es en clientes generados, que pasan a mapear esos campos como `int` en vez de `number`, que es lo que el contrato dice.
+
+#### Decisiones tomadas
+
+1. **Sólo los ocho de M1, no los treinta y cinco del proyecto.** La misma divergencia aparece en 11 campos de M2 y 16 de M3, y el arreglo es idéntico. Se acotó a M1 por decisión de Gonzalo porque M2 y M3 no están auditados: mezclarlos en un commit `fix(m1)` sin haber pasado el resto de la superficie de esos módulos por el contraste automático sería afirmarlos alineados cuando no lo están.
+2. **El vault manda en la dirección de siempre.** En los casos anteriores la acción fue enmendar el vault; acá no hizo falta porque ya era el correcto.
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **49/49 en 5 specs**, idéntico a antes — la suite no lo exercise porque el cambio no altera runtime, y esa es justamente la razón de no haberlo tomado como señal.
+- Contraste automático sobre los nueve schemas de M1: **0 de `required`, 0 de restricciones, 0 de tipo.** Antes de este commit eran 0, 0 y 8.
+- `git diff` revisado a mano: cinco archivos, ocho inserciones y seis eliminaciones, todas las líneas tocadas con `type: 'integer'`. Ningún `@ApiProperty` perdió su `example`, `description` o `minimum`, y `SocioPatch.required` sigue sin incluir `sede_origen_id` porque declarar `type` en un `@ApiPropertyOptional` no lo vuelve obligatorio.
+
+#### Commits
+
+- `fix(m1): declara type integer en los ocho campos numéricos de los DTO de M1` — este mismo commit.
+
+#### Pendientes que siguen abiertos
+
+1. **`number` contra `integer` en 27 campos de M2 y M3, más `Problem.status`.** Once en M2 (`IngresoIn.sede_id`, `IngresoIn.usuario_id`, `IngresoOut.id`, `.sede_id`, `.usuario_id`, `SedeOut.id`, `SedeOut.aforo_maximo`, `AforoOut.aforo_actual`, `AforoOut.aforo_maximo`, `AforoOut.restante`, `SedeIn.aforo_maximo`) y dieciséis en M3 (`ClaseIn.sede_id`, `ClaseIn.capacidad`, `ClaseOut.id`, `.sede_id`, `.capacidad`, `.reservas_confirmadas`, `.cupo_disponible`, `EsperaIn.socio_id`, `EsperaOut.id`, `.clase_id`, `.socio_id`, `ReservaClaseIn.clase_id`, `.socio_id`, `ReservaClaseOut.id`, `.clase_id`, `.socio_id`). Con `Problem.status` son 28 en total; el proyecto tenía 36 antes de esta entrada, de los cuales 8 eran de M1. Mismo arreglo de una línea por campo, a resolver en las auditorías de M2 y M3.
+2. **Ocho restricciones que el vault declara y el código no.** Seis de M2: `SedeIn.nombre` con `minLength: 1` y `maxLength: 100`, `SedeIn.direccion` con `minLength: 1` y `maxLength: 200`, `SedeIn.aforo_maximo` con `minimum: 1`, y `IngresoIn.fecha_hora_ingreso` con `format: date-time`. Dos de M3: `ClaseIn.horario` y `ClaseOut.horario` con `format: date-time`. **No son metadata: son validadores ausentes**, así que a diferencia del punto 1 hay que decidir si el backend debe validar lo que el contrato ya promete o si el vault sobre-declara. Se difieren a las auditorías de M2 y M3.
+3. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
+4. **Sin validar: `foto_url` no se valida como URL.** Ni el código ni el contrato lo hacen: sólo `@IsString()`. Por decisión de Gonzalo no se agrega `@IsUrl()`, porque rechazaría payloads que hoy pasan.
+### Semana 7 · SCRUM-11f — Capa de operaciones de M1: parámetros, `Problem.errors` y `Problem.status`
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El contraste anterior estaba incompleto, y el `LOG.md` de la entrada previa lo daba por cerrado.** Los comparadores usados hasta acá miraban los nueve schemas de M1: `required`, restricciones y tipo. Nunca compararon la capa de operaciones — verbos, status codes, parámetros, cuerpos y cuerpos de respuesta — que es donde el documento declara la mayor parte de su información. Al medirla aparecieron cuatro causas raíz que ya estaban en el código desde antes de la auditoría. Queda anotado acá porque el número "0/0/0" de la entrada SCRUM-11e era cierto sólo para los schemas, y la frase con la que se cerró sonaba más amplia de lo que era.
+2. **`Problem.errors` no estaba en el contrato.** El backend lo emite desde siempre: `problem.filter.ts:129` toma `response.message` del `ValidationPipe` y lo pasa tal cual en el `errors` del 422, y `ProblemDetailsDto` ya lo declaraba como `type: [String]` con la descripción *"Solo en errores de validación (422): lista de reglas incumplidas."* El vault, en cambio, no lo tenía. **Se corrige el vault, no el código:** RFC 9457 admite miembros de extensión, el valor es real y el swagger ya lo declaraba. Se agrega `errors` a `components.schemas.Problem` fuera de `required`, y se suma al example de `components.responses.ValidationError`, que es la única respuesta donde efectivamente aparece. Con esto quedan documentadas de una vez las 51 referencias a `Problem` del documento.
+3. **`Problem.status` decía `number` en el código y `integer` en el vault.** Se agrega `type: 'integer'` en `problem-details.dto.ts`. Es un archivo de `commons` y afecta a los tres módulos, pero se incluye acá porque es el mismo `Problem` que ya se estaba enmendando en el punto 2, y dejar la mitad sin corregir obligaría a volver.
+4. **Los 14 parámetros de M1.** Ocho `@ApiParam` con `type: Number` —el constructor de JavaScript, que el plugin traduce a `type: number`— pasan a `type: 'integer'`: dos de `id` en `usuarios.controller.ts` y seis de `socio_id` repartidos en `socios.controller.ts` (3) y `membresias.controller.ts` (3). Y seis campos de los query DTO: `page` y `per_page` de `ListarUsuariosQueryDto`, `sede_origen_id`, `page` y `per_page` de `ListarSociosQueryDto` reciben `type: 'integer'`, y el filtro `email` de `ListarUsuariosQueryDto` recibe `format: 'email'`.
+5. **El backend ya validaba lo que el contrato pedía; faltaba el metadato.** Es lo relevante del punto 4: `email` ya tenía `@IsEmail()`, y `page`, `per_page` y `sede_origen_id` ya tenían `@IsInt()`. La validación nunca estuvo ausente — lo que faltaba era que el Swagger lo dijera, así que un cliente generado no podía enterarse de que `page=1.5` se rechaza. Por eso los quince cambios son metadato puro y ninguno toca un validador.
+6. **`additionalProperties: false` en los seis request bodies de M1 se acepta como limitación del generador.** El vault lo declara y el Swagger generado no. Ojo con el diagnóstico: acá el código **no** está mintiendo. `main.ts:15-18` configura el `ValidationPipe` con `whitelist: true` y `forbidNonWhitelisted: true`, o sea que los campos desconocidos se rechazan de verdad; lo que no se refleja es en el documento. Decisión de Gonzalo: dejarlo así y documentarlo, en vez de escribir un decorador propio por DTO para una propiedad que `@nestjs/swagger` no expone de forma nativa.
+7. **Dos falsos positivos que costaron una revisión de más.** El `required` de `SocioOut` aparece en el código como `[id, usuario_id, nombre, email, sede_origen_id, fecha_alta]` y en el vault como `[id, usuario_id, sede_origen_id, fecha_alta, nombre, email]`. Es el mismo conjunto de seis: en OpenAPI 3 `required` es un array sin orden, así que se normaliza por conjunto antes de comparar. Y el orden de las claves en el JSON serializado (`properties` antes o después de `required`) no es una diferencia. Sin esas dos normalizaciones el comparador reporta 67 divergencias donde hay cero.
+
+#### Decisiones tomadas
+
+1. **M1 solamente en los parámetros**, por decisión de Gonzalo: se está auditando módulo por módulo y M2 y M3 todavía no pasaron por el contraste. Por lo mismo, el arreglo de los `@ApiParam` y query DTO de los otros módulos queda para sus auditorías.
+2. **`Problem.errors` se documenta en el contrato en lugar de quitarse del código.** El backend lo devuelve, el DTO ya lo describía y RFC 9457 lo permite; la alternativa habría sido perder información que el cliente recibe hoy.
+3. **`Problem.status` entra aunque sea `commons`.** Se hace la excepción a la regla de no tocar fuera de M1 porque compartir el mismo schema hacia medias correcciones sería peor que la regla.
+4. **`additionalProperties: false` no se implementa.** Limitación del generador aceptada y documentada, no deuda a pagar después.
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **49/49 en 5 specs**, idéntico a las tres entradas anteriores — otra vez la suite no lo exercise porque no hay cambio de runtime.
+- Comparador de operaciones sobre las doce de M1, con `$ref` resueltos, claves ordenadas y `required` normalizado por conjunto: **0 divergencias reales.** Antes de este commit eran 14 de parámetros, 30 de `Problem.status`, 30 de `Problem.errors` y 4 por orden de `required`.
+- Comparador de schemas sobre los nueve de M1: sigue en **0 de `required`, 0 de restricciones y 0 de tipo.**
+- Las 6 divergencias de `additionalProperties` se excluyen del resultado por decisión, no porque el comparador no lo mire; si se cuentan, M1 queda en 6 y todas son la misma limitación del punto 6.
+- `git diff` revisado a mano: seis archivos, quince inserciones, trece eliminaciones. Todas las líneas tocadas agregan `type` o `format`; ningún decorador de `class-validator` aparece en el diff.
+- Vault: YAML parsea, 243 `$ref` con 0 rotas, 0 schemas huérfanos, 30 paths y 47 operaciones sin cambios, encoding preservado (CRLF, sin BOM). Backup `pre-errors.bak`.
+- Una caída durante la edición: el `description` de `errors` quedó sin comillas y contenía `": "`, que YAML lee como inicio de mapping; el archivo no parseaba. Lo detectó el validador en la verificación inmediata y se entrecomilló. No llegó a commitearse.
+
+#### Commits
+
+- `fix(m1): declara type integer en los parametros de M1 y documenta Problem.errors` — este mismo commit.
+
+#### Pendientes que siguen abiertos
+
+1. **`additionalProperties: false` ausente en el Swagger.** Los seis request bodies de M1; y los de M2, M3, M4 y M5 también lo declararán en el contrato sin que el generador lo refleje. Aceptado como limitación del generador, no corregido.
+2. **Los mismos dos defectos en M2, M3, M4 y M5:** `type: number` donde el vault dice `integer` en los `@ApiParam` y query DTO, y las divergencias de propiedades ya documentadas en la entrada SCRUM-11e (27 campos de tipo más ocho restricciones ausentes en M2 y M3). El comparador de operaciones usado acá es reutilizable tal cual.
+3. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
+4. **Sin validar: `foto_url` no se valida como URL.** Ni el código ni el contrato lo hacen: sólo `@IsString()`. Por decisión de Gonzalo no se agrega `@IsUrl()`, porque rechazaría payloads que hoy pasan.
+
+### Semana 7 · SCRUM-11g — Orden de SocioOut.required y correccion de la medicion de paths
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El orden de `required` en `SocioOut` era el unico de los nueve schemas de M1 que no coincidia.** El codigo emitia `[id, usuario_id, nombre, email, sede_origen_id, fecha_alta]` y el vault `[id, usuario_id, sede_origen_id, fecha_alta, nombre, email]`: mismo conjunto de seis campos, distinto orden. En OpenAPI 3 `required` es un array sin orden, asi que el vault ya era correcto y el comparador lo venia marcando como falso positivo. Gonzalo pidio igualar el orden, y se reordena `SocioOutDto` al del vault, con tres separadores (`// Identidad`, `// Origen y alta`, `// Datos de contacto`) para que se lea agrupado. Ningun decorador cambio: solo la posicion de las declaraciones. Como el `required` del vault esta en el mismo orden que su `properties`, alinear el DTO hace coincidir las dos cosas de una. Efecto lateral: el orden de las claves del JSON cambia en las respuestas 200 de `GET /socios`, `GET /socios/{socio_id}` y `PATCH /socios/{socio_id}`; ninguna asercion de los e2e dependia de ese orden.
+
+2. **Correccion: la medicion de paths de la entrada anterior no aplico el prefijo global.** El comparador con el que se cerró SCRUM-11f nunca llamo a `setGlobalPrefix("api/v1")`, de modo que comparo los paths sin prefijo del codigo contra los del vault y dio coincidencia. El documento que la aplicacion sirve en `/docs` trae los paths con el prefijo:
+
+   ```
+   codigo  /api/v1/usuarios, /api/v1/socios/{socio_id}, ...
+   vault   /usuarios,     /socios/{socio_id},     ...
+   vault   servers: [{url: http://localhost:3000/api/v1}]
+   ```
+
+   Son dos convenciones distintas para expresar lo mismo: el codigo hornea el prefijo en los paths y no declara `servers`; el vault lo pone en `servers` y deja los paths limpios. Los cinco paths de M1 mapean 1:1 con las mismas operaciones y resuelven a las mismas URLs, asi que no hay divergencia funcional, pero la frase "5/5 paths coinciden" era inexacta y la diferencia de convencion quedo normalizada en silencio. Queda anotada.
+
+3. **El comparador de esta ronda dio primero unas 30 diferencias falsas, por dos bugs mios.** Uno: resolvia los `$ref` del documento generado contra el vault, donde los nombres de schema no coinciden (`SocioOutDto` contra `SocioOut`), y devolvia `undefined` en decenas de lugares. Dos: ignoraba los `parameters` declarados a nivel de path, que en el vault es donde estan, y los reportaba como ausentes. Ninguno de esos bugs es el responsable del "0" de la entrada anterior —ese viene del punto 2, el prefijo no aplicado—, pero hacia falta un harness con las cuatro correcciones para poder sostener el 0 con confianza y no por accidente. El comparador final resuelve cada `$ref` contra su propio documento, fusiona los parametros de path con los de operacion, los ordena por `(in, name)` — su orden tampoco es significativo — y detecta ciclos con una pila de referencias.
+
+4. **Un error mio que llego a recomendar como si fuera un bug.** Interpretere la ausencia de `servers` en el documento generado como "/docs esta roto y el Try it out da 404", y propuse agregar `.addServer("http://localhost:3000/api/v1")`. Es al reves: como el prefijo ya viene en los paths, agregar ese servidor produciria `/api/v1/api/v1/usuarios` y dejaria roto el `/docs` completo. El documento actual resuelve bien. Decision de Gonzalo: no agregar nada.
+
+5. **Se miden por primera vez `operationId` y `tags`: 0 diferencias en las 12 operaciones.** Habian quedado fuera de los comparadores anteriores como "documentacion". `operationId` no es prosa: es de donde salen los nombres de metodo del cliente generado, asi que era el hueco mas relevante de los que quedaban. Coinciden los doce.
+
+6. **Hallazgo nuevo: `summary` difiere en 7 de las 12 operaciones.** Solo prosa, mismo significado: "Socio por id" contra "Obtener socio por id", "Alta de usuario (perfil EXTERNO/RECEPCION/GERENTE)" contra "Registrar usuario". No se corrige: es ruido de documentacion, no de contrato.
+
+7. **Hallazgo nuevo: los 11 responses de exito de M1 no tienen `example` en el vault.** Los 30 de error si, porque salen de los componentes compartidos; los `200` y `201` de usuarios, socios y membresias van con `schema` pero sin cuerpo de ejemplo. El codigo si tiene ejemplos por propiedad en los DTO, y se verifico que no se contradicen: de 26 ejemplos comparados, 5 identicos y 0 contradictorios. Es informacion complementaria que esta de un lado y no del otro.
+
+8. **`SocioOutDto` contra el schema `SocioOut` del vault: no se renombra.** Es la misma categoria de divergencia cosmetica de documentacion, se resolveria renombrando la clase y los 3 imports, pero queda fuera por instruccion explicita de Gonzalo.
+
+#### Decisiones tomadas
+
+1. **Reordenar el DTO y no el vault.** El vault es la fuente de verdad de la API y ya era correcto; cambiarlo habria que tocar tambien el orden de `properties`, porque en el vault los dos bloques son coherentes entre si. Alinear el codigo deja el vault intacto.
+2. **No agregar `.addServer()`.** El `/docs` funciona; agregarlo con el valor del vault duplicaria el prefijo.
+3. **No renombrar `SocioOutDto`.**
+
+#### Verificacion
+
+- `npx tsc --noEmit` y `npm run build` en verde. e2e: **49/49 en 5 specs**, sin cambios: confirma que el reordenamiento de las claves del JSON no rompio ninguna asercion.
+- Comparador de operaciones con el mapeo de prefijos corregido: **5 paths, 12 operaciones, 0 divergencias reales**, con `$ref` resueltos por documento, parametros de path y de operacion fusionados y ordenados, y `required` comparado por conjunto y ademas por orden.
+- Los 9 schemas de M1: **0 diferencias de orden en `required` y en `properties`, 0 conjuntos distintos.** Antes de este commit, `SocioOut` era el unico con diferencia de orden.
+- Se sigue excluyendo `additionalProperties` (limitacion aceptada del generador, 6 cuerpos de M1) y `description`, `summary`, `example` y `title` (prosa).
+- El vault no se toco en esta ronda: sigue en 91614 bytes, CRLF, sin BOM, 243 `$ref` sin rotas y 0 schemas huerfanos.
+
+#### Commits
+
+- `docs(m1): alinea el orden de required de SocioOut con el contrato`
+- `docs(log): registra la correccion de la medicion de paths y los hallazgos de summary y example`
+
+#### Pendientes que siguen abiertos
+
+1. **`summary` difiere en 7 de las 12 operaciones de M1.** Prosa, sin efecto funcional. El mismo desajuste de descripciones se repite en M2 a M5.
+2. **11 responses 200/201 de M1 sin `example` en el vault**, contra 30 responses de error que si lo tienen.
+3. **`additionalProperties: false` ausente del Swagger** en los 6 cuerpos de M1, y en los que se agreguen en M2 a M5. Aceptado como limitacion del generador.
+4. **Los mismos defectos de tipo `integer` en parametros de M2 a M5**, y las divergencias de propiedades ya documentadas en SCRUM-11e.
+5. **Dos convenciones distintas de base path entre codigo y vault.** No es un defecto, pero conviene fijar una sola para no volver a medir mal: hoy el codigo incluye `/api/v1` en los paths y el vault lo declara en `servers`.
+6. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no esta versionado. Sigue siendo decision pendiente de Gonzalo.
+7. **Sin validar: `foto_url` no se valida como URL** en ni el codigo ni el contrato. Solo `@IsString()`. Por decision de Gonzalo no se agrega `@IsUrl()`, porque rechazaria payloads que hoy pasan.
+
+### Semana 8 · SCRUM-11h — Cierre de naming, summary, examples y additionalProperties de M1
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El nombre de la clase TypeScript se filtra al documento, y por eso el naming era el hueco mas relevante de los que quedaban.** `export class SocioOutDto` produce `components.schemas.SocioOutDto` y un `$ref` a `#/components/schemas/SocioOutDto`, mientras el vault lo llama `SocioOut`. No era solo cosmetico: de ahi salen los nombres de clase del cliente generado. Se renombran las nueve clases de M1 para que coincidan con el contrato, en **98 referencias** sobre 22 archivos:
+
+   | codigo | vault | archivo |
+   | --- | --- | --- |
+   | `UsuarioOutDto` | `UsuarioOut` | sin cambio |
+   | `SocioOutDto` | `SocioOut` | sin cambio |
+   | `MembresiaOutDto` | `MembresiaOut` | sin cambio |
+   | `MembresiaPatchDto` | `MembresiaPatch` | sin cambio |
+   | `CrearUsuarioDto` | `UsuarioIn` | `git mv` |
+   | `CrearSocioDto` | `SocioIn` | `git mv` |
+   | `CrearMembresiaDto` | `MembresiaIn` | `git mv` |
+   | `ModificarUsuarioDto` | `UsuarioPatch` | `git mv` |
+   | `ModificarSocioDto` | `SocioPatch` | `git mv` |
+
+   Los cuatro primeros solo perdian el sufijo `Dto` y el nombre quedaba bueno. Los cinco siguientes cambian el concepto: `CrearUsuarioDto` pasa a llamarse `UsuarioIn`. Eso tiene un costo explicito, y se acepta: el proyecto tiene 7 clases `Crear*` y 2 `Modificar*` sobre 29 DTOs, y el vault no usa ninguno de esos prefijos en ningun schema, o sea que el prefijo es convencion del codigo y no requisito del contrato. Renombrarlos deja a M1 como el unico modulo con nombres `*In`/`*Patch` frente a M2 a M5, que conservan `Crear*Dto`. Se priorizo que el contrato, que es la fuente de verdad, se cumpla sin excepciones.
+
+2. **La clase de error tambien diverge de nombre, y vive fuera de M1.** El vault la llama `Problem` y el codigo `ProblemDetailsDto`. Se renombra a `Problem` en `commons/swagger/`, con `git mv` de `problem-details.dto.ts` a `problem.dto.ts`. Esto **toca controladores de M2 y M3** y es una excepcion consciente a la regla de no salir de M1: son 19 referencias (3 en `commons`, 6 en M1, 4 en M2, 6 en M3) de un unico schema compartido, y sin tocarlo M1 no podia llegar a cero divergencias de naming. La alternativa —dejarlo— era registrar la excepcion para siempre. Se verifico que `Problem` no choca con el tipo global homonimo de `lib.dom`: compila sin error porque la clase es de alcance de modulo y lo sombrea.
+
+3. **Los `git mv` son cosmeticos y se hacen igual.** Los nombres de archivo nunca llegan al documento, pero dejar `export class UsuarioIn` adentro de `crear-usuario.dto.ts` desorienta a quien lea el modulo despues. Git los detecta como `R100`, o sea que el contenido no cambio mas alla del nombre de la clase.
+
+4. **Los 7 `summary` de M1 ahora coinciden con el vault.** `POST /usuarios` pasa de "Alta de usuario (perfil EXTERNO/RECEPCION/GERENTE)" a "Registrar usuario"; `GET /usuarios/{id}` de "Usuario por id (sin datos de contrasena)" a "Obtener usuario por id"; `PATCH /usuarios/{id}` de "Actualiza solo los campos presentes" a "Modificar parcialmente un usuario"; `GET /socios/{socio_id}` de "Socio por id" a "Obtener socio por id"; `PATCH /socios/{socio_id}` de "Modifica la sede de origen" a "Modificar parcialmente un socio"; `DELETE /socios/{socio_id}` de "Deja de ser socio (usuario vuelve a EXTERNO)" a "Dejar de ser socio"; y `GET /socios/{socio_id}/membresias` de "Membresia vigente del socio" a "Membresia actual del socio". Los cinco `summary` que ya coincidian no se tocan.
+
+5. **`additionalProperties: false` deja de ser una limitacion aceptada del generador.** Se agrega `commons/swagger/mark-request-schemas.ts`, invocado en `main.ts` entre `createDocument` y `setup`. El helper recolecta los `$ref` alcanzados desde los `requestBody` de nivel superior y les pone `additionalProperties: false`. Marca los **11** request schemas que el documento contiene: los 6 de M1 y los 5 de M2 y M3. Es deliberadamente **no recursivo**: los `$ref` anidados apuntan a enums compartidos (`Rol`, `Plan`, `EstadoMembresia`) que el vault deja abiertos, y bajarlos habria cerrado schemas que el contrato no cierra. Tampoco toca schemas de respuesta, enums ni `Problem`. Con esto se cierra el punto que SCRUM-11f y SCRUM-11g veniran dejando como limitacion aceptada, y el `ValidationPipe` con `forbidNonWhitelisted: true` deja de rechazar en runtime algo que el documento no declaraba.
+
+6. **Los 11 `example` de respuesta se agregan al vault, no al codigo.** Los 11 `200` y `201` de M1 (4 de `UsuarioOut`, 4 de `SocioOut`, 3 de `MembresiaOut`) incorporate `example` a nivel de media type. El vault ya tenia `example` a nivel de schema en `components.schemas`, o sea que la informacion existia de un lado y no del otro: estos son los que faltaban. El cambio es **puramente aditivo, 81 lineas agregadas y 0 quitadas**, verificado con una comprobacion de subsecuencia linea a linea contra el backup. Cada ejemplo se valido contra su schema: `required` completo, tipos, valores dentro de los enums, `format: email` y `format: date-time` parseables.
+
+7. **Ejemplo de `fecha_alta` corregido en el codigo.** `socio-out.dto.ts` declaraba `example: '2026-09-15'` sobre un `fecha_alta!: Date`, cuyo `format` resuelto es `date-time`; la fecha sola no cumple el formato. Pasa a `'2026-09-15T00:00:00.000Z'`, que es el mismo estilo que ya usaba `membresia-out.dto.ts` en `fecha_inicio` y `fecha_fin`.
+
+8. **`foto_url` sigue sin validarse como URL.** Se habia aprobado `@IsUrl()` y despues revertido; queda como estaba: solo `@IsString()`, sin `format: uri` en el contrato. Es la decision que mas veces se reviso en esta tanda y la version final es no tocarlo, porque rechazaria payloads que hoy pasan.
+
+9. **Dos errores mios en la edicion del vault, los dos antes del commit.** El primero: el constructor del ejemplo de array generaba un `- ` por clave,-seven items sueltos en vez de un objeto de siete claves-, lo que rompio la indentacion. El segundo, en el mismo script: la linea `example:` se interpolaba sin `indent(14)` y quedaba en la columna 0. En los dos casos el archivo dejo de parsear, el validador lo detecto en la verificacion inmediata, se restauro del backup y se reejecuto. No llegaron a commitearse. Quedan registrados porque el patron se repite: en esta tanda los tres fallos que me costaron una revision extra fueron mios y ninguno del codigo.
+
+#### Decisiones tomadas
+
+1. **Renombrar las nueve, no solo las cuatro que solo perdian el sufijo.** Se acepta que M1 quede con convencion de naming distinta de M2 a M5 antes que dejar 5 de 9 divergentes. Decision de Gonzalo.
+2. **Renombrar `ProblemDetailsDto` en `commons`, saliendo de M1.** Excepcion consciente: sin ella no se lograba el cero de naming en M1.
+3. **Los examples van solo en el vault.** El codigo ya expone ejemplos por propiedad en los DTO y no se duplican a nivel de media type: la fuente de verdad es el contrato, y agregar el mismo ejemplo en dos lados risk la desincronizacion. Decision de Gonzalo.
+4. **`additionalProperties` con post-proceso generico, no con decoradores por DTO.** Reutilizable tal cual en M4 y M5 sin tocar los DTO.
+5. **No tocar `foto_url`, ni `servers`, ni `description`, ni la convencion de base path.** Cada uno evaluado y descartado por separado: `servers` duplicaria el prefijo y dejaria roto el `/docs`; `description` es prosa y el codigo ya la tiene en los decoradores; la base path son dos convenciones validas para lo mismo y unificarla exige tocar los 30 paths del vault, fuera de alcance.
+
+#### Verificacion
+
+- `npx tsc --noEmit -p tsconfig.json` y `npm run build` en verde. e2e: **49/49 en 5 specs**, identico a las cuatro entradas anteriores. Confirma que el rename de clases no cambio comportamiento: el nombre de clase no participa de la serializacion ni de la validacion, solo del nombre del schema.
+- **Naming de M1: 10 de 10.** Los nueve schemas de M1 mas `Problem` existen en el documento con el nombre del contrato. Los once schemas con sufijo `Dto` que quedan (`AforoOutDto`, `ClaseOutDto`, `CrearClaseDto`, `CrearEsperaDto`, `CrearReservaClaseDto`, `CrearSedeDto`, `EsperaOutDto`, `IngresoInDto`, `IngresoOutDto`, `ReservaClaseOutDto`, `SedeOutDto`) son de M2 a M5 y no se tocaron.
+- **Estructura de los 10 schemas de M1: 0 divergencias** de `required`, tipos, enums y restricciones. El comparador resuelve los `$ref` del vault a sus enums con nombre antes de comparar, porque el codigo emite el enum inline y el vault por `$ref`; los valores coinciden.
+- **12 operaciones de M1: 0 divergencias de `summary` y 0 de `operationId`.** Antes de este commit eran 7 de `summary`.
+- **`additionalProperties`: 11 request schemas** marcados en el codigo por el helper y declarados en el vault. Ninguno marcado de mas, y `Problem` sigue abierto.
+- Vault: YAML parsea, 39 schemas, 11 bloques `example` agregados, 0 lineas quitadas, encoding preservado (CRLF, sin BOM, sin U+FFFD). Backup `pre-m1-closure.bak` de 91614 bytes, SHA256 `09E15898...`, intacto.
+- `git diff`: 6 renames detectados como `R100` y 23 archivos modificados; revision manual de los tres controllers de M1, los nueve DTO, los tres services, los cinco controllers de M2 y M3, `problem-json.ts`, `main.ts` y `m1.e2e-spec.ts`.
+
+#### Commits
+
+- `refactor(m1): alinea los nombres de los schemas y los summary de M1 con el contrato`
+- `docs(log): registra el cierre de naming, summary, examples y additionalProperties de M1`
+
+Van en dos commits y no en tres por una razon concreta: los renombres de clase y los `summary` viven en los mismos archivos (`usuarios.controller.ts`, `socios.controller.ts`, `membresias.controller.ts`), asi que separarlos exigiria un stage interactivo por linea. Y los 11 `example` del vault **no van en ningun commit**: el contrato esta fuera del repo, asi que ese cambio viaja solo con el backup `pre-m1-closure.bak` como referencia.
+
+#### Pendientes que siguen abiertos
+
+1. **Once schemas de M2 a M5 conservan el sufijo `Dto`** (106 referencias). El rename de M1 deja esos cuatro modulos con la convencion anterior; alinearlos es trabajo de cada modulo, no de M1.
+2. **`summary` difiere en 15 operaciones de M2 y M3** (sedes, clases, reservas-clases, esperas-clases), con el mismo desajuste de prosa que se acaba de corregir en M1.
+3. **CERRADO en SCRUM-11i: los `example` a nivel de schema del vault usaban fecha sola donde el `format` es `date-time`**, en `SocioOut.fecha_alta`, `MembresiaOut.fecha_inicio` y `MembresiaOut.fecha_fin`. Era una inconsistencia interna del vault, anterior a este trabajo, y no se corrigio en esta entrada por quedar fuera de lo aprobado. Los 11 examples nuevos si usaban ISO completo.
+4. **M4 tiene cuatro request schemas en el vault sin implementacion**: `CanchaIn`, `CanchaPatch`, `PagoIn` y `ReservaCanchaIn`. El post-proceso los cubrira solo cuando exista el codigo que los referencie.
+5. **Dos convenciones distintas de base path entre codigo y vault.** No es un defecto, pero conviene fijar una sola: hoy el codigo incluye `/api/v1` en los paths y el vault lo declara en `servers`.
+6. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no esta versionado. Sigue siendo decision pendiente de Gonzalo.
+7. **Sin validar: `foto_url` no se valida como URL** en ni el codigo ni el contrato. Solo `@IsString()`. Decision de Gonzalo, revertida dos veces.
+8. **El comparador contrato/codigo no esta versionado.** Toda esta medicion corrio sobre scripts `node` ad-hoc en el directorio temporal. No hay forma de reproducir un "0" de forma independiente ni de detectarle regresiones, y esta tanda demostro el costo: dos de los tres fallos fueron del propio comparador. Deberia vivir en el repo como un script o test antes de auditar M2.
+
+### Semana 8 · SCRUM-11i - Corrección de los ejemplos de fecha de M1
+
+**Fecha:** 28/09/2026 · **Rama:** `main`
+
+#### Actividades
+
+1. **El pendiente 3 de SCRUM-11h era una incoherencia real del vault, no un detalle de estilo.** Los `example` a nivel de schema de `SocioOut` y `MembresiaOut` declaraban `fecha_alta`, `fecha_inicio` y `fecha_fin` con fecha sola (`"2026-09-15"` y `"2026-10-15"`) mientras esas mismas propiedades declaran `format: date-time` en las lineas 1769, 1831 y 1834. El contrato se contradice a sí mismo: el ejemplo no cumple el formato que el propio schema exige. Son 3 valores, en las lineas 1781, 1841 y 1842.
+
+2. **La auditoría confirma que son exactamente 3 y que el resto de las fechas del vault están bien.** Se recorrieron `components.schemas` (example a nivel de schema y example por propiedad), los `requestBody` y `responses` de cada operación, los parámetros de operación, `components.parameters` y `components.responses`. Resultado: 3 problemas, todos los de arriba. Los otros 10 ejemplos con fecha del vault son legítimos: 5 son `format: date` con fecha sola, que es lo que corresponde (los parámetros de query `fecha` de reservas y `desde`/`hasta` de ingresos), y 5 son `format: date-time` con ISO completo de M2 a M4.
+
+3. **`Z` y `-03:00` no son dos formas de escribir lo mismo: son instantes con 3 horas de diferencia.** Este es el punto que ordenó el resto de la ronda. `2026-09-15T00:00:00Z` son las 21:00 del 14 de septiembre en Córdoba. El código usaba `Z` en los tres DTO de M1 y el vault usaba `-03:00` en los ejemplos de M2 a M4, así que antes de tocar nada había dos notaciones conviviendo. Gonzalo eligió la de Argentina, `-03:00`, porque el gimnasio está en el país. Para `fecha_alta` y `fecha_inicio`, que son campos de fecha y no de instante, las 00:00 tienen que ser medianoche local: con `Z` habrían apuntado al día anterior.
+
+4. **Aplicar el offset solo a las 3 líneas del defecto habría creado una incoherencia nueva.** Si solo se tocaran esas 3, el mismo campo `SocioOut.fecha_alta` quedaría con `T00:00:00-03:00` en el example de schema y `T00:00:00.000Z` en los 4 examples de media type, o sea dos instantes distintos para el mismo campo dentro del mismo schema. Se aplica entonces a los **16 valores de fecha de M1**: 3 del example de schema, 10 de los examples de media type y 3 de los DTO. Sin milisegundos, que es el estilo que ya usaba el vault en M2 y M4.
+
+5. **Se unifica también el juego de fechas, no solo la notación.** El vault usaba `2026-09-15` y `2026-10-15`; el código usaba `2026-09-20T12:00:00.000Z` y `2026-10-20T12:00:00.000Z` para membresía. Los dos eran date-time válidos, o sea que no era un defecto, pero quedaban dos juegos de fechas distintos entre el contrato y el código. Manda el del vault: `2026-09-15T00:00:00-03:00` para `fecha_alta` y `fecha_inicio`, y `2026-10-15T00:00:00-03:00` para `fecha_fin`. En `membresia-out.dto.ts` eso cambia además el día, de 09-20/10-20 a 09-15/10-15.
+
+6. **13 líneas del vault, 3 del código.** En el vault, 10 de los examples de media type y 3 de los examples de schema. Las sustituciones se hicieron sobre cadenas exactas y con la cantidad de ocurrencias verificada antes de escribir: `"2026-09-15T00:00:00.000Z"` 7 veces, `"2026-10-15T00:00:00.000Z"` 3 veces, `"2026-09-15"` 2 veces y `"2026-10-15"` 1 vez. Los dos únicos `Z` que quedan en el vault son los de `fecha_pago` de M3, con milisegundos, y no se tocan.
+
+7. **Dos errores míos en esta ronda, los dos en las herramientas de medición y ninguno en el resultado.** El primero: el sumario de la auditoría imprimía `TOTAL 0` cuando la sección de arriba había detectado 3. El agregador anteponía la categoría al arreglo y después filtraba por la posición 0, que ya no era la categoría; el filtro no podía encontrar nada. Si se hubiera confiado en ese total, se habría cerrado el punto dando por hecho que no había nada que corregir. El segundo: el comparador de operaciones reportaba las 12 operaciones de M1 como "ausentes en el código" porque buscaba `/usuarios` en el documento generado, que los emite con el prefijo `/api/v1`. Ninguno de los dos tocó un archivo: los dos se detectaron porque la salida se contrastó con la sección que sí funcionaba. Este comparador tampoco resolvía los `$ref` del vault a sus enums con nombre antes de comparar, como hacía el de SCRUM-11h, y por eso marcó 4 schemas de M1 como divergentes: en los cuatro la diferencia es que el vault usa `$ref: Plan` y el código el enum inline, con los mismos valores. Se comprobó que esos 4 ya divergían antes de esta ronda comparando el backup contra el vault actual: 0 schemas cambiaron de estructura.
+
+#### Decisiones tomadas
+
+1. **`-03:00` en los 16 valores de M1, no solo en los 3 del defecto.** Aceptar el offset argentino obligaba a corregir también los 10 examples de media type y los 3 DTO; hacerlo era preferible a dejar un campo con dos instantes distintos. Decisión de Gonzalo.
+2. **Manda el juego de fechas del vault, no el del código.** El contrato es la fuente de verdad, igual que en el resto de las decisiones de esta tanda.
+3. **Sin milisegundos.** `T00:00:00-03:00` y no `T00:00:00.000-03:00`: para un example que representa medianoche el subcomponente de milisegundos es ruido, y el vault ya usaba el estilo corto en M2 y M4.
+4. **No se normalizan los ejemplos de M2 a M4.** Quedan en `-03:00` con el juego de fechas propio de cada módulo. Cambiarlos sería trabajo de cada módulo, no de M1.
+
+#### Verificación
+
+- `npx tsc --noEmit -p tsconfig.json` y `npm run build` en verde. e2e: **49/49 en 5 specs**, sexta entrada consecutiva con el mismo resultado. Los examples no participan de la serialización ni de la validación, así que era esperable; se corrieron igual.
+- **Auditoría de formatos: 0 problemas en el vault y 0 en el código**, con cobertura de los 6 lugares donde puede aparecer un `example`: a nivel de schema, por propiedad, media type de request y response, parámetro de operación, `components.parameters` y `components.responses`. Antes de la ronda eran 3 y 0.
+- **Los 16 valores de fecha de M1 usan `-03:00`, 0 usan `Z`.** Verificado con regex de date-time sobre todo el vault, sin heurística por nombre de campo: los únicos 2 `Z` que quedan en el documento son los `fecha_pago` de M3.
+- **12 operaciones de M1: 0 divergencias de `summary` y 0 de `operationId`.** Y **9 de 9** schemas de M1 nombrados como el contrato.
+- **0 schemas cambiaron de estructura** entre el backup y el vault actual. El único cambio del vault es de valor, dentro de `example`.
+- Vault: YAML parsea, 39 schemas, **13 líneas modificadas, 0 agregadas y 0 quitadas**, encoding preservado (CRLF, sin BOM, sin LF sueltos), 94754 bytes contra 94699 del backup. Backup `pre-11i.bak` de 94699 bytes, SHA256 `4F91C58B...`, intacto.
+- `git diff`: 2 archivos, 3 inserciones y 3 borrados, los tres dentro de cadenas de `example` en `@ApiProperty`.
+
+#### Commits
+
+- `docs(m1): unifica los ejemplos de fecha de M1 en la zona horaria de Argentina`
+- `docs(log): registra la corrección de los ejemplos de fecha de M1`
+
+Los **13 cambios del vault no van en ningún commit**, igual que los 11 examples de SCRUM-11h: el contrato está fuera del repo. Quedan solo en el backup `pre-11i.bak` y en este registro.
+
+#### Pendientes que siguen abiertos
+
+1. **Once schemas de M2 a M5 conservan el sufijo `Dto`** (106 referencias). El rename de M1 deja esos cuatro módulos con la convención anterior; alinearlos es trabajo de cada módulo.
+2. **`summary` difiere en 15 operaciones de M2 y M3** (sedes, clases, reservas-clases, esperas-clases), con el mismo desajuste de prosa que se corrige acá.
+3. **M4 tiene cuatro request schemas en el vault sin implementación**: `CanchaIn`, `CanchaPatch`, `PagoIn` y `ReservaCanchaIn`. El post-proceso los cubrirá solo cuando exista el código que los referencie.
+4. **El vault usa `$ref` a enums con nombre y el código los emite inline.** No es un defecto: los valores coinciden en los cuatro casos de M1 revisados. Pero hace que un comparador ingenuo reporte divergencias donde no las hay, y por eso el de SCRUM-11h resolvía los `$ref` antes de comparar. Esa resolución debería vivir en el comparador, no en el schema.
+5. **Dos convenciones distintas de base path entre código y vault.** Hoy el código incluye `/api/v1` en los paths y el vault lo declara en `servers`.
+6. **El contrato vive fuera del repo** (`TFI FitZone - OpenAPI.yaml` y `TFI FitZone - Plan de Trabajo M3.md`, en el vault). Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
+7. **Sin validar: `foto_url` no se valida como URL** en ni el código ni el contrato. Solo `@IsString()`. Decisión de Gonzalo, revertida dos veces.
+8. **El comparador contrato/código no está versionado.** Esta ronda lo confirma otra vez: dos de los tres fallos fueron del propio comparador, uno de ellos un total que reportaba 0 cuando había 3. Debería vivir en el repo como un script o test antes de auditar M2.
+
+## Unidad II - Auditoría del módulo 2
+
+### Semana 9 - SCRUM-11j - Cierre de M2: dos endpoints faltantes, naming y VENCIDA
+
+M2 estaba implementado, commiteado y con e2e en verde, pero **no coincidía con el contrato**. El plan declaraba 5 endpoints y el contrato tiene 7: faltaban `GET /ingresos` y `GET /ingresos/{ingreso_id}`. Además arrastraba la convención de naming anterior (sufijo `Dto`) y textos que describían "membresía ACTIVA" cuando la regla real es de vigencia.
+
+**Trabajo sobre el código**
+
+- Agregados `GET /ingresos` y `GET /ingresos/{ingreso_id}`: filtros de `sede_id`, `usuario_id`, `fecha` y `dentro`, más `page`/`per_page`, con orden estable `fecha_hora_ingreso desc, id desc` para que la paginación no repita ni pierda filas.
+- `fecha` se resuelve con `rangoDelDia()` (helper nuevo en `commons/fechas.ts`) en hora local de la sede (`-03:00`), de media noche a media noche con extremo superior exclusivo. `dentro=true` filtra por `fecha_hora_egreso IS NULL`; `dentro=false` no filtra, porque el contrato solo define el caso `true`.
+- Renombrados los DTO de M2 para coincidir con los nombres del vault, sin sufijo `Dto`. Esto resuelve el pendiente 1 de SCRUM-11i para M2.
+- Ajustados `summary`, `tags`, tipos de parámetro y ejemplos de Swagger. Resuelve el pendiente 2 de SCRUM-11i para M2.
+- `Problem.errors` del `ValidationPipe` documentado en el `ProblemDetails` y el filtro de problemas centralizado.
+
+**Cierre de `VENCIDA` (el hallazgo de fondo)**
+
+`PATCH /socios/{id}/membresias` aceptaba `{"estado": "VENCIDA"}`. Como `estaVigente` no mira el estado sino la fecha, esa membresía se podía escribir con `fecha_fin` **futura** y quedaba vigente: el socio pasaba el control de ingreso.
+
+Se cerró en la frontera, que es el único lugar donde el sistema controla la entrada: `MembresiaPatch.estado` ahora acepta solo `ACTIVA` y `SUSPENDIDA`. `VENCIDA` queda reservado al cron, que (verificado en el repositorio) solo lo aplica cuando `fecha_fin` ya pasó. Con el enum cerrado, **todo `VENCIDA` viene del cron y por lo tanto tiene la fecha vencida por construcción**: la regla de la fecha queda Sound sin tocarla.
+
+Se descartó la alternativa de validar en `estaVigente`, porque con el enum abierto el sistema seguía aceptando un estado que contradice su propia regla.
+
+También se unificó el vocabulario: el 403 de registro de ingreso decía "membresía ACTIVA" y ahora dice "membresía vigente", igual que el contrato. El texto del vault pasó de "membresía ACTIVA" a la regla de vigencia en los tres lugares que lo repetían.
+
+**Verificación**
+
+- `npx tsc --noEmit` y `npm run build`: en verde.
+- e2e local y contra Supabase compartida: **58/58** en ambas. Conteos de las 7 tablas idénticos antes y después (`Sede=3`, `Socio=3`, `Usuario=6`, `Ingreso=3`, `Membresia=3`, `Pago=3`, `Clase=4`).
+- Comparador contra el YAML del vault: **M1 = 0 diferencias, M2 = 0 diferencias**. El único test en rojo es el global, por diferencias que pertenecen a M3.
+- 2 tests nuevos en `m1.e2e-spec.ts`: `VENCIDA` devuelve `422` y deja la fila intacta; suspender y reactivar sigue funcionando.
+- 1 detalle verificado y descartado como bug: los dos `404` de `membresias.service.ts` dicen "membresía activa", pero `buscarPorSocioId` consulta `where: { socio_id }` **sin filtro de estado**, así que una `VENCIDA` no vencida se devuelve con `200`. Es redacción, no lógica.
+
+**Vault (fuera de git)**
+
+- `TFI FitZone - OpenAPI.yaml`: enum de `MembresiaPatch.estado` reducido a `[ACTIVA, SUSPENDIDA]`, más los textos de vigencia. Backup `pre-b1-20260929-182039.bak` de 94754 bytes. El vault quedó en 94722 bytes, 30 paths, 39 schemas, 22 responses, encoding preservado (CRLF, sin LF sueltos, 0 caracteres corruptos).
+- `TFI FitZone - Plan de Trabajo M2.md`: de 5 a 7 endpoints, 4 path params corregidos (`{ingresoId}`/`{sedeId}` → `{ingreso_id}`/`{sede_id}`), "contrato congelado" eliminado, y el punto 7.2 corregido: el ADR de M2 va al vault, no a `docs/`, porque los ADR del proyecto viven en `Definicion Tecnica.md` junto a ADR-05/06/07.
+- `TFI FitZone - Definicion Tecnica.md`: **ADR-08** (regla de vigencia de membresía y expiración por cron) y **ADR-09** (acceso entre módulos por puerto con inyección opcional, fail-closed). Nueva sección 7 con la **deuda técnica conocida** (autenticación y roles, coherencia de ingresos offline, canal de email de M3, QR/TOTP, contrato fuera del repo, códigos `400` declarados).
+
+#### Commits
+
+- `feat(m2): completa sedes e ingresos alineado con el contrato`
+- `fix(m2): cierra VENCIDA en el contrato de entrada de membresia`
+
+Los cambios del vault **no van en ningún commit**: el contrato y los planes viven en el vault de Obsidian, fuera del repositorio. Quedan solo en los backups y en este registro.
+
+#### Pendientes que siguen abiertos
+
+1. **M3 arrastra los mismos dos problemas que acabamos de corregir en M2**, y además los agrava: sus DTO se llaman `CrearClaseDto`, `ClaseOutDto`, `CrearReservaClaseDto`, `ReservaClaseOutDto`, `CrearEsperaDto` y `EsperaOutDto`, cuando el contrato pide `ClaseIn`, `ClaseOut`, `ReservaClaseIn`, `ReservaClaseOut`, `EsperaIn` y `EsperaOut`. El vault además declara `EstadoEspera` y `EstadoReservaClase`, que **no existen como enum en el código**. Sus 14 endpoints sí están implementados y los e2e pasan; lo que falta es la alineación.
+2. **`summary` difiere en 5 operaciones de M3** (clases, reservas-clases, esperas-clases), el mismo desajuste de prosa que se acaba de corregir en M2.
+3. **El canal de email de la lista de espera de M3 no está implementado.** El plan lo pide (decisiones 9 y 10, tarea 7 del Bloque 3), pero `nodemailer` no está en `package.json` y no existe la carpeta `notifications/`. El código usa `observers/` con el patrón Observer clásico, que cumple la misma idea con otra forma. Tampoco existe el puerto para obtener el email del socio: los tres puertos actuales son pago, vigencia de membresía y existencia de sede.
+4. **M4 tiene cuatro request schemas en el vault sin implementación**: `CanchaIn`, `CanchaPatch`, `PagoIn` y `ReservaCanchaIn`.
+5. **El comparador sigue sin versionarse**, confirmado por tercera ronda. Como no hay evidencia en el repo, la salida se vuelca como texto en esta entrada.
+6. **Sin validar: `foto_url` no se valida como URL.** Decisión de Gonzalo, revertida dos veces.
+7. **El contrato vive fuera del repo.** Es la fuente de verdad de la API y no está versionado. Sigue siendo decisión pendiente de Gonzalo.
+
+
+
+---
+
+## Unidad II - Auditoría del módulo 3
+
+### Semana 9 - SCRUM-11k - Cierre de M3: naming, Swagger, códigos de estado y canal de email
+
+Cierra los puntos 1, 2 y 3 que quedaron abiertos en la entrada de M2.
+
+#### 3A - Naming de los DTO
+
+Se renombraron los DTO para que coincidan con los `components.schemas` del contrato:
+
+| Antes                  | Ahora             |
+| ---------------------- | ----------------- |
+| `CrearClaseDto`        | `ClaseIn`         |
+| `ClaseOutDto`          | `ClaseOut`        |
+| `CrearReservaClaseDto` | `ReservaClaseIn`  |
+| `ReservaClaseOutDto`   | `ReservaClaseOut` |
+| `CrearEsperaDto`       | `EsperaIn`        |
+| `EsperaOutDto`         | `EsperaOut`       |
+
+Los archivos de `dtos/` se renombraron con `git mv`, así que el historial sigue al
+archivo y no aparece como borrado más alta.
+
+Sobre `EstadoEspera` y `EstadoReservaClase`: el contrato los declara como schemas
+nombrados, pero **el código no los tiene como enum**, igual que ya pasaba en M1 con
+`Rol`, `Plan` y `EstadoMembresia`. Se mantuvo ese criterio y se los agregó al
+comparador local como schemas equivalentes. En la API los valores siguen siendo los
+del contrato, verificado operación por operación.
+
+#### 3B - Swagger contra el contrato
+
+- `type: 'integer'` en los campos numéricos de los seis DTO y en los cinco query DTO
+  de paginación y filtros, y en todos los `@ApiParam` de path.
+- `format: 'date-time'` en `horario` de `ClaseIn` y `ClaseOut`.
+- Los 14 `summary` quedaron con el texto del contrato.
+- `GET /clases/{clase_id}/reservas` y `GET /clases/{clase_id}/espera` se movieron de
+  `ReservasClasesController` y `EsperasClasesController` a `ClasesController`.
+
+Lo del movimiento merece explicación porque no era cosmético. El contrato agrupa esas
+dos operaciones bajo el tag `clases`, no bajo el de reservas ni el de esperas. Con
+`@ApiTags` a nivel de método, `@nestjs/swagger` **suma** el tag del controller con el del
+método: se emitía `reservas-clases, clases` y el comparador marcaba diferencia. Sacar el
+tag del controller tampoco servía, porque con `autoTagControllers` (activo por defecto)
+la librería deriva uno del nombre de la clase y aparecía `ReservasClases, reservas-clases`.
+La única forma de dejar un único tag era alojar la operación en un controller cuyo tag
+de clase ya fuera `clases`, que es lo que hacen ahora. Son rutas `/clases/:id/...`: son
+vistas de la clase, y el contrato lo refleja así.
+
+La ruta y el comportamiento no cambian, solo el controller que las atiende. Los e2e de
+`/clases/{id}/reservas` y `/clases/{id}/espera` siguen pasando sin tocarlos.
+
+#### 3C - Códigos de estado
+
+Las ventanas temporales ya devolvían 409 y no hubo que cambiar el dominio: la ventana de
+48 h para reservar y la de 2 h para cancelar lanzan `HttpStatus.CONFLICT`, igual que el
+resto de los conflictos (14 casos en total entre los tres servicios). El 422 queda
+reservado para el `ValidationPipe` global, y no hay ningún `UNPROCESSABLE_ENTITY`
+emitido a mano en M3. Se verificó que en el documento ninguna de esas respuestas fuera
+422.
+
+#### Canal de email de la lista de espera
+
+Implementado como **observer adicional** en la carpeta `observers/` que el código ya
+usaba, y no como la carpeta `notifications/` del plan. La decisión es de Gonzalo: si el
+código ya tiene `observers/` con el patrón Observer clásico, gana el código y se actualiza
+el plan. El resultado cumple lo mismo que pedía el plan:
+
+- `observers/cupo-liberado.observer.ts`: interfaz `CupoLiberadoObserver`.
+- `observers/email-cupo-liberado.observer.ts`: nuevo canal con Nodemailer.
+- La cadena en `onModuleInit` queda `[NotificarSociosEsperaObserver, EmailCupoLiberadoObserver]`.
+- `ConsultaSocioPort.obtenerEmail(socioId)` en `commons/socio/`, implementado por
+  `ConsultaSocioAdapter` en M1 y exportado por su `@Global()`, siguiendo el mismo patrón
+  que `SEDE_VALIDATION_PORT`.
+- `nodemailer` y `@types/nodemailer` agregados a `package.json`.
+- `.env.example` con `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
+  `MAIL_FROM` y `ETHEREAL`.
+
+**Una carrera que hubo que evitar.** El `CupoLiberadoSubject` despacha a los observers
+con `Promise.all`, o sea en paralelo. El método `buscarEnEsperaPorClase` filtra por
+`estado: 'EN_ESPERA'`, y es justamente el observer de estado el que los pasa a
+`NOTIFICADO`. Si el canal de email hubiera usado ese método, según cuál de los dos
+terminara primero se habría quedado sin destinatarios y el aviso no se enviaba nunca.
+Por eso se agregó `listarSociosEnEsperaPorClase(claseId)`, que devuelve la **cola viva**
+(todo lo que no está CANCELADO: EN_ESPERA y NOTIFICADO) y por lo tanto da el mismo
+resultado antes o después del cambio de estado. Es la semántica que ya pedía el plan, y
+acá queda como la razón de fondo.
+
+El modo de envío se resuelve una vez por proceso, en este orden: con `SMTP_HOST`,
+`SMTP_USER` y `SMTP_PASS` el envío es real; con `ETHEREAL=true` usa `createTestAccount()`
+y loguea la URL de vista previa con `getTestMessageUrl`; sin ninguno de los dos solo
+loguea y **no sale a la red**. Ese último modo no es un atajo: el e2e de M3 tiene un caso
+"clase llena → socio en espera → cancelación dispara Observer → confirmación first-come",
+así que sin este corte el e2e intentaría crear una cuenta de Ethereal en cada corrida.
+
+#### Evidencia
+
+- `npx tsc --noEmit -p tsconfig.json`: OK.
+- `npm run build`: OK.
+- `npx vitest run --config vitest.e2e.config.ts`: **58/58** en 5 archivos.
+- Comparador del contrato: **M3 = 0 diferencias** (28/28). Antes de este trabajo M3
+  arrastraba 81.
+- La cadena de observers se verificó con un test temporal contra la base local:
+  `[NotificarSociosEsperaObserver, EmailCupoLiberadoObserver]`, con el aviso resolviendo
+  destinatarios por el puerto de M1 y sin tocar la red. El test era de andamiaje y se
+  borró; no queda en el repo.
+
+#### Pendientes que siguen abiertos
+
+1. **M4 tiene cuatro request schemas en el vault sin implementación**: `CanchaIn`,
+   `CanchaPatch`, `PagoIn` y `ReservaCanchaIn`.
+2. **El comparador sigue sin versionarse**, confirmado por cuarta ronda. Como no hay
+   evidencia en el repo, la salida se vuelca como texto en esta entrada.
+3. **Sin validar: `foto_url` no se valida como URL.** Decisión de Gonzalo, revertida dos veces.
+4. **El contrato vive fuera del repo.** Es la fuente de verdad de la API y no está
+   versionado. Sigue siendo decisión pendiente de Gonzalo.
+5. **M3 no tiene tests unitarios.** `npm test` sigue siendo un stub y el único runner de
+   pruebas es el e2e. El canal de email quedó verificado de forma puntual, no con una
+   prueba permanente en el repo.
+
+
+---
+
 ## Unidad II — Módulo 4: Canchas Deportivas (RF-09/RF-12) · Santino
 
 ### Semana 6 · SCRUM-11c — Bloque 1: Canchas (RF-09/RNF-04)

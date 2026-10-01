@@ -1,16 +1,26 @@
-import { HttpStatus, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { ProblemException } from '../../../commons/filters/problem.exception';
+import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import {
   MEMBERSHIP_VALIDATION_PORT,
   MembershipValidationPort,
 } from '../../../commons/membresia/membership-validation.port';
-import { AforoOutDto } from '../dtos/aforo-out.dto';
-import { IngresoInDto } from '../dtos/ingreso-in.dto';
-import { IngresoOutDto } from '../dtos/ingreso-out.dto';
+import { AforoOut } from '../dtos/aforo-out.dto';
+import { IngresoIn } from '../dtos/ingreso-in.dto';
+import { IngresoOut } from '../dtos/ingreso-out.dto';
 import { Ingreso } from '../entities/ingreso.entity';
-import { INGRESO_REPOSITORY, IngresoRepository } from '../repositories/ingreso.repository';
+import {
+  INGRESO_REPOSITORY,
+  IngresoFiltros,
+  IngresoRepository,
+} from '../repositories/ingreso.repository';
 import { SEDE_REPOSITORY, SedeRepository } from '../repositories/sede.repository';
+import type { OpcionesPaginacion } from '../../../commons/paginacion';
 
 @Injectable()
 export class IngresosService {
@@ -24,10 +34,10 @@ export class IngresosService {
     private readonly membresias: MembershipValidationPort | null,
   ) {}
 
-  async registrarIngreso(dto: IngresoInDto): Promise<IngresoOutDto> {
+  async registrarIngreso(dto: IngresoIn): Promise<IngresoOut> {
     const sede = await this.sedes.buscarPorId(dto.sede_id);
     if (!sede) {
-      throw new NotFoundException('No existe la sede indicada.');
+      throw recursoNoEncontrado('No existe la sede indicada.');
     }
 
     // qr_token solo se exige presente (validación de DTO): el mecanismo de QR
@@ -39,7 +49,7 @@ export class IngresosService {
         type: 'https://fitzone.app/errores/membresia-inactiva',
         title: 'Membresía inactiva',
         status: HttpStatus.FORBIDDEN,
-        detail: `El usuario ${dto.usuario_id} no posee una membresía ACTIVA para ingresar a la sede ${dto.sede_id}.`,
+        detail: `El usuario ${dto.usuario_id} no posee una membresía vigente para ingresar a la sede ${dto.sede_id}.`,
       });
     }
 
@@ -78,10 +88,23 @@ export class IngresosService {
     return this.aOut(resultado.ingreso);
   }
 
+  async listar(filtros: IngresoFiltros, opciones: OpcionesPaginacion): Promise<IngresoOut[]> {
+    const filas = await this.ingresos.listar(filtros, opciones);
+    return filas.map((ingreso) => this.aOut(ingreso));
+  }
+
+  async obtenerIngreso(ingresoId: number): Promise<IngresoOut> {
+    const ingreso = await this.ingresos.buscarPorId(ingresoId);
+    if (!ingreso) {
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
+    }
+    return this.aOut(ingreso);
+  }
+
   async registrarEgreso(ingresoId: number): Promise<void> {
     const ingreso = await this.ingresos.buscarPorId(ingresoId);
     if (!ingreso) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     if (ingreso.fecha_hora_egreso) {
       throw new ProblemException({
@@ -95,23 +118,23 @@ export class IngresosService {
     await this.ingresos.marcarEgreso(ingresoId, new Date());
   }
 
-  async obtenerAforo(sedeId: number): Promise<AforoOutDto> {
+  async obtenerAforo(sedeId: number): Promise<AforoOut> {
     const sede = await this.sedes.buscarPorId(sedeId);
     if (!sede) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
 
     const aforoActual = await this.ingresos.contarActivosPorSede(sedeId);
 
-    return plainToInstance(AforoOutDto, {
+    return plainToInstance(AforoOut, {
       aforo_actual: aforoActual,
       aforo_maximo: sede.aforo_maximo,
       restante: sede.aforo_maximo - aforoActual,
     });
   }
 
-  private aOut(ingreso: Ingreso): IngresoOutDto {
-    return plainToInstance(IngresoOutDto, ingreso);
+  private aOut(ingreso: Ingreso): IngresoOut {
+    return plainToInstance(IngresoOut, ingreso);
   }
 
   // 409 acceso-duplicado (RN-01), compartido entre el atajo previo y el que

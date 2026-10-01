@@ -1,13 +1,12 @@
 import {
-  ConflictException,
   Inject,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
+import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
-import { CrearMembresiaDto } from '../dtos/crear-membresia.dto';
-import { MembresiaOutDto } from '../dtos/membresia-out.dto';
-import { MembresiaPatchDto } from '../dtos/membresia-patch.dto';
+import { MembresiaIn } from '../dtos/membresia-in.dto';
+import { MembresiaOut } from '../dtos/membresia-out.dto';
+import { MembresiaPatch } from '../dtos/membresia-patch.dto';
 import { Membresia } from '../entities/membresia.entity';
 import {
   MEMBRESIA_REPOSITORY,
@@ -22,15 +21,18 @@ export class MembresiasService {
     @Inject(SOCIO_REPOSITORY) private readonly socios: SocioRepository,
   ) {}
 
-  async crear(socioId: number, dto: CrearMembresiaDto): Promise<MembresiaOutDto> {
+  async crear(socioId: number, dto: MembresiaIn): Promise<MembresiaOut> {
     const socio = await this.socios.buscarPorId(socioId);
     if (!socio) {
-      throw new NotFoundException('No existe el socio indicado.');
+      throw recursoNoEncontrado('No existe el socio indicado.');
     }
 
     const membresiaExistente = await this.membresias.buscarPorSocioId(socioId);
     if (membresiaExistente) {
-      throw new ConflictException('El socio ya cuenta con una membresía activa.');
+      throw conflictoDeDominio(
+        'Conflicto de membresía existente',
+        'El socio ya tiene una membresía activa.',
+      );
     }
 
     const fechaInicio = dto.fecha_inicio ? new Date(dto.fecha_inicio) : undefined;
@@ -45,35 +47,35 @@ export class MembresiasService {
     return this.aOut(membresia);
   }
 
-  async obtenerPorSocioId(socioId: number): Promise<MembresiaOutDto> {
+  async obtenerPorSocioId(socioId: number): Promise<MembresiaOut> {
     const socio = await this.socios.buscarPorId(socioId);
     if (!socio) {
-      throw new NotFoundException('No existe el socio indicado.');
+      throw recursoNoEncontrado('No existe el socio indicado.');
     }
 
     const membresia = await this.membresias.buscarPorSocioId(socioId);
     if (!membresia) {
-      throw new NotFoundException('El socio no posee una membresía activa.');
+      throw recursoNoEncontrado('El socio no posee una membresía activa.');
     }
 
     return this.aOut(membresia);
   }
 
-  async modificar(socioId: number, dto: MembresiaPatchDto): Promise<MembresiaOutDto> {
+  async modificar(socioId: number, dto: MembresiaPatch): Promise<MembresiaOut> {
     const socio = await this.socios.buscarPorId(socioId);
     if (!socio) {
-      throw new NotFoundException('No existe el socio indicado.');
+      throw recursoNoEncontrado('No existe el socio indicado.');
     }
 
     const membresia = await this.membresias.actualizar(socioId, dto);
     if (!membresia) {
-      throw new NotFoundException('El socio no posee una membresía activa.');
+      throw recursoNoEncontrado('El socio no posee una membresía activa.');
     }
 
     return this.aOut(membresia);
   }
 
-  private aOut(membresia: Membresia): MembresiaOutDto {
-    return plainToInstance(MembresiaOutDto, membresia);
+  private aOut(membresia: Membresia): MembresiaOut {
+    return plainToInstance(MembresiaOut, membresia);
   }
 }

@@ -3,9 +3,9 @@ import { Exclude, Expose } from 'class-transformer';
 import { RolUsuario } from '../entities/usuario.entity';
 
 @Exclude()
-export class UsuarioOutDto {
+export class UsuarioOut {
   @Expose()
-  @ApiProperty({ example: 1 })
+  @ApiProperty({ type: 'integer', example: 1 })
   id!: number;
 
   @Expose()
@@ -21,14 +21,24 @@ export class UsuarioOutDto {
   nombre!: string;
 
   @Expose()
-  @ApiProperty({ example: 'ana.gomez@fitzone.com.ar' })
+  @ApiProperty({ format: 'email', example: 'ana.gomez@fitzone.com.ar' })
   email!: string;
 
   @Expose()
-  @ApiProperty({ nullable: true, example: '+54 351 555-1234' })
+  @ApiProperty({
+    type: 'string',
+    required: false,
+    nullable: true,
+    example: '+54 351 555-1234',
+  })
   telefono?: string | null;
 
   @Expose()
-  @ApiProperty({ nullable: true, example: 'https://cdn.fitzone.com.ar/fotos/ana.jpg' })
+  @ApiProperty({
+    type: 'string',
+    required: false,
+    nullable: true,
+    example: 'https://cdn.fitzone.com.ar/fotos/ana.jpg',
+  })
   foto_url?: string | null;
 }

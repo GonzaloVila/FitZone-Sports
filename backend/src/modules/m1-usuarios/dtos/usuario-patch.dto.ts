@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
-export class ModificarUsuarioDto {
+export class UsuarioPatch {
   @ApiPropertyOptional({ minLength: 1, maxLength: 100 })
   @IsOptional()
   @IsString()
@@ -9,16 +9,25 @@ export class ModificarUsuarioDto {
   @MaxLength(100)
   nombre?: string;
 
-  @ApiPropertyOptional({ example: '+54 351 555-1234', maxLength: 20 })
+  @ApiPropertyOptional({
+    type: 'string',
+    example: '+54 351 555-1234',
+    maxLength: 20,
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(20)
-  telefono?: string;
+  telefono?: string | null;
 
-  @ApiPropertyOptional({ example: 'https://cdn.fitzone.com.ar/fotos/ana.jpg' })
+  @ApiPropertyOptional({
+    type: 'string',
+    example: 'https://cdn.fitzone.com.ar/fotos/ana.jpg',
+    nullable: true,
+  })
   @IsOptional()
   @IsString()
-  foto_url?: string;
+  foto_url?: string | null;
 
   @ApiPropertyOptional({
     minLength: 8,

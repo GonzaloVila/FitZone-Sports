@@ -1,5 +1,6 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { SEDE_VALIDATION_PORT, SedeValidationPort } from '../../../commons/sede/sede-validation.port';
 import { CanchaIn } from '../dtos/cancha-in.dto';
 import { CanchaOut } from '../dtos/cancha-out.dto';
@@ -17,7 +18,7 @@ export class CanchasService {
   async crear(sedeId: number, dto: CanchaIn): Promise<CanchaOut> {
     const existeSede = await this.sedes.existeSede(sedeId);
     if (!existeSede) {
-      throw new NotFoundException('No existe la sede indicada.');
+      throw recursoNoEncontrado('No existe la sede indicada.');
     }
 
     const cancha = await this.canchas.crear({
@@ -40,7 +41,7 @@ export class CanchasService {
   async obtener(id: number): Promise<CanchaOut> {
     const cancha = await this.canchas.buscarPorId(id);
     if (!cancha) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return this.aOut(cancha);
   }
@@ -51,7 +52,7 @@ export class CanchasService {
       estado: dto.estado,
     });
     if (!cancha) {
-      throw new NotFoundException('No existe el recurso solicitado para el id indicado.');
+      throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     return this.aOut(cancha);
   }

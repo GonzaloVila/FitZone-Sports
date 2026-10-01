@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Query, Res } from '@nestjs/common';
 import {
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -14,6 +14,7 @@ import {
 import type { Response } from 'express';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
+import { ListarReservasCanchasQueryDto } from '../dtos/listar-reservas-canchas-query.dto';
 import { ReservaCanchaIn } from '../dtos/reserva-cancha-in.dto';
 import { ReservaCanchaOut } from '../dtos/reserva-cancha-out.dto';
 import { ReservasCanchasService } from '../services/reservas-canchas.service';
@@ -23,6 +24,23 @@ import { ReservasCanchasService } from '../services/reservas-canchas.service';
 @Controller('reservas-canchas')
 export class ReservasCanchasController {
   constructor(private readonly reservasCanchasService: ReservasCanchasService) {}
+
+  // Declarado antes que @Get(':reserva_cancha_id'): /reservas-canchas no cae en
+  // la ruta con parámetro.
+  @Get()
+  @ApiOperation({ operationId: 'listarReservasCancha', summary: 'Listado de reservas de cancha con filtros' })
+  @ApiOkResponse({ description: 'Listado de reservas de cancha', type: [ReservaCanchaOut] })
+  @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
+  listar(@Query() query: ListarReservasCanchasQueryDto): Promise<ReservaCanchaOut[]> {
+    return this.reservasCanchasService.listar({
+      canchaId: query.cancha_id,
+      usuarioId: query.usuario_id,
+      estado: query.estado,
+      fecha: query.fecha,
+      page: query.page ?? 1,
+      perPage: query.per_page ?? 20,
+    });
+  }
 
   @Post()
   @ApiOperation({ operationId: 'crearReservaCancha', summary: 'Reservar un turno de cancha (RF-10)' })

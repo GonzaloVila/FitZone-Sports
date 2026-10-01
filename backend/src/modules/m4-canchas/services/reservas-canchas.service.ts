@@ -1,5 +1,6 @@
 import { HttpStatus, Inject, Injectable, Optional } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
+import { rangoDelDia } from '../../../commons/fechas';
 import {
   ProblemException,
   conflictoDeDominio,
@@ -15,6 +16,15 @@ import { Reserva } from '../entities/reserva.entity';
 import { PricingStrategyFactory } from '../pricing/pricing-strategy.factory';
 import { CANCHA_REPOSITORY, CanchaRepository } from '../repositories/cancha.repository';
 import { RESERVA_REPOSITORY, ReservaRepository } from '../repositories/reserva.repository';
+
+export interface FiltrosListarReservasCanchas {
+  canchaId?: number;
+  usuarioId?: number;
+  estado?: Reserva['estado'];
+  fecha?: string;
+  page: number;
+  perPage: number;
+}
 
 @Injectable()
 export class ReservasCanchasService {
@@ -86,6 +96,20 @@ export class ReservasCanchasService {
     }
 
     return this.aOut(resultado.reserva);
+  }
+
+  async listar({ fecha, estado, ...resto }: FiltrosListarReservasCanchas): Promise<ReservaCanchaOut[]> {
+    // RF-12: las canceladas no aparecen salvo que se pidan explícitas. El
+    // default es regla de negocio y vive acá, no en el repositorio.
+    // `fecha` se traduce a [desde, hasta) en hora local de la sede (como el
+    // filtro de M2) y acota el inicio del turno.
+    const rango = fecha !== undefined ? rangoDelDia(fecha) : {};
+    const filas = await this.reservas.listar({
+      ...resto,
+      estado: estado ?? 'CONFIRMADA',
+      ...rango,
+    });
+    return filas.map((reserva) => this.aOut(reserva));
   }
 
   async obtener(id: number): Promise<ReservaCanchaOut> {

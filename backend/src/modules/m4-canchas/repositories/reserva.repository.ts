@@ -18,6 +18,19 @@ export type ResultadoCrearReserva =
   | { ok: true; reserva: Reserva }
   | { ok: false; motivo: 'TURNO_OCUPADO' };
 
+// Lista blanca de filtros: solo filtra por los campos presentes. El repositorio
+// no decide defaults (p. ej. el estado): eso es regla de negocio del service.
+// desde/hasta acotan fecha_hora_inicio como [desde, hasta).
+export interface FiltrosListarReservas {
+  canchaId?: number;
+  usuarioId?: number;
+  estado?: 'CONFIRMADA' | 'CANCELADA';
+  desde?: Date;
+  hasta?: Date;
+  page: number;
+  perPage: number;
+}
+
 export interface ReservaRepository {
   crear(reserva: ReservaNueva): Promise<ResultadoCrearReserva>;
   buscarPorId(id: number): Promise<Reserva | null>;
@@ -25,4 +38,5 @@ export interface ReservaRepository {
   cancelar(id: number): Promise<Reserva | null>;
   // Reservas no canceladas que se solapan con [desde, hasta).
   listarOcupadasEnRango(canchaId: number, desde: Date, hasta: Date): Promise<Reserva[]>;
+  listar(filtros: FiltrosListarReservas): Promise<Reserva[]>;
 }

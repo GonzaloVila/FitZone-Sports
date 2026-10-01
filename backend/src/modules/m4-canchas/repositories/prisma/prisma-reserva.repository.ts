@@ -2,7 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../../commons/database/prisma.service';
 import { Reserva } from '../../entities/reserva.entity';
-import { ReservaNueva, ReservaRepository, ResultadoCrearReserva } from '../reserva.repository';
+import {
+  FiltrosListarReservas,
+  ReservaNueva,
+  ReservaRepository,
+  ResultadoCrearReserva,
+} from '../reserva.repository';
 
 type ReservaRow = Prisma.ReservaGetPayload<Record<string, never>>;
 
@@ -76,6 +81,29 @@ export class PrismaReservaRepository implements ReservaRepository {
         fecha_hora_fin: { gt: desde },
       },
       orderBy: { fecha_hora_inicio: 'asc' },
+    });
+    return filas.map((fila) => this.aDominio(fila));
+  }
+
+  async listar({ canchaId, usuarioId, estado, desde, hasta, page, perPage }: FiltrosListarReservas): Promise<Reserva[]> {
+    // Solo filtra por lo que viene; no aplica defaults (el del estado es del service).
+    const filas = await this.prisma.reserva.findMany({
+      where: {
+        ...(canchaId !== undefined && { cancha_id: canchaId }),
+        ...(usuarioId !== undefined && { usuario_id: usuarioId }),
+        ...(estado !== undefined && { estado }),
+        ...((desde !== undefined || hasta !== undefined) && {
+          fecha_hora_inicio: {
+            ...(desde !== undefined && { gte: desde }),
+            ...(hasta !== undefined && { lt: hasta }),
+          },
+        }),
+      },
+      skip: (page - 1) * perPage,
+      take: perPage,
+      // El id desempata para que la paginación no repita ni pierda filas entre
+      // reservas con el mismo inicio (distintas canchas).
+      orderBy: [{ fecha_hora_inicio: 'desc' }, { id: 'desc' }],
     });
     return filas.map((fila) => this.aDominio(fila));
   }

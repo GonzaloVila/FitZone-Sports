@@ -10,6 +10,7 @@ import { PrismaReservaRepository } from './repositories/prisma/prisma-reserva.re
 import { CANCHA_REPOSITORY } from './repositories/cancha.repository';
 import { RESERVA_REPOSITORY } from './repositories/reserva.repository';
 import { CanchasService } from './services/canchas.service';
+import { DisponibilidadService } from './services/disponibilidad.service';
 import { ReservasCanchasService } from './services/reservas-canchas.service';
 
 @Module({
@@ -23,6 +24,7 @@ import { ReservasCanchasService } from './services/reservas-canchas.service';
     { provide: CANCHA_REPOSITORY, useClass: PrismaCanchaRepository },
     { provide: RESERVA_REPOSITORY, useClass: PrismaReservaRepository },
     CanchasService,
+    DisponibilidadService,
     ReservasCanchasService,
     // Una sola clase: la cadena Standard -> MemberDiscount -> PeakHour se arma
     // adentro de la factory (pricing/ es dominio puro), no hay providers por estrategia.

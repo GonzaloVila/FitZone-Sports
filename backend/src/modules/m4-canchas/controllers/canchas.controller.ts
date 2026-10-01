@@ -15,8 +15,11 @@ import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { CanchaIn } from '../dtos/cancha-in.dto';
 import { CanchaOut } from '../dtos/cancha-out.dto';
 import { CanchaPatch } from '../dtos/cancha-patch.dto';
+import { ConsultarDisponibilidadQueryDto } from '../dtos/consultar-disponibilidad-query.dto';
+import { DisponibilidadEntrada } from '../dtos/disponibilidad-entrada.dto';
 import { ListarCanchasQueryDto } from '../dtos/listar-canchas-query.dto';
 import { CanchasService } from '../services/canchas.service';
+import { DisponibilidadService } from '../services/disponibilidad.service';
 
 // Dos raíces de ruta distintas (contrato): /sedes/{sede_id}/canchas para
 // alta/listado, /canchas/{cancha_id} para el resto. @Controller() sin prefijo
@@ -26,7 +29,10 @@ import { CanchasService } from '../services/canchas.service';
 @ApiExtraModels(Problem)
 @Controller()
 export class CanchasController {
-  constructor(private readonly canchasService: CanchasService) {}
+  constructor(
+    private readonly canchasService: CanchasService,
+    private readonly disponibilidadService: DisponibilidadService,
+  ) {}
 
   @Get('sedes/:sede_id/canchas')
   @ApiOperation({ operationId: 'listarCanchas', summary: 'Listado de canchas de una sede (RF-12)' })
@@ -86,5 +92,21 @@ export class CanchasController {
     @Body() dto: CanchaPatch,
   ): Promise<CanchaOut> {
     return this.canchasService.actualizar(canchaId, dto);
+  }
+
+  @Get('canchas/:cancha_id/disponibilidad')
+  @ApiOperation({ operationId: 'consultarDisponibilidad', summary: 'Grilla de disponibilidad de una cancha para un día (RF-12)' })
+  @ApiParam({ name: 'cancha_id', type: 'integer', description: 'ID numérico de la cancha', example: 1 })
+  @ApiOkResponse({ description: 'Tramos horarios del día con su disponibilidad', type: [DisponibilidadEntrada] })
+  @ApiNotFoundResponse({ description: 'Cancha inexistente', content: PROBLEM_JSON })
+  @ApiUnprocessableEntityResponse({ description: 'Fecha o paginación inválidas', content: PROBLEM_JSON })
+  consultarDisponibilidad(
+    @Param('cancha_id', ParseIntPipe) canchaId: number,
+    @Query() query: ConsultarDisponibilidadQueryDto,
+  ): Promise<DisponibilidadEntrada[]> {
+    return this.disponibilidadService.consultar(canchaId, query.fecha, {
+      page: query.page ?? 1,
+      perPage: query.per_page ?? 20,
+    });
   }
 }

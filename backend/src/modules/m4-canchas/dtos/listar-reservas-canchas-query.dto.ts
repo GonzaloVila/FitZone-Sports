@@ -20,9 +20,12 @@ export class ListarReservasCanchasQueryDto {
   @Min(1)
   usuario_id?: number;
 
+  // Sin `default` en el Swagger a proposito: el contrato declara el filtro como
+  // `$ref: EstadoReserva` sin default, y la regla "sin estado devuelve solo
+  // CONFIRMADA" vive en el service (es negocio, no forma del parametro).
+  // Mismo criterio que ListarReservasClaseQueryDto.
   @ApiPropertyOptional({
     enum: ESTADOS,
-    default: 'CONFIRMADA',
     description: 'Si se omite, solo se listan las CONFIRMADA; las canceladas se piden con estado=CANCELADA.',
   })
   @IsOptional()

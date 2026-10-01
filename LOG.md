@@ -1185,3 +1185,79 @@ El Bloque 1 de M4 se había implementado antes de las auditorías de M1, M2 y M3
 1. **`problem.filter.ts` con una rama muerta**: sigue mapeando `unq_reserva_turno`, índice que ya no existe (reemplazado por `exq_reserva_turno` en el Bloque 0). Es de `commons/`, no se tocó.
 2. **`GET /ingresos?fecha=` de M2 no valida fechas inválidas** (ver hallazgo arriba) — posible pendiente para una futura pasada de M2.
 3. Falta el Bloque 4 (QA, integración y cierre del módulo completo).
+
+---
+
+## Unidad II - Módulo 4: Canchas Deportivas — Bloque 3 — Integración en `main` (Gonzalo)
+
+**Fecha:** 01/10/2026 — **Rama:** `main` — **Merge:** `9b68aa0`
+
+### Integración del Bloque 3 de la rama `santino`
+
+1. **Merge con conflictos resueltos a mano**
+   - `git fetch origin --prune` movió `origin/santino` de `460f4a9` a `4063ff6` (7 objetos nuevos: 3 del Bloque 3 propiamente dichos — `63eb2bd`, `47d90f9`, `4063ff6` — más los 3 de alineación previa de M4 y el merge `8296ce9`).
+   - El rango **no trae migraciones**: `Reserva.precio_aplicado`, `@@index([cancha_id, fecha_hora_inicio])` y `exq_reserva_turno` ya estaban en el modelo de `main`.
+   - Referencia de seguridad creada antes de integrar: `backup/pre-m4-b3-20261001`.
+   - `git merge --no-ff origin/santino` → 6 archivos en conflicto: `LOG.md`, `src/main.ts`, `canchas.controller.ts`, `dtos/cancha-in.dto.ts`, `dtos/cancha-patch.dto.ts`, `services/canchas.service.ts`.
+   - [merge 9b68aa0](https://github.com/GonzaloVila/FitZone-Sports/commit/9b68aa0)
+
+2. **Criterio de resolución**
+   - `main.ts`: se conservan las auditorías previas (filtro global + `ValidationPipe` con `forbidNonWhitelisted`) y se suma `.addTag('reservas-canchas')`, que el contrato exige para que las 4 operaciones nuevas entren en el alcance del comparador.
+   - DTOs de cancha: se conserva `minimum: 0` de `main` y se adoptan las `description`/`example` de la rama. El contrato manda sobre ambas ramas.
+   - `CanchasService`: se conserva la validación de sede de `main` (no se puede crear una cancha en una sede inexistente) y se adopta `recursoNoEncontrado()` de la rama, que era la regresión que quedaba abierta del Bloque 1 (el `NotFoundException` caía en el fail-safe de `resolveDetail()` y logged `WARN`).
+
+### Correcciones posteriores al merge
+
+3. **Dos 409 distintos en `POST /reservas-canchas`**
+   - La rama traía un único `conflictoDeDominio('Turno ocupado', ...)` para las dos causas de 409. Se separaron porque **no son la misma cosa**: `turno-ocupado` (RN-02) es concurrencia —otro usuario ganó el turno— y `cancha-en-mantenimiento` (RF-12) es una cancha inhabilitada, donde no hubo concurrencia y el `detail` del primero sería literalmente falso.
+   - Los `type`/`title`/`detail` salen de una factory en `commons/filters/problem.exception.ts` (`turnoOcupado()`), no inline en el service, justamente para que la otra causa de 409 del mismo endpoint no acabe reusando ese texto.
+   - [commit de corrección](https://github.com/GonzaloVila/FitZone-Sports/commit/9b68aa0)
+
+4. **`cancelar()` repetida: 409 y no 404**
+   - El contrato declaraba 404 para "reserva inexistente o ya cancelada". Se cambió a 409 con componente propio `ReservaYaCancelada`, porque la reserva **existe**: RF-12 conserva el histórico y `GET` sobre ella responde 200 con `estado: CANCELADA`. Lo que choca es la transición pedida contra el estado actual, el mismo hecho que M2 modela con `EgresoDuplicado`.
+   - La carrera entre dos cancelaciones simultáneas ya estaba resuelta en el repositorio: el filtro por estado va en el `WHERE` del propio `UPDATE`, y un `P2025` se traduce al mismo 409.
+
+5. **Rama muerta en `problem.filter.ts`**
+   - El filtro seguía mapeando `unq_reserva_turno` dentro de la rama `P2002`. Ese índice **no existe**: lo sustituyó `exq_reserva_turno`, una constraint de `EXCLUSION` que Prisma no modela, así que su violación llega como `PrismaClientUnknownRequestError` y nunca por esa rama.
+   - Se borró la rama muerta y se agregó la de `Unknown` para `exq_reserva_turno`, como red de contención: la regla sigue siendo que la traduzca `PrismaReservaRepository`, pero si alguna otra vía la deja pasar ahora es 409 en vez de 500.
+
+### Contrato del vault
+
+6. **Backup y cambios en `TFI FitZone - OpenAPI.yaml`**
+   - Backup previo en `TFI/backups/TFI FitZone - OpenAPI.20261001-161430.yaml` (95.024 bytes).
+   - `TurnoOcupado` → `ConflictoReservaCancha`: **OpenAPI admite un solo 409 por operación** y esta declara las dos causas de 409, así que van en una respuesta con dos `examples` (`turno-ocupado` y `cancha-en-mantenimiento`) que distinguen por `type`.
+   - Nuevo `ReservaYaCancelada`, referenciado por `POST /reservas-canchas/{id}/cancelaciones`, que pasa a declarar 409. La `description` de esa operación también se corrigió: decía "una reserva inexistente o ya cancelada responde 404".
+   - `GET /canchas/{cancha_id}/disponibilidad`: se agregaron los `$ref` de `Page` y `PerPage`, que faltaban. Su propia `description` ya decía "Solo admite `?fecha=` y paginación" — la lista blanca y la prosa no coincidían.
+   - Verificado: el YAML parsea, 75 `$ref` totales, 0 rotos, y `TurnoOcupado` ya no queda referenciado por nadie.
+
+### Desalineaciones que había y cómo se resolvieron
+
+7. **Comparador de contrato: de 10 diferencias a 0**
+
+   | Diferencia | Decisión |
+   |---|---|
+   | `esquema-falta:EstadoReserva` | Permitida: enum con nombre en el contrato, inline en el código. Mismo caso que `Rol`, `Plan`, `EstadoReservaClase`. |
+   | `ReservaCanchaIn` exige `usuario_id`, el contrato lo deja opcional | Permitida con fecha de vencimiento: el contrato dice "Si se omite, se toma del token en la Unidad III" y **todavía no hay token** (decisión 13 del plan M4). Se borra cuando exista. |
+   | `?estado=` con `default: CONFIRMADA` en el código | **Corregido en el código.** El default es regla de negocio y vive en el service; el contrato declara el filtro como `$ref: EstadoReserva` sin default. Mismo criterio que `ListarReservasClaseQueryDto`. |
+   | `summary` distinto en 3 operaciones | **Corregido en el código** para que coincida con el contrato. |
+   | `422` faltante en la cancelación | **Corregido en el código.** |
+   | `page`/`per_page` de más en disponibilidad | **Corregido en el contrato** (ver punto 6). |
+
+8. **`test/m4.e2e-spec.ts`: 18 casos nuevos**
+   - Lo que se protege sobre todo son los dos 409 de la creación y el 409 de la cancelación repetida, porque comparten código y no pueden devolver el mismo `type`.
+   - Hay un caso que **solo puede pasar si la constraint existe en la BD**: un turno 12:30-13:30 contra uno 12:00-13:00. El `unique` parcial `(cancha_id, fecha_hora_inicio)` lo dejaría pasar; `exq_reserva_turno` no. Un `if` en el service también lo dejaría pasar.
+   - También se cubren: descuento de socio vigente (4250), socio vencido cobro como externo (5000), turno encadenado (13:00 sobre un 12:00-13:00 sí entra), horario liberado al cancelar, mantenimiento que devuelve la grilla entera en `false` **sin borrar** la reserva previa, y los filtros de listado.
+
+### Verificación
+
+- `npx tsc --noEmit`, `npm run build` y `npx prisma validate`: en verde.
+- `npm run test:unit`: 10/10.
+- `npm run test:e2e`: 79/79 (61 previos + 18 nuevos de M4).
+- Comparador de contrato: **0 diferencias** contra el YAML del vault.
+- Runtime real (`/docs-json`): 4 operaciones de `reservas-canchas` más `consultarDisponibilidad` publicadas con sus respuestas.
+
+### Pendientes que siguen abiertos
+
+1. **`GET /ingresos?fecha=` de M2 no valida fechas inválidas** — sigue sin tocarse. Es deuda de M2, ajena a este bloque.
+2. **Deuda de M3, registrada y no tocada**: `POST /reservas-clases/{id}/cancelaciones` y `DELETE /esperas-clases/{id}` responden **204 silencioso** al repetir una cancelación, mientras el contrato declara 404. Se decide junto con M3, no desde M4.
+3. **Bloque 4**: QA, integración y cierre del módulo. Sin arrancar.

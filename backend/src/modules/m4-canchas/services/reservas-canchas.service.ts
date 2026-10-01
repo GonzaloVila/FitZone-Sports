@@ -3,8 +3,8 @@ import { plainToInstance } from 'class-transformer';
 import { rangoDelDia } from '../../../commons/fechas';
 import {
   ProblemException,
-  conflictoDeDominio,
   recursoNoEncontrado,
+  turnoOcupado,
 } from '../../../commons/filters/problem.exception';
 import {
   MEMBERSHIP_VALIDATION_PORT,
@@ -45,12 +45,12 @@ export class ReservasCanchasService {
       throw recursoNoEncontrado('No existe la cancha indicada.');
     }
 
-    // RF-12: una cancha en mantenimiento no admite turnos nuevos.
+    // RF-12: una cancha en mantenimiento no admite turnos nuevos. Es un 409 con
+    // su propio `type`, no el de concurrencia: el turno no esta tomado por otro
+    // usuario, la cancha esta inhabilitada, y el detail de TurnoOcupado
+    // ("Otro usuario reservo el turno... antes que vos") seria falso.
     if (cancha.estado === 'EN_MANTENIMIENTO') {
-      throw conflictoDeDominio(
-        'Cancha en mantenimiento',
-        `La cancha ${cancha.id} está en mantenimiento y no admite reservas nuevas (RF-12).`,
-      );
+      throw this.canchaEnMantenimiento(cancha.id);
     }
 
     const inicio = new Date(dto.fecha_hora_inicio);
@@ -88,11 +88,9 @@ export class ReservasCanchasService {
 
     if (!resultado.ok) {
       // RN-02: el solapamiento lo detecta exq_reserva_turno, no un chequeo previo
-      // (que dos reservas simultáneas pasarían las dos).
-      throw conflictoDeDominio(
-        'Turno ocupado',
-        'El turno solicitado ya está ocupado.',
-      );
+      // (que dos reservas simultáneas pasarían las dos). El `type` y el `detail`
+      // son los que declara el contrato en `ConflictoReservaCancha.turno-ocupado`.
+      throw turnoOcupado();
     }
 
     return this.aOut(resultado.reserva);
@@ -143,6 +141,25 @@ export class ReservasCanchasService {
   }
 
   private yaCancelada(id: number): ProblemException {
-    return conflictoDeDominio('Reserva ya cancelada', `La reserva ${id} ya estaba cancelada.`);
+    // 409 y no 404: la reserva existe (GET la devuelve con estado CANCELADA, y
+    // RF-12 manda conservar el histórico). Lo que choca es la transición pedida
+    // contra el estado actual. Mismo criterio que `EgresoDuplicado` de M2, que
+    // modela exactamente el mismo hecho — una transición ya realizada — con un
+    // componente nombrado propio en vez de `NotFound`.
+    return new ProblemException({
+      type: 'https://fitzone.app/errores/reserva-ya-cancelada',
+      title: 'Reserva ya cancelada',
+      status: HttpStatus.CONFLICT,
+      detail: `La reserva ${id} ya estaba cancelada y no puede cancelarse de nuevo.`,
+    });
+  }
+
+  private canchaEnMantenimiento(canchaId: number): ProblemException {
+    return new ProblemException({
+      type: 'https://fitzone.app/errores/cancha-en-mantenimiento',
+      title: 'Cancha en mantenimiento',
+      status: HttpStatus.CONFLICT,
+      detail: `La cancha ${canchaId} está en mantenimiento y no admite reservas nuevas (RF-12).`,
+    });
   }
 }

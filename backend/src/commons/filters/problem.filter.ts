@@ -12,6 +12,7 @@ import {
   GENERIC_TYPE,
   ProblemException,
   TITLES,
+  turnoOcupadoBody,
   type ProblemDetails,
 } from './problem.exception';
 
@@ -83,6 +84,16 @@ export class ProblemFilter implements ExceptionFilter {
 
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       return this.toPrismaProblem(exception, request);
+    }
+
+    // Red de contension para la constraint de exclusion de M4. La regla normal
+    // es que PrismaReservaRepository la intercepte y devuelva TURNO_OCUPADO; si
+    // alguna otra via la deja pasar, aca se traduce igual a 409 en vez de 500.
+    if (
+      exception instanceof Prisma.PrismaClientUnknownRequestError &&
+      exception.message.includes('exq_reserva_turno')
+    ) {
+      return turnoOcupadoBody(this.instanceOf(request));
     }
 
     return this.toInternalProblem(exception, request);
@@ -178,15 +189,10 @@ export class ProblemFilter implements ExceptionFilter {
   ): ProblemDetails {
     if (exception.code === 'P2002') {
       const target = this.metaTarget(exception).toLowerCase();
-      if (target.includes('unq_reserva_turno')) {
-        return {
-          type: 'https://fitzone.app/errores/turno-ocupado',
-          title: 'El turno seleccionado ya fue reservado',
-          status: HttpStatus.CONFLICT,
-          detail: 'Otro usuario reservó el turno para esa fecha y hora antes que vos.',
-          instance: this.instanceOf(request),
-        };
-      }
+      // OJO: `unq_reserva_turno` (unique parcial) ya NO existe. Lo sustituyo
+      // `exq_reserva_turno`, una constraint de exclusion que Prisma no modela,
+      // asi que su violaciones no llegan por acá como P2002 sino como
+      // PrismaClientUnknownRequestError (ver rama Unknown de más abajo).
       if (target.includes('idempotencia_key')) {
         return {
           type: 'https://fitzone.app/errores/idempotencia-repetida',

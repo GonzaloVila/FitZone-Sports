@@ -127,7 +127,7 @@ export class CanchasController {
   }
 
   @Get('canchas/:cancha_id/disponibilidad')
-  @ApiOperation({ operationId: 'consultarDisponibilidad', summary: 'Grilla de disponibilidad de una cancha para un día (RF-12)' })
+  @ApiOperation({ operationId: 'consultarDisponibilidad', summary: 'Disponibilidad de turnos de una cancha' })
   @ApiParam({ name: 'cancha_id', type: 'integer', description: 'ID numérico de la cancha', example: 1 })
   @ApiOkResponse({ description: 'Tramos horarios del día con su disponibilidad', type: [DisponibilidadEntrada] })
   @ApiNotFoundResponse({ description: 'Cancha inexistente', content: PROBLEM_JSON })

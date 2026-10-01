@@ -43,7 +43,7 @@ export class ReservasCanchasController {
   }
 
   @Post()
-  @ApiOperation({ operationId: 'crearReservaCancha', summary: 'Reservar un turno de cancha (RF-10)' })
+  @ApiOperation({ operationId: 'crearReservaCancha', summary: 'Reservar un turno de cancha (RF-10, RN-02)' })
   @ApiCreatedResponse({
     description: 'Reserva creada',
     type: ReservaCanchaOut,
@@ -80,11 +80,12 @@ export class ReservasCanchasController {
 
   @Post(':reserva_cancha_id/cancelaciones')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ operationId: 'cancelarReservaCancha', summary: 'Cancelar una reserva de cancha' })
+  @ApiOperation({ operationId: 'cancelarReservaCancha', summary: 'Cancelar una reserva' })
   @ApiParam({ name: 'reserva_cancha_id', type: 'integer', description: 'ID numérico de la reserva', example: 7 })
   @ApiNoContentResponse({ description: 'Reserva cancelada (sin cuerpo)' })
   @ApiNotFoundResponse({ description: 'Reserva inexistente', content: PROBLEM_JSON })
   @ApiConflictResponse({ description: 'La reserva ya estaba cancelada', content: PROBLEM_JSON })
+  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos', content: PROBLEM_JSON })
   cancelar(@Param('reserva_cancha_id', ParseIntPipe) reservaCanchaId: number): Promise<void> {
     return this.reservasCanchasService.cancelar(reservaCanchaId);
   }

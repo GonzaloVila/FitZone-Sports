@@ -3,6 +3,7 @@
 import { Global, Module } from '@nestjs/common';
 import { CommonsModule } from '../../commons/commons.module';
 import { SEDE_VALIDATION_PORT } from '../../commons/sede/sede-validation.port';
+import { UsuariosModule } from '../m1-usuarios/usuarios.module';
 import { SedeValidationAdapter } from './adapters/sede-validation.adapter';
 import { IngresosController } from './controllers/ingresos.controller';
 import { SedesController } from './controllers/sedes.controller';
@@ -18,11 +19,10 @@ import { SedesService } from './services/sedes.service';
 // SEDE_REPOSITORY/SedesService directamente.
 @Global()
 @Module({
-  // M2 NO importa M1. MEMBERSHIP_VALIDATION_PORT se inyecta porque
-  // UsuariosModule es @Global() y su array exports lo publica explicitamente;
-  // M2 nunca ve SOCIO_REPOSITORY, MEMBRESIA_REPOSITORY ni USUARIO_REPOSITORY
-  // (aislamiento entre modulos de dominio, ADR-07, C4).
-  imports: [CommonsModule],
+  // M2 importa M1 explicitamente por `MembresiasService`, que es lo unico que
+  // necesita de ahi (RN-03 al validar el ingreso). No ve los repositorios de M1:
+  // esos son privados de su modulo.
+  imports: [CommonsModule, UsuariosModule],
   controllers: [SedesController, IngresosController],
   providers: [
     { provide: SEDE_REPOSITORY, useClass: PrismaSedeRepository },

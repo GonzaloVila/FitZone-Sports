@@ -1,28 +1,14 @@
-import {
-  HttpStatus,
-  Inject,
-  Injectable,
-  Optional,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
-import {
-  MEMBERSHIP_VALIDATION_PORT,
-  type MembershipValidationPort,
-} from '../../../commons/membresia/membership-validation.port';
+import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import { EsperaIn } from '../dtos/espera-in.dto';
 import { EsperaOut } from '../dtos/espera-out.dto';
 import { ListarEsperaDeClaseQueryDto } from '../dtos/listar-espera-de-clase-query.dto';
 import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
-import {
-  CLASE_REPOSITORY,
-  type ClaseRepository,
-} from '../repositories/clase.repository';
-import {
-  ESPERA_CLASE_REPOSITORY,
-  type EsperaClaseRepository,
-} from '../repositories/espera-clase.repository';
+import { CLASE_REPOSITORY, type ClaseRepository } from '../repositories/clase.repository';
+import { ESPERA_CLASE_REPOSITORY, type EsperaClaseRepository } from '../repositories/espera-clase.repository';
 
 @Injectable()
 export class EsperasClasesService {
@@ -31,9 +17,11 @@ export class EsperasClasesService {
     private readonly esperasRepo: EsperaClaseRepository,
     @Inject(CLASE_REPOSITORY)
     private readonly clasesRepo: ClaseRepository,
-    @Optional()
-    @Inject(MEMBERSHIP_VALIDATION_PORT)
-    private readonly membresias: MembershipValidationPort | null,
+    // Antes venía por el puerto con `@Optional()` y todo el bloque de validación
+    // estaba dentro de `if (this.membresias)`, así que si M1 no estaba
+    // registrado el socio entraba a la lista sin comprobación. Ahora la
+    // dependencia es obligatoria y RN-03 se aplica siempre.
+    private readonly membresias: MembresiasService,
   ) {}
 
   async listarEsperaDeClase(
@@ -83,19 +71,17 @@ export class EsperasClasesService {
       });
     }
 
-    if (this.membresias) {
-      const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
-      if (!estado.esSocio) {
-        throw recursoNoEncontrado('El socio indicado no existe.');
-      }
-      if (estado.enMora || !estado.vigente) {
-        throw new ProblemException({
-          type: 'https://fitzone.app/errores/socio-en-mora',
-          title: 'Socio en mora',
-          status: HttpStatus.FORBIDDEN,
-          detail: `El socio ${dto.socio_id} posee cuotas vencidas. No puede ingresar a la lista de espera de clases bonificadas.`,
-        });
-      }
+    const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
+    if (!estado.esSocio) {
+      throw recursoNoEncontrado('El socio indicado no existe.');
+    }
+    if (estado.enMora || !estado.vigente) {
+      throw new ProblemException({
+        type: 'https://fitzone.app/errores/socio-en-mora',
+        title: 'Socio en mora',
+        status: HttpStatus.FORBIDDEN,
+        detail: `El socio ${dto.socio_id} posee cuotas vencidas. No puede ingresar a la lista de espera de clases bonificadas.`,
+      });
     }
 
     const resultado = await this.esperasRepo.crear({

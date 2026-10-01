@@ -1,28 +1,14 @@
-import {
-  HttpStatus,
-  Inject,
-  Injectable,
-  Optional,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
-import {
-  MEMBERSHIP_VALIDATION_PORT,
-  type MembershipValidationPort,
-} from '../../../commons/membresia/membership-validation.port';
+import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import { ReservaClaseIn } from '../dtos/reserva-clase-in.dto';
 import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query.dto';
 import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
 import { CupoLiberadoSubject } from '../observers/cupo-liberado.subject';
-import {
-  CLASE_REPOSITORY,
-  type ClaseRepository,
-} from '../repositories/clase.repository';
-import {
-  RESERVA_CLASE_REPOSITORY,
-  type ReservaClaseRepository,
-} from '../repositories/reserva-clase.repository';
+import { CLASE_REPOSITORY, type ClaseRepository } from '../repositories/clase.repository';
+import { RESERVA_CLASE_REPOSITORY, type ReservaClaseRepository } from '../repositories/reserva-clase.repository';
 
 @Injectable()
 export class ReservasClasesService {
@@ -31,9 +17,10 @@ export class ReservasClasesService {
     private readonly reservasRepo: ReservaClaseRepository,
     @Inject(CLASE_REPOSITORY)
     private readonly clasesRepo: ClaseRepository,
-    @Optional()
-    @Inject(MEMBERSHIP_VALIDATION_PORT)
-    private readonly membresias: MembershipValidationPort | null,
+    // Mismo cambio que en EsperasClasesService: la validación estaba guardada
+    // por `if (this.membresias)`, o sea que sin M1 registrado la reserva de
+    // clase bonificada pasaba sin comprobar RN-03.
+    private readonly membresias: MembresiasService,
     private readonly cupoSubject: CupoLiberadoSubject,
   ) {}
 
@@ -79,19 +66,17 @@ export class ReservasClasesService {
     }
 
     // Regla de Mora y Membresía: el socio con cuota vencida no puede reservar con descuento
-    if (this.membresias) {
-      const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
-      if (!estado.esSocio) {
-        throw recursoNoEncontrado('El socio indicado no existe.');
-      }
-      if (estado.enMora || !estado.vigente) {
-        throw new ProblemException({
-          type: 'https://fitzone.app/errores/socio-en-mora',
-          title: 'Socio en mora',
-          status: HttpStatus.FORBIDDEN,
-          detail: `El socio ${dto.socio_id} posee cuotas vencidas. No puede reservar con tarifa bonificada. Puede abonar el precio de cliente externo.`,
-        });
-      }
+    const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
+    if (!estado.esSocio) {
+      throw recursoNoEncontrado('El socio indicado no existe.');
+    }
+    if (estado.enMora || !estado.vigente) {
+      throw new ProblemException({
+        type: 'https://fitzone.app/errores/socio-en-mora',
+        title: 'Socio en mora',
+        status: HttpStatus.FORBIDDEN,
+        detail: `El socio ${dto.socio_id} posee cuotas vencidas. No puede reservar con tarifa bonificada. Puede abonar el precio de cliente externo.`,
+      });
     }
 
     // Regla de Ventana Temporal (RF-07): reserva habilitada hasta 48 hs antes

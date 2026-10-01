@@ -1,5 +1,6 @@
 import { Module, OnModuleInit } from '@nestjs/common';
 import { CommonsModule } from '../../commons/commons.module';
+import { UsuariosModule } from '../m1-usuarios/usuarios.module';
 import { ClasesController } from './controllers/clases.controller';
 import { EsperasClasesController } from './controllers/esperas-clases.controller';
 import { ReservasClasesController } from './controllers/reservas-clases.controller';
@@ -17,7 +18,9 @@ import { EsperasClasesService } from './services/esperas-clases.service';
 import { ReservasClasesService } from './services/reservas-clases.service';
 
 @Module({
-  imports: [CommonsModule],
+  // M3 importa M1 por `MembresiasService` (RN-03 en reservas y esperas) y por
+  // `SociosService` (el email del observer de cupo liberado).
+  imports: [CommonsModule, UsuariosModule],
   controllers: [
     ClasesController,
     ReservasClasesController,

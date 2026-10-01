@@ -1,7 +1,4 @@
-import {
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import * as bcrypt from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
@@ -10,17 +7,14 @@ import { ListarUsuariosQueryDto } from '../dtos/listar-usuarios-query.dto';
 import { UsuarioPatch } from '../dtos/usuario-patch.dto';
 import { UsuarioOut } from '../dtos/usuario-out.dto';
 import { Usuario, UsuarioActualizable } from '../entities/usuario.entity';
-import {
-  USUARIO_REPOSITORY,
-  UsuarioRepository,
-} from '../repositories/usuario.repository';
+import { UsuarioRepository } from '../repositories/usuario.repository';
 
 const SALT_ROUNDS = 10;
 
 @Injectable()
 export class UsuariosService {
   constructor(
-    @Inject(USUARIO_REPOSITORY) private readonly usuarios: UsuarioRepository,
+    private readonly usuarios: UsuarioRepository,
   ) {}
 
   async crear(dto: UsuarioIn): Promise<UsuarioOut> {

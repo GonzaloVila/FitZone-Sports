@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable, Optional } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { rangoDelDia } from '../../../commons/fechas';
 import {
@@ -6,10 +6,7 @@ import {
   recursoNoEncontrado,
   turnoOcupado,
 } from '../../../commons/filters/problem.exception';
-import {
-  MEMBERSHIP_VALIDATION_PORT,
-  MembershipValidationPort,
-} from '../../../commons/membresia/membership-validation.port';
+import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import { ReservaCanchaIn } from '../dtos/reserva-cancha-in.dto';
 import { ReservaCanchaOut } from '../dtos/reserva-cancha-out.dto';
 import { Reserva } from '../entities/reserva.entity';
@@ -31,11 +28,10 @@ export class ReservasCanchasService {
   constructor(
     @Inject(RESERVA_REPOSITORY) private readonly reservas: ReservaRepository,
     @Inject(CANCHA_REPOSITORY) private readonly canchas: CanchaRepository,
-    // @Optional(): si M1 todavía no registró el adaptador, se cotiza sin
-    // descuento de socio en vez de romper el arranque (fail-closed, ADR-09).
-    @Optional()
-    @Inject(MEMBERSHIP_VALIDATION_PORT)
-    private readonly membresias: MembershipValidationPort | null,
+    // El `@Optional()` era fail-closed: sin el puerto, la reserva se cotizaba
+    // sin descuento. Con la dependencia obligatoria el precio bonificado depende
+    // siempre de la vigencia real de la membresía (RN-03, ADR-09).
+    private readonly membresias: MembresiasService,
     private readonly precios: PricingStrategyFactory,
   ) {}
 
@@ -68,8 +64,8 @@ export class ReservasCanchasService {
 
     // RN-03: un socio con cuota vencida paga como externo; consultarVigencia
     // también devuelve vigente=false para quien no es socio.
-    const vigencia = await this.membresias?.consultarVigencia(dto.usuario_id);
-    const socioVigente = vigencia?.vigente ?? false;
+    const vigencia = await this.membresias.consultarVigencia(dto.usuario_id);
+    const socioVigente = vigencia.vigente;
 
     const precioAplicado = this.precios.cotizar({
       costoBase: cancha.costo_por_hora,

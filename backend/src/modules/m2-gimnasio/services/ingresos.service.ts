@@ -1,24 +1,12 @@
-import {
-  HttpStatus,
-  Inject,
-  Injectable,
-  Optional,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
-import {
-  MEMBERSHIP_VALIDATION_PORT,
-  MembershipValidationPort,
-} from '../../../commons/membresia/membership-validation.port';
+import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import { AforoOut } from '../dtos/aforo-out.dto';
 import { IngresoIn } from '../dtos/ingreso-in.dto';
 import { IngresoOut } from '../dtos/ingreso-out.dto';
 import { Ingreso } from '../entities/ingreso.entity';
-import {
-  INGRESO_REPOSITORY,
-  IngresoFiltros,
-  IngresoRepository,
-} from '../repositories/ingreso.repository';
+import { INGRESO_REPOSITORY, IngresoFiltros, IngresoRepository } from '../repositories/ingreso.repository';
 import { SEDE_REPOSITORY, SedeRepository } from '../repositories/sede.repository';
 import type { OpcionesPaginacion } from '../../../commons/paginacion';
 
@@ -27,11 +15,11 @@ export class IngresosService {
   constructor(
     @Inject(INGRESO_REPOSITORY) private readonly ingresos: IngresoRepository,
     @Inject(SEDE_REPOSITORY) private readonly sedes: SedeRepository,
-    // @Optional(): si M1 todavía no registró el adaptador, se rechaza el
-    // acceso en vez de romper el arranque de la app (fail-closed, RF-04).
-    @Optional()
-    @Inject(MEMBERSHIP_VALIDATION_PORT)
-    private readonly membresias: MembershipValidationPort | null,
+    // RF-04: la vigencia la decide M1. Antes venía por un puerto con `@Optional()`
+    // y se trataba como `null` si no estaba registrado, lo que hacia fallar el
+    // acceso por una razon equivocada. Ahora la dependencia es obligatoria: si M1
+    // no esta disponible la app ni arranca.
+    private readonly membresias: MembresiasService,
   ) {}
 
   async registrarIngreso(dto: IngresoIn): Promise<IngresoOut> {
@@ -43,8 +31,8 @@ export class IngresosService {
     // qr_token solo se exige presente (validación de DTO): el mecanismo de QR
     // dinámico y dónde persistir su secreto quedan pendientes de definir con
     // la cátedra (fuera de este alcance); ver Plan_de_Trabajo_M2, sección 1.1.
-    const vigencia = await this.membresias?.consultarVigencia(dto.usuario_id);
-    if (!vigencia?.vigente) {
+    const vigencia = await this.membresias.consultarVigencia(dto.usuario_id);
+    if (!vigencia.vigente) {
       throw new ProblemException({
         type: 'https://fitzone.app/errores/membresia-inactiva',
         title: 'Membresía inactiva',

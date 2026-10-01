@@ -18,6 +18,19 @@ export interface MembresiaActualizable {
   estado?: EstadoMembresia;
 }
 
+// Respuestas de consulta de vigencia que consumen M2, M3 y M4. Antes vivian en
+// el puerto `MembershipValidationPort` de commons; ahora son tipos del dominio
+// de la membresia, que es de donde sale la regla que los calcula.
+export interface VigenciaMembresia {
+  vigente: boolean;
+}
+
+export interface EstadoSocioMembresia {
+  esSocio: boolean;
+  vigente: boolean;
+  enMora: boolean;
+}
+
 export function calcularVigencia(
   plan: PlanMembresia,
   desde: Date = new Date(),

@@ -1,10 +1,7 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
-import {
-  CONSULTA_SOCIO_PORT,
-  type ConsultaSocioPort,
-} from '../../../commons/socio/consulta-socio.port';
+import { SociosService } from '../../m1-usuarios/services/socios.service';
 import {
   ESPERA_CLASE_REPOSITORY,
   type EsperaClaseRepository,
@@ -33,9 +30,11 @@ export class EmailCupoLiberadoObserver implements CupoLiberadoObserver {
   constructor(
     @Inject(ESPERA_CLASE_REPOSITORY)
     private readonly esperasRepo: EsperaClaseRepository,
-    @Optional()
-    @Inject(CONSULTA_SOCIO_PORT)
-    private readonly consultaSocio: ConsultaSocioPort | null,
+    // M1 es quien sabe el email de un socio. Antes venía por
+    // `CONSULTA_SOCIO_PORT` con `@Optional()`, y si faltaba el aviso se perdía
+    // en silencio; ahora la dependencia es obligatoria y la única causa de no
+    // enviar es que el socio no tenga email cargado.
+    private readonly socios: SociosService,
   ) {}
 
   async notificarCupoDisponible(evento: CupoLiberadoEvent): Promise<void> {
@@ -43,13 +42,6 @@ export class EmailCupoLiberadoObserver implements CupoLiberadoObserver {
     if (socioIds.length === 0) {
       this.logger.log(
         `Sin socios en la cola viva de la clase ${evento.claseId}: no hay aviso que enviar.`,
-      );
-      return;
-    }
-
-    if (!this.consultaSocio) {
-      this.logger.warn(
-        `CONSULTA_SOCIO_PORT no disponible: se omiten los avisos de la clase ${evento.claseId}.`,
       );
       return;
     }
@@ -66,7 +58,7 @@ export class EmailCupoLiberadoObserver implements CupoLiberadoObserver {
     let enviados = 0;
     let sinDestinatario = 0;
     for (const socioId of socioIds) {
-      const email = await this.consultaSocio.obtenerEmail(socioId);
+      const email = await this.socios.obtenerEmail(socioId);
       if (!email) {
         sinDestinatario += 1;
         this.logger.warn(`El socio ${socioId} no tiene email cargado: se omite su aviso.`);

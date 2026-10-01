@@ -2,6 +2,7 @@
 // (controllers/services/repositories/prisma/entities/dtos).
 import { Module } from '@nestjs/common';
 import { CommonsModule } from '../../commons/commons.module';
+import { UsuariosModule } from '../m1-usuarios/usuarios.module';
 import { CanchasController } from './controllers/canchas.controller';
 import { ReservasCanchasController } from './controllers/reservas-canchas.controller';
 import { PricingStrategyFactory } from './pricing/pricing-strategy.factory';
@@ -14,11 +15,9 @@ import { DisponibilidadService } from './services/disponibilidad.service';
 import { ReservasCanchasService } from './services/reservas-canchas.service';
 
 @Module({
-  // M4 NO importa M2. SEDE_VALIDATION_PORT se inyecta porque GimnasioModule
-  // es @Global() y su array exports lo publica explicitamente; M4 nunca ve
-  // SEDE_REPOSITORY ni SedesService de M2 directamente (aislamiento entre
-  // modulos de dominio, ADR-07, C4; mismo patrón que M2 con M1, Bloque 0).
-  imports: [CommonsModule],
+  // M4 importa M1 por `MembresiasService` (RN-03 al cotizar la tarifa bonificada).
+  // SEDE_VALIDATION_PORT sigue llegando por el @Global() de GimnasioModule.
+  imports: [CommonsModule, UsuariosModule],
   controllers: [CanchasController, ReservasCanchasController],
   providers: [
     { provide: CANCHA_REPOSITORY, useClass: PrismaCanchaRepository },

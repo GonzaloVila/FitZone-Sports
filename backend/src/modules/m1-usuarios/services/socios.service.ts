@@ -1,7 +1,4 @@
-import {
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
 import { SocioIn } from '../dtos/socio-in.dto';
@@ -9,15 +6,23 @@ import { ListarSociosQueryDto } from '../dtos/listar-socios-query.dto';
 import { SocioPatch } from '../dtos/socio-patch.dto';
 import { SocioOut } from '../dtos/socio-out.dto';
 import { Socio, SocioActualizable } from '../entities/socio.entity';
-import { SOCIO_REPOSITORY, SocioRepository } from '../repositories/socio.repository';
-import { USUARIO_REPOSITORY, UsuarioRepository } from '../repositories/usuario.repository';
+import { SocioRepository } from '../repositories/socio.repository';
+import { UsuarioRepository } from '../repositories/usuario.repository';
 
 @Injectable()
 export class SociosService {
   constructor(
-    @Inject(SOCIO_REPOSITORY) private readonly socios: SocioRepository,
-    @Inject(USUARIO_REPOSITORY) private readonly usuarios: UsuarioRepository,
+    private readonly socios: SocioRepository,
+    private readonly usuarios: UsuarioRepository,
   ) {}
+
+  // Lo consumia el `ConsultaSocioAdapter` desde el observer de email de M3.
+  // Se queda aca porque el email es dato del socio, no de un puerto aparte.
+  async obtenerEmail(socioId: number): Promise<string | null> {
+    const socio = await this.socios.buscarPorId(socioId);
+    return socio?.email ?? null;
+  }
+
 
   async crear(dto: SocioIn): Promise<SocioOut> {
     const usuario = await this.usuarios.buscarPorId(dto.usuario_id);

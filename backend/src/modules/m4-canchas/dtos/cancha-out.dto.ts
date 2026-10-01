@@ -6,7 +6,7 @@ const TIPOS: Cancha['tipo'][] = ['PADDLE', 'FUTBOL5'];
 const ESTADOS: Cancha['estado'][] = ['OPERATIVA', 'EN_MANTENIMIENTO'];
 
 @Exclude()
-export class CanchaOutDto {
+export class CanchaOut {
   @Expose()
   @ApiProperty({ example: 1 })
   id!: number;

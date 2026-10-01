@@ -4,7 +4,7 @@ import { Cancha } from '../entities/cancha.entity';
 
 const ESTADOS: Cancha['estado'][] = ['OPERATIVA', 'EN_MANTENIMIENTO'];
 
-export class ModificarCanchaDto {
+export class CanchaPatch {
   @ApiPropertyOptional({ description: 'Nuevo costo por hora de la cancha.', example: 5500 })
   @IsOptional()
   @IsNumber()

@@ -10,33 +10,33 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { ProblemDetailsDto } from '../../../commons/swagger/problem-details.dto';
+import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
-import { CanchaOutDto } from '../dtos/cancha-out.dto';
-import { CrearCanchaDto } from '../dtos/crear-cancha.dto';
+import { CanchaIn } from '../dtos/cancha-in.dto';
+import { CanchaOut } from '../dtos/cancha-out.dto';
+import { CanchaPatch } from '../dtos/cancha-patch.dto';
 import { ListarCanchasQueryDto } from '../dtos/listar-canchas-query.dto';
-import { ModificarCanchaDto } from '../dtos/modificar-cancha.dto';
 import { CanchasService } from '../services/canchas.service';
 
-// Dos raíces de ruta distintas (contrato): /sedes/{sedeId}/canchas para
-// alta/listado, /canchas/{canchaId} para el resto. @Controller() sin prefijo
+// Dos raíces de ruta distintas (contrato): /sedes/{sede_id}/canchas para
+// alta/listado, /canchas/{cancha_id} para el resto. @Controller() sin prefijo
 // de clase y ruta completa por método (igual que un @Controller('sedes') más
 // un @Controller('canchas') fusionados en una sola clase).
 @ApiTags('canchas')
-@ApiExtraModels(ProblemDetailsDto)
+@ApiExtraModels(Problem)
 @Controller()
 export class CanchasController {
   constructor(private readonly canchasService: CanchasService) {}
 
-  @Get('sedes/:sedeId/canchas')
+  @Get('sedes/:sede_id/canchas')
   @ApiOperation({ operationId: 'listarCanchas', summary: 'Listado de canchas de una sede (RF-12)' })
-  @ApiParam({ name: 'sedeId', type: Number, description: 'ID numérico de la sede', example: 1 })
-  @ApiOkResponse({ description: 'Listado de canchas', type: [CanchaOutDto] })
+  @ApiParam({ name: 'sede_id', type: 'integer', description: 'ID numérico de la sede', example: 1 })
+  @ApiOkResponse({ description: 'Listado de canchas', type: [CanchaOut] })
   @ApiUnprocessableEntityResponse({ description: 'Parámetros de filtro/paginación inválidos', content: PROBLEM_JSON })
   listar(
-    @Param('sedeId', ParseIntPipe) sedeId: number,
+    @Param('sede_id', ParseIntPipe) sedeId: number,
     @Query() query: ListarCanchasQueryDto,
-  ): Promise<CanchaOutDto[]> {
+  ): Promise<CanchaOut[]> {
     return this.canchasService.listar(sedeId, {
       estado: query.estado,
       page: query.page ?? 1,
@@ -44,12 +44,12 @@ export class CanchasController {
     });
   }
 
-  @Post('sedes/:sedeId/canchas')
+  @Post('sedes/:sede_id/canchas')
   @ApiOperation({ operationId: 'crearCancha', summary: 'Alta de cancha en una sede' })
-  @ApiParam({ name: 'sedeId', type: Number, description: 'ID numérico de la sede', example: 1 })
+  @ApiParam({ name: 'sede_id', type: 'integer', description: 'ID numérico de la sede', example: 1 })
   @ApiCreatedResponse({
     description: 'Cancha creada',
-    type: CanchaOutDto,
+    type: CanchaOut,
     headers: {
       Location: { description: 'URL del recurso creado', schema: { type: 'string', example: '/api/v1/canchas/1' } },
     },
@@ -57,34 +57,34 @@ export class CanchasController {
   @ApiNotFoundResponse({ description: 'Sede inexistente', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos', content: PROBLEM_JSON })
   async crear(
-    @Param('sedeId', ParseIntPipe) sedeId: number,
-    @Body() dto: CrearCanchaDto,
+    @Param('sede_id', ParseIntPipe) sedeId: number,
+    @Body() dto: CanchaIn,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<CanchaOutDto> {
+  ): Promise<CanchaOut> {
     const cancha = await this.canchasService.crear(sedeId, dto);
     res.setHeader('Location', `/api/v1/canchas/${cancha.id}`);
     return cancha;
   }
 
-  @Get('canchas/:canchaId')
+  @Get('canchas/:cancha_id')
   @ApiOperation({ operationId: 'obtenerCancha', summary: 'Cancha por id' })
-  @ApiParam({ name: 'canchaId', type: Number, description: 'ID numérico de la cancha', example: 1 })
-  @ApiOkResponse({ description: 'Cancha encontrada', type: CanchaOutDto })
+  @ApiParam({ name: 'cancha_id', type: 'integer', description: 'ID numérico de la cancha', example: 1 })
+  @ApiOkResponse({ description: 'Cancha encontrada', type: CanchaOut })
   @ApiNotFoundResponse({ description: 'Cancha inexistente', content: PROBLEM_JSON })
-  obtener(@Param('canchaId', ParseIntPipe) canchaId: number): Promise<CanchaOutDto> {
+  obtener(@Param('cancha_id', ParseIntPipe) canchaId: number): Promise<CanchaOut> {
     return this.canchasService.obtener(canchaId);
   }
 
-  @Patch('canchas/:canchaId')
+  @Patch('canchas/:cancha_id')
   @ApiOperation({ operationId: 'modificarCancha', summary: 'Modifica costo por hora y/o estado de una cancha' })
-  @ApiParam({ name: 'canchaId', type: Number, description: 'ID numérico de la cancha', example: 1 })
-  @ApiOkResponse({ description: 'Cancha actualizada', type: CanchaOutDto })
+  @ApiParam({ name: 'cancha_id', type: 'integer', description: 'ID numérico de la cancha', example: 1 })
+  @ApiOkResponse({ description: 'Cancha actualizada', type: CanchaOut })
   @ApiNotFoundResponse({ description: 'Cancha inexistente', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos', content: PROBLEM_JSON })
   modificar(
-    @Param('canchaId', ParseIntPipe) canchaId: number,
-    @Body() dto: ModificarCanchaDto,
-  ): Promise<CanchaOutDto> {
+    @Param('cancha_id', ParseIntPipe) canchaId: number,
+    @Body() dto: CanchaPatch,
+  ): Promise<CanchaOut> {
     return this.canchasService.actualizar(canchaId, dto);
   }
 }

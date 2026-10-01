@@ -5,7 +5,7 @@ import { Cancha } from '../entities/cancha.entity';
 const TIPOS: Cancha['tipo'][] = ['PADDLE', 'FUTBOL5'];
 const ESTADOS: Cancha['estado'][] = ['OPERATIVA', 'EN_MANTENIMIENTO'];
 
-export class CrearCanchaDto {
+export class CanchaIn {
   @ApiProperty({ enum: TIPOS, example: 'PADDLE' })
   @IsIn(TIPOS)
   tipo!: Cancha['tipo'];

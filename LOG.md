@@ -990,6 +990,8 @@ así que sin este corte el e2e intentaría crear una cuenta de Ethereal en cada 
 5. **M3 no tiene tests unitarios.** `npm test` sigue siendo un stub y el único runner de
    pruebas es el e2e. El canal de email quedó verificado de forma puntual, no con una
    prueba permanente en el repo.
+---
+
 ## Unidad II — Módulo 4: Canchas Deportivas (RF-09/RF-12) · Santino
 
 ### Semana 6 · SCRUM-11c — Bloque 1: Canchas (RF-09/RNF-04)
@@ -1112,3 +1114,74 @@ así que sin este corte el e2e intentaría crear una cuenta de Ethereal en cada 
    - El respaldo queda en `%TEMP%\opencode\prod-backup\prod-before-timestamptz.dump`, junto con `before.txt` y `after.txt` (los fingerprints de las 31 fechas). **Es local y temporal: no esta en el repo y hay que moverlo a un lugar seguro si se quiere conservar.**
 2. **Al mergear la rama de Santino hay que correr `prisma migrate status` y `prisma migrate deploy`.** Los bloques 3 y 4 agregan migraciones y los nombres con timestamp no pueden pisarse. Si el merge introduce una migracion divergente, Prisma propondrá una espuria.
 4. **El comparador sigue sin versionarse** (`backend/contrato/` esta en `.gitignore`). Mismo pendiente arrastrado desde M1.
+
+---
+
+## Unidad II — Alineación de M4 con la convención del contrato · Santino
+
+### Semana 7 · SCRUM-11c — Canchas (Bloque 1) contra M1-M3: naming, rutas y excepciones
+
+El Bloque 1 de M4 se había implementado antes de las auditorías de M1, M2 y M3, así que al traer esos cambios con el merge quedó con la convención anterior — y uno de los casos (`ProblemDetailsDto`) directamente dejó de compilar, porque ese archivo se renombró durante la auditoría de M1.
+
+#### Actividades
+
+1. **Import roto — `ProblemDetailsDto` → `Problem`**
+   - `canchas.controller.ts` importaba `ProblemDetailsDto` desde `commons/swagger/problem-details.dto`, archivo que ya no existe (renombrado a `problem.dto.ts`/`Problem` en la auditoría de M1, SCRUM-11h). Bloqueaba la compilación.
+   - [commit b8925e7](https://github.com/GonzaloVila/FitZone-Sports/commit/b8925e7)
+
+2. **DTOs renombrados a la convención del contrato**
+   - `CrearCanchaDto` → `CanchaIn`, `ModificarCanchaDto` → `CanchaPatch` (con `git mv`), `CanchaOutDto` → `CanchaOut`. Mismo criterio que M1/M2/M3: el nombre de la clase es el que sale en `components.schemas` del Swagger generado, y tiene que coincidir con el contrato.
+   - [commit b8925e7](https://github.com/GonzaloVila/FitZone-Sports/commit/b8925e7)
+
+3. **Rutas y parámetros a snake_case**
+   - `:sedeId`/`:canchaId` → `:sede_id`/`:cancha_id` en rutas, `@Param` y `@ApiParam`. Las variables internas de TypeScript quedan en camelCase (no afecta el contrato, solo el código).
+   - `@ApiParam({ type: Number })` → `type: 'integer'` en los dos parámetros de path y en `page`/`per_page` del query DTO.
+   - [commit b8925e7](https://github.com/GonzaloVila/FitZone-Sports/commit/b8925e7)
+
+4. **Excepciones de dominio migradas a `ProblemException`**
+   - Los 3 `NotFoundException` de `CanchasService` (sede inexistente al crear, cancha inexistente en obtener/actualizar) pasan por `recursoNoEncontrado()`, igual que M1/M2/M3 (SCRUM-11d). Antes caían en el fail-safe de `resolveDetail()`; verificado que ya no generan `WARN` en el log.
+   - [commit 7d1b360](https://github.com/GonzaloVila/FitZone-Sports/commit/7d1b360)
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde en las dos tandas.
+- Runtime (puerto 3199): `GET /sedes/1/canchas` → 200; `GET /canchas/999999`, `PATCH /canchas/999999`, `POST /sedes/999999/canchas` → 404 `application/problem+json` con `title`, `detail` e `instance`, sin `WARN` del fail-safe.
+- `/docs-json`: los 4 endpoints de canchas declaran `sede_id`/`cancha_id` como `integer`, sin parámetros fantasma del nombre viejo. Schemas generados: `Problem`, `CanchaIn`, `CanchaPatch`, `CanchaOut`.
+
+#### Pendientes que siguen abiertos
+
+1. **`CanchaOut` sin `type: 'integer'` en `id`, `sede_id`, `costo_por_hora`.** Mismo criterio que M1 (SCRUM-11e): se corrige módulo por módulo, no se adelantó acá.
+2. **`GET /canchas/abc` responde 422, no 400.** Preexistente, mismo comportamiento que M2 (`GET /sedes/abc/aforo`) — no es un defecto introducido por esta alineación.
+
+---
+
+## Unidad II — Módulo 4: Canchas Deportivas · Bloque 3 · Santino
+
+### Semana 7 · SCRUM-11c — Bloque 3: Reservas y disponibilidad (RF-10/RN-02/RN-03/RNF-03)
+
+#### Actividades
+
+1. **Crear y cancelar reservas — parte 1**
+   - `ReservaRepository` con Prisma (`repositories/prisma/prisma-reserva.repository.ts`), DI por token string (`RESERVA_REPOSITORY`), resultado discriminado `ResultadoCrearReserva` — mismo criterio que `ResultadoCrearIngreso` de M2.
+   - `ReservasCanchasService.crear()`, en orden: valida existencia de cancha (404) → `EN_MANTENIMIENTO` bloquea turnos nuevos (409, RF-12) → `fecha_hora_inicio < fecha_hora_fin` (422) → `MEMBERSHIP_VALIDATION_PORT.consultarVigencia()` con `@Optional()`, fail-open a precio de externo si el puerto no está (al revés que M2, que es fail-closed) → `PricingStrategyFactory.cotizar()` → `precio_aplicado` congelado al momento de la reserva → `crear()`, traduciendo `TURNO_OCUPADO` a 409.
+   - **Verificado empíricamente el código de error de la constraint de exclusión**: Postgres tira la violación como `PrismaClientUnknownRequestError` con `.code` en `undefined` (a diferencia de `P2002`/`P2003`, que Prisma sí tipa), así que el `catch` matchea `error instanceof Prisma.PrismaClientUnknownRequestError && error.message.includes('exq_reserva_turno')`.
+   - `cancelar()`: 404 si no existe, 409 si ya estaba `CANCELADA`, baja lógica si `CONFIRMADA` — el `WHERE estado <> 'CANCELADA'` de la constraint libera el horario sin limpieza adicional.
+   - Validación de fecha más estricta que el resto del proyecto: `@IsISO8601({ strict: true })` + `@Matches` exigiendo offset de zona explícito. Sin esto, una fecha sin zona se interpreta según el huso del proceso (en Docker, UTC), desfasando 3 horas contra Argentina.
+   - Smoke contra Supabase: reserva de socio con descuento (`precio_aplicado: 4250`), reserva en pico (`5100`), solapamiento parcial → 409, dos reservas simultáneas al mismo turno libre → una 201 y una 409 (confirma que la protección real vive en la base, no en el service), cancelación y re-reserva del mismo horario liberado, cancha en mantenimiento → 409, fechas invertidas → 422.
+   - [commit 63eb2bd](https://github.com/GonzaloVila/FitZone-Sports/commit/63eb2bd)
+
+2. **Listado de reservas y disponibilidad — parte 2**
+   - `ReservaRepository.listar(filtros)`: lista blanca de filtros opcionales (`cancha_id`, `usuario_id`, `estado`, rango de fechas), paginado. El repositorio no decide ningún default — eso es regla de negocio.
+   - `ReservasCanchasService.listar()`: sin `?estado=`, default `CONFIRMADA` — las canceladas no aparecen salvo que se pidan explícito (RF-12 conserva histórico, no visibilidad por defecto; al revés que el listado de canchas, que si no filtra muestra ambos estados). El filtro `fecha` se resuelve con `rangoDelDia()` (helper ya existente de M2) a un rango `[desde, hasta)`.
+   - `DisponibilidadService.consultar()`: genera la grilla del día (constantes `GRILLA_HORA_INICIO/FIN/PASO_MINUTOS`, `08:00–22:00` cada 60 min — un supuesto del equipo, el contrato no fija rango ni paso, decisión 12 del plan). Si la cancha está `EN_MANTENIMIENTO`, devuelve todos los tramos `false` **sin consultar reservas** (RF-12 no necesita leer la tabla para saber que está todo bloqueado). Si no, cruza la grilla contra `listarOcupadasEnRango()`.
+   - `consultarDisponibilidad` agregado a `canchas.controller.ts` (había quedado pendiente del Bloque 1, porque necesitaba leer reservas).
+   - **Hallazgo en M2, no corregido acá**: `@IsISO8601({ strict: true })` detectó que `GET /ingresos?fecha=2027-02-30` en M2 no rechaza fechas inválidas — JavaScript las acomoda en silencio (2027-02-30 → 2 de marzo). M4 sí las rechaza (422). Queda como posible pendiente de M2, fuera del alcance de este bloque.
+   - **Nota de diseño**: la grilla usa el offset fijo `-03:00` de `rangoDelDia()` (consistente con cómo M2 define "día de la sede"), no el nombre IANA `TIMEZONE_SEDE` que sí usa `peak-hour-pricing.ts` del Bloque 2. Hoy dan el mismo resultado porque Argentina no tiene horario de verano; quedan dos mecanismos distintos conviviendo en M4, por decisión consciente de priorizar consistencia con M2 sobre uniformidad interna.
+   - Smoke: grilla vacía → todo `true`; una reserva ocupa solo su tramo (y los que cruza, si el turno es más largo que el paso); mantenimiento → todo `false`; aislamiento entre canchas y entre días verificado; filtro `fecha` confirmado contra el día de la sede, no el día UTC (reserva a las 23:00 local cae en el día correcto, no en el día siguiente por UTC).
+   - [commit 47d90f9](https://github.com/GonzaloVila/FitZone-Sports/commit/47d90f9)
+
+#### Pendientes que siguen abiertos
+
+1. **`problem.filter.ts` con una rama muerta**: sigue mapeando `unq_reserva_turno`, índice que ya no existe (reemplazado por `exq_reserva_turno` en el Bloque 0). Es de `commons/`, no se tocó.
+2. **`GET /ingresos?fecha=` de M2 no valida fechas inválidas** (ver hallazgo arriba) — posible pendiente para una futura pasada de M2.
+3. Falta el Bloque 4 (QA, integración y cierre del módulo completo).

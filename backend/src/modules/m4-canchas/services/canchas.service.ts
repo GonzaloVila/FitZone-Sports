@@ -1,5 +1,6 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { SEDE_VALIDATION_PORT, SedeValidationPort } from '../../../commons/sede/sede-validation.port';
 import { CanchaIn } from '../dtos/cancha-in.dto';
 import { CanchaOut } from '../dtos/cancha-out.dto';
@@ -42,7 +43,7 @@ export class CanchasService {
   async obtener(id: number): Promise<CanchaOut> {
     const cancha = await this.canchas.buscarPorId(id);
     if (!cancha) {
-      throw new NotFoundException(NO_ENCONTRADO);
+      throw recursoNoEncontrado(NO_ENCONTRADO);
     }
     return this.aOut(cancha);
   }
@@ -53,14 +54,14 @@ export class CanchasService {
       estado: dto.estado,
     });
     if (!cancha) {
-      throw new NotFoundException(NO_ENCONTRADO);
+      throw recursoNoEncontrado(NO_ENCONTRADO);
     }
     return this.aOut(cancha);
   }
 
   private async exigirSede(sedeId: number): Promise<void> {
     if (!(await this.sedes.existeSede(sedeId))) {
-      throw new NotFoundException(NO_ENCONTRADO);
+      throw recursoNoEncontrado('No existe la sede indicada.');
     }
   }
 

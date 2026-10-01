@@ -35,6 +35,7 @@ async function bootstrap() {
     .addTag('reservas-clases')
     .addTag('esperas-clases')
     .addTag('canchas')
+    .addTag('reservas-canchas')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   markRequestSchemasClosed(swaggerDocument);

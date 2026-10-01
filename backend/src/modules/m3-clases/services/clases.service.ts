@@ -1,15 +1,7 @@
-import {
-  HttpStatus,
-  Inject,
-  Injectable,
-  Optional,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
-import {
-  SEDE_VALIDATION_PORT,
-  type SedeValidationPort,
-} from '../../../commons/sede/sede-validation.port';
+import { SedesService } from '../../m2-gimnasio/services/sedes.service';
 import { ClaseOut } from '../dtos/clase-out.dto';
 import { ClaseIn } from '../dtos/clase-in.dto';
 import { ListarClasesQueryDto } from '../dtos/listar-clases-query.dto';
@@ -23,17 +15,15 @@ export class ClasesService {
   constructor(
     @Inject(CLASE_REPOSITORY)
     private readonly clasesRepo: ClaseRepository,
-    @Optional()
-    @Inject(SEDE_VALIDATION_PORT)
-    private readonly sedeValidation: SedeValidationPort | null,
+    // La sede es de M2. El `@Optional()` anterior hacía que una clase se pudiera
+    // crear con una sede inexistente si M2 no estaba registrado; ahora la
+    // dependencia es obligatoria y la sede se valida siempre.
+    private readonly sedes: SedesService,
   ) {}
 
   async crearClase(dto: ClaseIn): Promise<ClaseOut> {
-    if (this.sedeValidation) {
-      const existeSede = await this.sedeValidation.existeSede(dto.sede_id);
-      if (!existeSede) {
-        throw recursoNoEncontrado('No existe la sede indicada.');
-      }
+    if (!(await this.sedes.existe(dto.sede_id))) {
+      throw recursoNoEncontrado('No existe la sede indicada.');
     }
 
     const fechaInicio = new Date(dto.horario);

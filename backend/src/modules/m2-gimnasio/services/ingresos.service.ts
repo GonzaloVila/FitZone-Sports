@@ -1,20 +1,21 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import type { OpcionesPaginacion } from '../../../commons/paginacion';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import { AforoOut } from '../dtos/aforo-out.dto';
 import { IngresoIn } from '../dtos/ingreso-in.dto';
 import { IngresoOut } from '../dtos/ingreso-out.dto';
 import { Ingreso } from '../entities/ingreso.entity';
-import { INGRESO_REPOSITORY, IngresoFiltros, IngresoRepository } from '../repositories/ingreso.repository';
-import { SEDE_REPOSITORY, SedeRepository } from '../repositories/sede.repository';
-import type { OpcionesPaginacion } from '../../../commons/paginacion';
+import { IngresoRepository } from '../repositories/ingreso.repository';
+import type { IngresoFiltros } from '../repositories/ingreso.repository';
+import { SedeRepository } from '../repositories/sede.repository';
 
 @Injectable()
 export class IngresosService {
   constructor(
-    @Inject(INGRESO_REPOSITORY) private readonly ingresos: IngresoRepository,
-    @Inject(SEDE_REPOSITORY) private readonly sedes: SedeRepository,
+    private readonly ingresos: IngresoRepository,
+    private readonly sedes: SedeRepository,
     // RF-04: la vigencia la decide M1. Antes venía por un puerto con `@Optional()`
     // y se trataba como `null` si no estaba registrado, lo que hacia fallar el
     // acceso por una razon equivocada. Ahora la dependencia es obligatoria: si M1

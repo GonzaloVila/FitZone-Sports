@@ -2,6 +2,7 @@
 // (controllers/services/repositories/prisma/entities/dtos).
 import { Module } from '@nestjs/common';
 import { CommonsModule } from '../../commons/commons.module';
+import { GimnasioModule } from '../m2-gimnasio/gimnasio.module';
 import { UsuariosModule } from '../m1-usuarios/usuarios.module';
 import { CanchasController } from './controllers/canchas.controller';
 import { ReservasCanchasController } from './controllers/reservas-canchas.controller';
@@ -15,9 +16,9 @@ import { DisponibilidadService } from './services/disponibilidad.service';
 import { ReservasCanchasService } from './services/reservas-canchas.service';
 
 @Module({
-  // M4 importa M1 por `MembresiasService` (RN-03 al cotizar la tarifa bonificada).
-  // SEDE_VALIDATION_PORT sigue llegando por el @Global() de GimnasioModule.
-  imports: [CommonsModule, UsuariosModule],
+  // M4 importa M1 por `MembresiasService` (RN-03 al cotizar la tarifa bonificada)
+  // y M2 por `SedesService` (la sede de una cancha nueva debe existir).
+  imports: [CommonsModule, UsuariosModule, GimnasioModule],
   controllers: [CanchasController, ReservasCanchasController],
   providers: [
     { provide: CANCHA_REPOSITORY, useClass: PrismaCanchaRepository },

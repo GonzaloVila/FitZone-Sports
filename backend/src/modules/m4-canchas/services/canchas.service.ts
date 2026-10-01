@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
-import { SEDE_VALIDATION_PORT, SedeValidationPort } from '../../../commons/sede/sede-validation.port';
+import { SedesService } from '../../m2-gimnasio/services/sedes.service';
 import { CanchaIn } from '../dtos/cancha-in.dto';
 import { CanchaOut } from '../dtos/cancha-out.dto';
 import { CanchaPatch } from '../dtos/cancha-patch.dto';
@@ -14,7 +14,10 @@ const NO_ENCONTRADO = 'No existe el recurso solicitado para el id indicado.';
 export class CanchasService {
   constructor(
     @Inject(CANCHA_REPOSITORY) private readonly canchas: CanchaRepository,
-    @Inject(SEDE_VALIDATION_PORT) private readonly sedes: SedeValidationPort,
+    // La sede es de M2. Antes llegaba por SEDE_VALIDATION_PORT con GimnasioModule
+    // en @Global(); ahora M4 importa GimnasioModule y pide `SedesService`, que es
+    // la capa de negocio donde corresponde la regla de existencia.
+    private readonly sedes: SedesService,
   ) {}
 
   async crear(sedeId: number, dto: CanchaIn): Promise<CanchaOut> {
@@ -60,7 +63,7 @@ export class CanchasService {
   }
 
   private async exigirSede(sedeId: number): Promise<void> {
-    if (!(await this.sedes.existeSede(sedeId))) {
+    if (!(await this.sedes.existe(sedeId))) {
       throw recursoNoEncontrado('No existe la sede indicada.');
     }
   }

@@ -1,6 +1,6 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsOptional, Min } from 'class-validator';
-import { PlanMembresia } from '../entities/socio.entity';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsIn, IsInt, Min } from 'class-validator';
+import { PlanMembresia } from '../entities/membresia.entity';
 
 const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];
 
@@ -25,11 +25,11 @@ export class SocioIn {
   @Min(1)
   sede_origen_id!: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     enum: PLANES,
-    description: 'Si se indica, se crea la membresía inicial con este plan en la misma transacción.',
+    description:
+      'Plan de la membresía inicial, obligatorio: no existe un socio sin membresía. El alta crea la fila única de Membresia en la misma transacción y la fecha_fin se calcula en el dominio con este plan.',
   })
-  @IsOptional()
   @IsIn(PLANES)
-  plan?: PlanMembresia;
+  plan!: PlanMembresia;
 }

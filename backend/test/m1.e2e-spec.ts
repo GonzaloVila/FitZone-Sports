@@ -248,8 +248,8 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .send({ usuario_id: usuarioCarlos.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
       .expect(201);
 
-    // Socio SIN membresia (plan es opcional): sirve para probar que los filtros
-    // de membresia lo excluyen, ya que la relacion es opcional en el schema.
+    // Socio con plan ANUAL: como no existe un socio sin membresia, la
+    // exclusion de los filtros se prueba con una membresia que NO coincide.
     const emailZoe = emailUnico();
     const usuarioZoe = await request(app.getHttpServer())
       .post('/api/v1/usuarios')
@@ -261,13 +261,13 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
         contrasenia: 'clave12345',
       })
       .expect(201);
-    const socioSinMembresia = await request(app.getHttpServer())
+    const socioOtroPlan = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioZoe.body.id, sede_origen_id: sedeId })
+      .send({ usuario_id: usuarioZoe.body.id, sede_origen_id: sedeId, plan: 'ANUAL' })
       .expect(201);
 
     const idCon = socioConMembresia.body.id;
-    const idSin = socioSinMembresia.body.id;
+    const idOtro = socioOtroPlan.body.id;
 
     // Sin filtros: array plano, y trae nombre/email (contrato, Paso 1).
     const todos = await request(app.getHttpServer()).get('/api/v1/socios').expect(200);
@@ -310,19 +310,20 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .expect(200);
     expect(combinado.body.map((s) => s.id)).toContain(idCon);
 
-    // Contradiccion: la membresia es MENSUAL, no ANUAL
+    // Contradiccion: cada uno tiene el plan del otro, no el suyo
     const porPlanAnual = await request(app.getHttpServer())
       .get('/api/v1/socios')
       .query({ plan: 'ANUAL' })
       .expect(200);
     expect(porPlanAnual.body.map((s) => s.id)).not.toContain(idCon);
+    expect(porPlanAnual.body.map((s) => s.id)).toContain(idOtro);
 
-    // `membresia` es opcional: un filtro de membresia excluye al socio que no
-    // tiene ninguna. Es la semantica correcta, no un dato sin revisar.
-    expect(porPlan.body.map((s) => s.id)).not.toContain(idSin);
-    expect(porEstado.body.map((s) => s.id)).not.toContain(idSin);
+    // Todo socio tiene membresia desde el alta: `estado_membresia: ACTIVA`
+    // trae a los dos, y el filtro por plan separa al que no coincide.
+    expect(porPlan.body.map((s) => s.id)).not.toContain(idOtro);
+    expect(porEstado.body.map((s) => s.id)).toContain(idOtro);
     // Sin filtro de membresia si tiene que aparecer.
-    expect(todos.body.map((s) => s.id)).toContain(idSin);
+    expect(todos.body.map((s) => s.id)).toContain(idOtro);
 
     // nombre parcial sin distinguir mayusculas: 'carlos' -> 'Carlos Gomez'
     const porNombre = await request(app.getHttpServer())
@@ -330,7 +331,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .query({ nombre: 'carlos' })
       .expect(200);
     expect(porNombre.body.map((s) => s.id)).toContain(idCon);
-    expect(porNombre.body.map((s) => s.id)).not.toContain(idSin);
+    expect(porNombre.body.map((s) => s.id)).not.toContain(idOtro);
 
     // lista blanca + enums invalidos -> 422
     await request(app.getHttpServer())
@@ -350,8 +351,39 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
   it('POST /socios responde 404 si usuario_id no existe', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: 999999, sede_origen_id: sedeId })
+      .send({ usuario_id: 999999, sede_origen_id: sedeId, plan: 'MENSUAL' })
       .expect(404);
+  });
+
+  it('POST /socios responde 422 si falta plan (no hay socio sin membresia)', async () => {
+    const usuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Sin Plan E2E',
+        email: emailUnico(),
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+    const usuarioId = usuarioRes.body.id;
+
+    await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioId, sede_origen_id: sedeId })
+      .expect(422);
+
+    // El rechazo es total: no queda un socio a medias. El usuario sigue siendo
+    // EXTERNO, asi que un reintento con plan funciona.
+    const reintento = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .expect(201);
+
+    const membresiaRes = await request(app.getHttpServer())
+      .get(`/api/v1/socios/${reintento.body.id}/membresias`)
+      .expect(200);
+    expect(membresiaRes.body.plan).toBe('MENSUAL');
   });
 
   it('PATCH /usuarios/{id} acepta null para limpiar telefono y foto_url', async () => {
@@ -407,39 +439,12 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioId, sede_origen_id: sedeId })
+      .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
       .expect(201);
 
     await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioId, sede_origen_id: sedeId })
-      .expect(409);
-  });
-
-  it('POST /socios/{id}/membresias responde 409 si el socio ya tiene membresia', async () => {
-    const usuarioRes = await request(app.getHttpServer())
-      .post('/api/v1/usuarios')
-      .send({
-        rol: 'EXTERNO',
-        dni: dniUnico(),
-        nombre: 'Doble Membresia E2E',
-        email: emailUnico(),
-        contrasenia: 'clave12345',
-      })
-      .expect(201);
-
-    const socioRes = await request(app.getHttpServer())
-      .post('/api/v1/socios')
-      .send({
-        usuario_id: usuarioRes.body.id,
-        sede_origen_id: sedeId,
-        plan: 'MENSUAL',
-      })
-      .expect(201);
-
-    await request(app.getHttpServer())
-      .post(`/api/v1/socios/${socioRes.body.id}/membresias`)
-      .send({ plan: 'ANUAL' })
+      .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
       .expect(409);
   });
 

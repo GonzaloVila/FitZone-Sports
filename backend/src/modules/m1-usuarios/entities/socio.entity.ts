@@ -1,4 +1,4 @@
-export type PlanMembresia = "MENSUAL" | "TRIMESTRAL" | "ANUAL";
+import type { PlanMembresia } from './membresia.entity';
 
 export interface Socio {
   id: number;
@@ -12,7 +12,7 @@ export interface Socio {
 export interface SocioNuevo {
   usuario_id: number;
   sede_origen_id: number;
-  plan?: PlanMembresia;
+  plan: PlanMembresia;
 }
 
 export interface SocioActualizable {

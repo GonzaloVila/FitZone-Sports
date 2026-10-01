@@ -15,8 +15,9 @@ import { PrismaService } from '../src/commons/database/prisma.service';
 // tienen que fallar si un error de dominio vuelve a perder su mensaje.
 //
 // Ademas fija los `title` que declara el contrato y que el filtro colapsaba a
-// "Conflicto" para los tres 409 de M1 (components.responses Conflict,
-// SocioExistente y MembresiaExistente).
+// "Conflicto" para los 409 de M1 (components.responses Conflict y
+// SocioExistente; el tercero, MembresiaExistente, desaparecio junto con el alta
+// de membresia, ya que todo socio nace con una).
 //
 // La limpieza es por arrays de ids, como en m2 y m3, no por prefijo de email:
 // asi este spec no puede tocar los fixtures de los otros aunque corran en otro
@@ -124,28 +125,11 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
     it('POST /socios con usuario_id inexistente conserva su detail', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/socios')
-        .send({ usuario_id: 999999, sede_origen_id: sedeId })
+        .send({ usuario_id: 999999, sede_origen_id: sedeId, plan: 'MENSUAL' })
         .expect(404);
 
       esProblemDeDominio(res, 404);
       expect(res.body.detail).toBe('No existe el usuario indicado.');
-    });
-
-    it('GET /socios/{id}/membresias sin membresia conserva su detail', async () => {
-      const usuarioId = await crearUsuario();
-      const socioRes = await request(app.getHttpServer())
-        .post('/api/v1/socios')
-        .send({ usuario_id: usuarioId, sede_origen_id: sedeId })
-        .expect(201);
-      const socioId: number = socioRes.body.id;
-      sociosCreados.push(socioId);
-
-      const res = await request(app.getHttpServer())
-        .get(`/api/v1/socios/${socioId}/membresias`)
-        .expect(404);
-
-      esProblemDeDominio(res, 404);
-      expect(res.body.detail).toBe('El socio no posee una membresía activa.');
     });
 
     it('POST /ingresos con sede inexistente conserva su detail (M2)', async () => {
@@ -213,13 +197,13 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
       const usuarioId = await crearUsuario();
       const primerSocioRes = await request(app.getHttpServer())
         .post('/api/v1/socios')
-        .send({ usuario_id: usuarioId, sede_origen_id: sedeId })
+        .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
         .expect(201);
       sociosCreados.push(primerSocioRes.body.id);
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/socios')
-        .send({ usuario_id: usuarioId, sede_origen_id: sedeId })
+        .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
         .expect(409);
 
       esProblemDeDominio(res, 409);
@@ -227,25 +211,6 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
       expect(res.body.detail).toBe(
         `El usuario ${usuarioId} ya tiene un registro de socio.`,
       );
-    });
-
-    it('POST /socios/{id}/membresias con socio que ya tiene membresia', async () => {
-      const usuarioId = await crearUsuario();
-      const socioRes = await request(app.getHttpServer())
-        .post('/api/v1/socios')
-        .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
-        .expect(201);
-      const socioId: number = socioRes.body.id;
-      sociosCreados.push(socioId);
-
-      const res = await request(app.getHttpServer())
-        .post(`/api/v1/socios/${socioId}/membresias`)
-        .send({ plan: 'ANUAL' })
-        .expect(409);
-
-      esProblemDeDominio(res, 409);
-      expect(res.body.title).toBe('Conflicto de membresía existente');
-      expect(res.body.detail).toBe('El socio ya tiene una membresía activa.');
     });
   });
 });

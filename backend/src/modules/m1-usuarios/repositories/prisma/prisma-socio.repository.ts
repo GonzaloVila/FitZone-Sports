@@ -35,9 +35,7 @@ export class PrismaSocioRepository implements SocioRepository {
     };
 
     // Los dos filtros de membresia se acumulan en el MISMO objeto para que
-    // Prisma los ANDee sobre la relacion. Ademas, como `membresia` es opcional
-    // en el schema, cualquier filtro de membresia excluye a los socios que no
-    // tienen ninguna: es la semantica correcta, no un olvido.
+    // Prisma los ANDee sobre la relacion.
     if (estado_membresia !== undefined || plan !== undefined) {
       where.membresia = {
         ...(estado_membresia !== undefined && { estado: estado_membresia }),
@@ -69,19 +67,20 @@ export class PrismaSocioRepository implements SocioRepository {
         include: USUARIO_SELECCION,
       });
 
-      if (socio.plan) {
-        const { fecha_inicio, fecha_fin } = calcularVigencia(socio.plan);
-        await tx.membresia.create({
-          data: {
-            socio_id: nuevoSocio.id,
-            plan: socio.plan,
-            estado: 'ACTIVA',
-            fecha_inicio,
-            fecha_fin,
-            renueva_automatica: false,
-          },
-        });
-      }
+      // No existe un socio sin membresia: la fila 1:1 se crea siempre, en la
+      // misma transaccion que el socio. `calcularVigencia` sin segundo argumento
+      // toma hoy como fecha_inicio.
+      const { fecha_inicio, fecha_fin } = calcularVigencia(socio.plan);
+      await tx.membresia.create({
+        data: {
+          socio_id: nuevoSocio.id,
+          plan: socio.plan,
+          estado: 'ACTIVA',
+          fecha_inicio,
+          fecha_fin,
+          renueva_automatica: false,
+        },
+      });
 
       await tx.usuario.update({
         where: { id: socio.usuario_id },

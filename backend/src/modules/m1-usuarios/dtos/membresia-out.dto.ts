@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
 import { EstadoMembresia } from '../entities/membresia.entity';
-import { PlanMembresia } from '../entities/socio.entity';
+import { PlanMembresia } from '../entities/membresia.entity';
 
 @Exclude()
 export class MembresiaOut {

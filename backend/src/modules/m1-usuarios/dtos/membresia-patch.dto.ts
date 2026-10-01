@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsOptional } from 'class-validator';
 import { EstadoMembresia } from '../entities/membresia.entity';
-import { PlanMembresia } from '../entities/socio.entity';
+import { PlanMembresia } from '../entities/membresia.entity';
 
 const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];
 

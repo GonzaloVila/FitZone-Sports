@@ -9,7 +9,7 @@ import {
   Min,
 } from 'class-validator';
 import type { EstadoMembresia } from '../entities/membresia.entity';
-import type { PlanMembresia } from '../entities/socio.entity';
+import type { PlanMembresia } from '../entities/membresia.entity';
 
 const ESTADOS: EstadoMembresia[] = ['ACTIVA', 'VENCIDA', 'SUSPENDIDA'];
 const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];

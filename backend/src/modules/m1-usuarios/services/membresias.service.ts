@@ -2,9 +2,8 @@ import {
   Inject,
   Injectable,
 } from '@nestjs/common';
-import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
-import { MembresiaIn } from '../dtos/membresia-in.dto';
 import { MembresiaOut } from '../dtos/membresia-out.dto';
 import { MembresiaPatch } from '../dtos/membresia-patch.dto';
 import { Membresia } from '../entities/membresia.entity';
@@ -20,32 +19,6 @@ export class MembresiasService {
     @Inject(MEMBRESIA_REPOSITORY) private readonly membresias: MembresiaRepository,
     @Inject(SOCIO_REPOSITORY) private readonly socios: SocioRepository,
   ) {}
-
-  async crear(socioId: number, dto: MembresiaIn): Promise<MembresiaOut> {
-    const socio = await this.socios.buscarPorId(socioId);
-    if (!socio) {
-      throw recursoNoEncontrado('No existe el socio indicado.');
-    }
-
-    const membresiaExistente = await this.membresias.buscarPorSocioId(socioId);
-    if (membresiaExistente) {
-      throw conflictoDeDominio(
-        'Conflicto de membresía existente',
-        'El socio ya tiene una membresía activa.',
-      );
-    }
-
-    const fechaInicio = dto.fecha_inicio ? new Date(dto.fecha_inicio) : undefined;
-
-    const membresia = await this.membresias.crear({
-      socio_id: socioId,
-      plan: dto.plan,
-      renueva_automatica: dto.renueva_automatica,
-      fecha_inicio: fechaInicio,
-    });
-
-    return this.aOut(membresia);
-  }
 
   async obtenerPorSocioId(socioId: number): Promise<MembresiaOut> {
     const socio = await this.socios.buscarPorId(socioId);

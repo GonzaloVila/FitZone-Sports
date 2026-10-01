@@ -1,8 +1,10 @@
 import type { InjectionToken } from "@nestjs/common";
 import type { OpcionesPaginacion } from "../../../commons/paginacion";
-import type { EstadoMembresia } from "../entities/membresia.entity";
 import type {
+  EstadoMembresia,
   PlanMembresia,
+} from "../entities/membresia.entity";
+import type {
   Socio,
   SocioActualizable,
   SocioNuevo,

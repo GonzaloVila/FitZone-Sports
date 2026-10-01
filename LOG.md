@@ -1022,3 +1022,41 @@ así que sin este corte el e2e intentaría crear una cuenta de Ethereal en cada 
    - 5 casos de `pricing-strategy.factory.spec.ts` en verde: externo 5000→5000 · socio 5000→4250 (ejemplo del contrato) · socio en pico→5100 · externo en pico→6000 · socio a las 21:00 en punto→4250 (confirma el límite medio-abierto, sin recargo).
    - **Nota:** el 20% de recargo por horario pico no sale del enunciado del caso — es una decisión del equipo, pendiente de confirmar con la cátedra.
    - [commit 4d537b3](https://github.com/GonzaloVila/FitZone-Sports/commit/4d537b3)
+
+---
+
+## Unidad II — Alineación de M4 con la convención del contrato · Santino
+
+### Semana 7 · SCRUM-11c — Canchas (Bloque 1) contra M1-M3: naming, rutas y excepciones
+
+El Bloque 1 de M4 se había implementado antes de las auditorías de M1, M2 y M3, así que al traer esos cambios con el merge quedó con la convención anterior — y uno de los casos (`ProblemDetailsDto`) directamente dejó de compilar, porque ese archivo se renombró durante la auditoría de M1.
+
+#### Actividades
+
+1. **Import roto — `ProblemDetailsDto` → `Problem`**
+   - `canchas.controller.ts` importaba `ProblemDetailsDto` desde `commons/swagger/problem-details.dto`, archivo que ya no existe (renombrado a `problem.dto.ts`/`Problem` en la auditoría de M1, SCRUM-11h). Bloqueaba la compilación.
+   - [commit b8925e7](https://github.com/GonzaloVila/FitZone-Sports/commit/b8925e7)
+
+2. **DTOs renombrados a la convención del contrato**
+   - `CrearCanchaDto` → `CanchaIn`, `ModificarCanchaDto` → `CanchaPatch` (con `git mv`), `CanchaOutDto` → `CanchaOut`. Mismo criterio que M1/M2/M3: el nombre de la clase es el que sale en `components.schemas` del Swagger generado, y tiene que coincidir con el contrato.
+   - [commit b8925e7](https://github.com/GonzaloVila/FitZone-Sports/commit/b8925e7)
+
+3. **Rutas y parámetros a snake_case**
+   - `:sedeId`/`:canchaId` → `:sede_id`/`:cancha_id` en rutas, `@Param` y `@ApiParam`. Las variables internas de TypeScript quedan en camelCase (no afecta el contrato, solo el código).
+   - `@ApiParam({ type: Number })` → `type: 'integer'` en los dos parámetros de path y en `page`/`per_page` del query DTO.
+   - [commit b8925e7](https://github.com/GonzaloVila/FitZone-Sports/commit/b8925e7)
+
+4. **Excepciones de dominio migradas a `ProblemException`**
+   - Los 3 `NotFoundException` de `CanchasService` (sede inexistente al crear, cancha inexistente en obtener/actualizar) pasan por `recursoNoEncontrado()`, igual que M1/M2/M3 (SCRUM-11d). Antes caían en el fail-safe de `resolveDetail()`; verificado que ya no generan `WARN` en el log.
+   - [commit 7d1b360](https://github.com/GonzaloVila/FitZone-Sports/commit/7d1b360)
+
+#### Verificación
+
+- `npx tsc --noEmit` y `npm run build` en verde en las dos tandas.
+- Runtime (puerto 3199): `GET /sedes/1/canchas` → 200; `GET /canchas/999999`, `PATCH /canchas/999999`, `POST /sedes/999999/canchas` → 404 `application/problem+json` con `title`, `detail` e `instance`, sin `WARN` del fail-safe.
+- `/docs-json`: los 4 endpoints de canchas declaran `sede_id`/`cancha_id` como `integer`, sin parámetros fantasma del nombre viejo. Schemas generados: `Problem`, `CanchaIn`, `CanchaPatch`, `CanchaOut`.
+
+#### Pendientes que siguen abiertos
+
+1. **`CanchaOut` sin `type: 'integer'` en `id`, `sede_id`, `costo_por_hora`.** Mismo criterio que M1 (SCRUM-11e): se corrige módulo por módulo, no se adelantó acá.
+2. **`GET /canchas/abc` responde 422, no 400.** Preexistente, mismo comportamiento que M2 (`GET /sedes/abc/aforo`) — no es un defecto introducido por esta alineación.

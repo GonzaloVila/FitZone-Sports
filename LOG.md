@@ -1261,3 +1261,92 @@ El Bloque 1 de M4 se había implementado antes de las auditorías de M1, M2 y M3
 1. **`GET /ingresos?fecha=` de M2 no valida fechas inválidas** — sigue sin tocarse. Es deuda de M2, ajena a este bloque.
 2. **Deuda de M3, registrada y no tocada**: `POST /reservas-clases/{id}/cancelaciones` y `DELETE /esperas-clases/{id}` responden **204 silencioso** al repetir una cancelación, mientras el contrato declara 404. Se decide junto con M3, no desde M4.
 3. **Bloque 4**: QA, integración y cierre del módulo. Sin arrancar.
+
+
+---
+
+## Unidad II - Módulo 1: Usuarios, Socios y Membresías — Invariante de membresía obligatoria (Gonzalo Vila)
+
+**Fecha:** 01/10/2026 — **Rama:** `invariante-membresia-obligatoria` — **Commit:** [`eefefc6`](https://github.com/GonzaloVila/FitZone-Sports/commit/eefefc6) — **Estado:** en la rama, sin mergear a `main`
+
+### El problema
+
+1. **El alta era en dos pasos y la invariante era una convención, no una regla.**
+   - `POST /socios` aceptaba `plan` como opcional y, si no venía, creaba el `Socio` **sin** fila de `Membresia`: el `crear()` del repositorio envolvía la creación de la membresía en un `if (socio.plan)`.
+   - Es decir, *el socio sin membresía era un estado alcanzable por la API*. Cumplir la regla que el dominio decía cumplir dependía de que el cliente supiera que después tenía que llamar a `POST /socios/{socio_id}/membresias`.
+   - Nada impedía el estado: la relación de Prisma es opcional, la columna no es `NOT NULL`, y ningún filtro lo rechazaba.
+   - [commit `eefefc6`](https://github.com/GonzaloVila/FitZone-Sports/commit/eefefc6)
+
+2. **La decisión: el plan es obligatorio y la fila se crea siempre.**
+   - `SocioIn.plan` pasa a requerido y `PrismaSocioRepository.crear` escribe `Socio` y `Membresia` en la misma `$transaction` y **sin rama**: no queda camino por el que la membresía no se cree.
+   - `calcularVigencia()` se sigue invocando sin segundo argumento, así que la vigencia se calcula en el dominio exactamente igual que antes.
+
+### Qué se eliminó
+
+3. **`POST /socios/{socio_id}/membresias` completo.**
+   - Se va el `@Post()` del controller, el `crear()` del service, el `crear()` de `MembresiaRepository` y su implementación en `PrismaMembresiaRepository`.
+   - Se va `MembresiaIn`, que solo existía para ser el body de ese endpoint.
+   - Se va `MembresiaNueva`, que solo existía como parámetro de ese `crear()`.
+   - **El 409 de "membresía existente" desaparece con el endpoint.** Los dos 409 que quedan en M1 son el de unicidad y el de "el usuario ya es socio".
+
+### Consecuencias aceptadas
+
+4. **`fecha_inicio` pierde su única vía de escritura.**
+   - `MembresiaIn.fecha_inicio` era el único lugar por el que un cliente podía fijar el inicio de una membresía. Sin endpoint de alta, toda membresía **arranca hoy**.
+   - Se acepta: el caso de uso no pide retroactividad, y la renovación no crea filas nuevas — sigue actualizando `fecha_fin` sobre la misma fila 1:1.
+   - Lo que **no** se pierde es la lectura: `MembresiaOut.fecha_inicio` sigue expuesto, y M5 renueva sobre la fila existente.
+
+5. **La relación de Prisma sigue siendo opcional. A propósito.**
+   - La garantía es de aplicación y ya no existe más de un camino de escritura por el que esquivarla, que era el problema real.
+   - Volverla `NOT NULL` exigiría una migración sobre la base compartida **sin cerrar ningún hueco que quede abierto**: nadie escribe un `Socio` sin pasar por `PrismaSocioRepository.crear`.
+   - Lo que sí se documenta es el costo: una escritura que esquive el repositorio (un `prisma.membresia.create` suelto, un script) no la frena la base. La invariante vive en la aplicación.
+
+6. **El 404 de "el socio no posee una membresía activa" queda como defensivo.**
+   - Sigue en `obtenerPorSocioId()` y `modificar()` con su mensaje propio, porque un `buscarPorSocioId` que devuelva `null` sigue siendo un resultado posible del tipo. Ya no es alcanzable por la API.
+
+### Cambios menores que salieron de esto
+
+7. **`PlanMembresia` se mudó de `socio.entity.ts` a `membresia.entity.ts`.**
+   - Estaba declarado en `socio.entity.ts` solo porque `SocioNuevo` lo tenía opcional. Con el plan obligatorio, que un recurso declare un tipo que no posee es ruido: `Membresia` ya tenía `plan: PlanMembresia` y lo importaba de vuelta.
+   - Ahora `membresia.entity.ts` declara `PlanMembresia` y `EstadoMembresia` juntos, y `socio.entity.ts` lo importa. Se invierte la dependencia: `membresia.entity.ts` ya no importa nada de `socio.entity.ts`.
+
+### Contrato del vault
+
+8. **Backup y cambios en `TFI FitZone - OpenAPI.yaml`**
+   - El estado previo a este cambio es recuperable del backup `TFI/backups/TFI FitZone - OpenAPI.20261001-161430.yaml` (95.024 bytes, **47 operaciones**, con `crearMembresia` y `SocioIn.required: [usuario_id, sede_origen_id]`). Ese backup era el estado anterior y quedó como referencia.
+   - Backup del estado nuevo: `TFI/backups/TFI FitZone - OpenAPI.20261001-174657.yaml` (95.360 bytes).
+   - **47 → 46 operaciones**: se elimina `crearMembresia`. Es la única operación que se va; no se agregó ninguna.
+   - `SocioIn.required` pasa a `[usuario_id, sede_origen_id, plan]`, y la `description` de `plan` pasó de "Si se indica, se crea la membresía inicial con este plan en la misma transacción" a la redacción de la obligatoriedad.
+   - Las `description` de los 404 de `GET` y `PATCH /socios/{socio_id}/membresias` pasaron de "Socio o membresía inexistente" a "Socio inexistente", porque el segundo caso ya no puede darse por API.
+   - Verificado: el YAML parsea y no quedan `$ref` colgantes.
+
+### Tests
+
+9. **`test/m1.e2e-spec.ts`: 9 casos, y `test/errores-dominio.e2e-spec.ts`: 8.**
+   - Se eliminan los **3 casos** del endpoint borrado y el caso que dependía de poder crear un socio sin membresía.
+   - Entra un caso de **plan ausente → 422** que además comprueba que el reintento *con* plan falla por socio duplicado y no por otra causa: si el 422 no fuera del `ValidationPipe`, el segundo intento devolvería 201.
+   - El caso de filtros `?estado_membresia=&plan=` se reescribió con **dos planes en vez de uno**, porque el anterior usaba justamente al socio sin membresía para obtener un conjunto distinto. Ahora los dos filtros se distinguen por el plan y el caso no depende de un estado imposible.
+
+### Verificación
+
+- `npm run build`: limpio.
+- `npm run test:unit`: **10/10**.
+- `npm run test:e2e`: **77/77**.
+- Comparador de contrato: **28/28**, **0 diferencias**, 46 operaciones (5 fuera de alcance: los módulos M5 y lo que aún no está implementado).
+- Runtime real (`/docs-json`): el backend publica 41 operaciones y `socios`/`membresias` ya no expone ningún `POST` de membresías.
+
+### Estado de `main` y por qué este trabajo no esperó al Bloque 4 de M4
+
+10. **`main` local estaba 20 commits adelante de `origin/main` y se publicó.**
+    - El merge de M4 `9b68aa0` y su corrección `325f386` estaban **integrados solo en el `main` local**: `origin/main` seguía en `3ff0a2a` (cierre de M3). Por eso `origin/main..origin/santino` seguía devolviendo los 10 commits de M4 aunque el LOG ya los daba por integrados.
+    - `git push origin main` los publica. Es **fast-forward** (`3ff0a2a` es ancestro directo), sin force ni reescritura: 20 commits, 18 de trabajo y 2 merges.
+    - Efecto: `origin/santino` queda con **0 commits pendientes**. Santino tiene que actualizar antes de arrancar el **Bloque 4**, que sigue sin empezar.
+    - También quedan ciertas las dos entradas del LOG y el plan de M4 que ya afirmaban que M4 estaba integrado: antes era cierto solo en local, ahora lo es en el remoto.
+    - Este trabajo **no** se bloqueó por el Bloque 4 de M4: se verificó que `origin/santino` no toca ninguno de los 15 archivos modificados acá, así que el único archivo en común entre ambos trabajos es `LOG.md`.
+
+### Pendientes que siguen abiertos
+
+1. **El contrato no está en Git.** `backend/contrato/contrato.spec.ts` lo lee de `FITZONE_CONTRACT_PATH`, que sale de `backend/.env.test` y está gitignored a propósito. **La versión de 46 operaciones solo existe en el YAML del vault**: cualquiera que corra el comparador contra una copia de 47 va a ver 1 diferencia en `SocioIn.required` y una operación de más. Hay que sincronizar el archivo con el equipo antes de que alguien lo ejecute.
+2. **`Bloque 4` de M4**: QA, integración y cierre del módulo. Sin arrancar, y ahora sobre una `main` que incluye este cambio.
+3. **La invariante es de aplicación, no de base de datos.** Si algún día se escribe un `Socio` por fuera de `PrismaSocioRepository.crear`, nada lo va a frenar.
+4. **QR y TOTP** siguen diferidos, sin arrancar.

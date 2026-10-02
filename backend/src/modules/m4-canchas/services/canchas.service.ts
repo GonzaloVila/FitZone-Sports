@@ -6,14 +6,14 @@ import { CanchaIn } from '../dtos/cancha-in.dto';
 import { CanchaOut } from '../dtos/cancha-out.dto';
 import { CanchaPatch } from '../dtos/cancha-patch.dto';
 import { Cancha } from '../entities/cancha.entity';
-import { CANCHA_REPOSITORY, CanchaRepository } from '../repositories/cancha.repository';
+import { CanchaRepository } from '../repositories/cancha.repository';
 
 const NO_ENCONTRADO = 'No existe el recurso solicitado para el id indicado.';
 
 @Injectable()
 export class CanchasService {
   constructor(
-    @Inject(CANCHA_REPOSITORY) private readonly canchas: CanchaRepository,
+    private readonly canchas: CanchaRepository,
     // La sede es de M2. Antes llegaba por SEDE_VALIDATION_PORT con GimnasioModule
     // en @Global(); ahora M4 importa GimnasioModule y pide `SedesService`, que es
     // la capa de negocio donde corresponde la regla de existencia.

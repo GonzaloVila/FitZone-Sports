@@ -1,5 +1,5 @@
 import type { PricingContext } from './pricing-context';
-import type { PricingStrategy } from './pricing-strategy.port';
+import type { PricingStrategy } from './pricing-strategy';
 import { StandardPricing } from './standard-pricing';
 import { MemberDiscountPricing } from './member-discount-pricing';
 import { PeakHourPricing } from './peak-hour-pricing';

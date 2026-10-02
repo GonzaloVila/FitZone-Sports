@@ -4,8 +4,8 @@ import { rangoDelDia } from '../../../commons/fechas';
 import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { DisponibilidadEntrada } from '../dtos/disponibilidad-entrada.dto';
 import { Reserva } from '../entities/reserva.entity';
-import { CANCHA_REPOSITORY, CanchaRepository } from '../repositories/cancha.repository';
-import { RESERVA_REPOSITORY, ReservaRepository } from '../repositories/reserva.repository';
+import { CanchaRepository } from '../repositories/cancha.repository';
+import { ReservaRepository } from '../repositories/reserva.repository';
 import {
   GRILLA_HORA_FIN,
   GRILLA_HORA_INICIO,
@@ -22,8 +22,8 @@ function aMinutos(hhmm: string): number {
 @Injectable()
 export class DisponibilidadService {
   constructor(
-    @Inject(CANCHA_REPOSITORY) private readonly canchas: CanchaRepository,
-    @Inject(RESERVA_REPOSITORY) private readonly reservas: ReservaRepository,
+    private readonly canchas: CanchaRepository,
+    private readonly reservas: ReservaRepository,
   ) {}
 
   async consultar(

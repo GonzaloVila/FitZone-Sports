@@ -1,6 +1,6 @@
 import { SOCIO_DESCUENTO_PCT } from './pricing-constants';
 import type { PricingContext } from './pricing-context';
-import type { PricingStrategy } from './pricing-strategy.port';
+import type { PricingStrategy } from './pricing-strategy';
 
 // RN-03: un socio con cuota vencida (socioVigente: false) paga precio de externo.
 export class MemberDiscountPricing implements PricingStrategy {

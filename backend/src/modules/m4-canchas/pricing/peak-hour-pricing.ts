@@ -1,6 +1,6 @@
 import { PICO_DESDE, PICO_HASTA, PICO_RECARGO_PCT, TIMEZONE_SEDE } from './pricing-constants';
 import type { PricingContext } from './pricing-context';
-import type { PricingStrategy } from './pricing-strategy.port';
+import type { PricingStrategy } from './pricing-strategy';
 
 // hourCycle: 'h23' fuerza el formato "00".."23" (evita el "24:00" de h24) para
 // poder comparar contra PICO_DESDE/PICO_HASTA ("HH:mm") como strings.

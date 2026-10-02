@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { rangoDelDia } from '../../../commons/fechas';
 import {
@@ -11,8 +11,8 @@ import { ReservaCanchaIn } from '../dtos/reserva-cancha-in.dto';
 import { ReservaCanchaOut } from '../dtos/reserva-cancha-out.dto';
 import { Reserva } from '../entities/reserva.entity';
 import { PricingStrategyFactory } from '../pricing/pricing-strategy.factory';
-import { CANCHA_REPOSITORY, CanchaRepository } from '../repositories/cancha.repository';
-import { RESERVA_REPOSITORY, ReservaRepository } from '../repositories/reserva.repository';
+import { CanchaRepository } from '../repositories/cancha.repository';
+import { ReservaRepository } from '../repositories/reserva.repository';
 
 export interface FiltrosListarReservasCanchas {
   canchaId?: number;
@@ -26,8 +26,8 @@ export interface FiltrosListarReservasCanchas {
 @Injectable()
 export class ReservasCanchasService {
   constructor(
-    @Inject(RESERVA_REPOSITORY) private readonly reservas: ReservaRepository,
-    @Inject(CANCHA_REPOSITORY) private readonly canchas: CanchaRepository,
+    private readonly reservas: ReservaRepository,
+    private readonly canchas: CanchaRepository,
     // El `@Optional()` era fail-closed: sin el puerto, la reserva se cotizaba
     // sin descuento. Con la dependencia obligatoria el precio bonificado depende
     // siempre de la vigencia real de la membresía (RN-03, ADR-09).

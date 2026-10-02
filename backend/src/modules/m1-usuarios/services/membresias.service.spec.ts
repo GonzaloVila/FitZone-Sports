@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { estaVigente } from '../entities/membresia.entity';
+import { PRECIOS_PLAN, estaVigente } from '../entities/membresia.entity';
 import type { Membresia } from '../entities/membresia.entity';
 import { MembresiasService } from './membresias.service';
 import type { MembresiaRepository } from '../repositories/membresia.repository';
@@ -18,6 +18,7 @@ function membresiaValida(over: Partial<Membresia> = {}): Membresia {
     estado: 'ACTIVA',
     fecha_inicio: new Date('2026-09-01T12:00:00.000Z'),
     fecha_fin: new Date('2099-11-01T12:00:00.000Z'),
+    precio: PRECIOS_PLAN.MENSUAL,
     renueva_automatica: true,
     ...over,
   };

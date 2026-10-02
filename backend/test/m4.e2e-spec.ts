@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/commons/database/prisma.service';
 import { ProblemFilter } from '../src/commons/filters/problem.filter';
+import { PRECIOS_PLAN } from '../src/modules/m1-usuarios/entities/membresia.entity';
 
 // Flujo de M4 (bloque 3): canchas -> reservas de turno -> disponibilidad.
 //
@@ -74,6 +75,7 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
         estado: 'ACTIVA',
         fecha_inicio: ahora,
         fecha_fin: fechaFin,
+        precio: PRECIOS_PLAN.MENSUAL,
         renueva_automatica: false,
       },
     });

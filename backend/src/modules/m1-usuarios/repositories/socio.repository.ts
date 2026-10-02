@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../commons/database/prisma.service';
 import type { OpcionesPaginacion } from '../../../commons/paginacion';
-import { calcularVigencia } from '../entities/membresia.entity';
+import { PRECIOS_PLAN, calcularVigencia } from '../entities/membresia.entity';
 import type { EstadoMembresia, PlanMembresia } from '../entities/membresia.entity';
 import type { Socio, SocioActualizable, SocioNuevo } from '../entities/socio.entity';
 
@@ -89,6 +89,10 @@ export class SocioRepository {
           estado: 'ACTIVA',
           fecha_inicio,
           fecha_fin,
+          // El precio se congela aca, en el alta. Despues solo se mueve si el socio
+          // cambia de plan (membresia.repository), que es el otro momento en que el
+          // precio del periodo cambia de verdad.
+          precio: PRECIOS_PLAN[socio.plan],
           renueva_automatica: false,
         },
       });

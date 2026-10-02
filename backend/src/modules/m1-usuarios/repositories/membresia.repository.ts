@@ -1,10 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../commons/database/prisma.service';
-import { calcularVigencia } from '../entities/membresia.entity';
+import { PRECIOS_PLAN, calcularVigencia } from '../entities/membresia.entity';
 import type { Membresia, MembresiaActualizable } from '../entities/membresia.entity';
 
 type MembresiaRow = Prisma.MembresiaGetPayload<Record<string, never>>;
+
+// La fila con el cruce a Socio, que es la que consume el caso de uso de cobro de M5:
+// la membresía no tiene usuario_id, lo tiene el socio, y Pago.usuario_id lo necesita.
+// El join queda adentro de M1, que es dueña de las dos tablas, y el tipo viene del
+// schema para no escribirlo a mano.
+type MembresiaConSocioRow = Prisma.MembresiaGetPayload<{
+  include: { socio: { select: { usuario_id: true } } };
+}>;
 
 // Capa de acceso a datos de la membresia. Es la unica pieza de M1 que conoce
 // Prisma: los services de arriba reciben el tipo `Membresia`.
@@ -19,6 +27,16 @@ export class MembresiaRepository {
     return fila ? this.aDominio(fila) : null;
   }
 
+  // Lectura minima para el caso de uso de cobro: la fila con el socio adjunto. Va
+  // acá y no en el service de M5 para que la tabla Membresia se consulte desde un
+  // solo lugar (ADR-07).
+  async obtenerParaCobro(membresiaId: number): Promise<MembresiaConSocioRow | null> {
+    return this.prisma.membresia.findUnique({
+      where: { id: membresiaId },
+      include: { socio: { select: { usuario_id: true } } },
+    });
+  }
+
   async actualizar(
     socioId: number,
     cambios: MembresiaActualizable,
@@ -30,7 +48,18 @@ export class MembresiaRepository {
     };
 
     if (cambios.plan) {
-      data.fecha_fin = calcularVigencia(cambios.plan, new Date()).fecha_fin;
+      // Cambiar el plan mueve TRES cosas y ninguna puede quedar sin la otra:
+      //   - el precio, que si no se actualizaria un socio que baja de ANUAL a
+      //     MENSUAL y sigue pagando el precio del anual;
+      //   - fecha_inicio y fecha_fin, juntas, porque el periodo nuevo arranca HOY
+      //     (regla del contrato) y escribir solo la fecha_fin dejaba la fila con un
+      //     par imposible: el alta original con un fin contado desde hoy.
+      // El ancla de la renovacion automatica es la fecha_fin PREVIA, no esta; son
+      // operaciones distintas y por eso los periodos quedan contiguos al renovar.
+      data.precio = PRECIOS_PLAN[cambios.plan];
+      const periodo = calcularVigencia(cambios.plan, new Date());
+      data.fecha_inicio = periodo.fecha_inicio;
+      data.fecha_fin = periodo.fecha_fin;
     }
 
     const fila = await this.prisma.membresia
@@ -64,6 +93,7 @@ export class MembresiaRepository {
       estado: fila.estado,
       fecha_inicio: fila.fecha_inicio,
       fecha_fin: fila.fecha_fin,
+      precio: fila.precio.toNumber(),
       renueva_automatica: fila.renueva_automatica,
     };
   }

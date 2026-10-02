@@ -12,10 +12,14 @@ import { ReservaRepository } from './repositories/reserva.repository';
 import { CanchasService } from './services/canchas.service';
 import { DisponibilidadService } from './services/disponibilidad.service';
 import { ReservasCanchasService } from './services/reservas-canchas.service';
+import { ReservaPrecioService } from './services/reserva-precio.service';
 
 // M4 depende de M1 (RN-03 al cotizar la tarifa bonificada) y de M2 (la sede de una
-// cancha nueva debe existir). No exporta nada: M5 consume los servicios por sus
-// propios casos de uso, no la capa de datos de las canchas.
+// cancha nueva debe existir). Exporta UNA sola cosa, `ReservaPrecioService`, para que
+// M5 lea el precio congelado de una reserva por su propio caso de uso y no necesite
+// los services de canchas: por eso existe un service aparte y no se exporta
+// `ReservasCanchasService` entero, que ademas le abriria la puerta a crear y cancelar
+// reservas desde M5.
 @Module({
   imports: [CommonsModule, UsuariosModule, GimnasioModule],
   controllers: [CanchasController, ReservasCanchasController],
@@ -25,9 +29,11 @@ import { ReservasCanchasService } from './services/reservas-canchas.service';
     CanchasService,
     DisponibilidadService,
     ReservasCanchasService,
+    ReservaPrecioService,
     // Una sola clase: la cadena Standard -> MemberDiscount -> PeakHour se arma
     // adentro de la factory (pricing/ es dominio puro), no hay providers por estrategia.
     PricingStrategyFactory,
   ],
+  exports: [ReservaPrecioService],
 })
 export class CanchasModule {}

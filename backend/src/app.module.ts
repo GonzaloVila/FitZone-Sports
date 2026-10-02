@@ -7,6 +7,7 @@ import { UsuariosModule } from './modules/m1-usuarios/usuarios.module';
 import { GimnasioModule } from './modules/m2-gimnasio/gimnasio.module';
 import { ClasesModule } from './modules/m3-clases/clases.module';
 import { CanchasModule } from './modules/m4-canchas/canchas.module';
+import { PagosModule } from './modules/m5-pagos/pagos.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CanchasModule } from './modules/m4-canchas/canchas.module';
     GimnasioModule,
     ClasesModule,
     CanchasModule,
+    PagosModule,
   ],
 })
 export class AppModule {}

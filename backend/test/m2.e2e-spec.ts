@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { ProblemFilter } from '../src/commons/filters/problem.filter';
 import { PrismaService } from '../src/commons/database/prisma.service';
+import { PRECIOS_PLAN } from '../src/modules/m1-usuarios/entities/membresia.entity';
 
 // Flujo de M2: alta de sede -> ingreso (RF-04) -> aforo (RF-05) -> egreso ->
 // casos de error (membresía inactiva 403, acceso duplicado y aforo lleno 409,
@@ -59,6 +60,7 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
         estado: 'ACTIVA',
         fecha_inicio: ahora,
         fecha_fin: fechaFin,
+        precio: PRECIOS_PLAN.MENSUAL,
         renueva_automatica: false,
       },
     });

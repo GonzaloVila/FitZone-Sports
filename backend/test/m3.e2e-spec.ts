@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/commons/database/prisma.service';
 import { ProblemFilter } from '../src/commons/filters/problem.filter';
+import { PRECIOS_PLAN } from '../src/modules/m1-usuarios/entities/membresia.entity';
 
 // Flujo completo de M3:
 // 1) RF-06: Alta de clases, listado con aforo disponible y detalle.
@@ -56,6 +57,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         estado: opts.vigente ? 'ACTIVA' : 'VENCIDA',
         fecha_inicio: new Date(ahora.getTime() - 15 * 86400000),
         fecha_fin: fechaFin,
+        precio: PRECIOS_PLAN.MENSUAL,
         renueva_automatica: false,
       },
     });

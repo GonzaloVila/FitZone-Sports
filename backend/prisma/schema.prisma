@@ -127,6 +127,11 @@ model Membresia {
   estado             EstadoMembresia
   fecha_inicio       DateTime        @db.Timestamptz(3)
   fecha_fin          DateTime        @db.Timestamptz(3)
+  // Snapshot del precio del plan, sembrado en el alta y re-preciado al cambiar de
+  // plan. Vive en la fila y no en una tabla de planes por la misma razon que
+  // Reserva.precio_aplicado: el comprobante tiene que seguir cuadrando con lo que
+  // se cobro el dia del cobro. Ver migracion 20261002010000_membresia_precio.
+  precio             Decimal
   renueva_automatica Boolean         @default(false)
   socio              Socio           @relation(fields: [socio_id], references: [id])
   pago_membresias    PagoMembresia[]

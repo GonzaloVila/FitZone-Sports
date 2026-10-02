@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { ProblemFilter } from '../src/commons/filters/problem.filter';
 import { PrismaService } from '../src/commons/database/prisma.service';
+import { PRECIOS_PLAN } from '../src/modules/m1-usuarios/entities/membresia.entity';
 
 // Flujo completo de M1: crear usuario -> hacerse socio con plan -> consultar
 // membresia -> dejar de ser socio (vuelve a EXTERNO). Corre contra la base
@@ -522,6 +523,72 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .expect(200);
     expect(reactivar.body.estado).toBe('ACTIVA');
     expect(reactivar.body.fecha_fin).toBe(fechaFin);
+  });
+
+  // El cambio de plan es la unica operacion de M1 que toca el precio, asi que se
+  // verifica por Prisma y no por la respuesta: `MembresiaOut` es lista blanca y
+  // `precio` no sale por la API a proposito (M5 lo lee por el export angosto de M1).
+  it('PATCH /socios/{id}/membresias con plan mueve precio y las DOS fechas juntas', async () => {
+    const usuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Cambio De Plan E2E',
+        email: emailUnico(),
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+
+    const socioRes = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioRes.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .expect(201);
+    const socioId: number = socioRes.body.id;
+
+    const antes = await prisma.membresia.findUniqueOrThrow({
+      where: { socio_id: socioId },
+    });
+    expect(antes.precio.toNumber()).toBe(PRECIOS_PLAN.MENSUAL);
+
+    const res = await request(app.getHttpServer())
+      .patch(`/api/v1/socios/${socioId}/membresias`)
+      .send({ plan: 'TRIMESTRAL' })
+      .expect(200);
+    expect(res.body.plan).toBe('TRIMESTRAL');
+
+    const despues = await prisma.membresia.findUniqueOrThrow({
+      where: { socio_id: socioId },
+    });
+
+    // 1) El precio sigue al plan: sin esto, un socio que baja de plan seguiria
+    //    pagando el precio del anterior y el cobro de M5 seria el monto viejo.
+    expect(despues.precio.toNumber()).toBe(PRECIOS_PLAN.TRIMESTRAL);
+
+    // 2) `fecha_inicio` arranca HOY, no en el alta original: el par queda internamente
+    //    consistente y el periodo nuevo se conta completo desde el PATCH.
+    const ahora = Date.now();
+    const inicio = new Date(despues.fecha_inicio).getTime();
+    expect(Math.abs(inicio - ahora)).toBeLessThanOrEqual(60_000);
+
+    // 3) `fecha_fin` se recalcula a un trimestre DESDE el nuevo inicio. Si solo se
+    //    hubiera escrito fecha_fin (el bug que cubria este test), fecha_inicio seguia
+    //    siendo la del alta y el par describia un periodo ya vencido a medias.
+    const esperado = new Date(despues.fecha_inicio);
+    esperado.setMonth(esperado.getMonth() + 3);
+    expect(new Date(despues.fecha_fin).toISOString()).toBe(esperado.toISOString());
+    expect(new Date(despues.fecha_fin).getTime()).toBeGreaterThan(ahora);
+
+    // 4) El cambio es INMEDIATO: el periodo nuevo arranca antes de que terminara el
+    //    viejo y los dias que quedaban no se trasladan. Si la implementacion
+    //    encadenara los periodos (anclar el nuevo en la fecha_fin anterior), el socio
+    //    pagaria de mas este mes y la asercion 2 ya habria fallado.
+    expect(new Date(despues.fecha_inicio).getTime()).toBeLessThan(
+      new Date(antes.fecha_fin).getTime(),
+    );
+    expect(new Date(despues.fecha_inicio).getTime()).not.toBe(
+      new Date(antes.fecha_fin).getTime(),
+    );
   });
 
   // Los tres PATCH de M1 tienen DTOs con TODOS los campos opcionales, asi que un

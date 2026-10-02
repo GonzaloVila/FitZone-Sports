@@ -1489,10 +1489,57 @@ En el plan de M4 (`TFI FitZone - Plan de Trabajo M4.md`):
 - Comparador de contrato contra el YAML del vault con el server arriba y `/docs-json` respondiendo 200: **3/3**. El documento tiene 46 operaciones y 38 schemas; se comparan **41 operaciones** (5 de M5 fuera de alcance), **0 diferencias** y las mismas 11 desviaciones de siempre en `PERMITIDAS`. Sin entradas nuevas.
 - El server que se levantó para el comparador se bajó al terminar (PID 17984).
 
+## 2026-10-02 — El contrato canónico entra al repo
+
+**Rama:** `capas-en-todo-el-backend` — **Commit:** `5091bb9`
+
+### El problema era más grande que el YAML
+
+El pendiente era "el contrato está fuera del repo". Al buscarlo resultó que **`backend/contrato/` entero estaba en `.gitignore`**, con el comentario *"Comparador de contrato (herramienta local, nunca versionada)"*. O sea que tampoco estaban versionados:
+
+- `comparar.ts` con las 11 entradas de `PERMITIDAS`, que son el registro de todas las desviaciones que se aceptaron a propósito.
+- `comparar.spec.ts` y `resolver.spec.ts`, que son unitarios reales y que además **no corrían nunca** con `npm run test:unit`, porque esa config incluye solo `src/**`.
+
+Un puente que nadie ve revisar es un puente que nadie revisa. La regla que decide qué diferencias son bugs y cuáles son aceptadas estaba fuera de Git, y nadie la podía auditar en un PR.
+
+### El sentido ahora es uno solo
+
+```
+backend/contrato/openapi.yaml   ← canónico. Se edita acá, viaja en el PR.
+        │ npm run contrato:exportar
+        ↓
+TFI FitZone - OpenAPI.yaml (vault)   ← entregable, generado
+```
+
+El riesgo residual es el contrario del que había: ya no puede desincronizarse en silencio, pero se puede **entregar un vault viejo** si uno edita el repo y se le pasa exportar. Para cerrarlo:
+
+- `exportar.ts` copia repo → vault y anota el SHA en `vault-exportado.json`.
+- `contrato:verificar` distingue cuatro estados, no dos: vault distinto del canónico; coincidencia **sin** línea base registrada; manifiesto con otro SHA, que significa que alguien editó el entregable en vez del repo; y el ok.
+- `canonico.spec.ts` corre **sin servidor** y valida que el YAML sea un OpenAPI parseable, que los cuatro PATCH declaren 422, y que el vault no haya quedado viejo.
+
+### El spec que necesita el server quedó aparte
+
+`contrato.spec.ts` pasó a ser `contrato.diff.spec.ts`, con su propio proyecto de vitest (`npm run test:contrato:diff`). Antes estaba en el proyecto general, así que `npm run test:contrato` solo podía dar verde si alguien se acordaba de levantar el backend — y entonces el comando no cumplía su función. Ahora `npm run test:contrato` es 29/29 sin levantar nada, y el diff es un paso aparte y explícito.
+
+### Dos cosas que aparecieron de paso
+
+- **`js-yaml` se usaba sin estar declarado.** El comparador lo importaba desde siempre y funcionaba solo porque `@nestjs/swagger` lo trae de forma transitiva; un bump de esa dependencia lo rompía sin avisar. Ahora es `devDependency` declarada.
+- **`FITZONE_CONTRACT_PATH` estaba en `.env.test` apuntando al vault**, y eso **anulaba** el default de la copia del repo. Mientras estuviera ahí, el comparador seguía leyendo el vault y el canónico seguía siendo una segunda fuente de verdad. Se sacó de `.env.test`; la variable sigue funcionando como override.
+
+### Verificación
+
+- `npx tsc --noEmit` y `npm run build`: en verde.
+- `npm run test:unit`: **20/20** en 3 archivos.
+- `npm run test:e2e`: **98/98** en 6 archivos.
+- `npm run test:contrato` (sin server): **29/29** en 3 archivos.
+- `npm run test:contrato:diff` (con server): **3/3**, 41 operaciones y 34 schemas comparadas, **0 diferencias**.
+- `npm run contrato:verificar`: exit 0, vault y canónico con el mismo SHA.
+- Server bajado al terminar (PID 10636).
+
 ### Pendientes que siguen abiertos
 
 1. **M5 no tiene comportamiento.** Sin cambios respecto de la entrada anterior.
-2. **El contrato sigue fuera del repo** (`backend/contrato/` está gitignored). La modificación de este bloque vive en el vault, así que el diff del contrato no viaja en el PR: es la misma deuda de antes, pero ahora con un endpoint más que se puede desincronizar sin que Git avise.
+2. **El contrato ahora es canónico dentro del repo** (`backend/contrato/openapi.yaml`), y el YAML del vault se genera desde ahí con `npm run contrato:exportar`. Esta deuda queda cerrada: el diff del contrato viaja en el PR, las 11 entradas de `PERMITIDAS` y la lógica del comparador están versionadas, y `canonico.spec.ts` falla sin server si el vault quedó viejo. El riesgo residual es el otro: que uno edite el repo y se le pase exportar. Para eso está `contrato:verificar` y el manifiesto con el SHA del último export.
 3. **El plan de M4 ya no describe la arquitectura vieja.** Reescrito §3.1, §4.1 y §4.2 contra el árbol real, y corregidas además las referencias sueltas que quedaban en §2, §3.3, §5, §6 y §8: se eliminaron `SEDE_VALIDATION_PORT`, `MEMBERSHIP_VALIDATION_PORT`, `CANCHA_REPOSITORY`, `RESERVA_REPOSITORY`, `PRICING_STRATEGY`, `pricing-strategy.port.ts` y los adaptadores `prisma-cancha` / `prisma-reserva`. Ahora el plan dice lo mismo que el código: repositorios como clases concretas `@Injectable()` (Data Mapper sin carpeta `prisma/`), `pricing/` como dominio puro sin token ni provider, y sede y vigencia resueltas llamando al servicio público del módulo vecino (`SedesService`, `MembresiasService`) con el módulo en `imports`. Las decisiones corregidas quedaron anotadas como tales en vez de borradas, para que se vea que hubo una decisión y cambió.
 4. **Los planes de M1, M2 y M3 tienen el mismo problema y no se tocaron** (9, 7 y 6 menciones de la arquitectura vieja). Es el mismo trabajo que se hizo en M4, aplicado por plan.
 5. **`PICO_RECARGO_PCT = 20`** sigue pendiente de confirmación con la cátedra. Vive aislado en `pricing-constants.ts` con el comentario que lo declara, así que cambiarlo es una línea.

@@ -1434,3 +1434,67 @@ El Bloque 1 de M4 se había implementado antes de las auditorías de M1, M2 y M3
 3. **El contrato sigue fuera del repo** (`backend/contrato/` está gitignored). Mismo pendiente arrastrado desde M1, sin cambios.
 4. **La rama incluye la invariante de membresía** (`eefefc6`), que va en su propio PR. Al integrar hay que decidir el orden: los dos trabajos solo se tocan en `LOG.md`, así que el conflicto, si aparece, es de bitácora.
 5. **Autenticación y roles** siguen diferidos. `commons/guards/` es un placeholder y el plan los necesita antes de que `usuario_id` deje de ser el único control de pertenencia.
+
+---
+
+## Unidad II - Módulo 4: Canchas Deportivas — Bloque 4 (QA, integración y cierre) — Gonzalo
+
+**Fecha:** 02/10/2026 — **Rama:** `capas-en-todo-el-backend` — **Commits:** `54baddb` (M4), `2934da1` (M1)
+
+### El bloque 4 no tenía nada que codear, tenía algo que medir
+
+Revisando el §7.1 del plan contra el estado real, casi todo lo que el bloque pedía ya estaba cubierto: `tsc` y `build` en verde, el comparador de contrato en 0 diferencias, y los 18 casos de `m4.e2e-spec.ts` cubriendo uno a uno el smoke que el plan describe. Pero el smoke era de reservas y disponibilidad. Al medir la cobertura real de los endpoints por HTTP:
+
+| Endpoint | Llamadas en toda la suite e2e |
+|---|---|
+| `GET /sedes/{sede_id}/canchas` (`listarCanchas`) | **0** |
+| `POST /sedes/{sede_id}/canchas` (`crearCancha`) | **0** |
+| `GET /canchas/{cancha_id}` (`obtenerCancha`) | **0** |
+| `PATCH /canchas/{cancha_id}` (`modificarCancha`) | 1, de paso al probar el mantenimiento |
+
+Tres de los ocho endpoints de M4 no se ejercitaban nunca, y el cuarto solo de rebote. RF-09 entero estaba sin probar: el alta y el tarifado se creaban por Prisma en el `beforeAll`, así que el camino HTTP completo —el `Location`, el default `OPERATIVA`, el 404 de sede inexistente, el 422 de DTO, la paginación, los filtros— no lo cubría nadie. La suite de M4 pasa de 18 a **36 casos**.
+
+### Dos defectos que aparecieron al ejercitar
+
+1. **El listado devolvía 422 sin declararlo, y la causa era una omisión del contrato, no una decisión.** El comentario en `canchas.controller.ts` decía *"Sin 422: el contrato declara solo 200 y 404. El plan lo pedía y el contrato manda sobre el plan"* — un razonamiento circular que tomó un descuido por autoridad. Comparando los cuatro listados paginados de la API contra el YAML: `GET /sedes` → 200 + 422, `GET /ingresos` → 200 + 422, `GET /reservas-canchas` → 200 + 422, `GET /sedes/{sede_id}/canchas` → 200 + 404. El único sin 422 era justamente este, y los tres hermanos ya tenían su `@ApiUnprocessableEntityResponse` con PROBLEM_JSON. La `ValidationPipe` global valida los query params con el mismo rigor que los bodies (`@IsIn`, `@Min(1)`, `@Max(100)`, más `forbidNonWhitelisted`), así que `?estado=INVALIDA`, `?page=0`, `?per_page=101` y cualquier parámetro desconocido dan 422. Se agregó `"422": $ref ValidationError` a la operación en `TFI FitZone - OpenAPI.yaml` (snapshot en `backups/TFI FitZone - OpenAPI.20261002-022308.yaml`) y el decorator en el controller. **El comparador exige los dos lados**: `compararRespuestas` compara el conjunto de códigos ordenado en ambos sentidos, así que tocar solo el YAML o solo el controller lo rompe. Quedó en 0 diferencias sin necesidad de una entrada nueva en `PERMITIDAS`.
+
+2. **`PATCH /canchas/{cancha_id}` con body `{}` respondía 200 sin cambiar nada.** Los dos campos del `CanchaPatch` son opcionales, así que `{}` pasaba la validación y `CanchaRepository.actualizar` armaba el `data` con spreads condicionales hasta llegar a un `data: {}`. La primera hipótesis fue que eso explotaba como `PrismaClientValidationError` y se escapaba sin traducir del `catch`, o sea un 500; **al medirlo no era cierto**. Prisma 6.19.3 trata un `update` sin campos como un *no-op*: devuelve la fila sin error, con lo que la respuesta era un 200 que decía "actualizado" sin haberse actualizado nada. El defecto real es el dishonesty del código de estado, no una excepción. `CanchasService.actualizar` corta ahora antes con un 422 si no llega ningún campo, y el test verifica que la fila tampoco se tocó.
+
+   La misma comprobación se hizo sobre los tres PATCH de M1 (`/usuarios/{id}`, `/socios/{socio_id}` y `/socios/{socio_id}/membresias`) y confirmó los tres 200 silenciosos, así que se les aplicó la misma guarda: los seis PATCH de la API se comportan igual ante `{}`. Los tests se escribieron primero y fallaron con `expected 422 "Unprocessable Entity", got 200 "OK"`, que es la evidencia de que el comportamiento viejo era el no-op y no una excepción. El contrato ya declaraba 422 en las cuatro operaciones, así que no hizo falta tocar el YAML.
+
+   Se descartó `@IsNotEmptyObject()` como solución: exporta un `PropertyDecorator` de 2 argumentos y no compila aplicado sobre la clase (`TS1238`, *"Unable to resolve signature of class decorator"*). La guarda quedó en el service, que es donde ya viven los otros 422 de dominio del módulo (el de `rango-horario-invalido` de `ReservasCanchasService`).
+
+### Dos casos que atan RF-09 con el resto del módulo
+
+No se agregaron solo como cobertura de canchas, sino porque son los únicos que demuestran que el endpoint está bien conectado al resto:
+
+- Una cancha creada por `POST /sedes/{id}/canchas` **ya está reservable al instante** (RNF-04), sin esperar nada.
+- Un `PATCH` a `EN_MANTENIMIENTO` hace que la reserva siguiente falle con **409 `cancha-en-mantenimiento`**, y no con `turno-ocupado`. El `detail` se verifica para que no contenga el texto del otro 409, que sería falso: en mantenimiento no hubo concurrencia.
+
+El 409 de mantenimiento ya estaba cubierto, pero metiendo la cancha en mantenimiento por Prisma; se llega ahora por el endpoint, que es justamente lo que conecta RF-09 con RF-12.
+
+### Corrección de documentación
+
+En el plan de M4 (`TFI FitZone - Plan de Trabajo M4.md`):
+
+- **La paginación no se llama `perPage` de punta a punta**, como decía la sección 4.2. El contrato define un parámetro compartido `PerPage` con `name: per_page` en `components/parameters`, referenciado por los 13 listados de la API, y `Page` con `name: page`. En el cable y en el `ListarCanchasQueryDto` es `per_page`; recién en la frontera controller → service pasa a `perPage`. El código estaba bien; el texto del plan era el que mentía. Corregido en las dos menciones.
+- La sección 1.1 ya no dice que el listado no declara 422, y el §7.1 refleja el cierre con los números reales en vez de los copiados del plan (que seguían diciendo 79/79 e unitarios 10/10, valores que no habían cambiado desde el bloque 3).
+- Se agregó una nota de corrección del 02/10 junto a la del 01/10, con el snapshot del contrato.
+
+### Verificación
+
+- `npx tsc --noEmit` y `npm run build` (`nest build`): en verde.
+- `npm run test:unit`: **20/20** en 3 archivos.
+- `npm run test:e2e`: **98/98** en 6 archivos (77 previos + 18 nuevos de M4 + 3 nuevos de M1).
+- Comparador de contrato contra el YAML del vault con el server arriba y `/docs-json` respondiendo 200: **3/3**. El documento tiene 46 operaciones y 38 schemas; se comparan **41 operaciones** (5 de M5 fuera de alcance), **0 diferencias** y las mismas 11 desviaciones de siempre en `PERMITIDAS`. Sin entradas nuevas.
+- El server que se levantó para el comparador se bajó al terminar (PID 17984).
+
+### Pendientes que siguen abiertos
+
+1. **M5 no tiene comportamiento.** Sin cambios respecto de la entrada anterior.
+2. **El contrato sigue fuera del repo** (`backend/contrato/` está gitignored). La modificación de este bloque vive en el vault, así que el diff del contrato no viaja en el PR: es la misma deuda de antes, pero ahora con un endpoint más que se puede desincronizar sin que Git avise.
+3. **El plan de M4 ya no describe la arquitectura vieja.** Reescrito §3.1, §4.1 y §4.2 contra el árbol real, y corregidas además las referencias sueltas que quedaban en §2, §3.3, §5, §6 y §8: se eliminaron `SEDE_VALIDATION_PORT`, `MEMBERSHIP_VALIDATION_PORT`, `CANCHA_REPOSITORY`, `RESERVA_REPOSITORY`, `PRICING_STRATEGY`, `pricing-strategy.port.ts` y los adaptadores `prisma-cancha` / `prisma-reserva`. Ahora el plan dice lo mismo que el código: repositorios como clases concretas `@Injectable()` (Data Mapper sin carpeta `prisma/`), `pricing/` como dominio puro sin token ni provider, y sede y vigencia resueltas llamando al servicio público del módulo vecino (`SedesService`, `MembresiasService`) con el módulo en `imports`. Las decisiones corregidas quedaron anotadas como tales en vez de borradas, para que se vea que hubo una decisión y cambió.
+4. **Los planes de M1, M2 y M3 tienen el mismo problema y no se tocaron** (9, 7 y 6 menciones de la arquitectura vieja). Es el mismo trabajo que se hizo en M4, aplicado por plan.
+5. **`PICO_RECARGO_PCT = 20`** sigue pendiente de confirmación con la cátedra. Vive aislado en `pricing-constants.ts` con el comentario que lo declara, así que cambiarlo es una línea.
+6. **No se valida el turno contra el horario de la sede** porque ese dato no existe en el modelo. Deuda asumida a propósito (decisión 11 del plan M4).
+7. **`ReservaCanchaIn.usuario_id` es obligatorio en el código y opcional en el contrato.** Ya está en `PERMITIDAS` con su motivo: mientras no exista token del que derivarlo no hay opción, y cuando exista la excepción se borra.

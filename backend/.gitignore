@@ -16,8 +16,12 @@ build/
 *.log
 npm-debug.log*
 
-# Comparador de contrato (herramienta local, nunca versionada)
-contrato/
+# El comparador de contrato SI se versiona. Antes estaba acá `contrato/` con el
+# comentario "herramienta local, nunca versionada", y eso dejaba sin control de
+# versiones justo lo que serviría para detectar una desincronización: las 11
+# entradas de PERMITIDAS y la lógica de comparación. Un puente que nadie ve
+# revisar es un puente que nadie revisa. `contrato/openapi.yaml` es la copia
+# canónica; la del vault se genera con `npm run contrato:exportar`.
 
 # IDE / OS
 .vscode/

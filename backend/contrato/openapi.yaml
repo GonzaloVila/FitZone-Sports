@@ -1,0 +1,2620 @@
+openapi: 3.0.3
+info:
+  title: FitZone Sports API — Primera REST API
+  description: >
+    Contrato OpenAPI de la primera versión de la API REST del backend de FitZone Sports
+    (Unidad II · SCRUM-11c · lotes L1–L6). Organizado por entidad: cada recurso expone
+    los verbos que el caso contempla — POST/GET/PATCH en usuarios, socios y membresías;
+    GET/POST en sedes, canchas y clases (PATCH de cancha para RF-09/RF-12). Las reservas
+    son dos entidades aparte, espejo del modelo (ReservaCancha y ReservaClase): los turnos
+    de cancha en /reservas-canchas (RF-10/RF-12/RN-02) y el cupo de clase en /reservas-clases
+    (RF-06, con cancelación por RF-07). Convenciones: prefijo /api/v1, nivel 2 de Richardson,
+    errores como application/problem+json (RFC 9457), Location en 201 e Idempotency-Key en pagos.
+    Sin DELETE de usuarios/sedes/canchas/clases (el caso no lo pide): la "baja" de una reserva
+    es su cancelación (sub-recurso) y dejar de ser socio es DELETE /socios (vuelve a EXTERNO).
+    Pago no tiene PATCH/DELETE: un cobro mal hecho se ANULA y se repaga con nueva
+    Idempotency-Key (nunca se edita el comprobante). security vacío porque la autenticación
+    (JWT) se incorpora en la Unidad III. Los cambios de estado no van por PATCH: el path
+    nombra la transición permitida, así las ilegales son inalcanzables. Las transiciones de
+    estado usan sustantivo plural — /cancelaciones, /anulaciones, /confirmaciones. El egreso
+    es la única excepción, en verbo (/ingresos/{ingreso_id}/egreso), porque es la segunda fase
+    del ciclo de vida de un ingreso y no una transición de estado. Un POST que crea un recurso
+    devuelve 201 con Location y cuerpo; uno que solo cambia estado y no crea nada devuelve 204.
+    Los listados excluyen los estados terminales salvo que se pidan explícitamente con ?estado=.
+  version: "1.0.0"
+  license:
+    name: Académico — TFI FitZone Sports (UNVM)
+    url: https://github.com/GonzaloVila/FitZone-Sports
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local (prefijo global api/v1)
+tags:
+  - name: usuarios
+    description: Usuarios y perfiles (M1)
+  - name: socios
+    description: Socios y su sede de origen (M1)
+  - name: membresias
+    description: Membresías (1:1 con socio, sin historial) (M1)
+  - name: sedes
+    description: Sedes de la cadena (M2)
+  - name: canchas
+    description: Canchas y disponibilidad (M4)
+  - name: clases
+    description: Clases (M3)
+  - name: reservas-canchas
+    description: Reservas de turnos de cancha (M4)
+  - name: reservas-clases
+    description: Reservas de cupo de clase (M3)
+  - name: pagos
+    description: Pagos y comprobantes (M5)
+paths:
+  # ---------------------------------------------------------------- USUARIOS
+  /usuarios:
+    get:
+      tags: [usuarios]
+      operationId: listarUsuarios
+      summary: Listado de usuarios con filtros
+      description: >
+        Filtros por rol, nombre y email (lista blanca de parámetros) y paginación.
+      parameters:
+        - name: rol
+          in: query
+          required: false
+          description: Rol del usuario. Sin filtro devuelve todos los roles.
+          schema:
+            $ref: "#/components/schemas/Rol"
+        - name: nombre
+          in: query
+          required: false
+          description: coincidencia parcial sobre el nombre.
+          schema:
+            type: string
+          example: Ana
+        - name: email
+          in: query
+          required: false
+          description: Email exacto (es único en el esquema).
+          schema:
+            type: string
+            format: email
+          example: ana.gomez@fitzone.com.ar
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UsuarioOut"
+              example:
+                - id: 1
+                  rol: EXTERNO
+                  dni: "35123456"
+                  nombre: "Ana Gómez"
+                  email: ana.gomez@fitzone.com.ar
+                  telefono: "+54 351 555-1234"
+                  foto_url: https://cdn.fitzone.com.ar/fotos/ana.jpg
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [usuarios]
+      operationId: crearUsuario
+      summary: Registrar usuario
+      description: >
+        Alta de usuario distinguiendo el rol de perfil (EXTERNO | RECEPCION | GERENTE).
+        DNI y email son únicos. La contrasenia se guarda hasheada (bcrypt), nunca en texto plano.
+        Un usuario NO se crea como SOCIO acá: hacerse socio es POST /socios, que lo convierte
+        y crea su membresía inicial. Responde 201 con el header Location apuntando al recurso creado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsuarioIn"
+      responses:
+        "201":
+          description: Usuario registrado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema:
+                type: string
+                example: /api/v1/usuarios/1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuarioOut"
+              example:
+                id: 1
+                rol: EXTERNO
+                dni: "35123456"
+                nombre: "Ana Gómez"
+                email: ana.gomez@fitzone.com.ar
+                telefono: "+54 351 555-1234"
+                foto_url: https://cdn.fitzone.com.ar/fotos/ana.jpg
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /usuarios/{id}:
+    parameters:
+      - $ref: "#/components/parameters/UsuarioId"
+    get:
+      tags: [usuarios]
+      operationId: obtenerUsuario
+      summary: Obtener usuario por id
+      description: Devuelve el perfil del usuario (sin datos de contraseña). Si no existe, 404.
+      responses:
+        "200":
+          description: Perfil del usuario (sin datos de contraseña)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuarioOut"
+              example:
+                id: 1
+                rol: SOCIO
+                dni: "35123456"
+                nombre: "Ana Gómez"
+                email: ana.gomez@fitzone.com.ar
+                telefono: "+54 351 555-1234"
+                foto_url: https://cdn.fitzone.com.ar/fotos/ana.jpg
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [usuarios]
+      operationId: modificarUsuario
+      summary: Modificar parcialmente un usuario
+      description: >
+        Actualización parcial de contacto, foto y/o contraseña (contrasenia se hashea).
+        Campos ausentes en el body no se modifican. Si el id no existe, responde 404.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsuarioPatch"
+      responses:
+        "200":
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuarioOut"
+              example:
+                id: 1
+                rol: SOCIO
+                dni: "35123456"
+                nombre: "Ana Gómez"
+                email: ana.gomez@fitzone.com.ar
+                telefono: "+54 351 555-1234"
+                foto_url: https://cdn.fitzone.com.ar/fotos/ana.jpg
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  # ---------------------------------------------------------------- SOCIOS
+  /socios:
+    get:
+      tags: [socios]
+      operationId: listarSocios
+      summary: Listado de socios con filtros
+      description: >
+        Filtros por sede de origen, estado y plan de la membresía, y por nombre
+        (lista blanca de parámetros) y paginación. `estado_membresia` y `plan` cruzan la
+        relación 1:1 a la membresía del socio. Sin ningún filtro devuelve todos los socios
+        de la cadena.
+      parameters:
+        - name: sede_origen_id
+          in: query
+          required: false
+          description: ID numérico de la sede de origen
+          schema:
+            type: integer
+          example: 3
+        - name: estado_membresia
+          in: query
+          required: false
+          description: Estado de la membresía asociada al socio.
+          schema:
+            $ref: "#/components/schemas/EstadoMembresia"
+        - name: plan
+          in: query
+          required: false
+          description: Plan de la membresía asociada al socio.
+          schema:
+            $ref: "#/components/schemas/Plan"
+        - name: nombre
+          in: query
+          required: false
+          description: coincidencia parcial sobre el nombre del usuario asociado.
+          schema:
+            type: string
+          example: Ana
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de socios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SocioOut"
+              example:
+                - id: 2
+                  usuario_id: 1
+                  sede_origen_id: 3
+                  fecha_alta: "2026-09-15T00:00:00-03:00"
+                  nombre: "Ana Gómez"
+                  email: ana.gomez@fitzone.com.ar
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [socios]
+      operationId: crearSocio
+      summary: Alta de socio (RF-02)
+      description: >
+        Convierte al usuario en socio (subtabla Socio) indicando su sede de origen y crea
+        la membresía inicial con el plan enviado, en la misma transacción: no existe un
+        socio sin membresía. Un usuario que ya es socio responde 409. Lo inverso es
+        DELETE /socios/{id} (dejar de ser socio).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SocioIn"
+      responses:
+        "201":
+          description: Socio creado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema:
+                type: string
+                example: /api/v1/socios/2
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocioOut"
+              example:
+                id: 2
+                usuario_id: 1
+                sede_origen_id: 3
+                fecha_alta: "2026-09-15T00:00:00-03:00"
+                nombre: "Ana Gómez"
+                email: ana.gomez@fitzone.com.ar
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/SocioExistente"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /socios/{socio_id}:
+    parameters:
+      - $ref: "#/components/parameters/SocioId"
+    get:
+      tags: [socios]
+      operationId: obtenerSocio
+      summary: Obtener socio por id
+      description: Devuelve el perfil del socio junto con su sede de origen y fecha de alta.
+      responses:
+        "200":
+          description: Perfil del socio
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocioOut"
+              example:
+                id: 2
+                usuario_id: 1
+                sede_origen_id: 3
+                fecha_alta: "2026-09-15T00:00:00-03:00"
+                nombre: "Ana Gómez"
+                email: ana.gomez@fitzone.com.ar
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [socios]
+      operationId: modificarSocio
+      summary: Modificar parcialmente un socio
+      description: Actualización parcial (por ejemplo, la sede de origen).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SocioPatch"
+      responses:
+        "200":
+          description: Socio actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocioOut"
+              example:
+                id: 2
+                usuario_id: 1
+                sede_origen_id: 3
+                fecha_alta: "2026-09-15T00:00:00-03:00"
+                nombre: "Ana Gómez"
+                email: ana.gomez@fitzone.com.ar
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [socios]
+      operationId: dejarDeSerSocio
+      summary: Dejar de ser socio
+      description: >
+        "Dar de baja un socio" equivale a dejar de ser socio: se elimina su fila en la
+        subtabla Socio (y la membresía, relación 1:1) y el usuario vuelve a rol EXTERNO.
+        El historial de reservas y pagos se conserva: referencia al usuario, no a la subtabla.
+        Un socio inexistente responde 404.
+      responses:
+        "204":
+          description: Deja de ser socio (sin cuerpo)
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  # ---------------------------------------------------------------- MEMBRESIAS
+  /socios/{socio_id}/membresias:
+    parameters:
+      - $ref: "#/components/parameters/SocioId"
+    get:
+      tags: [membresias]
+      operationId: obtenerMembresia
+      summary: Membresía actual del socio
+      description: >
+        Devuelve la membresía vigente del socio (relación 1:1, sin historial).
+        Todo socio tiene membresía desde su alta, así que el 404 es solo por socio
+        inexistente.
+      responses:
+        "200":
+          description: Membresía del socio
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembresiaOut"
+              example:
+                id: 9
+                plan: MENSUAL
+                estado: ACTIVA
+                fecha_inicio: "2026-09-15T00:00:00-03:00"
+                fecha_fin: "2026-10-15T00:00:00-03:00"
+                renueva_automatica: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [membresias]
+      operationId: modificarMembresia
+      summary: Cambiar plan o configuración de la membresía
+      description: >
+        Cambio de plan, renovación automática y/o estado sobre la misma fila (1:1, sin historial).
+        Frenar la renovación = renueva_automatica:false; suspender = estado:SUSPENDIDA.
+        La fecha_fin se recalcula sobre la fecha actual según el nuevo plan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MembresiaPatch"
+      responses:
+        "200":
+          description: Membresía actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembresiaOut"
+              example:
+                id: 9
+                plan: MENSUAL
+                estado: ACTIVA
+                fecha_inicio: "2026-09-15T00:00:00-03:00"
+                fecha_fin: "2026-10-15T00:00:00-03:00"
+                renueva_automatica: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  # ---------------------------------------------------------------- SEDES
+  /sedes:
+    get:
+      tags: [sedes]
+      operationId: listarSedes
+      summary: Listado de sedes
+      description: Listado paginado de todas las sedes de la cadena (Gerente Central, A4). Solo admite paginación (lista blanca de parámetros).
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de sedes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SedeOut"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [sedes]
+      operationId: crearSede
+      summary: Alta de sede
+      description: >
+        Alta de una nueva sucursal por el Gerente Central (RNF-04). La sede queda disponible
+        para canchas, clases y control de acceso en forma inmediata (configuración por BD).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SedeIn"
+      responses:
+        "201":
+          description: Sede creada
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema:
+                type: string
+                example: /api/v1/sedes/3
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SedeOut"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  # ------------------------------------------- M2 · INGRESOS Y AFORO (RF-04/RF-05)
+  /ingresos:
+    get:
+      tags: [ingresos]
+      operationId: listarIngresos
+      summary: Listado de ingresos a sede con filtros
+      description: >
+        Filtros por sede, usuario y día (lista blanca de parámetros) y paginación.
+        `dentro=true` devuelve solo los ingresos sin egreso, es decir los usuarios que
+        siguen en la sede; es el detalle que /sedes/{sede_id}/aforo no da porque ese solo
+        devuelve el número de occupants (RN-01).
+      parameters:
+        - name: sede_id
+          in: query
+          required: false
+          description: ID numérico de la sede
+          schema:
+            type: integer
+          example: 3
+        - name: usuario_id
+          in: query
+          required: false
+          description: ID numérico del usuario que ingresó
+          schema:
+            type: integer
+          example: 2
+        - name: fecha
+          in: query
+          required: false
+          description: Día consultado (YYYY-MM-DD, hora local de la sede).
+          schema:
+            type: string
+            format: date
+          example: "2026-09-16"
+        - name: dentro
+          in: query
+          required: false
+          description: true trae solo los ingresos con fecha_hora_egreso nula (aún en la sede).
+          schema:
+            type: boolean
+          example: true
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de ingresos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IngresoOut"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [ingresos]
+      operationId: registrarIngreso
+      summary: Registrar ingreso a la sede (RF-04)
+      description: >
+        Registra el turno de acceso. Valida que el usuario tenga una membresía vigente
+        (RF-04: estado distinto de SUSPENDIDA y fecha_fin no vencida) y que la sede tenga
+        espacio (RF-05, cuenta los Ingresos sin egreso contra
+        Sede.aforo_maximo). RN-01: un usuario no puede estar dentro de dos sedes a la vez;
+        si ya tiene un ingreso sin egreso responde 409 (acceso-duplicado). El qr_token
+        está en el contrato como revisable: la vigencia/rotación del QR se define en la
+        Unidad III. fecha_hora_ingreso es opcional para el puesto de control offline
+        (RNF-01): enviar la hora real del acceso cuando se sincroniza.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngresoIn"
+      responses:
+        "201":
+          description: Ingreso registrado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema:
+                type: string
+                example: /api/v1/ingresos/9
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngresoOut"
+        "403":
+          $ref: "#/components/responses/MembresiaInactiva"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/ConflictoAcceso"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /ingresos/{ingreso_id}:
+    parameters:
+      - $ref: "#/components/parameters/IngresoId"
+    get:
+      tags: [ingresos]
+      operationId: obtenerIngreso
+      summary: Obtener ingreso por id
+      description: >
+        Devuelve el registro del acceso. `fecha_hora_egreso` es nula mientras el usuario
+        permanezca dentro de la sede (es lo que define el aforo, RN-01). Para el egreso
+        ver POST /ingresos/{ingreso_id}/egreso.
+      responses:
+        "200":
+          description: Registro de ingreso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngresoOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /ingresos/{ingreso_id}/egreso:
+    parameters:
+      - $ref: "#/components/parameters/IngresoId"
+    post:
+      tags: [ingresos]
+      operationId: registrarEgreso
+      summary: Registrar egreso de la sede (RF-05)
+      description: >
+        Cierra el turno de acceso escribiendo fecha_hora_egreso: libera el cupo de aforo
+        (RF-05). Modelado como sub-recurso y sin body al igual que las cancelaciones.
+        Un acceso ya egresado responde 409 (egreso-duplicado); un ingreso inexistente, 404.
+      responses:
+        "204":
+          description: Egreso registrado (sin cuerpo)
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/EgresoDuplicado"
+  /sedes/{sede_id}/aforo:
+    parameters:
+      - $ref: "#/components/parameters/SedeId"
+    get:
+      tags: [sedes]
+      operationId: obtenerAforo
+      summary: Aforo actual de una sede (RF-05)
+      description: >
+        aforo_actual = cantidad de Ingresos sin fecha_hora_egreso de la sede (RN-01);
+        restante = aforo_maximo - aforo_actual. Es la misma cuenta que valida cada
+        POST de acceso.
+      responses:
+        "200":
+          description: Aforo actual de la sede
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AforoOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  # ---------------------------------------------------------------- CANCHAS
+  /sedes/{sede_id}/canchas:
+    parameters:
+      - $ref: "#/components/parameters/SedeId"
+    get:
+      tags: [canchas]
+      operationId: listarCanchas
+      summary: Listado de canchas de una sede
+      description: Listado paginado de las canchas de la sede (incluye las no operativas, RF-12); opcional filtrar por ?estado= (lista blanca de parámetros). Sin ?estado= devuelve todas, incluidas las EN_MANTENIMIENTO.
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          description: Filtro por estado (OPERATIVA | EN_MANTENIMIENTO). Si se omite, devuelve ambas.
+          schema:
+            $ref: "#/components/schemas/EstadoCancha"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de canchas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CanchaOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [canchas]
+      operationId: crearCancha
+      summary: Alta de cancha (RF-09)
+      description: El Gerente configura el tipo y el costo por hora (por defecto, operativa).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CanchaIn"
+      responses:
+        "201":
+          description: Cancha creada
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema:
+                type: string
+                example: /api/v1/sedes/3/canchas/6
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanchaOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /canchas/{cancha_id}:
+    parameters:
+      - $ref: "#/components/parameters/CanchaId"
+    get:
+      tags: [canchas]
+      operationId: obtenerCancha
+      summary: Obtener cancha por id
+      responses:
+        "200":
+          description: Cancha
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanchaOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [canchas]
+      operationId: modificarCancha
+      summary: Modificar parcialmente una cancha
+      description: >
+        Actualiza costo_por_hora (RF-09) y/o estado. Pasar a EN_MANTENIMIENTO no borra las
+        reservas ya tomadas (RF-12): inhabilitar el futuro no toca el histórico.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CanchaPatch"
+      responses:
+        "200":
+          description: Cancha actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanchaOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /canchas/{cancha_id}/disponibilidad:
+    parameters:
+      - $ref: "#/components/parameters/CanchaId"
+    get:
+      tags: [canchas]
+      operationId: consultarDisponibilidad
+      summary: Disponibilidad de turnos de una cancha
+      description: >
+        Consulta indexada por día (RNF-03). Devuelve los tramos horarios libres/ocupados
+        para la fecha solicitada. Si la cancha está EN_MANTENIMIENTO todos los tramos
+        responden disponible:false (RF-12): se bloquea el futuro sin tocar las reservas ya tomadas.
+        La consulta usa el índice compuesto (cancha_id, fecha_hora_inicio). Solo admite
+        ?fecha= y paginación (lista blanca de parámetros).
+      parameters:
+        - name: fecha
+          in: query
+          required: true
+          description: Día consultado (YYYY-MM-DD, hora local de la sede).
+          schema:
+            type: string
+            format: date
+            example: "2026-09-16"
+        # La descripción de esta operación ya decía "Solo admite ?fecha= y paginación",
+        # pero faltaban los dos $ref de paginación. Se agregan para que la lista
+        # blanca y la prosa digan lo mismo.
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Disponibilidad del día
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DisponibilidadEntrada"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  # ---------------------------------------------------------------- CLASES
+  /clases:
+    get:
+      tags: [clases]
+      operationId: listarClases
+      summary: Listado de clases con filtros
+      description: Filtrado por tipo y/o sede (lista blanca de parámetros) y paginación.
+      parameters:
+        - name: tipo
+          in: query
+          required: false
+          description: Tipo de clase (libre; ej. Spinning, Yoga).
+          schema:
+            type: string
+        - name: sede_id
+          in: query
+          required: false
+          description: ID numérico de la sede
+          schema:
+            type: integer
+            example: 3
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de clases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClaseOut"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [clases]
+      operationId: crearClase
+      summary: Alta de clase (RF-06)
+      description: Registra una clase con su tipo, instructor, horario y capacidad.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaseIn"
+      responses:
+        "201":
+          description: Clase creada
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema:
+                type: string
+                example: /api/v1/clases/4
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaseOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/ClaseFueraDeHorario"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /clases/{clase_id}:
+    parameters:
+      - $ref: "#/components/parameters/ClaseId"
+    get:
+      tags: [clases]
+      operationId: obtenerClase
+      summary: Obtener clase por id
+      description: Devuelve la clase con los cupos libres restantes ahora. Si no existe, 404.
+      responses:
+        "200":
+          description: Clase encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaseOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  # ------------------------------------- M3 · RESERVAS DE CLASE POR CLASE (RF-06)
+  /clases/{clase_id}/reservas:
+    parameters:
+      - $ref: "#/components/parameters/ClaseId"
+    get:
+      tags: [clases]
+      operationId: listarReservasDeClase
+      summary: Listado de reservas de una clase
+      description: >
+        Ocupación de la clase. Sin `estado` devuelve solo las CONFIRMADA: las canceladas no
+        aparecen en el listado y se piden con ?estado=CANCELADA (RF-12 conserva el histórico,
+        no la visibilidad por defecto). Solo admite ?estado= y paginación (lista blanca de
+        parámetros).
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          description: Estado de la reserva. Por defecto solo CONFIRMADA.
+          schema:
+            $ref: "#/components/schemas/EstadoReservaClase"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de reservas de la clase
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReservaClaseOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+# ---------------------------------------------------------------- RESERVAS DE CANCHA
+  /reservas-canchas:
+    get:
+      tags: [reservas-canchas]
+      operationId: listarReservasCancha
+      summary: Listado de reservas de cancha con filtros
+      description: >
+        Filtros por cancha, usuario, estado y día (lista blanca de parámetros) y paginación.
+        Sin `estado` devuelve solo las CONFIRMADA: las canceladas no aparecen en el listado y
+        se piden explícitamente con ?estado=CANCELADA (RF-12 conserva el histórico, no la
+        visibilidad por defecto).
+      parameters:
+        - name: cancha_id
+          in: query
+          required: false
+          description: ID numérico de la cancha
+          schema:
+            type: integer
+          example: 6
+        - name: usuario_id
+          in: query
+          required: false
+          description: ID numérico del usuario titular de la reserva
+          schema:
+            type: integer
+          example: 1
+        - name: estado
+          in: query
+          required: false
+          description: Estado de la reserva. Por defecto solo CONFIRMADA.
+          schema:
+            $ref: "#/components/schemas/EstadoReserva"
+        - name: fecha
+          in: query
+          required: false
+          description: Día consultado (YYYY-MM-DD, hora local de la sede).
+          schema:
+            type: string
+            format: date
+          example: "2026-09-16"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de reservas de cancha
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReservaCanchaOut"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [reservas-canchas]
+      operationId: crearReservaCancha
+      summary: Reservar un turno de cancha (RF-10, RN-02)
+      description: >
+        Crea la reserva de cancha en transacción. Si la cancha está EN_MANTENIMIENTO no se
+        reservan turnos futuros sobre ella (RF-12): responde 409 sin tocar las reservas ya tomadas.
+        Si dos usuarios reservan el mismo turno a la vez, el unique index parcial
+        (unq_reserva_turno) hace que un solo INSERT gane y el otro reciba 409 problem+json.
+        El precio aplicado se guarda en el momento de la reserva.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReservaCanchaIn"
+      responses:
+        "201":
+          description: Reserva confirmada
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema:
+                type: string
+                example: /api/v1/reservas-canchas/7
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservaCanchaOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/ConflictoReservaCancha"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /reservas-canchas/{reserva_cancha_id}:
+    parameters:
+      - $ref: "#/components/parameters/ReservaCanchaId"
+    get:
+      tags: [reservas-canchas]
+      operationId: obtenerReservaCancha
+      summary: Obtener reserva de cancha por id
+      responses:
+        "200":
+          description: Reserva
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservaCanchaOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /reservas-canchas/{reserva_cancha_id}/cancelaciones:
+    parameters:
+      - $ref: "#/components/parameters/ReservaCanchaId"
+    post:
+      tags: [reservas-canchas]
+      operationId: cancelarReservaCancha
+      summary: Cancelar una reserva
+      description: >
+        Acción modelada como sub-recurso y sin body: responde 204 (la cancelación no lleva
+        datos extra). El DELETE de reserva ES esta cancelación; no se borra el histórico.
+        Solo puede cancelar una reserva CONFIRMADA: una reserva inexistente responde 404
+        y una que ya está CANCELADA responde 409 `ReservaYaCancelada` (existe y conserva su
+        histórico, pero la transición pedida ya ocurrió). Para reprogramar se cancela y se
+        reserva un turno nuevo.
+      responses:
+        "204":
+          description: Reserva cancelada (sin cuerpo)
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/ReservaYaCancelada"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  # ---------------------------------------------------------------- RESERVAS DE CLASE
+  /reservas-clases:
+    get:
+      tags: [reservas-clases]
+      operationId: listarReservasClase
+      summary: Listado de reservas de clase con filtros
+      description: >
+        Filtros por clase, socio y estado (lista blanca de parámetros) y paginación.
+        Sin `estado` devuelve solo las CONFIRMADA: las canceladas no aparecen en el listado
+        y se piden explícitamente con ?estado=CANCELADA (RF-12 conserva el histórico, no la
+        visibilidad por defecto).
+      parameters:
+        - name: clase_id
+          in: query
+          required: false
+          description: ID numérico de la clase
+          schema:
+            type: integer
+          example: 4
+        - name: socio_id
+          in: query
+          required: false
+          description: ID numérico del socio titular de la reserva
+          schema:
+            type: integer
+          example: 2
+        - name: estado
+          in: query
+          required: false
+          description: Estado de la reserva. Por defecto solo CONFIRMADA.
+          schema:
+            $ref: "#/components/schemas/EstadoReservaClase"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de reservas de clase
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReservaClaseOut"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [reservas-clases]
+      operationId: crearReservaClase
+      summary: Reservar cupo en una clase
+      description: >
+        Registra la reserva de cupo (RF-06) y decrementa el cupo disponible. La ventana de
+        reserva es de hasta 48 horas antes del inicio de la clase: fuera de esa ventana
+        responde 409, igual que el cupo completo (RF-06) o una reserva duplicada. Un socio
+        con cuotas vencidas responde 403: no puede reservar con tarifa bonificada. La
+        cancelación del cupo se hace por el sub-recurso /cancelaciones (RF-07), no por DELETE.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReservaClaseIn"
+      responses:
+        "201":
+          description: Cupo reservado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema:
+                type: string
+                example: /api/v1/reservas-clases/5
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservaClaseOut"
+        "403":
+          $ref: "#/components/responses/SocioEnMora"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/ConflictoReservaClase"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /reservas-clases/{reserva_clase_id}:
+    parameters:
+      - $ref: "#/components/parameters/ReservaClaseId"
+    get:
+      tags: [reservas-clases]
+      operationId: obtenerReservaClase
+      summary: Obtener reserva de cupo por id
+      responses:
+        "200":
+          description: Reserva de cupo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservaClaseOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /reservas-clases/{reserva_clase_id}/cancelaciones:
+    parameters:
+      - $ref: "#/components/parameters/ReservaClaseId"
+    post:
+      tags: [reservas-clases]
+      operationId: cancelarReservaClase
+      summary: Cancelar un cupo de clase (RF-07)
+      description: >
+        Cancela un cupo confirmado hasta 2 horas antes del inicio de la clase.
+        Pasada esa ventana responde 409. Una reserva inexistente o ya cancelada responde 404.
+        El cupo liberado se notifica a la lista de espera (RF-08) en la Unidad III.
+      responses:
+        "204":
+          description: Cupo cancelado (sin cuerpo)
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/VentanaCancelacionCerrada"
+  # ------------------------------------------- M3 · LISTA DE ESPERA (RF-08)
+  /clases/{clase_id}/espera:
+    parameters:
+      - $ref: "#/components/parameters/ClaseId"
+    get:
+      tags: [clases]
+      operationId: listarEsperaDeClase
+      summary: Listado de la lista de espera de una clase
+      description: >
+        Cola vigente de la clase. Sin `estado` devuelve solo los dos estados vivos,
+        EN_ESPERA y NOTIFICADO: las anotaciones CONFIRMADO ya son reservas y las CANCELADO
+        se excluyen del listado (RF-12 conserva el histórico, no la visibilidad por defecto).
+        Los excluidos se piden con ?estado=CONFIRMADO o ?estado=CANCELADO. Solo admite
+        ?estado= y paginación (lista blanca de parámetros).
+      parameters:
+        - name: estado
+          in: query
+          required: false
+          description: Estado de la anotación. Por defecto EN_ESPERA y NOTIFICADO.
+          schema:
+            $ref: "#/components/schemas/EstadoEspera"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de la lista de espera de la clase
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EsperaOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [esperas-clases]
+      operationId: anotarseEnEspera
+      summary: Anotarse en la lista de espera de una clase (RF-08)
+      description: >
+        Anota al socio en la espera de la clase. Solo aplica si la clase está llena:
+        con cupos disponibles no tiene sentido esperar y responde 409 (cupo-disponible).
+        Un socio ya anotado o con reserva activa en la misma clase responde 409
+        (espera-existente), y una clase ya iniciada también (clase-pasada). Un socio con
+        cuotas vencidas responde 403: no puede entrar a la espera de clases bonificadas.
+        El registro nace en EN_ESPERA. Cuando se libera un cupo (RF-07) se notifica a todos
+        los anotados y el primer confirmante obtiene la reserva.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EsperaIn"
+      responses:
+        "201":
+          description: Anotado en la lista de espera
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema:
+                type: string
+                example: /api/v1/esperas-clases/10
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EsperaOut"
+        "403":
+          $ref: "#/components/responses/SocioEnMora"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/ConflictoEspera"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /esperas-clases:
+    get:
+      tags: [esperas-clases]
+      operationId: listarEsperasClase
+      summary: Listado de anotaciones de espera con filtros
+      description: >
+        Filtros por clase, socio y estado (lista blanca de parámetros) y paginación.
+        Sin `estado` devuelve solo los dos estados vivos, EN_ESPERA y NOTIFICADO: las
+        CONFIRMADO ya son reservas y las CANCELADO no aparecen en el listado (RF-12 conserva
+        el histórico, no la visibilidad por defecto).
+      parameters:
+        - name: clase_id
+          in: query
+          required: false
+          description: ID numérico de la clase
+          schema:
+            type: integer
+          example: 4
+        - name: socio_id
+          in: query
+          required: false
+          description: ID numérico del socio anotado
+          schema:
+            type: integer
+          example: 2
+        - name: estado
+          in: query
+          required: false
+          description: Estado de la anotación. Por defecto EN_ESPERA y NOTIFICADO.
+          schema:
+            $ref: "#/components/schemas/EstadoEspera"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de anotaciones de espera
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EsperaOut"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /esperas-clases/{espera_id}:
+    parameters:
+      - $ref: "#/components/parameters/EsperaId"
+    get:
+      tags: [esperas-clases]
+      operationId: obtenerEspera
+      summary: Obtener anotación de espera por id
+      responses:
+        "200":
+          description: Anotación de espera
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EsperaOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [esperas-clases]
+      operationId: salirDeEspera
+      summary: Salir de la lista de espera (baja lógica)
+      description: >
+        Baja lógica: la anotación pasa a CANCELADO (no se borra el registro; se conserva
+        el histórico de la espera). Una anotación CONFIRMADA ya tomó el cupo: no se puede
+        salir así; su reserva se gestiona por /reservas-clases (RF-07). Responder 409.
+      responses:
+        "204":
+          description: Anotación cancelada (sin cuerpo)
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/EsperaConfirmada"
+  /esperas-clases/{espera_id}/confirmaciones:
+    parameters:
+      - $ref: "#/components/parameters/EsperaId"
+    post:
+      tags: [esperas-clases]
+      operationId: confirmarEspera
+      summary: Confirmar cupo desde la lista de espera (RF-08)
+      description: >
+        Materializa el first-come: el cupo liberado lo toma el primer anotado en NOTIFICADO
+        que confirme; al confirmar se crea la ReservaClase y la anotación pasa a CONFIRMADO.
+        Solo confirma quien está NOTIFICADO: si la anotación no fue notificada o el cupo ya
+        lo tomó otro socio responde 409. La notificación en sí la emite el servidor
+        (observer, no es un endpoint): este POST solo registra la decisión del socio.
+        Devuelve 201 con la ReservaClase creada y Location: el id de la reserva es el dato
+        que el socio necesita para referenciarla, y se obtiene en la misma respuesta en lugar de
+        barrer GET /reservas-clases.
+      responses:
+        "201":
+          description: Cupo confirmado y ReservaClase creada
+          headers:
+            Location:
+              description: URL de la reserva creada
+              schema:
+                type: string
+                example: /api/v1/reservas-clases/5
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservaClaseOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/ConfirmacionRechazada"
+  # ---------------------------------------------------------------- PAGOS
+  /pagos:
+    get:
+      tags: [pagos]
+      operationId: listarPagos
+      summary: Listado de pagos con filtros
+      description: >
+        Filtros por usuario, estado, tipo de concepto, concepto concreto y período
+        (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los APROBADO:
+        es el único estado en el que el dinero se movió y existe comprobante. PENDIENTE,
+        RECHAZADO y ANULADO se piden explícitamente con ?estado=, porque un pago anulado no
+        se borra del histórico: se repaga con una nueva Idempotency-Key. `tipo` es el
+        discriminante de ConceptoPago (RESERVA_CANCHA cruza con PagoReserva, MEMBRESIA con
+        PagoMembresia). `desde` y `hasta` son días (YYYY-MM-DD) en hora local y forman un
+        intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo.
+      parameters:
+        - name: usuario_id
+          in: query
+          required: false
+          description: ID numérico del usuario que pagó
+          schema:
+            type: integer
+          example: 1
+        - name: estado
+          in: query
+          required: false
+          description: Estado del pago. Sin este parámetro devuelve solo los APROBADO.
+          schema:
+            $ref: "#/components/schemas/EstadoPago"
+        - name: tipo
+          in: query
+          required: false
+          description: Discriminante del concepto cobrado.
+          schema:
+            type: string
+            enum: [RESERVA_CANCHA, MEMBRESIA]
+          example: RESERVA_CANCHA
+        - name: reserva_cancha_id
+          in: query
+          required: false
+          description: Solo pagos cuyo concepto es una reserva de esta cancha (PagoReserva.reserva_id).
+          schema:
+            type: integer
+          example: 7
+        - name: membresia_id
+          in: query
+          required: false
+          description: Solo pagos cuyo concepto es esta membresía (PagoMembresia.membresia_id); una membresía admite varios pagos por renovación.
+          schema:
+            type: integer
+          example: 3
+        - name: desde
+          in: query
+          required: false
+          description: Inicio del intervalo, inclusivo (YYYY-MM-DD, hora local).
+          schema:
+            type: string
+            format: date
+          example: "2026-03-01"
+        - name: hasta
+          in: query
+          required: false
+          description: Fin del intervalo, inclusivo (YYYY-MM-DD, hora local).
+          schema:
+            type: string
+            format: date
+          example: "2026-03-31"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Listado de pagos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PagoOut"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    post:
+      tags: [pagos]
+      operationId: procesarPago
+      summary: Procesar un pago (RF-13)
+      description: >
+        Cobro de una reserva de cancha (PagoReserva) o una renovación de membresía
+        (PagoMembresia). Requiere la cabecera Idempotency-Key: si la clave ya fue usada,
+        el unique del esquema responde 409 y la pasarela no se invoca de nuevo.
+        El monto lo computa la regla de negocio (por precio aplicado o plan).
+        Sin PATCH/DELETE: un cobro mal hecho se ANULA por POST /pagos/{pago_id}/anulaciones
+        y se repaga con una nueva Idempotency-Key.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PagoIn"
+      responses:
+        "201":
+          description: Pago procesado
+          headers:
+            Location:
+              description: URL del recurso creado
+              schema:
+                type: string
+                example: /api/v1/pagos/8
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagoOut"
+        "400":
+          $ref: "#/components/responses/MissingIdempotency"
+        "402":
+          $ref: "#/components/responses/PagoRechazado"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/IdempotenciaRepetida"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /pagos/{pago_id}:
+    parameters:
+      - $ref: "#/components/parameters/PagoId"
+    get:
+      tags: [pagos]
+      operationId: obtenerPago
+      summary: Obtener pago por id
+      responses:
+        "200":
+          description: Pago
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagoOut"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /pagos/{pago_id}/comprobante:
+    parameters:
+      - $ref: "#/components/parameters/PagoId"
+    get:
+      tags: [pagos]
+      operationId: obtenerComprobante
+      summary: Descargar comprobante PDF (RF-14)
+      description: >
+        Genera/retorna el comprobante del pago aprobado (snapshot al momento del pago).
+        Si el pago no fue aprobado (PENDIENTE/RECHAZADO/ANULADO) responde 409.
+      responses:
+        "200":
+          description: Comprobante en PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/PagoNoAprobado"
+  /pagos/{pago_id}/anulaciones:
+    parameters:
+      - $ref: "#/components/parameters/PagoId"
+    post:
+      tags: [pagos]
+      operationId: anularPago
+      summary: Anular un pago
+      description: >
+        Única forma de mover un pago hacia ANULADO (sin PATCH ni DELETE). Aplica a un pago
+        PENDIENTE o APROBADO (por ej. cobro duplicado o mal hecho). Re-anular un pago ya
+        ANULADO es idempotente: responde 204 sin cambios. Un pago RECHAZADO nunca se cobró
+        y no es anulable: responde 409. El pago anulado no se borra del histórico: se repaga
+        con una nueva Idempotency-Key.
+      responses:
+        "204":
+          description: Pago anulado (sin cuerpo)
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/PagoNoAnulable"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+components:
+  parameters:
+    UsuarioId:
+      name: id
+      in: path
+      required: true
+      description: ID numérico del usuario
+      schema:
+        type: integer
+        example: 1
+    SocioId:
+      name: socio_id
+      in: path
+      required: true
+      description: ID numérico del socio
+      schema:
+        type: integer
+        example: 2
+    SedeId:
+      name: sede_id
+      in: path
+      required: true
+      description: ID numérico de la sede
+      schema:
+        type: integer
+        example: 3
+    ReservaClaseId:
+      name: reserva_clase_id
+      in: path
+      required: true
+      description: ID numérico de la reserva de clase
+      schema:
+        type: integer
+        example: 5
+    CanchaId:
+      name: cancha_id
+      in: path
+      required: true
+      description: ID numérico de la cancha
+      schema:
+        type: integer
+        example: 6
+    ReservaCanchaId:
+      name: reserva_cancha_id
+      in: path
+      required: true
+      description: ID numérico de la reserva de cancha
+      schema:
+        type: integer
+        example: 7
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Clave única de idempotencia (el reintento con la misma clave no duplica el cobro).
+      schema:
+        type: string
+        example: 3f2504e0-4f89-11d3-9a0c-0305e82c3301
+    PagoId:
+      name: pago_id
+      in: path
+      required: true
+      description: ID numérico del pago
+      schema:
+        type: integer
+        example: 8
+    ClaseId:
+      name: clase_id
+      in: path
+      required: true
+      description: ID numérico de la clase
+      schema:
+        type: integer
+        example: 4
+    IngresoId:
+      name: ingreso_id
+      in: path
+      required: true
+      description: ID numérico del ingreso
+      schema:
+        type: integer
+        example: 9
+    EsperaId:
+      name: espera_id
+      in: path
+      required: true
+      description: ID numérico de la anotación en la lista de espera
+      schema:
+        type: integer
+        example: 10
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  schemas:
+    # ---- Usuarios
+    Rol:
+      type: string
+      enum: [SOCIO, EXTERNO, RECEPCION, GERENTE]
+    UsuarioIn:
+      type: object
+      required: [rol, dni, nombre, email, contrasenia]
+      properties:
+        rol:
+          type: string
+          enum: [EXTERNO, RECEPCION, GERENTE]
+          description: 'Rol de perfil al crear. SOCIO no aplica acá: solo por POST /socios.'
+        dni:
+          type: string
+          minLength: 7
+          maxLength: 20
+          pattern: ^\d+$
+          example: "35123456"
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Ana Gómez"
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: ana.gomez@fitzone.com.ar
+        contrasenia:
+          type: string
+          minLength: 8
+          writeOnly: true
+          description: Contraseña en claro al momento del alta; el servidor la hashea y no la devuelve nunca.
+          example: "Clave-Segura-123"
+        telefono:
+          type: string
+          maxLength: 20
+          example: "+54 351 555-1234"
+        foto_url:
+          type: string
+          example: https://cdn.fitzone.com.ar/fotos/ana.jpg
+      additionalProperties: false
+    UsuarioPatch:
+      type: object
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+        telefono:
+          type: string
+          nullable: true
+          maxLength: 20
+        foto_url:
+          type: string
+          nullable: true
+        contrasenia:
+          type: string
+          minLength: 8
+          writeOnly: true
+          description: Nueva contraseña; el servidor la hashea.
+      additionalProperties: false
+    UsuarioOut:
+      type: object
+      required: [id, rol, dni, nombre, email]
+      properties:
+        id:
+          type: integer
+        rol:
+          $ref: "#/components/schemas/Rol"
+        dni:
+          type: string
+        nombre:
+          type: string
+        email:
+          type: string
+          format: email
+        telefono:
+          type: string
+          nullable: true
+        foto_url:
+          type: string
+          nullable: true
+      example:
+        id: 1
+        rol: SOCIO
+        dni: "35123456"
+        nombre: "Ana Gómez"
+        email: ana.gomez@fitzone.com.ar
+        telefono: "+54 351 555-1234"
+        foto_url: https://cdn.fitzone.com.ar/fotos/ana.jpg
+    # ---- Socios
+    SocioIn:
+      type: object
+      required: [usuario_id, sede_origen_id, plan]
+      properties:
+        usuario_id:
+          type: integer
+          minimum: 1
+          description: Usuario a convertir en socio (RF-01 ya lo contempla como Socio).
+        sede_origen_id:
+          type: integer
+          minimum: 1
+          description: Sede de origen (información; el acceso multi-sede lo garantiza la membresía, RF-03).
+        plan:
+          type: string
+          enum: [MENSUAL, TRIMESTRAL, ANUAL]
+          description: >
+            Plan de la membresía inicial, obligatorio: no existe un socio sin membresía.
+            El alta del socio crea la fila única de Membresia en la misma transacción
+            (1:1) y la fecha_fin se calcula en el dominio a partir de este plan.
+      additionalProperties: false
+    SocioPatch:
+      type: object
+      properties:
+        sede_origen_id:
+          type: integer
+      additionalProperties: false
+    SocioOut:
+      type: object
+      required: [id, usuario_id, sede_origen_id, fecha_alta, nombre, email]
+      properties:
+        id:
+          type: integer
+        usuario_id:
+          type: integer
+        sede_origen_id:
+          type: integer
+        fecha_alta:
+          type: string
+          format: date-time
+        nombre:
+          type: string
+          description: Se resuelve desde el Usuario asociado; desnormalizado para el listado.
+        email:
+          type: string
+          format: email
+          description: Ídem, desde el Usuario asociado.
+      example:
+        id: 2
+        usuario_id: 1
+        sede_origen_id: 3
+        fecha_alta: "2026-09-15T00:00:00-03:00"
+        nombre: "Ana Gómez"
+        email: ana.gomez@fitzone.com.ar
+    # ---- Membresías
+    Plan:
+      type: string
+      enum: [MENSUAL, TRIMESTRAL, ANUAL]
+    EstadoMembresia:
+      type: string
+      enum: [ACTIVA, VENCIDA, SUSPENDIDA]
+    MembresiaPatch:
+      type: object
+      properties:
+        plan:
+          $ref: "#/components/schemas/Plan"
+        renueva_automatica:
+          type: boolean
+          description: false frena la renovación automática al vencer.
+        estado:
+          type: string
+          enum: [ACTIVA, SUSPENDIDA]
+          description: >
+            Suspender una membresía activa (SUSPENDIDA) o volverla a ACTIVA. VENCIDA no se
+            acepta por esta vía: solo la produce el proceso diario que vence las membresías
+            cuya fecha_fin ya pasó, de modo que un VENCIDA siempre tenga la fecha vencida.
+      additionalProperties: false
+    MembresiaOut:
+      type: object
+      required: [id, plan, estado, fecha_inicio, fecha_fin, renueva_automatica]
+      properties:
+        id:
+          type: integer
+        plan:
+          $ref: "#/components/schemas/Plan"
+        estado:
+          $ref: "#/components/schemas/EstadoMembresia"
+        fecha_inicio:
+          type: string
+          format: date-time
+        fecha_fin:
+          type: string
+          format: date-time
+        renueva_automatica:
+          type: boolean
+      example:
+        id: 9
+        plan: MENSUAL
+        estado: ACTIVA
+        fecha_inicio: "2026-09-15T00:00:00-03:00"
+        fecha_fin: "2026-10-15T00:00:00-03:00"
+        renueva_automatica: true
+    # ---- Sedes
+    SedeIn:
+      type: object
+      required: [nombre, direccion, aforo_maximo]
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "FitZone Norte"
+        direccion:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Av. Colón 1200, Córdoba"
+        aforo_maximo:
+          type: integer
+          minimum: 1
+          description: Capacidad simultánea de la sede (se valida contra los Ingresos abiertos, RF-05).
+          example: 120
+      additionalProperties: false
+    SedeOut:
+      type: object
+      required: [id, nombre, direccion, aforo_maximo]
+      properties:
+        id:
+          type: integer
+        nombre:
+          type: string
+        direccion:
+          type: string
+        aforo_maximo:
+          type: integer
+      example:
+        id: 3
+        nombre: "FitZone Norte"
+        direccion: "Av. Colón 1200, Córdoba"
+        aforo_maximo: 120
+    # ---- Canchas
+    TipoCancha:
+      type: string
+      enum: [PADDLE, FUTBOL5]
+    EstadoCancha:
+      type: string
+      enum: [OPERATIVA, EN_MANTENIMIENTO]
+    CanchaIn:
+      type: object
+      required: [tipo, costo_por_hora]
+      properties:
+        tipo:
+          $ref: "#/components/schemas/TipoCancha"
+        costo_por_hora:
+          type: number
+          minimum: 0
+          description: Configurable por el Gerente (RF-09).
+          example: 5000
+        estado:
+          type: string
+          enum: [OPERATIVA, EN_MANTENIMIENTO]
+          default: OPERATIVA
+      additionalProperties: false
+    CanchaPatch:
+      type: object
+      properties:
+        costo_por_hora:
+          type: number
+          minimum: 0
+        estado:
+          $ref: "#/components/schemas/EstadoCancha"
+      additionalProperties: false
+    CanchaOut:
+      type: object
+      required: [id, sede_id, tipo, costo_por_hora, estado]
+      properties:
+        id:
+          type: integer
+        sede_id:
+          type: integer
+        tipo:
+          $ref: "#/components/schemas/TipoCancha"
+        costo_por_hora:
+          type: number
+        estado:
+          $ref: "#/components/schemas/EstadoCancha"
+      example:
+        id: 6
+        sede_id: 3
+        tipo: PADDLE
+        costo_por_hora: 5000
+        estado: OPERATIVA
+    DisponibilidadEntrada:
+      type: object
+      required: [fecha_hora_inicio, fecha_hora_fin, disponible]
+      properties:
+        fecha_hora_inicio:
+          type: string
+          format: date-time
+        fecha_hora_fin:
+          type: string
+          format: date-time
+        disponible:
+          type: boolean
+      example:
+        fecha_hora_inicio: "2026-09-16T18:00:00-03:00"
+        fecha_hora_fin: "2026-09-16T19:00:00-03:00"
+        disponible: true
+    # ---- Clases
+    ClaseIn:
+      type: object
+      required: [sede_id, tipo, instructor, horario, capacidad]
+      properties:
+        sede_id:
+          type: integer
+          description: Sede donde se dicta la clase.
+        tipo:
+          type: string
+          example: "Spinning"
+        instructor:
+          type: string
+          example: "Lucía Ferreyra"
+        horario:
+          type: string
+          format: date-time
+          description: Inicio de la clase (ISO 8601).
+          example: "2026-09-16T18:00:00-03:00"
+        capacidad:
+          type: integer
+          minimum: 1
+          example: 18
+      additionalProperties: false
+    ClaseOut:
+      type: object
+      required: [id, sede_id, tipo, instructor, horario, capacidad, reservas_confirmadas, cupo_disponible]
+      properties:
+        id:
+          type: integer
+        sede_id:
+          type: integer
+        tipo:
+          type: string
+        instructor:
+          type: string
+        horario:
+          type: string
+          format: date-time
+        capacidad:
+          type: integer
+        reservas_confirmadas:
+          type: integer
+          description: Cantidad de reservas confirmadas activas.
+          example: 5
+        cupo_disponible:
+          type: integer
+          description: Cupo disponible en tiempo real (capacidad - reservas confirmadas).
+          example: 13
+      example:
+        id: 4
+        sede_id: 3
+        tipo: "Spinning"
+        instructor: "Lucía Ferreyra"
+        horario: "2026-09-16T18:00:00-03:00"
+        capacidad: 18
+        reservas_confirmadas: 5
+        cupo_disponible: 13
+    ReservaClaseIn:
+      type: object
+      required: [clase_id, socio_id]
+      properties:
+        clase_id:
+          type: integer
+          description: Clase de la que se reserva el cupo (RF-06).
+        socio_id:
+          type: integer
+          description: Socio que reserva el cupo (RF-07/RF-08 aplican a socios).
+      additionalProperties: false
+    ReservaClaseOut:
+      type: object
+      required: [id, clase_id, socio_id, estado]
+      properties:
+        id:
+          type: integer
+        clase_id:
+          type: integer
+        socio_id:
+          type: integer
+        estado:
+          $ref: "#/components/schemas/EstadoReservaClase"
+      example:
+        id: 5
+        clase_id: 4
+        socio_id: 2
+        estado: CONFIRMADA
+    # ---- Reservas de cancha
+    EstadoReserva:
+      type: string
+      enum: [CONFIRMADA, CANCELADA]
+    EstadoReservaClase:
+      type: string
+      enum: [CONFIRMADA, CANCELADA]
+    # ---- Ingresos y aforo (M2)
+    IngresoIn:
+      type: object
+      required: [sede_id, usuario_id, qr_token]
+      properties:
+        sede_id:
+          type: integer
+          description: Sede de ingreso (RF-05). La define el puesto de control, no el cliente.
+          example: 3
+        usuario_id:
+          type: integer
+          description: Usuario que ingresa; debe tener membresía vigente (RF-04).
+          example: 2
+        qr_token:
+          type: string
+          description: >
+            Token del QR dinámico leído por el puesto de control (RF-04). Campo revisable:
+            la vigencia y rotación del QR se definen en la Unidad III.
+          example: qr-7f3a-9c2e
+        fecha_hora_ingreso:
+          type: string
+          format: date-time
+          description: >
+            Momento real del acceso. Opcional para el puesto de control offline (RNF-01):
+            cuando sincroniza, reporta la hora en que ocurrió el ingreso. Si se omite, el
+            servidor usa su hora actual.
+          example: "2026-09-16T18:02:11-03:00"
+        validado_offline:
+          type: boolean
+          description: >
+            Marca el ingreso como validado por el puesto de control offline (RNF-01). Si se
+            omite, el servidor asume false (ingreso online en tiempo real).
+          example: false
+      additionalProperties: false
+    IngresoOut:
+      type: object
+      required: [id, sede_id, usuario_id, fecha_hora_ingreso, validado_offline]
+      properties:
+        id:
+          type: integer
+        sede_id:
+          type: integer
+        usuario_id:
+          type: integer
+        fecha_hora_ingreso:
+          type: string
+          format: date-time
+        fecha_hora_egreso:
+          type: string
+          format: date-time
+          nullable: true
+          description: Null mientras el usuario permanezca dentro de la sede (define el aforo, RN-01).
+        validado_offline:
+          type: boolean
+          description: True si el ingreso fue validado por un puesto de control offline (RNF-01).
+      example:
+        id: 9
+        sede_id: 3
+        usuario_id: 2
+        fecha_hora_ingreso: "2026-09-16T18:02:11-03:00"
+        fecha_hora_egreso: null
+        validado_offline: false
+    AforoOut:
+      type: object
+      required: [aforo_actual, aforo_maximo, restante]
+      properties:
+        aforo_actual:
+          type: integer
+          description: Ingresos sin egreso en la sede, en este momento (RN-01/RF-05).
+        aforo_maximo:
+          type: integer
+          description: Valor configurado en Sede.aforo_maximo.
+        restante:
+          type: integer
+          description: aforo_maximo - aforo_actual. Cero o negativo implica acceso 409.
+      example:
+        aforo_actual: 78
+        aforo_maximo: 120
+        restante: 42
+    # ---- Lista de espera (M3)
+    EstadoEspera:
+      type: string
+      enum: [EN_ESPERA, NOTIFICADO, CONFIRMADO, CANCELADO]
+      description: CANCELADO corresponde a la baja lógica (DELETE /esperas-clases/{id}).
+    EsperaIn:
+      type: object
+      required: [socio_id]
+      properties:
+        socio_id:
+          type: integer
+          description: Socio que se anota a la espera (RF-08 aplica a reservas de clase de socios).
+          example: 2
+      additionalProperties: false
+    EsperaOut:
+      type: object
+      required: [id, clase_id, socio_id, estado, fecha_anotacion]
+      properties:
+        id:
+          type: integer
+        clase_id:
+          type: integer
+        socio_id:
+          type: integer
+        estado:
+          $ref: "#/components/schemas/EstadoEspera"
+        fecha_anotacion:
+          type: string
+          format: date-time
+        fecha_notificacion:
+          type: string
+          format: date-time
+          nullable: true
+          description: Cuándo el servidor notificó el cupo liberado (RF-08). Null hasta ese momento.
+        fecha_confirmacion:
+          type: string
+          format: date-time
+          nullable: true
+          description: Cuándo el socio confirmó y tomó el cupo (first-come). Null mientras no confirme.
+      example:
+        id: 10
+        clase_id: 4
+        socio_id: 2
+        estado: EN_ESPERA
+        fecha_anotacion: "2026-09-16T17:30:00-03:00"
+        fecha_notificacion: null
+        fecha_confirmacion: null
+    ReservaCanchaIn:
+      type: object
+      required: [cancha_id, fecha_hora_inicio, fecha_hora_fin]
+      properties:
+        cancha_id:
+          type: integer
+        usuario_id:
+          type: integer
+          description: Quién reserva (Socio o Cliente Externo, RF-01). Si se omite, se toma del token en la Unidad III.
+        fecha_hora_inicio:
+          type: string
+          format: date-time
+          example: "2026-09-16T18:00:00-03:00"
+        fecha_hora_fin:
+          type: string
+          format: date-time
+          example: "2026-09-16T19:00:00-03:00"
+      additionalProperties: false
+    ReservaCanchaOut:
+      type: object
+      required: [id, cancha_id, usuario_id, fecha_hora_inicio, fecha_hora_fin, estado, precio_aplicado]
+      properties:
+        id:
+          type: integer
+        cancha_id:
+          type: integer
+        usuario_id:
+          type: integer
+        fecha_hora_inicio:
+          type: string
+          format: date-time
+        fecha_hora_fin:
+          type: string
+          format: date-time
+        estado:
+          $ref: "#/components/schemas/EstadoReserva"
+        precio_aplicado:
+          type: number
+          description: Tarifa del momento (RF-09/RF-11); el Strategy decide socio/externo/pico.
+      example:
+        id: 7
+        cancha_id: 6
+        usuario_id: 1
+        fecha_hora_inicio: "2026-09-16T18:00:00-03:00"
+        fecha_hora_fin: "2026-09-16T19:00:00-03:00"
+        estado: CONFIRMADA
+        precio_aplicado: 4250
+# ---- Pagos
+    EstadoPago:
+      type: string
+      enum: [PENDIENTE, APROBADO, RECHAZADO, ANULADO]
+    ConceptoPago:
+      oneOf:
+        - type: object
+          required: [tipo, reserva_cancha_id]
+          properties:
+            tipo:
+              type: string
+              enum: [RESERVA_CANCHA]
+            reserva_cancha_id:
+              type: integer
+          additionalProperties: false
+        - type: object
+          required: [tipo, membresia_id]
+          properties:
+            tipo:
+              type: string
+              enum: [MEMBRESIA]
+            membresia_id:
+              type: integer
+          additionalProperties: false
+      description: Un pago referencia estructuralmente UN solo concepto (reserva de cancha o membresía, herencia parte-todo).
+    PagoIn:
+      type: object
+      required: [concepto, token]
+      properties:
+        concepto:
+          $ref: "#/components/schemas/ConceptoPago"
+        token:
+          type: string
+          writeOnly: true
+          description: Token de la pasarela (RNF-02); nunca se envía ni almacena la tarjeta.
+        moneda:
+          type: string
+          default: ARS
+          example: ARS
+      additionalProperties: false
+    PagoOut:
+      type: object
+      required: [id, usuario_id, concepto, monto, moneda, estado, fecha_pago]
+      properties:
+        id:
+          type: integer
+        usuario_id:
+          type: integer
+        concepto:
+          $ref: "#/components/schemas/ConceptoPago"
+        monto:
+          type: number
+          description: Importe computado por la regla de negocio.
+        moneda:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoPago"
+        fecha_pago:
+          type: string
+          format: date-time
+          description: >
+            Momento del cobro. Es lo que permite ordenar el listado, filtrar por período
+            (?desde=/?hasta=) y conciliar contra el reporte de la pasarela.
+          example: "2026-09-16T18:42:11.204Z"
+        comprobante_pdf_url:
+          type: string
+          nullable: true
+          description: Adjunto del snapshot de la RF-14, solo cuando el pago está aprobado.
+      example:
+        id: 8
+        usuario_id: 1
+        concepto:
+          tipo: RESERVA_CANCHA
+          reserva_cancha_id: 7
+        monto: 4250
+        moneda: ARS
+        estado: APROBADO
+        fecha_pago: "2026-09-16T18:42:11.204Z"
+        comprobante_pdf_url: https://cdn.fitzone.com.ar/comprobantes/8.pdf
+    # ---- Errores (RFC 9457)
+    Problem:
+      type: object
+      description: Cuerpo de error según RFC 9457 (application/problem+json).
+      required: [type, title, status, detail]
+      properties:
+        type:
+          type: string
+          format: uri
+          example: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        errors:
+          type: array
+          description: "Solo en errores de validación (422): lista de reglas incumplidas."
+          items:
+            type: string
+          example: ["nombre must be a string"]
+  responses:
+    BadRequest:
+      description: Solicitud mal formada
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Solicitud incorrecta
+            status: 400
+            detail: "La solicitud está mal formada: el cuerpo no es JSON válido o algún parámetro tiene un formato inválido."
+    NotFound:
+      description: Recurso no encontrado (o dado de baja)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Recurso no encontrado
+            status: 404
+            detail: No existe el recurso solicitado para el id indicado.
+    Conflict:
+      description: DNI o email ya registrado; el detail nombra el campo en conflicto
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Conflicto de unicidad
+            status: 409
+            detail: El email ana.gomez@fitzone.com.ar ya está registrado.
+    SocioExistente:
+      description: El usuario ya es socio
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: El usuario ya es socio
+            status: 409
+            detail: El usuario 1 ya tiene un registro de socio.
+    ConflictoReservaCancha:
+      description: >
+        409 de la creación de una reserva. Son dos causas distintas y el `type` las
+        separa: `turno-ocupado` es concurrencia (RN-02, otro usuario ganó el turno) y
+        `cancha-en-mantenimiento` es una cancha inhabilitada (RF-12, donde no hubo
+        concurrencia y por eso el detalle del primero sería falso). Se agrupan en una
+        sola respuesta porque cada operación admite un único 409 y en los dos casos el
+        cliente hace lo mismo: ofrecerle otro turno u otra cancha.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            turno-ocupado:
+              summary: El turno ya estaba reservado por otro usuario
+              value:
+                type: https://fitzone.app/errores/turno-ocupado
+                title: El turno seleccionado ya fue reservado
+                status: 409
+                detail: Otro usuario reservó el turno para esa fecha y hora antes que vos.
+                instance: https://fitzone.app/api/v1/reservas-canchas
+            cancha-en-mantenimiento:
+              summary: La cancha está en mantenimiento y no admite reservas
+              value:
+                type: https://fitzone.app/errores/cancha-en-mantenimiento
+                title: Cancha en mantenimiento
+                status: 409
+                detail: La cancha 3 está en mantenimiento y no admite reservas nuevas (RF-12).
+                instance: https://fitzone.app/api/v1/reservas-canchas
+    ReservaYaCancelada:
+      description: >
+        La reserva existe y está en estado CANCELADA, pero se pidió cancelarla de nuevo.
+        Es 409 y no 404 porque RF-12 conserva el histórico: GET sobre esa reserva
+        responde 200 con estado CANCELADA, así que el recurso existe. Lo que choca es
+        la transición pedida contra el estado actual, el mismo hecho que M2 modela con
+        `EgresoDuplicado`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: https://fitzone.app/errores/reserva-ya-cancelada
+            title: Reserva ya cancelada
+            status: 409
+            detail: La reserva 7 ya estaba cancelada y no puede cancelarse de nuevo.
+            instance: https://fitzone.app/api/v1/reservas-canchas/7/cancelaciones
+    MissingIdempotency:
+      description: Falta la cabecera Idempotency-Key
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Falta Idempotency-Key
+            status: 400
+            detail: La cabecera Idempotency-Key es obligatoria en /pagos.
+    IdempotenciaRepetida:
+      description: La Idempotency-Key ya fue utilizada (unique del esquema; la pasarela no se invoca dos veces)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: https://fitzone.app/errores/idempotencia-repetida
+            title: Idempotency-Key repetida
+            status: 409
+            detail: Ya existe un pago con esa Idempotency-Key.
+    PagoRechazado:
+      description: La pasarela rechazó el cobro
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Pago rechazado
+            status: 402
+            detail: La pasarela rechazó el token (fondos insuficientes o token inválido).
+    PagoNoAnulable:
+      description: El pago está RECHAZADO (nunca se cobró) y no es anulable
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Pago no anulable
+            status: 409
+            detail: El pago 8 está en estado RECHAZADO y no puede anularse.
+    PagoNoAprobado:
+      description: El pago no está aprobado y no tiene comprobante
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Pago no aprobado
+            status: 409
+            detail: El pago está en estado RECHAZADO; no se puede generar un comprobante.
+    MembresiaInactiva:
+      description: La membresía del usuario no está vigente (RF-04)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: https://fitzone.app/errores/membresia-inactiva
+            title: Membresía inactiva
+            status: 403
+            detail: El usuario 2 no posee una membresía vigente para ingresar a la sede 3.
+    ConflictoAcceso:
+      description: RN-01 (usuario ya dentro de otra sede) o aforo lleno (RF-05)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            acceso-duplicado:
+              value:
+                type: https://fitzone.app/errores/acceso-duplicado
+                title: Acceso duplicado
+                status: 409
+                detail: El usuario 2 ya tiene un ingreso sin egreso registrado (RN-01).
+            aforo-lleno:
+              value:
+                type: https://fitzone.app/errores/aforo-lleno
+                title: Aforo de la sede completo
+                status: 409
+                detail: La sede 3 alcanzó su aforo máximo (120 personas); no se admiten más ingresos (RF-05).
+    EgresoDuplicado:
+      description: El ingreso ya fue egresado
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: https://fitzone.app/errores/egreso-duplicado
+            title: Egreso duplicado
+            status: 409
+            detail: El ingreso 9 ya tiene fecha_hora_egreso; no se puede egresar dos veces.
+    ConflictoEspera:
+      description: >-
+        No se puede anotar en espera — la clase aún tiene cupo (RF-06), el socio ya
+        tiene una espera o una reserva activa (RF-08), o la clase ya comenzó o finalizó.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            clase-pasada:
+              value:
+                type: https://fitzone.app/errores/clase-pasada
+                title: Clase no disponible
+                status: 409
+                detail: No es posible anotarse en espera para una clase que ya comenzó o ha finalizado.
+            cupo-disponible:
+              value:
+                type: https://fitzone.app/errores/cupo-disponible
+                title: Cupo disponible
+                status: 409
+                detail: La clase 4 aún cuenta con lugares disponibles (2). Puede reservar directamente sin ingresar a la lista de espera.
+            espera-existente:
+              value:
+                type: https://fitzone.app/errores/espera-existente
+                title: Espera o reserva existente
+                status: 409
+                detail: El socio 2 ya se encuentra inscripto en espera o ya posee una reserva confirmada para la clase 4.
+    EsperaConfirmada:
+      description: La espera ya fue confirmada y no admite baja (RF-08/RF-07)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: https://fitzone.app/errores/espera-confirmada
+            title: Espera ya confirmada
+            status: 409
+            detail: La anotación 10 ya tomó el cupo; cancele por /reservas-clases/{id}/cancelaciones (RF-07).
+    ConfirmacionRechazada:
+      description: La espera no está NOTIFICADA o el cupo ya lo tomó otro socio (first-come, RF-08)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            no-notificada:
+              value:
+                type: https://fitzone.app/errores/espera-no-notificada
+                title: La espera no fue notificada
+                status: 409
+                detail: La anotación 10 sigue en EN_ESPERA; aún no se liberó un cupo.
+            cupo-tomado:
+              value:
+                type: https://fitzone.app/errores/cupo-tomado
+                title: El cupo ya fue tomado
+                status: 409
+                detail: Otra persona notificada confirmó primero y el cupo ya no está disponible.
+    SocioEnMora:
+      description: El socio posee cuotas vencidas; no puede reservar ni anotarse en espera con tarifa bonificada (RF-07/RF-08)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            reserva-clases:
+              value:
+                type: https://fitzone.app/errores/socio-en-mora
+                title: Socio en mora
+                status: 403
+                detail: El socio 2 posee cuotas vencidas. No puede reservar con tarifa bonificada. Puede abonar el precio de cliente externo.
+            espera-clases:
+              value:
+                type: https://fitzone.app/errores/socio-en-mora
+                title: Socio en mora
+                status: 403
+                detail: El socio 2 posee cuotas vencidas. No puede ingresar a la lista de espera de clases bonificadas.
+    ConflictoReservaClase:
+      description: La reserva no se crea — fuera de la ventana de 48 hs previas (RF-07), clase ya iniciada, cupo agotado (RF-06) o reserva duplicada
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            reserva-anticipada:
+              value:
+                type: https://fitzone.app/errores/reserva-anticipada-no-permitida
+                title: Reserva anticipada no permitida
+                status: 409
+                detail: Las reservas de clases solo se habilitan dentro de las 48 horas previas al inicio.
+            clase-pasada:
+              value:
+                type: https://fitzone.app/errores/clase-pasada
+                title: Clase no disponible
+                status: 409
+                detail: No es posible reservar una clase que ya comenzó o ha finalizado.
+            cupo-agotado:
+              value:
+                type: https://fitzone.app/errores/cupo-agotado
+                title: Cupo de clase agotado
+                status: 409
+                detail: La clase 4 alcanzó su capacidad máxima (20). Puede ingresar a la lista de espera (RF-08).
+            reserva-duplicada:
+              value:
+                type: https://fitzone.app/errores/reserva-duplicada
+                title: Reserva duplicada
+                status: 409
+                detail: El socio 2 ya posee una reserva confirmada para la clase 4.
+    ClaseFueraDeHorario:
+      description: La clase no se puede programar — horario no ISO-8601 o momento ya pasado
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          examples:
+            fecha-invalida:
+              value:
+                type: https://fitzone.app/errores/fecha-invalida
+                title: Horario inválido
+                status: 409
+                detail: El formato de fecha y hora no corresponde a un ISO-8601 válido.
+            clase-pasada:
+              value:
+                type: https://fitzone.app/errores/clase-pasada
+                title: Clase en horario pasado
+                status: 409
+                detail: No se puede programar una clase en una fecha u hora pasada.
+    VentanaCancelacionCerrada:
+      description: La cancelación sin penalidad se habilita hasta 2 hs antes del inicio de la clase (RF-07)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: https://fitzone.app/errores/cancelacion-fuera-de-termino
+            title: Cancelación fuera de término
+            status: 409
+            detail: No es posible cancelar la reserva sin penalidad con menos de 2 horas de anticipación.
+    ValidationError:
+      description: Datos inválidos (ValidationPipe con class-validator)
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+          example:
+            type: about:blank
+            title: Error de validación
+            status: 422
+            detail: Uno o más campos no cumplen las reglas de validación.
+            errors: ["nombre must be a string"]
+security: []

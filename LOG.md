@@ -1355,7 +1355,7 @@ El Bloque 1 de M4 se había implementado antes de las auditorías de M1, M2 y M3
 
 ## Unidad II - Migración de M1-M5 a arquitectura en capas – Exequiel Ansaldi (P2 - Backend Developer)
 
-**Fecha:** 01/10/2026 – **Rama:** `capas-en-todo-el-backend` – **Base:** `main` (`325f386`) + la invariante de membresía (`eefefc6`, que tiene su propio PR) – **Estado:** en la rama, sin mergear
+**Fecha:** 01/10/2026 – **Rama:** `capas-en-todo-el-backend` – **Base:** `main` (`325f386`) + la invariante de membresía (`eefefc6`, que tiene su propio PR) – **Estado:** **mergeada en `main`** el 02/10/2026, en fast-forward. Ver la entrada del 02/10 que cierra la rama.
 
 ### El problema
 
@@ -1628,3 +1628,48 @@ Lo que la herramienta conserva y el repo no, es la lista de desviaciones aceptad
 `tsc --noEmit` y `build` en verde. Unitarios 20/20. E2e 98/98. Los 32 tests de contrato quedan fuera de `npm run`, pero siguen funcionando localmente: 29/29 sin servidor y el diff 3/3 con 41 operaciones y 34 schemas, 0 diferencias.
 
 **Commits:** este bloque y el de documentación.
+
+---
+
+## 2026-10-02 — La rama de capas entra a `main` y se borra
+
+**Rama:** `capas-en-todo-el-backend` → `main` — **Commits:** 21, en fast-forward
+
+### Cómo se integró
+
+`main` (`325f386`) era ancestro directo de la punta de la rama, así que la integración es **fast-forward**: no hay commit de merge, no hay conflictos que resolver y no hay reescritura de historia. `git merge --ff-only` a propósito, para que si `main` se hubiera movido entre la verificación y la ejecución el merge abortara en vez de crear un commit que nadie pidió.
+
+Verificado antes de integrar: `main` local y `origin/main` estaban los dos en `325f386`, sin divergencia; `git push --dry-run` de la rama a `main` fue aceptado, así que no hay branch protection que bloquee; y los 21 commits son de un solo autor, `Exequiel-Ansaldi <exeansaldi0@gmail.com>`, sin trabajo de terceros en la rama.
+
+### Qué entra a `main`
+
+Los 21 commits, agrupados por lo que hacen:
+
+- **Migración a capas** de los cinco módulos: `026c0bb` (M1), `cc87947` (M2), `29dab5c` (M3), `7104351` (M4), `d8f5165` (M5). Cada uno cierra su puerto, token o bypass y deja repositorios concretos.
+- **Invariante de membresía obligatoria**: `eefefc6` (`feat(m1): exige el plan y crea la membresia junto con el socio`) y su nota de LOG `d7c4719`. **Este commit vivía solo en la rama, no en `main`**, así que el merge es lo que lo integra.
+- **Andamiaje de M5**: `d944582`, que completa la frontera interna de pagos.
+- **PATCH con body vacío**: `2934da1` rechaza `{}` con 422 en los tres endpoints de M1, y `54baddb` declara el 422 del listado y el PATCH vacío de M4. Prisma 6.19.3 los habría tratado como no-op 200.
+- **Contrato**: `5091bb9` lo puso canónico en el repo, `4ff9f7b` lo registró, `f3e3ee7` lo sacó y `f2e0f21` dejó la herramienta local sin trackear.
+- **Documentación**: el cierre del Mediador (`6e7a87c`), el árbol real en el README (`2a0c868`), la hipótesis falsa del 500 (`f2b87ab`), los tres planes contra el árbol real (`c99a658`), la deuda falsa del ADR (`b5395a2`) y la salida del contrato (`3767d99`, `437fbd6`).
+
+89 archivos, +2743 / −2136.
+
+### Qué queda fuera, a propósito
+
+- **El `.gitattributes` de UTF-8** vive en `gonza/consistencia-naming-listados` (`5d9c97f`) y **no** entró: esa rama está 71 commits atrás de la ours. Sigue pendiente para otro momento.
+- **`backend/contrato/` no entra.** Es lo que se decidió en la entrada anterior: la herramienta queda en el disco, ignorada, y el entregable sale de `/docs-json`.
+- Las otras ramas no se tocaron: `backup/pre-m4-b3-20261001` y `gonza/consistencia-naming-listados` en local, y `origin/santino`, `origin/santiago`, `origin/exe`, `origin/gonza`, `origin/desarrollo-m3`, `origin/santirayn` en el remoto. Las dos locales están 0 commits adelante de la rama integrada, así que no tienen nada único.
+
+### La rama se borra
+
+Local y remota, como se pidió. Se borró después de confirmar que `main` ya tenía los 21 commits, así que la rama no era la única copia de nada.
+
+**El PR #2 queda moot**: al recibir los commits, `main` los contiene, así que GitHub lo marca como mergeado; al borrar la rama remota, queda cerrado. El cambio ya no entra por ese canal.
+
+### Verificación
+
+Sobre la rama, antes de integrar: `tsc --noEmit` y `build` en verde, unitarios 20/20, e2e 98/98 en 6 archivos, y la herramienta local de contrato 29/29 sin servidor más el diff 3/3 con 41 operaciones y 34 schemas y 0 diferencias.
+
+Sobre `main`, ya con el checkout hecho y antes de borrar la rama: se repitieron `tsc --noEmit`, `build`, unitarios y e2e para confirmar que el árbol final sirve y no solo el de la rama.
+
+**Estado final:** `origin/main` y `main` local en el mismo SHA, la rama ausente de los dos lados, working tree limpio, y `backend/contrato/` en disco con sus 15 archivos.

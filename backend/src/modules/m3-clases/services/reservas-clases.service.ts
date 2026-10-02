@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
@@ -7,15 +7,13 @@ import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query
 import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
 import { CupoLiberadoSubject } from '../observers/cupo-liberado.subject';
-import { CLASE_REPOSITORY, type ClaseRepository } from '../repositories/clase.repository';
-import { RESERVA_CLASE_REPOSITORY, type ReservaClaseRepository } from '../repositories/reserva-clase.repository';
+import { ClaseRepository } from '../repositories/clase.repository';
+import { ReservaClaseRepository } from '../repositories/reserva-clase.repository';
 
 @Injectable()
 export class ReservasClasesService {
   constructor(
-    @Inject(RESERVA_CLASE_REPOSITORY)
     private readonly reservasRepo: ReservaClaseRepository,
-    @Inject(CLASE_REPOSITORY)
     private readonly clasesRepo: ClaseRepository,
     // Mismo cambio que en EsperasClasesService: la validación estaba guardada
     // por `if (this.membresias)`, o sea que sin M1 registrado la reserva de

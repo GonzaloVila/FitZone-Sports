@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
@@ -7,15 +7,13 @@ import { EsperaOut } from '../dtos/espera-out.dto';
 import { ListarEsperaDeClaseQueryDto } from '../dtos/listar-espera-de-clase-query.dto';
 import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
-import { CLASE_REPOSITORY, type ClaseRepository } from '../repositories/clase.repository';
-import { ESPERA_CLASE_REPOSITORY, type EsperaClaseRepository } from '../repositories/espera-clase.repository';
+import { ClaseRepository } from '../repositories/clase.repository';
+import { EsperaClaseRepository } from '../repositories/espera-clase.repository';
 
 @Injectable()
 export class EsperasClasesService {
   constructor(
-    @Inject(ESPERA_CLASE_REPOSITORY)
     private readonly esperasRepo: EsperaClaseRepository,
-    @Inject(CLASE_REPOSITORY)
     private readonly clasesRepo: ClaseRepository,
     // Antes venía por el puerto con `@Optional()` y todo el bloque de validación
     // estaba dentro de `if (this.membresias)`, así que si M1 no estaba

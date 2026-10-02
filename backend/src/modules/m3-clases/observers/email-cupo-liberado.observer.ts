@@ -1,18 +1,15 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { SociosService } from '../../m1-usuarios/services/socios.service';
-import {
-  ESPERA_CLASE_REPOSITORY,
-  type EsperaClaseRepository,
-} from '../repositories/espera-clase.repository';
+import { EsperaClaseRepository } from '../repositories/espera-clase.repository';
 import type { CupoLiberadoEvent } from './cupo-liberado.event';
 import type { CupoLiberadoObserver } from './cupo-liberado.observer';
 
 // Canal de aviso del cupo liberado (ADR-05, cadena de observers). Es un observer
 // mas: no conoce el dominio de la espera, solo lee la cola viva de la clase, pide
-// el email de cada socio por el puerto de M1 y manda el aviso. Agregar WhatsApp o
-// push es agregar otra impl de CupoLiberadoObserver y registrarla en el subject.
+// el email de cada socio a M1 y manda el aviso. Agregar WhatsApp o push es
+// agregar otra impl de CupoLiberadoObserver y registrarla en el subject.
 //
 // Modo de envio, en este orden:
 //   1. SMTP_* en env  -> transporte real.
@@ -28,7 +25,6 @@ export class EmailCupoLiberadoObserver implements CupoLiberadoObserver {
   private transporteResuelto = false;
 
   constructor(
-    @Inject(ESPERA_CLASE_REPOSITORY)
     private readonly esperasRepo: EsperaClaseRepository,
     // M1 es quien sabe el email de un socio. Antes venía por
     // `CONSULTA_SOCIO_PORT` con `@Optional()`, y si faltaba el aviso se perdía

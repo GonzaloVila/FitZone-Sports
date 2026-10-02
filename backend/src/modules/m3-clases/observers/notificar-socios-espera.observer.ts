@@ -1,19 +1,13 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { CupoLiberadoEvent } from './cupo-liberado.event';
 import type { CupoLiberadoObserver } from './cupo-liberado.observer';
-import {
-  ESPERA_CLASE_REPOSITORY,
-  type EsperaClaseRepository,
-} from '../repositories/espera-clase.repository';
+import { EsperaClaseRepository } from '../repositories/espera-clase.repository';
 
 @Injectable()
 export class NotificarSociosEsperaObserver implements CupoLiberadoObserver {
   private readonly logger = new Logger(NotificarSociosEsperaObserver.name);
 
-  constructor(
-    @Inject(ESPERA_CLASE_REPOSITORY)
-    private readonly esperasRepo: EsperaClaseRepository,
-  ) {}
+  constructor(private readonly esperasRepo: EsperaClaseRepository) {}
 
   async notificarCupoDisponible(evento: CupoLiberadoEvent): Promise<void> {
     const anotados = await this.esperasRepo.buscarEnEsperaPorClase(evento.claseId);

@@ -1,19 +1,15 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { SedesService } from '../../m2-gimnasio/services/sedes.service';
 import { ClaseOut } from '../dtos/clase-out.dto';
 import { ClaseIn } from '../dtos/clase-in.dto';
 import { ListarClasesQueryDto } from '../dtos/listar-clases-query.dto';
-import {
-  CLASE_REPOSITORY,
-  type ClaseRepository,
-} from '../repositories/clase.repository';
+import { ClaseRepository } from '../repositories/clase.repository';
 
 @Injectable()
 export class ClasesService {
   constructor(
-    @Inject(CLASE_REPOSITORY)
     private readonly clasesRepo: ClaseRepository,
     // La sede es de M2. El `@Optional()` anterior hacía que una clase se pudiera
     // crear con una sede inexistente si M2 no estaba registrado; ahora la

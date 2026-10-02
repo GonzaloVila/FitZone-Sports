@@ -1541,7 +1541,59 @@ El riesgo residual es el contrario del que había: ya no puede desincronizarse e
 1. **M5 no tiene comportamiento.** Sin cambios respecto de la entrada anterior.
 2. **El contrato ahora es canónico dentro del repo** (`backend/contrato/openapi.yaml`), y el YAML del vault se genera desde ahí con `npm run contrato:exportar`. Esta deuda queda cerrada: el diff del contrato viaja en el PR, las 11 entradas de `PERMITIDAS` y la lógica del comparador están versionadas, y `canonico.spec.ts` falla sin server si el vault quedó viejo. El riesgo residual es el otro: que uno edite el repo y se le pase exportar. Para eso está `contrato:verificar` y el manifiesto con el SHA del último export.
 3. **El plan de M4 ya no describe la arquitectura vieja.** Reescrito §3.1, §4.1 y §4.2 contra el árbol real, y corregidas además las referencias sueltas que quedaban en §2, §3.3, §5, §6 y §8: se eliminaron `SEDE_VALIDATION_PORT`, `MEMBERSHIP_VALIDATION_PORT`, `CANCHA_REPOSITORY`, `RESERVA_REPOSITORY`, `PRICING_STRATEGY`, `pricing-strategy.port.ts` y los adaptadores `prisma-cancha` / `prisma-reserva`. Ahora el plan dice lo mismo que el código: repositorios como clases concretas `@Injectable()` (Data Mapper sin carpeta `prisma/`), `pricing/` como dominio puro sin token ni provider, y sede y vigencia resueltas llamando al servicio público del módulo vecino (`SedesService`, `MembresiasService`) con el módulo en `imports`. Las decisiones corregidas quedaron anotadas como tales en vez de borradas, para que se vea que hubo una decisión y cambió.
-4. **Los planes de M1, M2 y M3 tienen el mismo problema y no se tocaron** (9, 7 y 6 menciones de la arquitectura vieja). Es el mismo trabajo que se hizo en M4, aplicado por plan.
+4. ~~Los planes de M1, M2 y M3 tienen el mismo problema~~ — **cerrado el 02/10**, ver la entrada siguiente. Ya no quedan menciones activas de la arquitectura vieja en ninguno de los cuatro planes.
 5. **`PICO_RECARGO_PCT = 20`** sigue pendiente de confirmación con la cátedra. Vive aislado en `pricing-constants.ts` con el comentario que lo declara, así que cambiarlo es una línea.
 6. **No se valida el turno contra el horario de la sede** porque ese dato no existe en el modelo. Deuda asumida a propósito (decisión 11 del plan M4).
 7. **`ReservaCanchaIn.usuario_id` es obligatorio en el código y opcional en el contrato.** Ya está en `PERMITIDAS` con su motivo: mientras no exista token del que derivarlo no hay opción, y cuando exista la excepción se borra.
+
+## 2026-10-02 — M1, M2 y M3 contra el árbol real, y los .docx al día
+
+**Rama:** `capas-en-todo-el-backend` — **Commits:** este bloque y el de documentación
+
+### Los tres planes tenían la misma herida que M4
+
+M4 ya estaba reescrito. M1, M2 y M3 seguían describiendo la arquitectura de ports, tokens y adapters que el código abandonó. El trabajo fue el mismo, plan por plan, y en los tres la decisión que mandaba sobre todo era la misma:
+
+- **M1** (§2 decisión 1, §2 decisión 2, §3.3, §4, §5, §6, ADR y cronograma): la decisión de capas pedía `repositories (interfaz + InjectionToken string) → adapters de Prisma` y la decisión 2 publicaba dos tokens desde un `UsuariosModule` `@Global()`. Hoy no hay interfaz de repository, ni token, ni `repositories/prisma/`, y `UsuariosModule` no es `@Global()`: exporta `MembresiasService` y `SociosService`, y los módulos vecinos lo importan.
+- **M2** (§2 decisión 4 y decisión 6, §3, §4.2, §5.1, §5.2): el acceso a la vigencia de M1 era `MEMBERSHIP_VALIDATION_PORT` con adaptador e inyección `@Optional()` sin importar el módulo. Ahora `GimnasioModule` importa `UsuariosModule` y pide `MembresiasService`. El **fail-closed se mantiene**: sin vigencia no entra, 403.
+- **M3** (§2 decisión 1 y decisión 4, §3, §4.1, §4.2, §4.3): los puertos eran `MEMBERSHIP_VALIDATION_PORT`, `CONSULTA_SOCIO_PORT` y `ConsultaSocioPort` "ampliado" para el email del aviso. Ahora `ClasesModule` importa `UsuariosModule` y `GimnasioModule` y pide `MembresiasService`, `SociosService` y `SedesService`.
+
+Cada decisión corregida quedó anotada con qué decía antes y por qué cambió, en vez de borrarse, para que se vea que hubo una decisión y no un descuido. Igual que en M4.
+
+### El `@Optional()` disappearance mejoró la seguridad de M3
+
+Al reescribir contra el código apareció que la dependencia opcional era un agujero, no solo una comodidad de DI. Los comentarios del propio código lo dicen: en `EsperasClasesService` y `ReservasClasesService` toda la validación de vigencia estaba dentro de `if (this.membresias)`, así que **sin M1 registrado la reserva bonificada pasaba sin comprobar RN-03** y la anotación a lista de espera entraba sin validar. En `ClasesService` el mismo patrón permitía crear una clase con una sede inexistente si M2 no estaba dado de alta. Con servicios concretos las tres dependencias pasaron a obligatorias y los tres `if` desaparecieron.
+
+### Conteo de e2e corregido
+
+`m1.e2e-spec.ts` tiene 12 casos, no 9: los 9 del módulo más 3 de regresión del body `{}` en PATCH. Los cuatro planes quedaron con el total real (12 + 15 + 20 + 36 + 7 + 8 = **98/98**) en vez del 95/95 que aún decía M4.
+
+### Los .docx se regeneraron, y el generador quedó guardado
+
+El `.md` es la fuente y M4 lo declara explícitamente ("se genera a partir de él, mismo generador que los planes M1–M5"), pero **el generador no existía como archivo**: la conversión anterior se había hecho con un script en línea. Para poder uphold esa regla sin editar el `.docx` a mano, quedó en el vault como `md2docx_plan.py` (python-docx, que ya estaba instalado; no hay `pandoc` ni `md2docx` en la máquina y `npx md2docx` no resuelve).
+
+Se validó contra el `.docx` de M4 que ya existía: Regenerar el archivo da **27 diferencias y todas son las correcciones de esta entrada**, con **0 bloques de texto igual pero estilo distinto**. Eso confirma que el generador reproduce las convenciones del anterior: `## → Heading 1`, `### → Heading 2`, `> → Intense Quote`, `N. → List Number`, `N) → List Number 2`, tablas `Light Grid Accent 1`, `inline → Consolas 9,5pt` y bloques ```` ``` ```` en `Consolas 9pt`.
+
+Tres defectos del generador aparecieron al validarlo y quedaron corregidos:
+
+- **Código inline dentro de negrita salía literal.** Un tramo `**texto con `código`**` se consumía entero como negrita y los backticks quedaban impresos. Se reemplazaron las dos pasadas de regex por un escáner recursivo que resuelve código y marcado en el mismo recorrido.
+- **Soft wrap partía párrafos.** Las líneas consecutivas de prosa son un solo párrafo en markdown, pero cada una salía como párrafo propio: en M2 un solo texto quedaba en cuatro fragmentos. Ahora se unen.
+- **El `>` de las citas nuevas quedaba impreso en mitad del párrafo.** `texto. > **Corrección**` no es markdown válido. Se corrigió en los `.md`, que son la fuente: el `>` abre línea propia y el conversor lo reconoce como `Intense Quote`. Eran 12 casos en los cuatro planes.
+
+**M1, M2 y M3 no tenían `.docx`:** solo M4 estaba convertido. Se generaron los tres, y el de M4 quedó con copia `M4.docx.bak-20261002-031122` del anterior.
+
+### Verificación
+
+- Barrido de los cuatro `.md` contra el vocabulario de la arquitectura vieja: **0 referencias activas**. Las que quedan están dentro de notas que explican qué cambió.
+- Codificación: los cuatro `.md` y los cuatro `.docx` abren bien, sin `U+FFFD` y sin marcadores de markdown sin parsear.
+- Estructura de los `.docx`: los cuatro con `Title`, `H1`, `H2`, viñetas, listas numeradas, sub-listas, citas y sus dos tablas.
+- El generador es idempotente: dos corridas seguidas dan el mismo contenido.
+
+### Pendientes que siguen abiertos
+
+1. **M5 no tiene comportamiento.** Sin cambios respecto de la entrada anterior.
+2. **`PICO_RECARGO_PCT = 20`** sigue pendiente de confirmación con la cátedra. Vive aislado en `pricing-constants.ts` con el comentario que lo declara, así que cambiarlo es una línea.
+3. **No se valida el turno contra el horario de la sede** porque ese dato no existe en el modelo. Deuda asumida a propósito (decisión 11 del plan M4).
+4. **`ReservaCanchaIn.usuario_id` es obligatorio en el código y opcional en el contrato.** Ya está en `PERMITIDAS` con su motivo: mientras no exista token del que derivarlo no hay opción, y cuando exista la excepción se borra.
+5. **El ADR del vault quedó desactualizado.** Los cuatro planes apuntan a `TFI FitZone - Definicion Tecnica.md`, que todavía describe ports, `@Global()` y el Mediador. Se anotó la deuda en el propio plan M1, pero corregir el documento técnico es un trabajo aparte que nadie tomó.
+6. **Los planes viven fuera de Git.** Este LOG es lo único que deja rastro en el historial de los cambios de documentación; los `.md` y los `.docx` del vault no versionan.

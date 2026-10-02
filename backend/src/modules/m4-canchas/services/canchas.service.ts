@@ -1,6 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import {
+  GENERIC_TYPE,
+  ProblemException,
+  TITLES,
+  recursoNoEncontrado,
+} from '../../../commons/filters/problem.exception';
 import { SedesService } from '../../m2-gimnasio/services/sedes.service';
 import { CanchaIn } from '../dtos/cancha-in.dto';
 import { CanchaOut } from '../dtos/cancha-out.dto';
@@ -52,6 +57,20 @@ export class CanchasService {
   }
 
   async actualizar(id: number, dto: CanchaPatch): Promise<CanchaOut> {
+    // Los dos campos del PATCH son opcionales, asi que un body {} llega hasta
+    // aca sin que ninguna regla del DTO lo rechace. Prisma 6 interpreta un update
+    // sin campos como un no-op y devuelve la fila sin error, con lo cual la
+    // respuesta era un 200 que decia "actualizado" sin haber actualizado nada.
+    // El contrato declara 422 para esta operacion, asi que se corta aca.
+    if (dto.costo_por_hora === undefined && dto.estado === undefined) {
+      throw new ProblemException({
+        type: GENERIC_TYPE,
+        title: TITLES[HttpStatus.UNPROCESSABLE_ENTITY],
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        detail: 'Se debe enviar al menos un campo: costo_por_hora o estado.',
+      });
+    }
+
     const cancha = await this.canchas.actualizar(id, {
       costo_por_hora: dto.costo_por_hora,
       estado: dto.estado,

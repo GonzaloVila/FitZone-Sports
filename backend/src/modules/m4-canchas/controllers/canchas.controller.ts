@@ -45,9 +45,13 @@ export class CanchasController {
   })
   @ApiParam({ name: 'sede_id', type: 'integer', description: 'ID numerico de la sede', example: 3 })
   @ApiOkResponse({ description: 'Listado de canchas', type: [CanchaOut] })
-  // Sin 422: el contrato declara solo 200 y 404 en este listado. El plan lo pedia
-  // y el contrato manda sobre el plan (mismo criterio que en el Bloque 1).
   @ApiNotFoundResponse({ description: 'La sede no existe', content: PROBLEM_JSON })
+  // 422 por query params invalidos: la ValidationPipe global valida el DTO de
+  // listado igual que valida los bodies, asi que ?estado=INVALIDA, ?page=0 o
+  // ?per_page=101 devuelven 422 aunque antes no se declarara. El contrato lo
+  // declara desde el Bloque 4: GET /sedes, GET /ingresos y GET /reservas-canchas
+  // ya lo declaraban y este era el unico listado paginado que faltaba.
+  @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
   listar(
     @Param('sede_id', ParseIntPipe) sedeId: number,
     @Query() query: ListarCanchasQueryDto,

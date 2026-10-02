@@ -1597,7 +1597,7 @@ Tres defectos del generador aparecieron al validarlo y quedaron corregidos:
 4. **`ReservaCanchaIn.usuario_id` es obligatorio en el código y opcional en el contrato.** Es una desviación real y deliberada: mientras no exista token del que derivarlo no hay opción, así que el DTO lo exige. Cuando exista el token, el contrato se respeta tal cual.
 5. **El ADR del vault nunca quedó desactualizado, y se verificó.** Al revisar los cuatro planes encontré una nota en el plan M1 que decía que `TFI FitZone - Definicion Tecnica.md` "quedó desactualizada" con la migración a capas, y la repetí aquí como deuda sin comprobarla. Era falsa: ADR-07 ya decía que los repositorios "son **clases concretas** que reciben el `PrismaService` por constructor" y que "no hay una interfaz por repositorio ni un token de inyección", y ADR-09 ya documentaba el paso de la dependencia opcional a la obligatoria declarada en el `imports`. Al fechar la nota, ADR-07 marca la revisión de implementación el 1 de Octubre, el mismo día de la migración. Barrido de los once `.md` del vault con `_PORT`, `_REPOSITORY`, `_TOKEN`, `.port.ts`, `prisma-*.repository`, `@Global()` y `Mediador`: las únicas coincidencias son las notas de corrección de los propios planes, dos variables de entorno reales (`MP_TOKEN`, `qr_token`) y el apartado de C4 que explica por qué el diagrama ya no tiene componente Mediador. `Diagramas C4` y `Unidad II - Backend` también estaban ya alineados. Se corrigió la nota del plan M1 y este punto. **Sin deuda en el documento técnico.**
 6. **Los planes viven fuera de Git.** Este LOG es lo único que deja rastro en el historial de los cambios de documentación; los `.md` y los `.docx` del vault no versionan.
-7. **La comparación automática de contrato ya no está en el repo.** Ver la entrada siguiente: se decidió sacarla entera y generar el YAML desde `/docs-json`. La desviación del punto 4 queda sin herramienta que la detecte.
+7. **La comparación automática de contrato no viaja en el repo, pero sigue en local.** Ver la entrada siguiente: `backend/contrato/` deja de ser trackeado y queda en `.gitignore`, y se genera el YAML desde `/docs-json`. Quien clonee no la tiene; la desviación del punto 4 queda sin herramienta que la detecte.
 
 ---
 
@@ -1605,24 +1605,26 @@ Tres defectos del generador aparecieron al validarlo y quedaron corregidos:
 
 **Rama:** `capas-en-todo-el-backend` — **Commits:** este bloque y el de documentación
 
-### Qué se borra
+### Qué sale del repo
 
-El contrato no se versiona en el repo. El YAML que se entrega sale de `/docs-json` del backend, que es el mismo documento que ya publica NestJS. Se elimina `backend/contrato/` completo: `openapi.yaml`, `exportar.ts`, `comparar.ts`, `alcance.ts`, `resolver.ts`, los cuatro specs, los dos configs de vitest, `setup.ts`, `vault-exportado.json` y su README.
+El contrato no se versiona. El YAML que se entrega sale de `/docs-json` del backend, que es el mismo documento que ya publica NestJS. `backend/contrato/` deja de ser trackeado: se saca del índice con `git rm --cached`, se deja el directorio en disco y se agrega `/contrato/` al `.gitignore`, así que sigue funcionando para comparar pero no aparece en el status ni viaja en un clone. También se sacan los cuatro scripts de `package.json` (`test:contrato`, `test:contrato:diff`, `contrato:exportar`, `contrato:verificar`) y la línea del árbol en `backend/README.md`.
 
-También se sacan los cuatro scripts de `package.json` (`test:contrato`, `test:contrato:diff`, `contrato:exportar`, `contrato:verificar`), el bloque que lo describía en `backend/.gitignore`, la línea del árbol y el párrafo de comparación en `backend/README.md`, y `js-yaml` de `devDependencies` por quedar huérfano. Sigue en `package-lock.json` porque `@nestjs/swagger` lo trae como dependencia transitiva, y ahí tiene que estar: es el que genera `/docs-json`.
+Los scripts se sacan a propósito y no es un descuido: un `npm run` que apunta a una carpeta que el repo no tiene le rompería el comando a cualquiera que clonee, con un error de "config no encontrado" que no dice nada sobre la causa. La herramienta local se corre con `npx`, y su propio README documenta los comandos exactos.
 
 ### Qué no se toca
 
 El backend. `@nestjs/swagger`, `swagger-ui-express`, los decoradores de los controllers, `main.ts` con su `DocumentBuilder` y `src/commons/swagger/` siguen exactamente igual, porque de ahí sigue saliendo el documento. Los comentarios del código que dicen "el contrato declara 422" o "el contrato define el filtro `fecha`" también se quedan: describen la especificación que el código implementa, no la herramienta que la comparaba.
 
+`js-yaml` vuelve a `devDependencies`: la herramienta local lo importa directo, y dejarlo solo como transitive de `@nestjs/swagger` sería una dependencia no declarada que funciona por casualidad.
+
 ### Por qué se acepta la pérdida
 
-El comparador era lo único que decía automáticamente si el código divergía de la especificación. Detecta lo que nadie detecta a ojo: un DTO que se olvidó de un campo, un status code que quedó en 400 donde el contrato pide 422, un parámetro de ruta con otro nombre. Sin él, esa verificación pasa a ser manual contra `/docs`. Se acepta porque el contrato es un entregable, no una frontera: no hay un cliente externo cuya rompa dependa, y el alcance real de la API está en el código.
+Lo que se pierde es la detección **automática y para todos**. El comparador era lo único que decía por su cuenta si el código divergía de la especificación: un DTO al que se le olvidó un campo, un status que quedó en 400 donde la especificación pide 422, un parámetro de ruta con otro nombre. Quien clonee el repo ya no lo tiene; hay que hacerlo a mano contra `/docs`. Se acepta porque el contrato es un entregable, no una frontera: no hay un cliente externo cuya rompa dependa, y el alcance real de la API está en el código.
 
-Lo que se pierde también es la lista de desviaciones aceptadas a propósito, que vivía en `PERMITIDAS`. Quedan registradas acá las dos que importan: los enums con nombre en el contrato que el código emite inline (`Rol`, `Plan`, `EstadoMembresia`, `EstadoCancha`, `EstadoEspera`, `EstadoReserva`, `EstadoReservaClase`, `TipoCancha`) y el `usuario_id` del punto 4.
+Lo que la herramienta conserva y el repo no, es la lista de desviaciones aceptadas a propósito, que vivía en `PERMITIDAS`. Quedan registradas acá las dos categorías: los enums con nombre en el contrato que el código emite inline (`Rol`, `Plan`, `EstadoMembresia`, `EstadoCancha`, `EstadoEspera`, `EstadoReserva`, `EstadoReservaClase`, `TipoCancha`) y el `usuario_id` del punto 4.
 
 ### Verificación
 
-`tsc --noEmit` y `build` en verde. Unitarios 20/20. E2e 98/98. Los 32 tests de contrato (29 de `test:contrato` + 3 del diff) ya no existen y no se reemplazan por nada.
+`tsc --noEmit` y `build` en verde. Unitarios 20/20. E2e 98/98. Los 32 tests de contrato quedan fuera de `npm run`, pero siguen funcionando localmente: 29/29 sin servidor y el diff 3/3 con 41 operaciones y 34 schemas, 0 diferencias.
 
 **Commits:** este bloque y el de documentación.

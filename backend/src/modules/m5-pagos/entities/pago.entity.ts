@@ -5,14 +5,13 @@
 // infrastructure/adapters/out, application/use-cases) y su entrada era
 // `commons/mediador/`. Con la migración a capas:
 //   - la entrada es HTTP por los controllers, y entre M1/M4 y M5 el
-//     acoplamiento es directo por los services de M5 (el grafo de módulos sigue
-//     siendo aciclico: M5 -> M1 + M4, nadie de M1/M4 importa M5);
+//     acoplamiento es directo: M1/M4 importan `PagosModule` y llaman a
+//     `PagosService`, así que M5 no importa M1 ni M4 y el grafo sigue acíclico;
 //   - la pasarela de pago y el PDF son collaborators del service, no adapters.
 //
-// Estos tipos son el dominio del pago. Antes vivían en el puerto
-// `commons/mediador/procesar-pago.port.ts`; el nombre del contrato (`Pago`,
-// `PagoOut`, `ConceptoPago`) es el del OpenAPI, así que se adoptó el del
-// contrato para que la traducción sea literal y no haya dos vocabularios.
+// Estos tipos son el dominio del pago y adoptan el vocabulario del contrato
+// (`Pago`, `PagoOut`, `ConceptoPago`, `EstadoPago`) para que la traducción sea
+// literal. La frontera interna entre módulos vive en `solicitud-cobro.entity.ts`.
 
 export type EstadoPago = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'ANULADO';
 

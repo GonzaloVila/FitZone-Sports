@@ -15,7 +15,9 @@
 //
 // Lo que sigue, en orden de dependencia:
 //
-// 1. `entities/pago.entity.ts` ya esta: `Pago`, `ConceptoPago`, `EstadoPago`.
+// 1. `entities/pago.entity.ts` y `entities/solicitud-cobro.entity.ts` ya estan:
+//    `Pago`, `ConceptoPago`, `EstadoPago` y la frontera interna `SolicitudCobro` /
+//    `ComprobanteDto` (que antes vivian en el puerto del Mediador).
 // 2. `repositories/pago.repository.ts`: clase concreta con Prisma (no interfaz
 //    ni token), siguiendo el criterio de M1-M4. Resuelve `Pago`, `PagoReserva` y
 //    `PagoMembresia`, que ya existen en el schema.
@@ -32,11 +34,12 @@
 //    `PasarelaPagoService` para poder cambiar MercadoPago por otra sin tocar el
 //    service de pagos.
 //
-// Sobre el grafo: M5 importa M1 y M4, no al revés. Cuando M1 (RF-02) o M4 (RF-13)
-// disparar un cobro, lo hacen llamando al service de M5, y ese service resuelve
-// el monto contra el módulo de origen. No hace falta el Mediador: el
-// desacople que aportaba era evitar la dependencia M1 -> M5, y con capas la
-// dependencia entre módulos es explícita y está en el `imports` del módulo.
+// Sobre el grafo: la dependencia va de M1/M4 hacia M5. Cuando M1 (RF-02) o M4
+// (RF-13) disparan un cobro, esos módulos importan `PagosModule` y llaman a
+// `PagosService`, que ya recibe el monto resuelto en la `SolicitudCobro`. M5 no
+// importa M1 ni M4, así que el grafo sigue aciclico. No hace falta el Mediador:
+// el desacople que aportaba era evitar la dependencia M1 -> M5, y con capas esa
+// dependencia es explícita y visible en el `imports` del módulo.
 
 import { Module } from '@nestjs/common';
 

@@ -1,5 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import {
+  GENERIC_TYPE,
+  ProblemException,
+  TITLES,
+  recursoNoEncontrado,
+} from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
 import { MembresiaOut } from '../dtos/membresia-out.dto';
 import { MembresiaPatch } from '../dtos/membresia-patch.dto';
@@ -37,6 +42,21 @@ export class MembresiasService {
     const socio = await this.socios.buscarPorId(socioId);
     if (!socio) {
       throw recursoNoEncontrado('No existe el socio indicado.');
+    }
+
+    // Los tres campos del PATCH son opcionales, asi que con body {} pasa entero
+    // hasta el repositorio, que arma el data asignando los tres sin condicion.
+    // Prisma 6 interpreta un update sin campos como un no-op y devuelve la fila
+    // sin error: la respuesta era un 200 que decia "actualizado" sin haber
+    // actualizado nada. El contrato declara 422 para esta operacion, asi que se
+    // corta aca.
+    if (dto.plan === undefined && dto.renueva_automatica === undefined && dto.estado === undefined) {
+      throw new ProblemException({
+        type: GENERIC_TYPE,
+        title: TITLES[HttpStatus.UNPROCESSABLE_ENTITY],
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        detail: 'Se debe enviar al menos un campo para modificar.',
+      });
     }
 
     const membresia = await this.membresias.actualizar(socioId, dto);

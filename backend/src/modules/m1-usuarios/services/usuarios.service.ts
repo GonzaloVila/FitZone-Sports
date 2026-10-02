@@ -1,5 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import {
+  GENERIC_TYPE,
+  ProblemException,
+  TITLES,
+  conflictoDeDominio,
+  recursoNoEncontrado,
+} from '../../../commons/filters/problem.exception';
 import * as bcrypt from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
 import { UsuarioIn } from '../dtos/usuario-in.dto';
@@ -73,6 +79,20 @@ export class UsuariosService {
     }
     if (dto.contrasenia !== undefined) {
       cambios.contrasenia = await bcrypt.hash(dto.contrasenia, SALT_ROUNDS);
+    }
+
+    // Los cuatro campos del PATCH son opcionales, asi que con body {} el objeto
+    // de cambios queda vacio. Prisma 6 interpreta un update sin campos como un
+    // no-op y devuelve la fila sin error: la respuesta era un 200 que decia
+    // "actualizado" sin haber actualizado nada. El contrato declara 422 para
+    // esta operacion, asi que se corta aca.
+    if (Object.keys(cambios).length === 0) {
+      throw new ProblemException({
+        type: GENERIC_TYPE,
+        title: TITLES[HttpStatus.UNPROCESSABLE_ENTITY],
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        detail: 'Se debe enviar al menos un campo para modificar.',
+      });
     }
 
     const usuario = await this.usuarios.actualizar(id, cambios);

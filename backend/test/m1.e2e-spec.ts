@@ -523,4 +523,115 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     expect(reactivar.body.estado).toBe('ACTIVA');
     expect(reactivar.body.fecha_fin).toBe(fechaFin);
   });
+
+  // Los tres PATCH de M1 tienen DTOs con TODOS los campos opcionales, asi que un
+  // body {} pasa la validacion. El problema no es el DTO sino lo que hay despues:
+  // los services arman el objeto de cambios y lo mandan a Prisma, y un update
+  // sin campos lanza PrismaClientValidationError. Eso no es el P2025 que los
+  // repositorios saben convertir a null, asi que la excepcion se escapaba sin
+  // traducir y la respuesta era 500. El contrato ya declara 422 en los tres.
+
+  it('PATCH /usuarios/{id} con body vacio responde 422 y no 500', async () => {
+    const usuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Patch Vacio Usuario E2E',
+        email: emailUnico(),
+        contrasenia: 'clave12345',
+        telefono: '+54 351 555-1111',
+      })
+      .expect(201);
+
+    const vacio = await request(app.getHttpServer())
+      .patch(`/api/v1/usuarios/${usuarioRes.body.id}`)
+      .send({})
+      .expect(422);
+
+    expect(vacio.headers['content-type']).toContain('application/problem+json');
+    expect(vacio.body.status).toBe(422);
+
+    // Un 422 por body vacio no puede haber tocado la fila.
+    const despues = await request(app.getHttpServer())
+      .get(`/api/v1/usuarios/${usuarioRes.body.id}`)
+      .expect(200);
+    expect(despues.body.telefono).toBe('+54 351 555-1111');
+  });
+
+  it('PATCH /socios/{socio_id} con body vacio responde 422 y no 500', async () => {
+    // SocioPatch tiene un solo campo (sede_origen_id) y es opcional: con {} el
+    // service construye un objeto de cambios vacio y lo pasa igual.
+    const usuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Patch Vacio Socio E2E',
+        email: emailUnico(),
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+
+    const socioRes = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioRes.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .expect(201);
+
+    const vacio = await request(app.getHttpServer())
+      .patch(`/api/v1/socios/${socioRes.body.id}`)
+      .send({})
+      .expect(422);
+
+    expect(vacio.headers['content-type']).toContain('application/problem+json');
+    expect(vacio.body.status).toBe(422);
+
+    const despues = await request(app.getHttpServer())
+      .get(`/api/v1/socios/${socioRes.body.id}`)
+      .expect(200);
+    expect(despues.body.sede_origen_id).toBe(sedeId);
+  });
+
+  it('PATCH /socios/{socio_id}/membresias con body vacio responde 422 y no deja la membresia a medias', async () => {
+    // Este es el caso mas delicado de los tres: MembresiaRepository arma el data
+    // asignando los tres campos sin condicion, asi que con {} le llega
+    // {plan: undefined, renueva_automatica: undefined, estado: undefined}.
+    const usuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Patch Vacio Membresia E2E',
+        email: emailUnico(),
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+
+    const socioRes = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioRes.body.id, sede_origen_id: sedeId, plan: 'TRIMESTRAL' })
+      .expect(201);
+
+    const antes = await request(app.getHttpServer())
+      .get(`/api/v1/socios/${socioRes.body.id}/membresias`)
+      .expect(200);
+
+    const vacio = await request(app.getHttpServer())
+      .patch(`/api/v1/socios/${socioRes.body.id}/membresias`)
+      .send({})
+      .expect(422);
+
+    expect(vacio.headers['content-type']).toContain('application/problem+json');
+    expect(vacio.body.status).toBe(422);
+
+    // Ni el estado ni el plan ni la fecha_fin pueden haber cambiado: si el update
+    // hubiera corrido con data vacio, la membresia quedaria incoherentente.
+    const despues = await request(app.getHttpServer())
+      .get(`/api/v1/socios/${socioRes.body.id}/membresias`)
+      .expect(200);
+    expect(despues.body.estado).toBe(antes.body.estado);
+    expect(despues.body.plan).toBe(antes.body.plan);
+    expect(despues.body.fecha_fin).toBe(antes.body.fecha_fin);
+    expect(despues.body.renueva_automatica).toBe(antes.body.renueva_automatica);
+  });
 });

@@ -1,5 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { conflictoDeDominio, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import {
+  GENERIC_TYPE,
+  ProblemException,
+  TITLES,
+  conflictoDeDominio,
+  recursoNoEncontrado,
+} from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
 import { SocioIn } from '../dtos/socio-in.dto';
 import { ListarSociosQueryDto } from '../dtos/listar-socios-query.dto';
@@ -70,6 +76,20 @@ export class SociosService {
     const cambios: SocioActualizable = {};
     if (dto.sede_origen_id !== undefined) {
       cambios.sede_origen_id = dto.sede_origen_id;
+    }
+
+    // SocioPatch tiene un solo campo y es opcional, asi que con body {} el objeto
+    // de cambios queda vacio. Prisma 6 interpreta un update sin campos como un
+    // no-op y devuelve la fila sin error: la respuesta era un 200 que decia
+    // "actualizado" sin haber actualizado nada. El contrato declara 422 para
+    // esta operacion, asi que se corta aca.
+    if (Object.keys(cambios).length === 0) {
+      throw new ProblemException({
+        type: GENERIC_TYPE,
+        title: TITLES[HttpStatus.UNPROCESSABLE_ENTITY],
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        detail: 'Se debe enviar al menos un campo para modificar.',
+      });
     }
 
     const socio = await this.socios.actualizar(id, cambios);

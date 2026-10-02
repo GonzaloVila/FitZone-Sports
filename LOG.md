@@ -1594,6 +1594,35 @@ Tres defectos del generador aparecieron al validarlo y quedaron corregidos:
 1. **M5 no tiene comportamiento.** Sin cambios respecto de la entrada anterior.
 2. **`PICO_RECARGO_PCT = 20`** sigue pendiente de confirmación con la cátedra. Vive aislado en `pricing-constants.ts` con el comentario que lo declara, así que cambiarlo es una línea.
 3. **No se valida el turno contra el horario de la sede** porque ese dato no existe en el modelo. Deuda asumida a propósito (decisión 11 del plan M4).
-4. **`ReservaCanchaIn.usuario_id` es obligatorio en el código y opcional en el contrato.** Ya está en `PERMITIDAS` con su motivo: mientras no exista token del que derivarlo no hay opción, y cuando exista la excepción se borra.
+4. **`ReservaCanchaIn.usuario_id` es obligatorio en el código y opcional en el contrato.** Es una desviación real y deliberada: mientras no exista token del que derivarlo no hay opción, así que el DTO lo exige. Cuando exista el token, el contrato se respeta tal cual.
 5. **El ADR del vault nunca quedó desactualizado, y se verificó.** Al revisar los cuatro planes encontré una nota en el plan M1 que decía que `TFI FitZone - Definicion Tecnica.md` "quedó desactualizada" con la migración a capas, y la repetí aquí como deuda sin comprobarla. Era falsa: ADR-07 ya decía que los repositorios "son **clases concretas** que reciben el `PrismaService` por constructor" y que "no hay una interfaz por repositorio ni un token de inyección", y ADR-09 ya documentaba el paso de la dependencia opcional a la obligatoria declarada en el `imports`. Al fechar la nota, ADR-07 marca la revisión de implementación el 1 de Octubre, el mismo día de la migración. Barrido de los once `.md` del vault con `_PORT`, `_REPOSITORY`, `_TOKEN`, `.port.ts`, `prisma-*.repository`, `@Global()` y `Mediador`: las únicas coincidencias son las notas de corrección de los propios planes, dos variables de entorno reales (`MP_TOKEN`, `qr_token`) y el apartado de C4 que explica por qué el diagrama ya no tiene componente Mediador. `Diagramas C4` y `Unidad II - Backend` también estaban ya alineados. Se corrigió la nota del plan M1 y este punto. **Sin deuda en el documento técnico.**
 6. **Los planes viven fuera de Git.** Este LOG es lo único que deja rastro en el historial de los cambios de documentación; los `.md` y los `.docx` del vault no versionan.
+7. **La comparación automática de contrato ya no está en el repo.** Ver la entrada siguiente: se decidió sacarla entera y generar el YAML desde `/docs-json`. La desviación del punto 4 queda sin herramienta que la detecte.
+
+---
+
+## 2026-10-02 — Se saca la parte de contrato del repo
+
+**Rama:** `capas-en-todo-el-backend` — **Commits:** este bloque y el de documentación
+
+### Qué se borra
+
+El contrato no se versiona en el repo. El YAML que se entrega sale de `/docs-json` del backend, que es el mismo documento que ya publica NestJS. Se elimina `backend/contrato/` completo: `openapi.yaml`, `exportar.ts`, `comparar.ts`, `alcance.ts`, `resolver.ts`, los cuatro specs, los dos configs de vitest, `setup.ts`, `vault-exportado.json` y su README.
+
+También se sacan los cuatro scripts de `package.json` (`test:contrato`, `test:contrato:diff`, `contrato:exportar`, `contrato:verificar`), el bloque que lo describía en `backend/.gitignore`, la línea del árbol y el párrafo de comparación en `backend/README.md`, y `js-yaml` de `devDependencies` por quedar huérfano. Sigue en `package-lock.json` porque `@nestjs/swagger` lo trae como dependencia transitiva, y ahí tiene que estar: es el que genera `/docs-json`.
+
+### Qué no se toca
+
+El backend. `@nestjs/swagger`, `swagger-ui-express`, los decoradores de los controllers, `main.ts` con su `DocumentBuilder` y `src/commons/swagger/` siguen exactamente igual, porque de ahí sigue saliendo el documento. Los comentarios del código que dicen "el contrato declara 422" o "el contrato define el filtro `fecha`" también se quedan: describen la especificación que el código implementa, no la herramienta que la comparaba.
+
+### Por qué se acepta la pérdida
+
+El comparador era lo único que decía automáticamente si el código divergía de la especificación. Detecta lo que nadie detecta a ojo: un DTO que se olvidó de un campo, un status code que quedó en 400 donde el contrato pide 422, un parámetro de ruta con otro nombre. Sin él, esa verificación pasa a ser manual contra `/docs`. Se acepta porque el contrato es un entregable, no una frontera: no hay un cliente externo cuya rompa dependa, y el alcance real de la API está en el código.
+
+Lo que se pierde también es la lista de desviaciones aceptadas a propósito, que vivía en `PERMITIDAS`. Quedan registradas acá las dos que importan: los enums con nombre en el contrato que el código emite inline (`Rol`, `Plan`, `EstadoMembresia`, `EstadoCancha`, `EstadoEspera`, `EstadoReserva`, `EstadoReservaClase`, `TipoCancha`) y el `usuario_id` del punto 4.
+
+### Verificación
+
+`tsc --noEmit` y `build` en verde. Unitarios 20/20. E2e 98/98. Los 32 tests de contrato (29 de `test:contrato` + 3 del diff) ya no existen y no se reemplazan por nada.
+
+**Commits:** este bloque y el de documentación.

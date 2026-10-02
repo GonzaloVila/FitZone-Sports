@@ -1350,3 +1350,87 @@ El Bloque 1 de M4 se había implementado antes de las auditorías de M1, M2 y M3
 2. **`Bloque 4` de M4**: QA, integración y cierre del módulo. Sin arrancar, y ahora sobre una `main` que incluye este cambio.
 3. **La invariante es de aplicación, no de base de datos.** Si algún día se escribe un `Socio` por fuera de `PrismaSocioRepository.crear`, nada lo va a frenar.
 4. **QR y TOTP** siguen diferidos, sin arrancar.
+
+---
+
+## Unidad II - Migración de M1-M5 a arquitectura en capas – Exequiel Ansaldi (P2 - Backend Developer)
+
+**Fecha:** 01/10/2026 – **Rama:** `capas-en-todo-el-backend` – **Base:** `main` (`325f386`) + la invariante de membresía (`eefefc6`, que tiene su propio PR) – **Estado:** en la rama, sin mergear
+
+### El problema
+
+1. **Convivían dos arquitecturas.** M1-M4 ya estaban en capas, pero con la forma hexagonal puesta en el medio: cada repositorio era una interfaz `XRepository` más una implementación `PrismaXRepository` en `repositories/prisma/`, resuelta por un `InjectionToken` de string, y M1/M2 eran `@Global()`. M5 era hexagonal entero (`domain/ports/in|out`, `application/use-cases`, `infrastructure/adapters/out`) y su única puerta de entrada era `commons/mediador/`.
+
+2. **La indirección no pagaba nada.** Cada interfaz de repositorio tenía una sola implementación, el token se resolvía por constructor y nadie iba a registrar un doble para testear: el puerto se pagaba con más archivos y más DI, no con testeabilidad.
+
+3. **Lo que sí pagaba, y para mal, eran los puertos opcionales.** Tres dependencias se inyectaban con `@Optional()` y cada una tenía un bypass silencioso detrás:
+
+   | Puerto | Módulos que lo usaban | Qué pasaba si no estaba |
+   |---|---|---|
+   | `MEMBERSHIP_VALIDATION_PORT` | M3 (reservas y esperas de clase), M4 (reservas de cancha) | **Fail-open**: no se consultaba la vigencia y el socio con cuota vencida pasaba a la cola o pagaba precio de externo |
+   | `CONSULTA_SOCIO_PORT` | M3 (`EmailCupoLiberadoObserver`) | El aviso de cupo liberado se perdía sin dejar rastro |
+   | `SEDE_VALIDATION_PORT` | M2 (creación de clase), M4 (creación de cancha) | Fail-closed: la validación se hacía siempre |
+
+   El único que fallaba en silencio era el dangerous: la regla RN-03 se podía saltar sin que nadie lo notara.
+
+4. **M5 nunca llegó a implementarse, y el Mediador lo hacía explícito.** El puerto `PROCESAR_PAGO_PORT` no lo registraba ningún provider, así que `MediadorService.solicitarCobro()` solo podía rechazar con "M5 (Pagos) aun no registra ProcesarPagoPort".
+
+### La decisión
+
+5. **Los cinco módulos en capas, sin puertos.** Criterio, para que no sea una preferencia de estilo:
+   - El repositorio es una clase concreta con `PrismaService` inyectado. Si algún día aparece una segunda implementación, se extrae la interfaz en ese momento; extraerla antes es coste pagado a cambio de nada.
+   - La dependencia entre módulos es explícita en el `imports`, y por eso `M1` y `M2` dejaron de ser `@Global()`: es preferible que el `imports` diga la verdad a que el grafo se esconda.
+   - **Strategy y Observer no son puertos y se quedan**: `PricingStrategyFactory` con sus tres estrategias y la cadena `CupoLiberadoSubject` siguen exactamente como estaban.
+
+6. **M5 quedó solo como andamiaje: `entities/` y `pagos.module.ts`, sin controllers ni providers, y sin registrar en `AppModule`.** No es una decisión por comfortable: el comparador de contrato calcula el alcance por **rutas realmente publicadas**, no por tags, así que las cinco operaciones de M5 (`GET /pagos`, `POST /pagos`, `GET /pagos/{pago_id}`, `GET /pagos/{pago_id}/comprobante` y `POST /pagos/{pago_id}/anulaciones`) quedan fuera de alcance y dan 0 diferencias. Escribir un controller a medias publicaría rutas que el contrato no describe igual.
+
+### Trabajo por módulo
+
+| Commit | Módulo | Qué hizo |
+|---|---|---|
+| [`026c0bb`](https://github.com/GonzaloVila/FitZone-Sports/commit/026c0bb) | M1 | Repositorios aplanados a clases concretas; las consultas de vigencia pasaron a `MembresiasService` y `obtenerEmail()` a `SociosService`; se fueron `MEMBERSHIP_VALIDATION_PORT` y `CONSULTA_SOCIO_PORT` con sus adapters |
+| [`cc87947`](https://github.com/GonzaloVila/FitZone-Sports/commit/cc87947) | M2 | `IngresoRepository` y `SedeRepository` concretos; `SEDE_VALIDATION_PORT` virou `SedesService.existe()` |
+| [`29dab5c`](https://github.com/GonzaloVila/FitZone-Sports/commit/29dab5c) | M3 | Repositorio de clase, espera y reserva aplanados; filtros y resultados discriminados reubicados junto a la implementación; `ClasesModule` dejó de exportar repositorios |
+| [`7104351`](https://github.com/GonzaloVila/FitZone-Sports/commit/7104351) | M4 | `CanchaRepository` y `ReservaRepository` concretos; `PricingStrategy` pasó a `pricing-strategy.ts` y se borró el token muerto `PRICING_STRATEGY` |
+| [`d8f5165`](https://github.com/GonzaloVila/FitZone-Sports/commit/d8f5165) | M5 + commons | Andamiaje hexagonal de M5 eliminado y `commons/mediador/` borrado por completo |
+| [`d944582`](https://github.com/GonzaloVila/FitZone-Sports/commit/d944582) | M5 | Carpetas de capas versionables + la frontera interna de pagos, y corrección de la dirección del grafo en los comentarios |
+
+7. **Los resultados discriminados y los filtros se movieron junto a su implementación.** `ResultadoCrearEspera`, `ResultadoConfirmarEspera`, `MotivoFalloReserva` y compañía vivían en archivos `*.ts` separados al lado de la interfaz que los tenía; ahora están en el mismo archivo que el repositorio que los produce, porque un tipo sin su productor es un tipo que nadie encuentra.
+
+### El Mediador
+
+8. **`commons/mediador/` desaparece entero**: `MediadorService`, `PROCESAR_PAGO_PORT` y `procesar-pago.port.ts`. El grafo queda `M2 → M1`, `M3 → M1, M2`, `M4 → M1, M2`, y M5 sin imports porque todavía no hay casos de uso. Cuando existan, la dependencia va de **M1/M4 hacia `PagosModule`**, que es justo lo que el Mediador evitaba a cambio de perder la visibilidad: con capas esa dependencia se lee en el `imports` del módulo.
+
+9. **`SolicitudCobro` y `ComprobanteDto` pasaron al dominio de M5** (`entities/solicitud-cobro.entity.ts`), que es donde habían quedado al borrarse el puerto. Reaprovechan `ConceptoPago` y `EstadoPago` en lugar de volver a declarar los mismos cuatro valores con otro nombre: la diferencia real entre la `SolicitudCobro` interna y el `PagoIn` del contrato es el **monto**, que el DTO HTTP no lleva porque lo computa la regla de negocio y la solicitud interna ya lo trae resuelto desde el módulo que origina el cobro.
+
+10. **`CommonsModule` quedó vacío pero se conserva.** Era el módulo que existía solo para exportar el Mediador; se deja como el lugar natural para lo transversal que sí va a aparecer (el guard por rol de la Unidad III, hoy `guards/` es un placeholder con un `.gitkeep`).
+
+### Lo que cambió de verdad
+
+11. **Tres dependencias opcionales pasaron a obligatorias.** No es reubicación: es un cambio de comportamiento, y en dos casos del bueno.
+
+   | Antes | Ahora | Efecto si M1 no está disponible |
+   |---|---|---|
+   | `MEMBERSHIP_VALIDATION_PORT` con `@Optional()` | `MembresiasService` obligatorio | La app **no levanta** en vez de cobrar precio de externo |
+   | `CONSULTA_SOCIO_PORT` con `@Optional()` | `SociosService.obtenerEmail()` | El observer **lanza** en vez de perder el aviso |
+   | `SEDE_VALIDATION_PORT` | `SedesService.existe()` | Igual que antes (ya era fail-closed), sin token de por medio |
+
+   El criterio es que una dependencia que se puede faltar es una dependencia que puede faltar **en silencio**, y el silencio en una regla de negocio es un bug esperando.
+
+12. **Un bug que solo se manifestó al quitar los tokens.** Durante la migración, algunos repositorios quedaron con `import type { ClaseRepository }`. Nest lee la metadata de tipos del constructor para resolver dependencias, y con `import type` la clase vale `Object` a esa altura: el arranque falla con `Nest can't resolve dependencies of the service (?)`. Con los puertos esto no se veía nunca, porque el token era explícito y no dependía de la clase importada. Los tipos de dominio (`entities`, filtros, `OpcionesPaginacion`, `PricingContext`) sí pueden ser `import type`: no se inyectan, solo se usan como tipos.
+
+### Verificación
+
+- `npx tsc --noEmit` y `npm run build`: en verde.
+- `npm run test:unit`: **20/20** en 3 archivos. Los 10 nuevos son de `membresias.service.spec.ts` y cubren RN-03: sin `MembresiasService` la app no arranca, y la vigencia se decide en el dominio.
+- `npm run test:e2e`: **77/77** en 6 archivos, sin tocar un solo caso.
+- Comparador de contrato: **3/3**, **41 operaciones a comparar y 34 schemas**, 5 operaciones (todas de M5) fuera de alcance, **0 diferencias por módulo**.
+- `git grep` sobre `src/`: **cero** ocurrencias de `InjectionToken`, cero de puertos como tipo de inyección, cero de `MediadorService` y cero de carpetas `ports/`, `adapters/` o `use-cases/`. Lo que queda son comentarios que explican qué había antes y por qué la dependencia ahora es obligatoria, que es la parte que un lector futuro necesita, y un `@Global()` legítimo: el de `DatabaseModule`, que comparte el `PrismaService` con todos los módulos.
+
+### Pendientes que siguen abiertos
+
+1. **M5 no tiene comportamiento.** Faltan `PagosService`, `PagoRepository`, `PasarelaPagoService`, `ComprobantesService` (RF-14) y los cinco endpoints. El andamiaje está, el grafo todavía no.
+2. **La documentación del vault sigue describiendo la arquitectura hexagonal.** El ADR-01 del Mediador, el plan de trabajo de M5, los diagramas C4, `TFI FitZone - Unidad II - Backend.md` y el checklist del TFI quedaron desalineados con el código. Hay que reescribirlos con el grafo real y con M5 explícitamente pendiente.
+3. **El contrato sigue fuera del repo** (`backend/contrato/` está gitignored). Mismo pendiente arrastrado desde M1, sin cambios.
+4. **La rama incluye la invariante de membresía** (`eefefc6`), que va en su propio PR. Al integrar hay que decidir el orden: los dos trabajos solo se tocan en `LOG.md`, así que el conflicto, si aparece, es de bitácora.
+5. **Autenticación y roles** siguen diferidos. `commons/guards/` es un placeholder y el plan los necesita antes de que `usuario_id` deje de ser el único control de pertenencia.

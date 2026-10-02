@@ -14,11 +14,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "test:e2e:cov": "vitest run --config vitest.e2e.config.ts --coverage",
-    "test:contrato": "vitest run --config contrato/vitest.contrato.config.ts",
-    "contrato:exportar": "node --experimental-strip-types contrato/exportar.ts exportar",
-    "contrato:verificar": "node --experimental-strip-types contrato/exportar.ts verificar",
-    "test:contrato:diff": "vitest run --config contrato/vitest.contrato-diff.config.ts"
+    "test:e2e:cov": "vitest run --config vitest.e2e.config.ts --coverage"
   },
   "keywords": [],
   "author": "",
@@ -50,7 +46,6 @@
     "@types/node": "^26.5.1",
     "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^5.0.1",
-    "js-yaml": "^5.4.1",
     "prisma": "^6.19.3",
     "supertest": "^7.3.0",
     "ts-node": "^10.9.2",

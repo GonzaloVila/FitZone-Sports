@@ -60,7 +60,6 @@ backend/
 ├── prisma/
 │   ├── schema.prisma                → modelo versionado (14 tablas)
 │   └── migrations/                  → migraciones versionadas
-├── contrato/                        → comparador contra el OpenAPI (gitignored)
 ├── test/                            → e2e con supertest
 ├── Dockerfile
 ├── .env.example                     → variables documentadas (sin secretos)
@@ -76,9 +75,8 @@ backend/
 | `npm run test:unit`       | unitarios sin base de datos (`vitest.unit.config.ts`) |
 | `npm run test:e2e`        | e2e contra la base de test (requiere Docker)    |
 
-El contrato se compara aparte: `FITZONE_CONTRACT_PATH` y `FITZONE_CONTRATO_URL`
-apuntan al YAML del vault y al `/docs-json` del servidor, y el alcance se calcula por
-rutas realmente publicadas.
+El documento OpenAPI lo publica el propio backend en `/docs` y `/docs-json`, y el
+YAML que se entrega sale de ahí. No hay comparador en el repo.
 
 ## Estado
 

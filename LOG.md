@@ -1673,3 +1673,55 @@ Sobre la rama, antes de integrar: `tsc --noEmit` y `build` en verde, unitarios 2
 Sobre `main`, ya con el checkout hecho y antes de borrar la rama: se repitieron `tsc --noEmit`, `build`, unitarios y e2e para confirmar que el árbol final sirve y no solo el de la rama.
 
 **Estado final:** `origin/main` y `main` local en el mismo SHA, la rama ausente de los dos lados, working tree limpio, y `backend/contrato/` en disco con sus 15 archivos.
+
+---
+
+### Semana 4 · SCRUM-11 — M5 Pagos y Facturación (Bloque 0: dominio y cableado)
+
+**Fecha:** 02/10/2026 — **Rama:** `m5-pagos`
+
+#### Tareas finalizadas
+
+1. **Precio de membresía en la tabla (M1)**
+   - Columna `precio Decimal(65,30)` en `Membresia`, migración `20261002010000_membresia_precio` con backfill:
+     `MENSUAL=30_000`, `TRIMESTRAL=80_000`, `ANUAL=280_000` ARS.
+   - `MembresiaOut` sigue lista blanca (`@Exclude` clase + `@Expose` campos) → `precio` no sale por la API.
+   - `moneda` solo ARS, validado con `@IsIn(['ARS'])` sin `enum` en Swagger para no mover el contrato.
+
+2. **PATCH de membresía: fechas + precio atómicos (M1)**
+   - `MembresiaRepository.actualizar`: al enviar `plan` se re-precia Y se escriben `fecha_inicio` y `fecha_fin` juntas con `calcularVigencia(plan, new Date())`. El periodo nuevo arranca HOY; los días del periodo anterior no se trasladan.
+   - Descripción canónica replicada en `@ApiOperation.description` Y en `contrato/openapi.yaml` (ambos lados idénticos).
+
+3. **Exports angostos para que M5 lea sin consultar tablas ajenas (ADR-07)**
+   - `M1/MembresiaPrecioService`: devuelve `membresia_id, usuario_id, plan, precio(number), estado` haciendo join `Membresia→Socio` (solo M1 puede hacerlo).
+   - `M4/ReservaPrecioService`: devuelve `reserva_id, usuario_id, precio_aplicado, estado` (M4 dueña de la tabla).
+   - Ambos con tests de unidad (3 + 3) y propagación de `null` para que M5 traduzca a 404 con su propio problem type.
+
+4. **M5 PagosModule cableado en el grafo**
+   - Importa `UsuariosModule` y `CanchasModule`, expone nada todavía (los endpoints llegan en B1).
+   - `AppModule` importa `PagosModule`; tag `pagos` pospuesto a B1 (evita tag vacío en Swagger).
+   - Los cuatro `.gitkeep` se conservan (carpetas M5 aún vacías).
+
+5. **Fixtures e2e (M2/M3/M4) actualizados** con `precio: PRECIOS_PLAN.MENSUAL` en inserts directos de `Membresia`.
+
+6. **Nuevo e2e**: cambio de plan mueve precio y las DOS fechas, cambio inmediato (falla si se ancla en `fecha_fin` anterior).
+
+7. **Contrato exportado al vault** (`npm run contrato:exportar`): `openapi.yaml` → `TFI FitZone - OpenAPI.yaml`.
+
+#### Decisiones tomadas
+
+1. **M5 resuelve el monto leyendo M1/M4** (opción recomendada). El cliente no manda `monto` (`additionalProperties: false`); M5 congela el precio que leen los exports.
+2. **Renovación automática (RF-02) se hará en M5 (B6)** con `RenovacionesCron`, `listarParaRenovacion()`, `prorrogar()`. `ScheduleModule.forRoot()` se moverá a `AppModule`.
+3. **`SolicitudCobro` pierde `monto` en B6**; su comentario obsoleto se arregla ahí.
+
+#### Problemas encontrados
+
+1. **Fixture roto**: los inserts Prisma en M2/M3/M4 fallaban por `NOT NULL precio` → agregado `PRECIOS_PLAN.MENSUAL` + import.
+2. **Unit test de M1** (`membresias.service.spec.ts`) fallaba por `precio` requerido en la factory `membresiaValida()` → agregado.
+3. **Vault canónico desincronizado** tras editar `openapi.yaml` → `exportar.ts` vuelve a alinearlo.
+4. **Diff de contrato requería backend levantado** en `localhost:3000/docs-json` → `npm run start:prod` en background para el test.
+
+#### Commits
+
+- **feat(m5): B0 — cableado y dominio del módulo de pagos** → [commit 64323b1](https://github.com/GonzaloVila/FitZone-Sports/commit/64323b1)
+- **docs(log): B0 — bitácora del Bloque 0** → [este commit]

@@ -76,7 +76,9 @@ backend/
 | `npm run test:e2e`        | e2e contra la base de test (requiere Docker)    |
 
 El documento OpenAPI lo publica el propio backend en `/docs` y `/docs-json`, y el
-YAML que se entrega sale de ahí. No hay comparador en el repo.
+YAML que se entrega sale de ahí. No hay comparador en el repo: la carpeta
+`contrato/` es una herramienta local, está en `.gitignore` y se corre con `npx`
+según su propio README.
 
 ## Estado
 

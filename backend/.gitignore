@@ -16,6 +16,11 @@ build/
 *.log
 npm-debug.log*
 
+# Herramienta local de comparacion de contrato. Vive en el disco pero no se
+# versiona: el YAML que se entrega sale de /docs-json, que es el mismo documento
+# que ya publica NestJS, asi que el repo no necesita una copia canonica.
+/contrato/
+
 # IDE / OS
 .vscode/
 .idea/

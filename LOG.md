@@ -1799,6 +1799,46 @@ Sobre `main`, ya con el checkout hecho y antes de borrar la rama: se repitieron 
 
 #### Commits
 
-- **feat(m5): B2 — cobro por HTTP (POST /pagos)** → [commit 04e2b2e](https://github.com/GonzaloVila/FitZone-Sports/commit/04e2b2e)
-- **test(m5): el helper de errores solo miraba el nivel superior** → [commit 81ae178](https://github.com/GonzaloVila/FitZone-Sports/commit/81ae178)
-- **docs(log): B2 — bitácora del Bloque 2** → [este commit]
+- **feat(m5): B2 — cobro por HTTP (POST /pagos)** → [commit 9f7e850](https://github.com/GonzaloVila/FitZone-Sports/commit/9f7e850)
+- **test(m5): el helper de errores solo miraba el nivel superior** → [commit 495fa24](https://github.com/GonzaloVila/FitZone-Sports/commit/495fa24)
+- **docs(log): B2 — bitácora del Bloque 2** → [commit df5627b](https://github.com/GonzaloVila/FitZone-Sports/commit/df5627b)
+
+### Semana 4 · SCRUM-11 — M5 Pagos y Facturación (Bloque 3: comprobante en PDF)
+
+**Fecha:** 03/10/2026 — **Rama:** `m5-pagos`
+
+#### Tareas finalizadas
+
+1. **`ComprobantesService`** (nuevo): arma el PDF con pdfkit y lo deja escrito en `storage/comprobantes/`, y lo vuelve a leer. Es la tercera frontera del módulo y la única que no habla con nadie: pdfkit no hace red.
+2. **`GET /pagos/{pago_id}/comprobante`**: sirve el archivo con `StreamableFile`, `Content-Type: application/pdf` y `Content-Disposition` con el nombre `comprobante-pago-{id}.pdf`.
+3. **El snapshot se arma en el cobro, no en la descarga.** `PagosService` llama a `generar()` recién después de la transición a `APROBADO` y persiste la ruta con `PagoRepository.registrarComprobante()`; el endpoint solo lo lee.
+4. **`pagoNoAprobado()`**: factory de error para el 409 con el `type`/`title` literales del contrato.
+5. **`ReservaPrecioService.obtenerParaCobro()`** ampliado con `cancha_id`, `fecha_hora_inicio` y `fecha_hora_fin`.
+6. **8 unitarios nuevos de `ComprobantesService` y 8 de `PagosService`**, más 7 e2e del flujo completo.
+
+#### Decisiones tomadas
+
+1. **El comprobante se genera una sola vez, al aprobarse el pago.** El plan pide "generar/retornar", pero regenerarlo en cada request haría que un comprobante ya emitido cambiara si después cambió el horario de la cancha o la tarifa — que es justo lo que un comprobante no puede hacer. Es la misma razón por la que M4 congela `precio_aplicado`: el archivo es el snapshot, y `comprobante_pdf_url` existe para que la descarga no tenga que reconstruirlo.
+2. **La columna guarda la ruta pública (`/storage/comprobantes/8.pdf`), no un `file://` de esta máquina.** Si mañana el PDF pasa a un bucket, la columna ya contiene la clave del objeto y no hay que backmigrar rutas absolutas.
+3. **pdfkit y el disco local, por decisión del equipo.** La librería entra adentro de `ComprobantesService` y no se filtra: el service expone `Buffer` y ruta, nunca un `PDFDocument`, así que cambiar de librería es cambiar ese archivo y `PagosService` no se entera.
+4. **El directorio NO es público ni se sirve con `ServeStatic`.** El PDF solo baja por el endpoint, que antes valida que el pago esté aprobado: un comprobante de cobro no debería ser adivinable por quien sepa el id.
+5. **El PDF se genera sin compresión.** Pesa un poco más y a cambio el texto se puede leer y verificar en los tests; para un ticket de una hoja el tamaño no es un problema.
+6. **`generar()` devuelve la ruta y no `Buffer`.** El plan escribe `Promise<Buffer>`, pero el servicio escribe el archivo, así que la ruta es lo que el caller necesita persistir; el `Buffer` es interno. La firma literal del plan se cambió por esta, y el `armarPdf()` privado es el que devuelve `Buffer`.
+7. **`ReservaPrecioService` se amplía en vez de abrir un segundo export.** El comprobante necesita cancha y horario, y el cobro ya lee esa misma fila: una segunda lectura por PK de la misma fila no es una violación de la separación entre módulos, y evita que M5 arme una unión de dos tipos de dos módulos distintos.
+
+#### Problemas encontrados
+
+1. **`import PDFDocument = require('pdfkit')` compilaba pero reventaba los e2e.** `tsc --noEmit` y el runner de unitarios lo aceptan; el de e2e usa SWC con salida ESM y ahí un import assignment es un error de sintaxis. Como el PDF solo se exercise de verdad por HTTP, el bug no apareció hasta los e2e. Ahora es `import PDFDocument from 'pdfkit'`, que anda en los tres.
+2. **El diff contractual marcó `pago_id` como `number` donde el contrato declara `integer`.** Es la primera vez que se comparaba un path param de M5 (el `GET /pagos/{pago_id}` del detalle todavía está fuera de alcance), así que la omisión pasó inadvertida: faltaba el `@ApiParam({ type: 'integer' })` que llevan los ids de los demás módulos. Se corrigió en el controller en vez de declararlo como diferencia aceptada: acá el documento es el que estaba incompleto.
+3. **El test unitario de M4 avisó del cambio de contrato del export.** Al ampliar `obtenerParaCobro()`, el `toEqual` exacto del spec falló. Se actualizó y se agregó un test que fija cancha y horario, que es lo que impide que alguien recorte esos campos pensando que son de M5.
+4. **Los e2e de B2 dejaron PDFs tirados en el repo.** Al pasar a aprobarse el cobro con comprobante, los tests de RF-13 que ya pasaban empezaron a generar archivos que nadie borraba. La limpieza dejó de ser una lista de ids por test y pasó a ser una consulta de los pagos del fixture antes de borrar la base: con lista manual, el próximo test que apruebe un pago y olvide la línea vuelve a ensuciar el repo.
+
+#### Verificación
+
+`npx prisma validate` y `npm run build` en verde; unitarios **84/84** (20 nuevos); e2e **120/120** (7 nuevos, todos de M5); contrato local **29/29**; diff contra el vault **3/3** con `GET /pagos/{pago_id}/comprobante` ya en alcance y **0 diferencias**.
+
+#### Commits
+
+- **feat(m5): B3 — comprobante en PDF (GET /pagos/{id}/comprobante)** → [commit ebc3772](https://github.com/GonzaloVila/FitZone-Sports/commit/ebc3772)
+- **test(m5): el PDF se verifica por dentro, no por su firma** → [commit 8f68a72](https://github.com/GonzaloVila/FitZone-Sports/commit/8f68a72)
+- **docs(log): B3 — bitácora del Bloque 3** → [este commit]

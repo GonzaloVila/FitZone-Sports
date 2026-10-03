@@ -1878,3 +1878,26 @@ Sobre `main`, ya con el checkout hecho y antes de borrar la rama: se repitieron 
 #### Commits
 
 - **feat(m5): B4 — listado, consulta y anulación de pagos (RF-10/11/12)** → [commit 0eadd1d](https://github.com/GonzaloVila/FitZone-Sports/commit/0eadd1d)
+- **fix(m5): require pdfkit instead of ES default import** → [commit f04860d](https://github.com/GonzaloVila/FitZone-Sports/commit/f04860d)
+
+---
+
+### Semana 4 · SCRUM-11 — M5 Pagos y Facturación (Bloque 5: QA, integración y cierre)
+
+**Fecha:** 03/10/2026 — **Rama:** `m5-pagos`
+
+#### Verificación final
+
+- `npm run build` y `npx tsc --noEmit` en verde.
+- Unitarios **118/118** (11 archivos).
+- e2e M5 **36/36** (los 2 fallidos de M3 y M4 son pre-existentes, no causados por B4/B5).
+- Contrato local **29/29**; diff contra el vault **0 diferencias**, **0 operaciones fuera de alcance**.
+- **Smoke contra Supabase (12/12 pasos):** reserva M4 → cobro M5 → PDF → anulación → re-anulación idempotente → detalle estado ANULADO → listado filtrado por estado. Todos los pasos pasaron.
+
+#### Problema encontrado en el smoke
+
+1. **`import PDFDocument from 'pdfkit'` compilaba en TSC y NestJS pero fallaba en runtime** con `pdfkit_1.default is not a constructor`. El SWC compila a CJS (`require`) y el import ES default no funciona con el módulo CJS de pdfkit. Fix: `const PDFDocument = require('pdfkit')`.
+
+#### Commits
+
+- **fix(m5): require pdfkit instead of ES default import (CJS compatibility)** → [commit f04860d](https://github.com/GonzaloVila/FitZone-Sports/commit/f04860d)

@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Injectable } from '@nestjs/common';
-import PDFDocument from 'pdfkit';
+const PDFDocument = require('pdfkit');
 import { MembresiaPrecioService } from '../../m1-usuarios/services/membresia-precio.service';
 import { ReservaPrecioService } from '../../m4-canchas/services/reserva-precio.service';
 import { ConceptoPago, Pago } from '../entities/pago.entity';

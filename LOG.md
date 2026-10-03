@@ -1760,4 +1760,45 @@ Sobre `main`, ya con el checkout hecho y antes de borrar la rama: se repitieron 
 #### Commits
 
 - **feat(m5): B1 — concepto de pago, idempotencia y pasarela simulada** → [commit 0a38fd0](https://github.com/GonzaloVila/FitZone-Sports/commit/0a38fd0)
-- **docs(log): B1 — bitácora del Bloque 1** → [este commit]
+- **docs(log): B1 — bitácora del Bloque 1** → [commit 6bc82d8](https://github.com/GonzaloVila/FitZone-Sports/commit/6bc82d8)
+
+### Semana 4 · SCRUM-11 — M5 Pagos y Facturación (Bloque 2: cobro por HTTP)
+
+**Fecha:** 03/10/2026 — **Rama:** `m5-pagos`
+
+#### Tareas finalizadas
+
+1. **`PagosService.procesarPago()`** con el orden que cierra la ventana de idempotencia: resolver el concepto (404 si no existe) → copiar el monto de M1/M4 → insertar el pago `PENDIENTE` → cobrar → transicionar.
+2. **`PagosController`** con `POST /pagos`: exige `Idempotency-Key`, responde 201 con `Location` y declara los cinco 4xx del contrato.
+3. **`PagoRepository.transicionar()`** para llevar el pago a `APROBADO` o `RECHAZADO`.
+4. **Cuatro factories de error nuevas** (`faltaIdempotencyKey`, `pagoRechazado`, `idempotenciaRepetida`, `reservaYaCobrada`) con los `type`/`title` literales del contrato.
+5. **`conceptoDePago()`**: traducción del objeto validado a la unión del dominio, en el DTO y al lado del constraint.
+6. **`marcarSchemasDePagos()`**: post-proceso del documento para publicar `ConceptoPago` y `EstadoPago` como schemas con nombre y referenciarlos desde `PagoIn`/`PagoOut`.
+7. **Cableado**: controller y services en `PagosModule`, tag `pagos` en `main.ts`, y borrado de los cuatro `.gitkeep` que quedaron sin uso.
+
+#### Decisiones tomadas
+
+1. **Insertar el pago ANTES de cobrar** (decisión 6 del plan, implementada acá). Es lo que hace que un `@unique` reventado devuelva 409 sin haber tocado la pasarela: al revés, el 409 llega después del cobro y el cliente no sabe si le cobraste.
+2. **El rechazo de la pasarela responde 402 pero el pago queda persistido como `RECHAZADO`.** Es un resultado de negocio, no un error de transporte: entra al histórico y se puede reintentar con una clave nueva. Borrarlo tiraría abajo el registro de un cobro que la pasarela efectivamente rechazó.
+3. **El 400 por falta de `Idempotency-Key` va en el controller.** Es transporte y el `ValidationPipe` no ve headers; sin ese check el service recibiría `undefined` y el `@unique` de Prisma respondería 500.
+4. **El 404 es "no existe", no "no se puede cobrar".** Una reserva `CANCELADA` o una membresía no `ACTIVA` existen, y el contrato no declara ninguna respuesta para "existe pero no es cobrable". Agregar un 422 ahí sería inventar contrato; queda como deuda hasta que el contrato lo declare.
+5. **`solicitarCobro()` se difiere al Bloque 6.** Su único llamador futuro es el cron y su firma depende de los cambios que B6 le hace a `SolicitudCobro` (que le saca `monto`). Escribirla ahora es escribir código muerto con una forma que va a cambiar.
+6. **El `oneOf` del contrato se publica por post-proceso y no por decorador.** Un decorador no puede emitir un schema cuyo cuerpo sea un `oneOf`; `marcarSchemasDePagos()` sigue la convención que ya tenía `markRequestSchemasClosed()`.
+
+#### Problemas encontrados
+
+1. **Faltaba `@IsOptional()` en los dos ids del concepto** (mismo patrón que `moneda` en B1): el id ausente de la rama no elegida dispara `@IsInt(undefined)` y TODO body bien formado daba 422. Lo encontró el e2e.
+2. **El unitario no podía ver ese bug.** El helper `errores()` del spec leía solo `ValidationError.constraints` del root, pero los errores de `@ValidateNested()` viven en `children`: devolvía `[]` para cualquier body mal formado. El test que se suponía cubría el caso pasaba por el mensaje del `oneOf`, que menciona `membresia_id` de paso. Corregido y verificado en las dos direcciones: sin el `@IsOptional()` el spec da 2 fallos.
+3. **El diff contractual bajó de 21 hallazgos a 5 y de ahí a 0, y dos de los intermedios eran bugs reales míos**: al quitar el `@ApiProperty()` de `concepto` la propiedad desapareció del documento entero, y como el plugin del CLI de Swagger no está activo en este proyecto, Nest marca como required todo lo que no lleve `@ApiPropertyOptional()` — por eso `moneda` y `comprobante_pdf_url` aparecían en el `required` que el contrato no pide.
+4. **El 402 se había olvidado en la primera pasada del controller**; el comparador contractual lo saltó.
+5. **El constraint crasheaba con un body `{}`** y eso terminaba en 500 en vez de 422 (mismo fix que B1, reaplicado al tocar el archivo).
+
+#### Verificación
+
+`npx prisma validate` y `npm run build` en verde; unitarios **64/64** (14 nuevos); e2e **113/113** (14 nuevos, todos de M5); contrato local **29/29**; diff contra el vault **3/3** con `POST /pagos` ya en alcance.
+
+#### Commits
+
+- **feat(m5): B2 — cobro por HTTP (POST /pagos)** → [commit 04e2b2e](https://github.com/GonzaloVila/FitZone-Sports/commit/04e2b2e)
+- **test(m5): el helper de errores solo miraba el nivel superior** → [commit 81ae178](https://github.com/GonzaloVila/FitZone-Sports/commit/81ae178)
+- **docs(log): B2 — bitácora del Bloque 2** → [este commit]

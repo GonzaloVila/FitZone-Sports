@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   idempotenciaRepetida,
+  pagoNoAprobado,
   pagoRechazado,
   recursoNoEncontrado,
   reservaYaCobrada,
@@ -11,6 +12,7 @@ import { conceptoDePago, PagoIn } from '../dtos/pago-in.dto';
 import { PagoOut } from '../dtos/pago-out.dto';
 import { ConceptoPago, Pago } from '../entities/pago.entity';
 import { PagoRepository } from '../repositories/pago.repository';
+import { ComprobantesService } from './comprobantes.service';
 import { PasarelaPagoService, ResultadoPasarela } from './pasarela-pago.service';
 
 // Los tres estados que puede devolver la pasarela. Es `ResultadoPasarela['estado']`
@@ -28,6 +30,16 @@ interface ConceptoResuelto {
   monto: number;
 }
 
+/**
+ * Lo que `obtenerComprobante()` le da al controller: los bytes y el nombre con el que
+ * bajan. Es un tipo propio y no un `Pago` porque el controller no necesita el pago, y
+ * devolver la entidad entera tentaría a serializarla en la respuesta.
+ */
+export interface ComprobanteParaDescargar {
+  buffer: Buffer;
+  nombre: string;
+}
+
 @Injectable()
 export class PagosService {
   constructor(
@@ -35,6 +47,7 @@ export class PagosService {
     private readonly pasarela: PasarelaPagoService,
     private readonly membresias: MembresiaPrecioService,
     private readonly reservas: ReservaPrecioService,
+    private readonly comprobantes: ComprobantesService,
   ) {}
 
   /**
@@ -102,7 +115,74 @@ export class PagosService {
       throw pagoRechazado(resultado.motivo);
     }
 
-    return this.aOut(pago);
+    return this.aOut(await this.emitirComprobante(pago, resuelto.concepto));
+  }
+
+  /**
+   * RF-13: servir el comprobante de un pago.
+   *
+   * El orden de las tres validaciones es el que da el status correcto y no por casualidad:
+   *
+   *  1. El pago no existe → 404. No se puede responder "no aprobado" de un pago que no
+   *     está, porque el 409 afirma un estado y no hay estado que afirmar.
+   *  2. El pago no está `APROBADO` → 409 `PagoNoAprobado`. El contrato responde igual para
+   *     `PENDIENTE`, `RECHAZADO` y `ANULADO`, y es lo correcto: en los tres casos no hay un
+   *     comprobante que entregar. Un `ANULADO` sí tuvo comprobante y sigue en disco, pero
+   *     el contrato lo niega igual, así que no se sirve — el comprobante de un cobro
+   *     devuelto es un documento histórico, no algo que se descargue a pedido.
+   *  3. El archivo no está (columna vacía o `storage/` limpiado) → 404. Es la misma
+   *     respuesta que "no existe el pago" y a propósito: el contrato declara un solo 404
+   *     para este endpoint y el cliente no necesita distinguir por qué falta algo que el
+   *     contrato no promete.
+   *
+   * Devuelve el `Buffer` y el nombre del archivo, no el `PDFDocument`: el service no
+   * arma el PDF acá, lo lee del snapshot.
+   */
+  async obtenerComprobante(pagoId: number): Promise<ComprobanteParaDescargar> {
+    const pago = await this.pagos.buscarPorId(pagoId);
+    if (!pago) {
+      throw recursoNoEncontrado(`No existe el pago ${pagoId}.`);
+    }
+
+    if (pago.estado !== 'APROBADO') {
+      throw pagoNoAprobado(pagoId, pago.estado);
+    }
+
+    if (!pago.comprobante_pdf_url) {
+      throw recursoNoEncontrado(`El pago ${pagoId} no tiene comprobante.`);
+    }
+
+    const buffer = await this.comprobantes.leer(pago.comprobante_pdf_url);
+    if (!buffer) {
+      throw recursoNoEncontrado(`El comprobante del pago ${pagoId} no está disponible.`);
+    }
+
+    // El nombre que baja el navegador no es el del archivo en disco: el interno es
+    // `{id}.pdf` y no le dice nada a quien lo descarga.
+    return { buffer, nombre: `comprobante-pago-${pagoId}.pdf` };
+  }
+
+  /**
+   * RF-14: arma el comprobante una sola vez, en el momento del cobro.
+   *
+   * Va después de `transicionar()` y no antes porque el comprobante lleva el id del pago
+   * (que solo existe después del insert) y porque un pago que no quedó `APROBADO` no tiene
+   * comprobante: un `RECHAZADO` nunca lo tuvo y un `PENDIENTE` todavía no sabe si lo va a
+   * tener.
+   *
+   * `generar()` puede fallar si el disco no deja escribir, y el error sube. Es a
+   * propósito: el pago ya está APROBADO y el dinero ya se movió, así que el problema real
+   * es que el comprobante falta, y ocultarlo dejaría un cobro aprobado sin comprobante
+   * sin que nadie se entere. Lo que NO se hace es volver atrás el estado para "dejar todo
+   * como estaba": eso sí sería mentir sobre un cobro que ocurrió.
+   */
+  private async emitirComprobante(pago: Pago, concepto: ConceptoPago): Promise<Pago> {
+    if (pago.estado !== 'APROBADO') {
+      return pago;
+    }
+
+    const ruta = await this.comprobantes.generar(pago, concepto);
+    return this.pagos.registrarComprobante(pago.id, ruta);
   }
 
   /**

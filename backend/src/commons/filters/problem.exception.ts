@@ -162,3 +162,24 @@ export function reservaYaCobrada(reservaId: number): ProblemException {
     detail: `La reserva ${reservaId} ya tiene un pago asociado.`,
   });
 }
+
+/**
+ * RF-14: se pidió el comprobante de un pago que no está `APROBADO`.
+ *
+ * El `title` es el del ejemplo de la respuesta `PagoNoAprobado` del contrato
+ * ("Pago no aprobado") y el `detail` sigue la misma redacción que el de
+ * `PagoNoAnulable`, que también nombra el estado concreto.
+ *
+ * El estado va en el `detail` a propósito: el contrato responde igual para
+ * `PENDIENTE`, `RECHAZADO` y `ANULADO`, pero no son lo mismo —un `RECHAZADO`
+ * nunca tuvo comprobante y un `ANULADO` sí lo tiene, archivado— y el cliente que
+ * está por reintentar un cobro necesita distinguirlos.
+ */
+export function pagoNoAprobado(pagoId: number, estado: string): ProblemException {
+  return new ProblemException({
+    type: GENERIC_TYPE,
+    title: 'Pago no aprobado',
+    status: HttpStatus.CONFLICT,
+    detail: `El pago ${pagoId} está en estado ${estado} y no tiene comprobante.`,
+  });
+}

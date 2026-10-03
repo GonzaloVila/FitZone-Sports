@@ -112,6 +112,29 @@ export class PagoRepository {
   }
 
   /**
+   * Guarda dónde quedó el PDF del comprobante (RF-14).
+   *
+   * Es un UPDATE aparte y no parte de `transicionar()` a propósito: el estado y la
+   * ubicación del archivo son dos hechos que se wissen en momentos distintos. El
+   * estado se escribe apenas la pasarela contesta; el comprobante se arma después, y
+   * si el armado fallara el pago tiene que quedar APROBADO igual — con un cobro
+   * aprobado y sin comprobante es un problema real, pero un cobro APROBADO que se
+   * perdió porque falló la escritura de un archivo sería peor: el dinero ya se movió.
+   *
+   * Devuelve el pago entero y no un void para que el 201 de `POST /pagos` salga con
+   * `comprobante_pdf_url` ya poblado, que es lo que pide el smoke del bloque 3.
+   */
+  async registrarComprobante(id: number, comprobantePdfUrl: string): Promise<Pago> {
+    const fila = await this.prisma.pago.update({
+      where: { id },
+      data: { comprobante_pdf_url: comprobantePdfUrl },
+      include: { pago_reserva: true, pago_membresia: true },
+    });
+
+    return this.aDominio(fila);
+  }
+
+  /**
    * Pasa el pago a ANULADO.
    *
    * El filtro por estado va en el WHERE del propio UPDATE (no en un `find`

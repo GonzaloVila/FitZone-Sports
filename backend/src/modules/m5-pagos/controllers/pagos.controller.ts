@@ -1,11 +1,15 @@
 import {
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Post,
   Res,
+  StreamableFile,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -14,7 +18,9 @@ import {
   ApiExtraModels,
   ApiHeader,
   ApiNotFoundResponse,
+  ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiPaymentRequiredResponse,
   ApiTags,
   ApiUnprocessableEntityResponse,
@@ -99,5 +105,58 @@ export class PagosController {
     const pago = await this.pagosService.procesarPago(dto, idempotencyKey);
     res.setHeader('Location', `/api/v1/pagos/${pago.id}`);
     return pago;
+  }
+
+  @Get(':pago_id/comprobante')
+  @ApiOperation({
+    operationId: 'obtenerComprobante',
+    // Textos literales del contrato, como en el POST.
+    summary: 'Descargar comprobante PDF (RF-14)',
+    description:
+      'Genera/retorna el comprobante del pago aprobado (snapshot al momento del pago). ' +
+      'Si el pago no fue aprobado (PENDIENTE/RECHAZADO/ANULADO) responde 409.',
+  })
+  // Sin esto Swagger emite `type: number` y el contrato declara el parametro como
+  // `integer`: el diff contractual lo marca como diferencia de tipo. Es el mismo
+  // `@ApiParam` que llevan los ids de los demas modulos.
+  @ApiParam({ name: 'pago_id', type: 'integer', description: 'ID numérico del pago', example: 8 })
+  @ApiOkResponse({
+    description: 'Comprobante en PDF',
+    content: {
+      'application/pdf': {
+        schema: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'El pago no existe o no tiene comprobante',
+    content: PROBLEM_JSON,
+  })
+  @ApiConflictResponse({
+    description: 'El pago no está aprobado y no tiene comprobante',
+    content: PROBLEM_JSON,
+  })
+  // El `StreamableFile` es lo que hace que Nest mande los bytes tal cual, en vez de
+  // serializar el Buffer a JSON — que además lo convertiría en `{"type":"Buffer",...}`.
+  //
+  // `passthrough: true` en el `@Res` es lo que permite poner el `Content-Disposition`
+  // dinámico (el nombre lleva el id del pago) sin sacarle a Nest el control de la
+  // respuesta: sin passthrough, este método tendría que hacer `res.send()` a mano y
+  // ningún interceptor o filtro del proyecto volvería a pasar por esta respuesta.
+  async obtenerComprobante(
+    @Param('pago_id', ParseIntPipe) pagoId: number,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const comprobante = await this.pagosService.obtenerComprobante(pagoId);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    // `filename*` con RFC 5987 para que el nombre llegue bien si algún día tiene acentos;
+    // el `filename` plano es el fallback para clientes viejos.
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${comprobante.nombre}"; filename*=UTF-8''${encodeURIComponent(comprobante.nombre)}`,
+    );
+
+    return new StreamableFile(comprobante.buffer);
   }
 }

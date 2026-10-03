@@ -52,6 +52,7 @@ import { CanchasModule } from '../m4-canchas/canchas.module';
 import { UsuariosModule } from '../m1-usuarios/usuarios.module';
 import { PagosController } from './controllers/pagos.controller';
 import { PagoRepository } from './repositories/pago.repository';
+import { ComprobantesService } from './services/comprobantes.service';
 import { PagosService } from './services/pagos.service';
 import { PasarelaPagoService } from './services/pasarela-pago.service';
 
@@ -61,6 +62,6 @@ import { PasarelaPagoService } from './services/pasarela-pago.service';
 @Module({
   imports: [UsuariosModule, CanchasModule],
   controllers: [PagosController],
-  providers: [PagoRepository, PasarelaPagoService, PagosService],
+  providers: [PagoRepository, PasarelaPagoService, ComprobantesService, PagosService],
 })
 export class PagosModule {}

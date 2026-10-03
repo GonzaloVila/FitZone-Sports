@@ -1842,3 +1842,39 @@ Sobre `main`, ya con el checkout hecho y antes de borrar la rama: se repitieron 
 - **feat(m5): B3 — comprobante en PDF (GET /pagos/{id}/comprobante)** → [commit ebc3772](https://github.com/GonzaloVila/FitZone-Sports/commit/ebc3772)
 - **test(m5): el PDF se verifica por dentro, no por su firma** → [commit 8f68a72](https://github.com/GonzaloVila/FitZone-Sports/commit/8f68a72)
 - **docs(log): B3 — bitácora del Bloque 3** → [este commit]
+
+### Semana 4 · SCRUM-11 — M5 Pagos y Facturación (Bloque 4: listado, consulta y anulación)
+
+**Fecha:** 03/10/2026 — **Rama:** `m5-pagos`
+
+#### Tareas finalizadas
+
+1. **`GET /pagos`**: listado con siete filtros en lista blanca (`usuario_id`, `estado`, `tipo`, `reserva_cancha_id`, `membresia_id`, `desde`, `hasta`) más paginación (`page`, `per_page`). Sin `estado` devuelve solo `APROBADO` (negocio, no DTO ni repositorio). Fechas inclusivas (`rangoDelDia`).
+2. **`GET /pagos/{pago_id}`**: detalle por id, sin `token` ni `idempotencia_key`.
+3. **`POST /pagos/{pago_id}/anulaciones`**: única forma de pasar un pago a `ANULADO`. `RECHAZADO` → 409 `PagoNoAnulable`; `ANULADO` → 204 idempotente; `PENDIENTE`/`APROBADO` → transición atómica en el repositorio; `APROBADO` invoca `reembolsar()`.
+4. **`PagoRepository.listar()`**: método nuevo con filtros combinables, subtipo→relación (RESERVA_CANCHA ↔ `pago_reserva: { isNot: null }`, `pago_membresia: { is: null }`), paginación `skip`/`take`, orden estable `(fecha_pago desc, id desc)`.
+5. **`pagoNoAnulable()`**: factory de error 409 con `title: 'Pago no anulable'` y `detail` literal del contrato.
+6. **34 unitarios nuevos** (`PagosService` + repository + DTO de query) y **15 e2e** (listado, consulta, anulación y su контракт).
+
+#### Decisiones tomadas
+
+1. **`ListarPagos` con `desde`/`hasta` como `string` y no `Date`**: el DTO recibe strings (`YYYY-MM-DD`), el service los traduce a instantes con `rangoDelDia()`. Es la misma separación que en M4 (`fecha?: string` en el service, `Date` solo en el repositorio).
+2. **El default de `estado` vive en el service, no en el DTO ni en el repositorio**: el DTO valida lo que recibe, el repositorio filtra sin defaults, y la regla de negocio ("sin estado = solo APROBADO") esowned by el service.
+3. **El `tipo` filtra por la relación, no por una columna de `Pago`**: `RESERVA_CANCHA` se traduce a `pago_reserva: { isNot: null }, pago_membresia: { is: null }`. Un pago de membresía tiene `pago_membresia` lleno y `pago_reserva: null`; sin el desempate, un filtro solo por `pago_reserva: { isNot: null }` traería ambos tipos.
+4. **`anular()` del repositorio filtra por estado en el propio `UPDATE`**: `UPDATE … WHERE id = ? AND estado IN ('PENDIENTE', 'APROBADO')`. Dos llamadas simultáneas no pueden ganar las dos; la segunda recibe `null` (Prisma `P2025`) y el service deriva 409 `RECHAZADO`.
+5. **`reembolsar()` se invoca solo si el pago estaba `APROBADO`**: un `PENDIENTE` nunca se cobró, así que no hay contra qué devolver. La semántica "si corresponde" del plan se interpreta así.
+6. **El `until` inclusivo se implementa con `[gte, lt)`**: `rangoDelDia(fecha)` devuelve `{ desde: inicio(fecha), hasta: inicio(fecha + 1 día) }`. Esto incluye el día pedido entero y excluye el siguiente, que es lo que dice el contrato (`?desde=2026-03-01&hasta=2026-03-31` trae todo marzo).
+
+#### Problemas encontrados
+
+1. **Los tests de listado usaban la misma `reservaId` para dos cobros**: `cobroReserva(reservaId, clave1)` + `cobroReserva(reservaId, clave2)` genera la segunda reserva con la misma `(usuario_id, fecha_hora_inicio)` y el `UNIQUE` de `Reserva` rechaza el insert. Los tests que no reusaban `reservaId` pasaban. Se separaron en dos `crearReserva()` por test.
+2. **`ListarPagos` declaraba `desde/hasta` como `Date` pero el controller pasa strings**: el DTO tiene strings (`YYYY-MM-DD`), `ListarPagos` los redeclara como `string` con `Omit<FiltrosListarPagos, 'desde' | 'hasta'>`, y el service los convierte. Sin el `Omit`, `FiltrosListarPagos` ya exigía `Date` y `tsc` lo rechazaba.
+3. **La inserción de métodos en `pagos.service.ts` falló dos veces**: el texto buscado era `RF-14: servir…` pero el archivo dice `RF-13: servir…` (comprobante). Se usó el texto exacto del archivo y se fijó el comentario a `RF-14`.
+
+#### Verificación
+
+`npx prisma validate` y `npm run build` en verde; unitarios **118/118** (34 nuevos); e2e M5 **36/36** (15 nuevos); contrato local **29/29**; diff contra el vault **0 diferencias**, **0 operaciones fuera de alcance**.
+
+#### Commits
+
+- **feat(m5): B4 — listado, consulta y anulación de pagos (RF-10/11/12)** → [commit 0eadd1d](https://github.com/GonzaloVila/FitZone-Sports/commit/0eadd1d)

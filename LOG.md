@@ -1724,4 +1724,40 @@ Sobre `main`, ya con el checkout hecho y antes de borrar la rama: se repitieron 
 #### Commits
 
 - **feat(m5): B0 — cableado y dominio del módulo de pagos** → [commit 64323b1](https://github.com/GonzaloVila/FitZone-Sports/commit/64323b1)
-- **docs(log): B0 — bitácora del Bloque 0** → [este commit]
+- **docs(log): B0 — bitácora del Bloque 0** → [commit b673524](https://github.com/GonzaloVila/FitZone-Sports/commit/b673524)
+
+### Semana 4 · SCRUM-11 — M5 Pagos y Facturación (Bloque 1: concepto de pago e idempotencia)
+
+**Fecha:** 02/10/2026 — **Rama:** `m5-pagos`
+
+#### Tareas finalizadas
+
+1. **Entidades de dominio**: `PagoNuevo` (sin `id` ni `estado`: el estado se escribe explícito y arranca `PENDIENTE`) y `PagoAAnular` (la anulación se pide sobre el pago, no sobre un id suelto, porque la devolución necesita `token`, `monto` y `moneda`).
+2. **`PagoRepository`**: `crear()` inserta el pago y su subtipo en **una sola sentencia anidada** (herencia parte-todo) y traduce `P2002` a motivo de dominio · `buscarPorId()` · `anular()` con el filtro por estado en el propio `UPDATE` (dos anulaciones simultáneas no ganan las dos).
+3. **`PasarelaPagoService`**: mock determinista por prefijo de token (`tok_aprobado` → APROBADO, `tok_pendiente` → PENDIENTE, resto → RECHAZADO) y `reembolsar()` para la anulación.
+4. **DTOs**: `PagoIn` con el `oneOf` de `ConceptoPago` traducido a runtime y `token` `writeOnly`; `PagoOut` lista blanca **sin** `token`.
+5. **Deuda técnica del precio de membresía (decisión 5 del plan)**: resuelta en el Bloque 0 con la columna `precio`.
+6. **Sin migración**: los tres modelos (`Pago`, `PagoReserva`, `PagoMembresia`) y `Pago.fecha_pago` ya existían.
+
+#### Decisiones tomadas
+
+1. **Los dos `@unique` de M5 no se colapsan en un motivo.** `Pago.idempotencia_key` → `IDEMPOTENCIA_REPETIDA` (el reintento del cliente, que es lo que el contrato llama `IdempotenciaRepetida`); `PagoReserva.reserva_id` → `RESERVA_YA_COBRADA` (cobrar dos veces la misma reserva, que no es idempotencia y cuyo detalle no puede decir "ya existe un pago con esa Idempotency-Key"). El default ante un `@unique` desconocido es `IDEMPOTENCIA_REPETIDA`, porque es el motivo que el contrato ya declara para este endpoint.
+2. **La selección de proveedor por `NODE_ENV` (decisión 9) se difiere.** La frontera quedó en el lugar que la decisión protege —dentro de `PasarelaPagoService`, invisible para `PagosService`— pero escribir un `switch` cuyas dos ramas dan lo mismo con un solo proveedor es peor que no tenerlo. Cuando exista el proveedor real, la selección va en el constructor de esa clase.
+3. **El `oneOf` del contrato se modela como una clase con los dos ids opcionales más un `ValidatorConstraint`**, porque `class-validator` no tiene unions discriminadas. Sin esa regla, `{tipo: MEMBRESIA, reserva_cancha_id: 7}` pasaba los decoradores de campo y el service no sabía qué cobrar.
+
+#### Problemas encontrados
+
+1. **`@Validate(Clase)` con método estático `validate` no validaba nada**: devolver un string desde el método se interpretaba como "válido" (truthy) y la regla del `oneOf` pasaba siempre en verde. Se rehízo con `registerDecorator` + `ValidatorConstraintInterface`.
+2. **`ValidatorConstraint` no sirve como decorador de propiedad** (su retorno está tipado como decorador de clase) y `@ConceptoUnico()` no compilaba. Resuelto con `registerDecorator`.
+3. **Faltaba `@IsDefined()` en `concepto`**: `@ValidateNested` solo recorre el objeto si viene, así que un body `{}` pasaba la validación y el service recibía `undefined` en vez de un 422.
+4. **`moneda` rechazaba el body sin él**: `@IsIn(['ARS'])` corre contra `undefined`. El contrato la declara con `default: ARS` fuera de `required`, así que omitirla es el caso normal; se agregó `@IsOptional()` siguiendo la convención de los DTOs de filtro.
+5. **El constraint crasheaba con `TypeError` ante un body `{}`** y eso se convertía en 500 en vez de 422.
+
+#### Verificación
+
+`npx prisma validate` y `npm run build` en verde; unitarios **50/50** (24 nuevos: 6 de la pasarela, 13 del repositorio, 7 del DTO); e2e **99/99** sin regresiones; contrato local **29/29**.
+
+#### Commits
+
+- **feat(m5): B1 — concepto de pago, idempotencia y pasarela simulada** → [commit 0a38fd0](https://github.com/GonzaloVila/FitZone-Sports/commit/0a38fd0)
+- **docs(log): B1 — bitácora del Bloque 1** → [este commit]

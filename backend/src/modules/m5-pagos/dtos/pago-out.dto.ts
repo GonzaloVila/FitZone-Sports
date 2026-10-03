@@ -1,9 +1,6 @@
-import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
-import { ConceptoMembresia, ConceptoReservaCancha } from './pago-in.dto';
 import { Pago } from '../entities/pago.entity';
-
-const ESTADOS: Pago['estado'][] = ['PENDIENTE', 'APROBADO', 'RECHAZADO', 'ANULADO'];
 
 /**
  * Lista blanca como `MembresiaOut` y `ReservaCanchaOut`: `@Exclude()` de clase con
@@ -14,9 +11,13 @@ const ESTADOS: Pago['estado'][] = ['PENDIENTE', 'APROBADO', 'RECHAZADO', 'ANULAD
  * cliente manda y nunca debe volver. La garantía es doble y las dos mitades son
  * necesarias: `writeOnly` en el documento, y la ausencia del campo acá porque un
  * DTO de respuesta no filtra lo que no expone, se filtra lo que expone.
+ *
+ * `concepto` y `estado` se declaran acá solo para que entren en el documento; lo que
+ * se publica son los `$ref` a `ConceptoPago` y `EstadoPago`, y eso lo reemplaza
+ * `marcarSchemasDePagos()`.
  */
 @Exclude()
-@ApiExtraModels(ConceptoReservaCancha, ConceptoMembresia)
+@ApiExtraModels()
 export class PagoOut {
   @Expose()
   @ApiProperty({ type: 'integer', example: 8 })
@@ -27,13 +28,7 @@ export class PagoOut {
   usuario_id!: number;
 
   @Expose()
-  @ApiProperty({
-    description: 'Concepto cobrado: el `tipo` decide cuál id viene poblado.',
-    oneOf: [
-      { $ref: getSchemaPath(ConceptoReservaCancha) },
-      { $ref: getSchemaPath(ConceptoMembresia) },
-    ],
-  })
+  @ApiProperty()
   concepto!: Pago['concepto'];
 
   @Expose()
@@ -49,7 +44,7 @@ export class PagoOut {
   moneda!: string;
 
   @Expose()
-  @ApiProperty({ enum: ESTADOS, example: 'APROBADO' })
+  @ApiProperty()
   estado!: Pago['estado'];
 
   @Expose()
@@ -64,7 +59,11 @@ export class PagoOut {
   fecha_pago!: Date;
 
   @Expose()
-  @ApiProperty({
+  // Opcional de verdad: el contrato lo saca del `required` de `PagoOut` porque el
+  // comprobante solo existe cuando el pago está aprobado (RF-14). Con
+  // `@ApiProperty` aparecía como required: el plugin del CLI de Swagger no está
+  // activo, así que Nest infiere required de todo lo que no sea opcional.
+  @ApiPropertyOptional({
     type: 'string',
     nullable: true,
     description:

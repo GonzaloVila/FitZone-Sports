@@ -92,6 +92,26 @@ export class PagoRepository {
   }
 
   /**
+   * Transición de estado después de que la pasarela respondió. Es la única forma de
+   * mover un pago de `PENDIENTE` a su estado final: el insert siempre arranca en
+   * `PENDIENTE` y lo que decide la pasarela se escribe después (decisión 7).
+   *
+   * `ANULADO` NO se escribe por acá: pasa por `anular()`, que además filtra los
+   * estados anulables en el propio UPDATE. Si esta puerta aceptara `ANULADO` en
+   * cualquier momento, la idempotencia del 204 y el 409 del RECHAZADO quedarían
+   * decididos en el service y no en la base.
+   */
+  async transicionar(id: number, estado: 'APROBADO' | 'RECHAZADO'): Promise<Pago> {
+    const fila = await this.prisma.pago.update({
+      where: { id },
+      data: { estado },
+      include: { pago_reserva: true, pago_membresia: true },
+    });
+
+    return this.aDominio(fila);
+  }
+
+  /**
    * Pasa el pago a ANULADO.
    *
    * El filtro por estado va en el WHERE del propio UPDATE (no en un `find`

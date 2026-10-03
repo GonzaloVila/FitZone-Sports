@@ -3,12 +3,12 @@ import { validate } from 'class-validator';
 import { describe, expect, it } from 'vitest';
 import { PagoIn } from './pago-in.dto';
 
-// La traducción de `ConceptoPago` a runtime. El contrato lo modela como `oneOf` con
-// `additionalProperties: false` en cada rama, o sea que la rama elegida prohíbe el
+// La traducci├│n de `ConceptoPago` a runtime. El contrato lo modela como `oneOf` con
+// `additionalProperties: false` en cada rama, o sea que la rama elegida proh├¡be el
 // id de la otra. Estos tests fijan las cuatro combinaciones porque el caso que
 // rompe en silencio es el del medio: `{tipo: MEMBRESIA, reserva_cancha_id: 7}` pasa
-// los decoradores de campo sueltos (ambos ids son enteros válidos) y sin la regla
-// del oneOf el service no sabría qué cobrar.
+// los decoradores de campo sueltos (ambos ids son enteros v├ílidos) y sin la regla
+// del oneOf el service no sabr├¡a qu├® cobrar.
 describe('PagoIn', () => {
   async function errores(dto: Record<string, unknown>): Promise<string[]> {
     const instancia = plainToInstance(PagoIn, dto);
@@ -22,6 +22,23 @@ describe('PagoIn', () => {
     expect(
       await errores({ ...cuerpo, concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7 } }),
     ).toEqual([]);
+  });
+
+  // Guarda contra una clase de DTO que parece validar y no valida: si el
+  // `@ValidateNested()` no llegara a mirar el objeto, estas dos aserciones pasar├¡an
+  // igual. `membresia_id: 0` tiene que producir error aunque no sea la rama elegida
+  // (prueba de que los decoradores de campo corren) y `reserva_cancha_id: 7` con
+  // `membresia_id` ausente tiene que NO producirlo (prueba de que `@IsOptional()`
+  // est├í donde tiene que estar). Esta segunda aserci├│n es la que detecta el
+  // bug de olvidar el `@IsOptional()`: sin ├®l, `@IsInt(undefined)` dispara y el
+  // body bien formado da 422 ÔÇöque es exactamente lo que romp├¡a en el e2e.
+  it('valida los ids del concepto aunque no sean de la rama elegida', async () => {
+    const mensajes = await errores({
+      ...cuerpo,
+      concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7, membresia_id: 0 },
+    });
+
+    expect(mensajes.join(' ')).toContain('membresia_id');
   });
 
   it('acepta un concepto MEMBRESIA con su id', async () => {
@@ -52,10 +69,10 @@ describe('PagoIn', () => {
     expect(mensajes.join(' ')).toContain('token');
   });
 
-  // RNF-02: no hay dónde mandar datos de tarjeta. Un `numero_tarjeta` desconocido
+  // RNF-02: no hay d├│nde mandar datos de tarjeta. Un `numero_tarjeta` desconocido
   // lo rechaza el ValidationPipe (forbidNonWhitelisted), y eso es la mitad
-  // ejecutable de la garantía; la otra mitad es que el DTO no declara tal campo.
-  it('rechaza un campo de tarjeta: no hay dónde mandarla', async () => {
+  // ejecutable de la garant├¡a; la otra mitad es que el DTO no declara tal campo.
+  it('rechaza un campo de tarjeta: no hay d├│nde mandarla', async () => {
     const mensajes = await errores({
       ...cuerpo,
       numero_tarjeta: '4111111111111111',

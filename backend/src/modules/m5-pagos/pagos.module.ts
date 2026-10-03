@@ -1,10 +1,8 @@
 // CAPAS - M5 Pagos y Facturación (RF-13, RF-14).
-// Andamiaje en capas. El contrato declara cinco operaciones de pago y el backend
-// todavía no expone ninguna, así que en este bloque el módulo queda cableado en el
-// grafo (imports, providers y exports reales) pero sin endpoints: el comparador de
-// contrato calcula el alcance por rutas, no por tags, así que agregar el tag `pagos`
-// sin implementar sus cinco operaciones no lo mueve, y escribir un controller a
-// medias publicaría rutas que el contrato todavía no describe igual.
+// Andamiaje en capas. El contrato declara cinco operaciones de pago; este bloque
+// implementa la primera (`POST /pagos`) y deja las otras cuatro para los bloques
+// siguientes, así que el tag `pagos` ya está en `main.ts` y el comparador de
+// contrato empieza a medir el alcance real de M5 por rutas.
 //
 // La estructura replica M1-M4 a propósito:
 //
@@ -52,13 +50,17 @@
 import { Module } from '@nestjs/common';
 import { CanchasModule } from '../m4-canchas/canchas.module';
 import { UsuariosModule } from '../m1-usuarios/usuarios.module';
+import { PagosController } from './controllers/pagos.controller';
 import { PagoRepository } from './repositories/pago.repository';
+import { PagosService } from './services/pagos.service';
 import { PasarelaPagoService } from './services/pasarela-pago.service';
 
 // M5 no exporta nada todavía. Cuando exista el camino interno de cobro va a exportar
 // `PagosService`, pero mientras el único llamador sea HTTP no hay nada que compartir.
+// Los `.gitkeep` de las carpetas se pueden borrar ahora: cada una tiene su archivo.
 @Module({
   imports: [UsuariosModule, CanchasModule],
-  providers: [PagoRepository, PasarelaPagoService],
+  controllers: [PagosController],
+  providers: [PagoRepository, PasarelaPagoService, PagosService],
 })
 export class PagosModule {}

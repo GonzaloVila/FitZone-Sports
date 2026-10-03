@@ -1,4 +1,4 @@
-import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDefined,
   IsIn,
@@ -14,6 +14,8 @@ import {
   ValidatorConstraintInterface,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { datosInvalidos } from '../../../commons/filters/problem.exception';
+import { ConceptoPago } from '../entities/pago.entity';
 
 // RNF-02: no hay NINGÚN campo donde mandar datos de tarjeta. `token` es el único
 // medio de pago del contrato y está `writeOnly`: sale del cliente hacia la pasarela
@@ -95,11 +97,19 @@ export class ConceptoPagoIn {
   tipo!: ConceptoReservaCancha['tipo'] | ConceptoMembresia['tipo'];
 
   @ApiProperty({ type: 'integer', required: false, example: 7 })
+  // `@IsOptional()` es OBLIGATORIO en los dos ids, por el mismo motivo que en
+  // `moneda`: el `oneOf` manda el id de UNA sola rama, así que el otro llega
+  // `undefined`, y sin `@IsOptional` tanto `@IsInt()` como `@Min(1)` corren
+  // contra `undefined` y un body bien formado da 422. El DTO se puede escribir sin
+  // el otro id sin que eso se confunda con "mandó un id inválido" — eso lo juzga
+  // `ConceptoUnicoConstraint`.
+  @IsOptional()
   @IsInt()
   @Min(1)
   reserva_cancha_id?: number;
 
   @ApiProperty({ type: 'integer', required: false, example: 3 })
+  @IsOptional()
   @IsInt()
   @Min(1)
   membresia_id?: number;
@@ -174,18 +184,14 @@ export function ConceptoUnicoConstraint(): PropertyDecorator {
 // Registra las dos ramas del `oneOf` en el documento. Sin esto los `$ref` de
 // `concepto` apuntan a schemas que no existen y `/docs-json` sale con referencias
 // rotas, que además el comparador no puede resolver.
-@ApiExtraModels(ConceptoReservaCancha, ConceptoMembresia)
+@ApiExtraModels()
 export class PagoIn {
-  @ApiProperty({
-    description:
-      'Concepto cobrado. La rama la elige `tipo` y solo admite el id de esa rama ' +
-      '(es el `oneOf` del contrato). El monto NO se manda: lo computa la regla de ' +
-      'negocio del módulo que origina el cobro.',
-    oneOf: [
-      { $ref: getSchemaPath(ConceptoReservaCancha) },
-      { $ref: getSchemaPath(ConceptoMembresia) },
-    ],
-  })
+  // `concepto` se declara acá solo para que Nest lo registre y lo meta en el
+  // `required` que pide el contrato; lo que se PUBLICA es el `$ref` a
+  // `ConceptoPago`, y eso lo reemplaza `marcarSchemasDePagos()` sobre el documento
+  // ya generado. Decorarlo con el `oneOf` inline emitía el `oneOf` junto a los tres
+  // campos al mismo nivel, que es un objeto que el contrato no describe.
+  @ApiProperty()
   @ValidateNested()
   @Type(() => ConceptoPagoIn)
   @ConceptoUnicoConstraint()
@@ -199,6 +205,11 @@ export class PagoIn {
 
   @ApiProperty({
     type: 'string',
+    // `writeOnly` es RNF-02 en el contrato, y no es decorativo: es lo que le dice
+    // al generador de clientes que este campo no debe viajar de vuelta. Acá solo
+    // documenta; que el token NO vuelva en la respuesta lo garantiza `PagoOut`, que
+    // ni lo declara.
+    writeOnly: true,
     description:
       'Token de la pasarela (RNF-02); nunca se envía ni almacena la tarjeta.',
     example: 'tok_aprobado_123',
@@ -207,18 +218,50 @@ export class PagoIn {
   @MinLength(1)
   token!: string;
 
-  @ApiProperty({
-    type: 'string',
-    default: 'ARS',
-    description: 'Moneda del cobro. Solo ARS por ahora.',
-    example: 'ARS',
-  })
   // Opcional de verdad: el contrato lo declara con `default: ARS` fuera de
   // `required`, así que omitirlo tiene que pasar. Sin `@IsOptional`, `@IsIn`
   // correría contra `undefined` y un POST sin `moneda` —el caso normal— daría
   // 422. El default a ARS lo aplica el service (que es donde vive la regla),
   // no el DTO.
+  //
+  // Y `@ApiPropertyOptional` y no `@ApiProperty`: el plugin del CLI de Swagger no
+  // está activo en este proyecto, así que Nest marca como required todo lo que no
+  // lleve el decorador opcional, y `moneda` aparecía en el `required` del documento
+  // mientras el contrato la declara fuera de `required`.
+  @ApiPropertyOptional({
+    type: 'string',
+    default: 'ARS',
+    description: 'Moneda del cobro. Solo ARS por ahora.',
+    example: 'ARS',
+  })
   @IsOptional()
   @IsIn(['ARS'])
   moneda?: string;
+}
+
+/**
+ * La conversión de la clase validada a la union del dominio (`ConceptoPago`).
+ *
+ * Vive acá, al lado de `ConceptoUnicoConstraint`, y no en el service porque es el
+ * ÚNICO punto donde se cruza la frontera "objeto plano con los dos ids opcionales"
+ * → "union con un solo id poblado". Todas las reglas sobre qué combinaciones son
+ * válidas siguen viviendo en el constraint: esta función NO vuelve a decidir, solo
+ * le da a TypeScript el tipo que el constraint ya garantizan.
+ *
+ * Sin esto, `obtenerParaCobro(concepto.reserva_cancha_id)` no compila —el campo es
+ * `number | undefined`— y la salida sería un `!` que mentiría sobre el invariante o
+ * un default silencioso que mandaría `undefined` a la consulta.
+ */
+export function conceptoDePago(concepto: ConceptoPagoIn): ConceptoPago {
+  if (concepto.tipo === 'RESERVA_CANCHA') {
+    if (concepto.reserva_cancha_id === undefined) {
+      throw datosInvalidos('Un concepto RESERVA_CANCHA requiere reserva_cancha_id.');
+    }
+    return { tipo: 'RESERVA_CANCHA', reserva_cancha_id: concepto.reserva_cancha_id };
+  }
+
+  if (concepto.membresia_id === undefined) {
+    throw datosInvalidos('Un concepto MEMBRESIA requiere membresia_id.');
+  }
+  return { tipo: 'MEMBRESIA', membresia_id: concepto.membresia_id };
 }

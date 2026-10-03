@@ -52,10 +52,13 @@
 import { Module } from '@nestjs/common';
 import { CanchasModule } from '../m4-canchas/canchas.module';
 import { UsuariosModule } from '../m1-usuarios/usuarios.module';
+import { PagoRepository } from './repositories/pago.repository';
+import { PasarelaPagoService } from './services/pasarela-pago.service';
 
 // M5 no exporta nada todavía. Cuando exista el camino interno de cobro va a exportar
 // `PagosService`, pero mientras el único llamador sea HTTP no hay nada que compartir.
 @Module({
   imports: [UsuariosModule, CanchasModule],
+  providers: [PagoRepository, PasarelaPagoService],
 })
 export class PagosModule {}

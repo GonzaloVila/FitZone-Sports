@@ -27,15 +27,30 @@ describe('ReservaPrecioService', () => {
     };
   }
 
-  it('devuelve el precio congelado con el usuario y el estado de la reserva', async () => {
+  it('devuelve el precio congelado con el usuario, el estado y el horario', async () => {
     const resultado = await service(reserva()).obtenerParaCobro(12);
 
     expect(resultado).toEqual({
       reserva_id: 12,
       usuario_id: 42,
+      cancha_id: 3,
+      fecha_hora_inicio: new Date('2026-10-10T14:00:00.000Z'),
+      fecha_hora_fin: new Date('2026-10-10T15:00:00.000Z'),
       precio: 9500,
       estado: 'CONFIRMADA',
     });
+  });
+
+  // El comprobante en PDF (RF-14) lleva "cancha, horario y monto". Este test existe para
+  // que el `toEqual` de arriba no se pueda recortar sin que salte: el horario y la
+  // cancha no los necesita el cobro, los necesita el ticket, y por eso están en el
+  // mismo export angosto en vez de en un segundo service que consulte la misma fila.
+  it('trae la cancha y el horario que imprime el comprobante', async () => {
+    const resultado = await service(reserva()).obtenerParaCobro(12);
+
+    expect(resultado!.cancha_id).toBe(3);
+    expect(resultado!.fecha_hora_inicio).toEqual(new Date('2026-10-10T14:00:00.000Z'));
+    expect(resultado!.fecha_hora_fin).toEqual(new Date('2026-10-10T15:00:00.000Z'));
   });
 
   it('arrastra el estado CANCELADA para que M5 no cobre una reserva cancelada', async () => {

@@ -1,5 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { rm } from 'node:fs/promises';
+import { join } from 'node:path';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaService } from '../src/commons/database/prisma.service';
@@ -99,6 +101,34 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
   });
 
   afterAll(async () => {
+// Los comprobantes se limpian PRIMERO y sin llevar una lista de ids a mano: cualquier
+    // cobro APROBADO de esta corrida deja un PDF real en `storage/comprobantes/`,
+    // incluidos los de los tests de RF-13. Los usuarios del fixture son lo único que
+    // distingue esos archivos de un comprobante real, así que se consultan antes de
+    // borrar la base. Con una lista manual, el próximo test que apruebe un pago y olvide
+    // la línea deja un archivo tirado en el repo.
+    const pagos = await prisma.pago.findMany({
+      where: { usuario_id: { in: usuariosCreados } },
+      select: { comprobante_pdf_url: true },
+    });
+    await Promise.all(
+      pagos.flatMap((pago) =>
+        pago.comprobante_pdf_url
+          ? [
+              rm(
+                join(
+                  process.cwd(),
+                  'storage',
+                  'comprobantes',
+                  pago.comprobante_pdf_url.slice(pago.comprobante_pdf_url.lastIndexOf('/') + 1),
+                ),
+                { force: true },
+              ),
+            ]
+          : [],
+      ),
+    );
+
     // Orden inverso a las FKs. Los subtipos van PRIMERO porque `PagoReserva.id_pago`
     // y `PagoMembresia.id_pago` son FK a Pago con `onDelete: RESTRICT`: borrar el
     // pago antes rebota con 23001 y el fixture se queda tirado en la base. (No es
@@ -159,6 +189,26 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       .post('/api/v1/pagos')
       .set('Idempotency-Key', clave)
       .send({ concepto: { tipo: 'MEMBRESIA', membresia_id: membresiaId }, token });
+  }
+
+  /**
+   * El texto impreso en el PDF.
+   *
+   * pdfkit escribe cada texto como hex dentro del content stream y lo parte en varios
+   * runs por el kerning, así que hay que decodificar y pegar sin separador. Es la misma
+   * lectura que hace `comprobantes.service.spec.ts`; acá se replica porque los tests de
+   * capa y los de endpoint tienen que poder afirmar lo mismo: que el documento entregado
+   * por HTTP dice el monto correcto.
+   */
+  function desmontarTexto(buffer: string): string {
+    return (buffer.match(/<([0-9a-fA-F]+)>/g) ?? [])
+      .map((m) => m.slice(1, -1))
+      .map((hex) =>
+        (hex.match(/../g) ?? [])
+          .map((byte) => String.fromCharCode(parseInt(byte, 16)))
+          .join(''),
+      )
+      .join('');
   }
 
   describe('happy path', () => {
@@ -334,6 +384,101 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       await cobroMembresia(`usd-${sufijo}`, 'tok_aprobado_1')
         .send({ concepto: { tipo: 'MEMBRESIA', membresia_id: membresiaId }, token: 'tok_aprobado_1', moneda: 'USD' })
         .expect(422);
+    });
+  });
+
+  // RF-14. El smoke del bloque 3 pide exactamente esto: un pago APROBADO tiene
+  // `comprobante_pdf_url` y el endpoint devuelve el PDF; un RECHAZADO responde 409 sin
+  // generar archivo.
+  describe('comprobante en PDF', () => {
+    function comprobante(pagoId: number) {
+      return request(app.getHttpServer()).get(`/api/v1/pagos/${pagoId}/comprobante`);
+    }
+
+    it('el 201 de un cobro aprobado ya trae comprobante_pdf_url', async () => {
+      const reservaId = await crearReserva(7750);
+
+      const res = await cobroReserva(reservaId, `pdf-${sufijo}`).expect(201);
+
+      expect(res.body.comprobante_pdf_url).toBe(`/storage/comprobantes/${res.body.id}.pdf`);
+      const pago = await prisma.pago.findUnique({ where: { id: res.body.id } });
+      expect(pago?.comprobante_pdf_url).toBe(`/storage/comprobantes/${res.body.id}.pdf`);
+    });
+
+    it('devuelve el PDF con application/pdf y el monto congelado de la reserva', async () => {
+      const reservaId = await crearReserva(7750);
+      const cobrado = await cobroReserva(reservaId, `pdf-get-${sufijo}`).expect(201);
+      const id = cobrado.body.id as number;
+
+      const res = await comprobante(id).expect(200);
+
+      expect(res.headers['content-type']).toContain('application/pdf');
+      expect(res.headers['content-disposition']).toContain(`comprobante-pago-${id}.pdf`);
+
+      const cuerpo = res.body as Buffer;
+      expect(cuerpo.subarray(0, 5).toString()).toBe('%PDF-');
+
+      // El monto del PDF tiene que ser el `precio_aplicado` de la reserva (7750), no el
+      // precio de la cancha: es el mismo criterio de "M5 copia, no recalcula" que
+      // verifica el POST, aplicado al documento que se le entrega al socio.
+      const texto = Buffer.from(cuerpo).toString('latin1');
+      expect(texto).toContain('<');
+      expect(desmontarTexto(texto)).toContain('ARS 7.750,00');
+    });
+
+    it('el PDF lleva cancha y horario de la reserva (RF-14)', async () => {
+      const reservaId = await crearReserva(7750);
+      const cobrado = await cobroReserva(reservaId, `pdf-detalle-${sufijo}`).expect(201);
+      const id = cobrado.body.id as number;
+
+      const texto = desmontarTexto(((await comprobante(id).expect(200)).body as Buffer).toString('latin1'));
+
+      expect(texto).toContain('Cancha:');
+      expect(texto).toContain(`N° ${canchaId}`);
+      expect(texto).toContain('Horario:');
+      expect(texto).toContain('Reserva de cancha');
+    });
+
+    it('409 y ningún archivo generado si el pago fue rechazado', async () => {
+      const reservaId = await crearReserva();
+      const clave = `pdf-rech-${sufijo}`;
+
+      await cobroReserva(reservaId, clave, 'tok_basura').expect(402);
+      const pago = await prisma.pago.findUnique({ where: { idempotencia_key: clave } });
+      const id = pago!.id;
+
+      // El rechazo nunca tuvo comprobante: el archivo no existe, no se finge que sí.
+      expect(pago!.comprobante_pdf_url).toBeNull();
+      const res = await comprobante(id).expect(409);
+      expect(res.body.title).toBe('Pago no aprobado');
+      expect(res.body.detail).toContain('RECHAZADO');
+    });
+
+    it('409 si el pago quedó PENDIENTE', async () => {
+      const reservaId = await crearReserva();
+      const cobrado = await cobroReserva(reservaId, `pdf-pend-${sufijo}`, 'tok_pendiente_abc').expect(201);
+
+      const res = await comprobante(cobrado.body.id).expect(409);
+
+      expect(res.body.title).toBe('Pago no aprobado');
+      expect(cobrado.body.comprobante_pdf_url).toBeNull();
+    });
+
+    it('404 si el pago no existe', async () => {
+      const res = await comprobante(999999).expect(404);
+
+      expect(res.body.status).toBe(404);
+    });
+
+    it('404 si la columna apunta a un archivo que ya no está', async () => {
+      const reservaId = await crearReserva();
+      const cobrado = await cobroReserva(reservaId, `pdf-borrado-${sufijo}`).expect(201);
+      const id = cobrado.body.id as number;
+
+      await rm(join(process.cwd(), 'storage', 'comprobantes', `${id}.pdf`), { force: true });
+
+      const res = await comprobante(id).expect(404);
+      expect(res.body.status).toBe(404);
     });
   });
 });

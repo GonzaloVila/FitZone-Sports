@@ -177,7 +177,7 @@
 #### Actividades
 
 1. **Aislamiento de la base de datos de test — Gonzalo**
-   - El equipo usa Supabase free tier (2 proyectos gratis por organización, sin margen para duplicar la base de desarrollo). Se descartó un segundo proyecto Supabase y un schema separado dentro del mismo proyecto compartido, y se optó por un Postgres efímero en Docker (`docker-compose.test.yml`, puerto `55432`) exclusivo para los tests e2e, sin tocar la Supabase de desarrollo del equipo.
+   - El equipo usa Supabase free tier (2 proyectos gratis por organización, sin margen para duplicar la base de desarrollo). Se descartó un segundo proyecto Supabase y un schema separado dentro del mismo proyecto compartido, y se optó por un Postgres efímero en Docker (`docker-compose.test.yml`, puerto `5432`) exclusivo para los tests e2e, sin tocar la Supabase de desarrollo del equipo. **Fix 2026-10-03:** el mapeo original era `55432:5432` pero `.env.test` apunta a `127.0.0.1:5432`; se unificó el puerto a `5432` para que funcione out-of-the-box.
    - [commit 398a1c5](https://github.com/GonzaloVila/FitZone-Sports/commit/398a1c5)
 
 2. 2. **Test runner: Vitest — Gonzalo**

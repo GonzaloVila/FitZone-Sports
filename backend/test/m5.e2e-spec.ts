@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaService } from '../src/commons/database/prisma.service';
+import { ZONA_SEDE } from '../src/commons/fechas';
 import { ProblemFilter } from '../src/commons/filters/problem.filter';
 import { AppModule } from '../src/app.module';
 import { PRECIOS_PLAN } from '../src/modules/m1-usuarios/entities/membresia.entity';
@@ -189,6 +190,26 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       .post('/api/v1/pagos')
       .set('Idempotency-Key', clave)
       .send({ concepto: { tipo: 'MEMBRESIA', membresia_id: membresiaId }, token });
+  }
+
+  /**
+   * El día local de un instante, en `YYYY-MM-DD`, en la zona de la sede.
+   *
+   * Armado con `formatToParts` en vez del atajo `en-CA` porque el atajo depende de los
+   * datos de ICU del build y este test necesita exactamente tres campos, en ese orden.
+   */
+  function diaLocal(instante: Date): string {
+    const partes = new Intl.DateTimeFormat('en-US', {
+      timeZone: ZONA_SEDE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(instante);
+
+    const valor = (tipo: Intl.DateTimeFormatPartTypes): string =>
+      partes.find((p) => p.type === tipo)!.value;
+
+    return `${valor('year')}-${valor('month')}-${valor('day')}`;
   }
 
   /**
@@ -479,6 +500,208 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
 
       const res = await comprobante(id).expect(404);
       expect(res.body.status).toBe(404);
+    });
+  });
+
+  describe('listado, consulta y anulación', () => {
+    function listar(query = '') {
+      return request(app.getHttpServer()).get(`/api/v1/pagos${query}`);
+    }
+
+    function anular(pagoId: number) {
+      return request(app.getHttpServer()).post(`/api/v1/pagos/${pagoId}/anulaciones`);
+    }
+
+    async function cobrarYAnular(clave: string, token = 'tok_aprobado_abc'): Promise<number> {
+      const reservaId = await crearReserva();
+      const cobrado = await cobroReserva(reservaId, clave, token).expect(201);
+      await anular(cobrado.body.id).expect(204);
+      return cobrado.body.id as number;
+    }
+
+    // El filtro por `usuario_id` es el que más se nota cuando está mal: si no llegara
+    // al WHERE, la respuesta sería la lista completa y el test igual tendría pagos que
+    // assertar. Por eso compara contra la lista sin filtro, no contra un número fijo.
+    it('filtra por usuario y por estado', async () => {
+      const reservaId1 = await crearReserva();
+      const reservaId2 = await crearReserva();
+      const mio = await cobroReserva(reservaId1, `filtro-${sufijo}`).expect(201);
+      const otro = await cobroReserva(reservaId2, `filtro-otro-${sufijo}`, 'tok_pendiente_abc').expect(201);
+
+      const sinFiltro = await listar(`?usuario_id=${usuarioId}`).expect(200);
+      const mios = sinFiltro.body.filter((p: { id: number }) => p.id === mio.body.id);
+      expect(mios).toHaveLength(1);
+
+      const deOtro = await listar(`?usuario_id=${usuarioId}&estado=PENDIENTE`).expect(200);
+      expect(deOtro.body.map((p: { id: number }) => p.id)).toContain(otro.body.id);
+      expect(deOtro.body.map((p: { id: number }) => p.id)).not.toContain(mio.body.id);
+    });
+
+    // El default a APROBADO es la regla del módulo. Sin `?estado=`, un PENDIENTE (que
+    // existe porque el cobro quedó colgado) no debe aparecer en el listado de pagos.
+    it('sin estado devuelve solo APROBADO', async () => {
+      const reservaId1 = await crearReserva();
+      const reservaId2 = await crearReserva();
+      const aprobado = await cobroReserva(reservaId1, `def-${sufijo}`).expect(201);
+      const pendiente = await cobroReserva(reservaId2, `def-pend-${sufijo}`, 'tok_pendiente_abc').expect(201);
+
+      const res = await listar(`?usuario_id=${usuarioId}`).expect(200);
+
+      expect(res.body.map((p: { id: number }) => p.id)).toContain(aprobado.body.id);
+      expect(res.body.map((p: { id: number }) => p.id)).not.toContain(pendiente.body.id);
+    });
+
+    // El filtro `tipo` es el discriminante del oneOf de ConceptoPago: si solo se
+    // preguntara por la existencia del subtipo, `?tipo=RESERVA_CANCHA` traería también
+    // los pagos de membresía.
+    it('filtra por tipo de concepto y por id de concepto', async () => {
+      const reservaId = await crearReserva();
+      await cobroReserva(reservaId, `tipo-res-${sufijo}`).expect(201);
+      await cobroMembresia(`tipo-mem-${sufijo}`).expect(201);
+
+      const soloReserva = await listar(`?usuario_id=${usuarioId}&tipo=RESERVA_CANCHA`).expect(200);
+      expect(soloReserva.body.every((p: { concepto: { tipo: string } }) => p.concepto.tipo === 'RESERVA_CANCHA')).toBe(true);
+
+      const porReserva = await listar(`?reserva_cancha_id=${reservaId}`).expect(200);
+      expect(porReserva.body).toHaveLength(1);
+      expect(porReserva.body[0].concepto).toEqual({ tipo: 'RESERVA_CANCHA', reserva_cancha_id: reservaId });
+    });
+
+    // `desde`/`hasta` son días INCLUSIVOS. La prueba de que `hasta` es inclusivo es el
+    // borde de arriba: si el `hasta` fuera exclusivo, `?desde=X&hasta=X` traería cero.
+    it('el rango de fechas incluye el último día (hasta es inclusivo)', async () => {
+      const reservaId = await crearReserva();
+      const cobrado = await cobroReserva(reservaId, `rango-${sufijo}`).expect(201);
+      const pago = await prisma.pago.findUniqueOrThrow({ where: { id: cobrado.body.id } });
+
+      // El día local del pago, derivado acá con Intl y NO con `rangoDelDia()`: si el test
+      // usara el mismo helper de la implementación, pasaría aunque los dos estuvieran
+      // mal (por ejemplo, interpreting "hora local" como UTC).
+      const dia = diaLocal(pago.fecha_pago);
+      const ayer = diaLocal(new Date(pago.fecha_pago.getTime() - 86400000));
+
+      const unDia = await listar(`?desde=${dia}&hasta=${dia}&per_page=100`).expect(200);
+      expect(unDia.body.map((p: { id: number }) => p.id)).toContain(cobrado.body.id);
+
+      // Y el rango no se come días de más: terminándolo en el día anterior, el pago
+      // queda afuera.
+      const antes = await listar(`?desde=${ayer}&hasta=${ayer}&per_page=100`).expect(200);
+      expect(antes.body.map((p: { id: number }) => p.id)).not.toContain(cobrado.body.id);
+    });
+
+    it('pagina: per_page recorta y page avanza', async () => {
+      const reservaId1 = await crearReserva();
+      const reservaId2 = await crearReserva();
+      await cobroReserva(reservaId1, `pag-1-${sufijo}`).expect(201);
+      await cobroReserva(reservaId2, `pag-2-${sufijo}`).expect(201);
+
+      const primera = await listar(`?usuario_id=${usuarioId}&per_page=1&page=1`).expect(200);
+      const segunda = await listar(`?usuario_id=${usuarioId}&per_page=1&page=2`).expect(200);
+
+      expect(primera.body).toHaveLength(1);
+      expect(segunda.body).toHaveLength(1);
+      expect(primera.body[0].id).not.toBe(segunda.body[0].id);
+    });
+
+    it('no devuelve el token ni la clave de idempotencia en el listado', async () => {
+      const reservaId = await crearReserva();
+      await cobroReserva(reservaId, `sin-token-${sufijo}`).expect(201);
+
+      const res = await listar(`?usuario_id=${usuarioId}`).expect(200);
+
+      expect(res.body.length).toBeGreaterThan(0);
+      for (const pago of res.body) {
+        expect(pago).not.toHaveProperty('token');
+        expect(pago).not.toHaveProperty('idempotencia_key');
+      }
+    });
+
+    it('422 si un filtro no es válido o no está en la lista blanca', async () => {
+      await listar('?estado=COBRADO').expect(422);
+      await listar('?desde=2026-02-30').expect(422);
+      await listar('?page=0').expect(422);
+      await listar('?per_page=101').expect(422);
+      await listar('?orden=cualquiera').expect(422);
+    });
+
+    it('devuelve el pago por id, sin token ni clave', async () => {
+      const reservaId = await crearReserva();
+      const cobrado = await cobroReserva(reservaId, `detalle-${sufijo}`).expect(201);
+
+      const res = await request(app.getHttpServer()).get(`/api/v1/pagos/${cobrado.body.id}`).expect(200);
+
+      expect(res.body.id).toBe(cobrado.body.id);
+      expect(res.body.estado).toBe('APROBADO');
+      expect(res.body).not.toHaveProperty('token');
+      expect(res.body).not.toHaveProperty('idempotencia_key');
+    });
+
+    it('404 al pedir un pago que no existe', async () => {
+      const res = await request(app.getHttpServer()).get('/api/v1/pagos/999999').expect(404);
+      expect(res.body.status).toBe(404);
+    });
+
+    it('anula un pago APROBADO: 204 sin cuerpo y queda ANULADO', async () => {
+      const id = await cobrarYAnular(`anular-${sufijo}`);
+
+      const res = await anular(id).expect(204);
+
+      expect(res.body).toEqual({});
+      const pago = await prisma.pago.findUniqueOrThrow({ where: { id } });
+      expect(pago.estado).toBe('ANULADO');
+    });
+
+    // Reanular es idempotente por contrato: 204 otra vez, y el pago sigue ANULADO (no un
+    // error, no un estado raro).
+    it('reanular un ANULADO responde 204 y no cambia nada', async () => {
+      const id = await cobrarYAnular(`anular-idem-${sufijo}`);
+
+      await anular(id).expect(204);
+
+      const pago = await prisma.pago.findUniqueOrThrow({ where: { id } });
+      expect(pago.estado).toBe('ANULADO');
+    });
+
+    it('anula un pago PENDIENTE sin intentar devolverlo', async () => {
+      const reservaId = await crearReserva();
+      const cobrado = await cobroReserva(reservaId, `anular-pend-${sufijo}`, 'tok_pendiente_abc').expect(201);
+
+      await anular(cobrado.body.id).expect(204);
+
+      const pago = await prisma.pago.findUniqueOrThrow({ where: { id: cobrado.body.id } });
+      expect(pago.estado).toBe('ANULADO');
+    });
+
+    // Nunca se cobró: no hay nada que devolver, así que 409 y el estado intacto.
+    it('409 si el pago está RECHAZADO, y sigue RECHAZADO', async () => {
+      const reservaId = await crearReserva();
+      const clave = `anular-rech-${sufijo}`;
+      await cobroReserva(reservaId, clave, 'tok_basura').expect(402);
+      const pago = await prisma.pago.findUniqueOrThrow({ where: { idempotencia_key: clave } });
+
+      const res = await anular(pago.id).expect(409);
+
+      expect(res.body.title).toBe('Pago no anulable');
+      expect(res.body.status).toBe(409);
+      const sigue = await prisma.pago.findUniqueOrThrow({ where: { id: pago.id } });
+      expect(sigue.estado).toBe('RECHAZADO');
+    });
+
+    it('404 si se anula un pago que no existe', async () => {
+      await anular(999999).expect(404);
+    });
+
+    // El flujo completo del plan: anular un cobro de reserva deja la reserva tal cual
+    // (M5 no la cancela; eso es de M4) y el pago disponible para el listado con su
+    // estado nuevo.
+    it('el pago anulado se sigue viendo en el listado, con estado ANULADO', async () => {
+      const id = await cobrarYAnular(`anular-listado-${sufijo}`);
+
+      const res = await listar(`?usuario_id=${usuarioId}&estado=ANULADO`).expect(200);
+
+      const encontrado = res.body.find((p: { id: number }) => p.id === id);
+      expect(encontrado).toBeDefined();
+      expect(encontrado.estado).toBe('ANULADO');
     });
   });
 });

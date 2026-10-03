@@ -191,6 +191,94 @@ describe('PagoRepository', () => {
     });
   });
 
+  describe('listar', () => {
+    function listado() {
+      const findMany = vi.fn(async (_args: unknown) => [fila()]);
+      const prisma = { pago: { findMany } };
+      return { prisma, repository: new PagoRepository(prisma as never) };
+    }
+
+    it('traduce el discriminante `tipo` al subtipo, en las dos direcciones', async () => {
+      const { prisma, repository } = listado();
+
+      await repository.listar({ tipo: 'RESERVA_CANCHA' }, { page: 1, perPage: 20 });
+      await repository.listar({ tipo: 'MEMBRESIA' }, { page: 1, perPage: 20 });
+
+      // El `is` sobre el subtipo contrario es lo que hace que el filtro sirva: preguntar
+      // solo por `pago_reserva: { isNot: null }` traería también los pagos de membresía,
+      // que es justo el error que el filtro existe para evitar.
+      expect(prisma.pago.findMany.mock.calls[0]![0].where.AND).toEqual({
+        pago_reserva: { isNot: null },
+        pago_membresia: { is: null },
+      });
+      expect(prisma.pago.findMany.mock.calls[1]![0].where.AND).toEqual({
+        pago_membresia: { isNot: null },
+        pago_reserva: { is: null },
+      });
+    });
+
+    it('filtra los ids de concepto por relación, no por una columna de Pago', async () => {
+      const { prisma, repository } = listado();
+
+      await repository.listar(
+        { reservaCanchaId: 7, membresiaId: 3 },
+        { page: 1, perPage: 20 },
+      );
+
+      const where = prisma.pago.findMany.mock.calls[0]![0].where;
+      // El id del concepto vive en la tabla del subtipo: es la herencia parte-todo.
+      expect(where.pago_reserva).toEqual({ reserva_id: 7 });
+      expect(where.pago_membresia).toEqual({ membresia_id: 3 });
+    });
+
+    it('acota el rango de fechas solo si viene alguna de las dos puntas', async () => {
+      const { prisma, repository } = listado();
+      const desde = new Date('2026-03-01T03:00:00.000Z');
+      const hasta = new Date('2026-04-01T03:00:00.000Z');
+
+      await repository.listar({}, { page: 1, perPage: 20 });
+      expect(prisma.pago.findMany.mock.calls[0]![0].where.fecha_pago).toBeUndefined();
+
+      await repository.listar({ desde, hasta }, { page: 1, perPage: 20 });
+      expect(prisma.pago.findMany.mock.calls[1]![0].where.fecha_pago).toEqual({
+        gte: desde,
+        lt: hasta,
+      });
+    });
+
+    // Sin el desempate por id, dos pagos del mismo lote (mismo `fecha_pago`) pueden caer
+    // en páginas distintas según el plan de ejecución: el listado repite filas y la
+    // paginación deja de ser consistente.
+    it('ordena por fecha_pago y desempata por id', async () => {
+      const { prisma, repository } = listado();
+
+      await repository.listar({}, { page: 1, perPage: 20 });
+
+      expect(prisma.pago.findMany.mock.calls[0]![0].orderBy).toEqual([
+        { fecha_pago: 'desc' },
+        { id: 'desc' },
+      ]);
+    });
+
+    it('pagina con skip/take', async () => {
+      const { prisma, repository } = listado();
+
+      await repository.listar({}, { page: 3, perPage: 5 });
+
+      const args = prisma.pago.findMany.mock.calls[0]![0];
+      expect(args.skip).toBe(10);
+      expect(args.take).toBe(5);
+    });
+
+    it('traduce cada fila a ConceptoPago, sin inventar el que falta', async () => {
+      const { repository } = listado();
+
+      const pagos = await repository.listar({}, { page: 1, perPage: 20 });
+
+      expect(pagos[0]?.concepto).toEqual({ tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7 });
+    });
+  });
+
   it('se niega a inventar un concepto si la fila no tiene subtipo', async () => {
     const prisma = {
       pago: {

@@ -8,6 +8,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
   Res,
   StreamableFile,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import {
   ApiCreatedResponse,
   ApiExtraModels,
   ApiHeader,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -29,6 +31,7 @@ import type { Response } from 'express';
 import { faltaIdempotencyKey } from '../../../commons/filters/problem.exception';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
+import { ListarPagosQueryDto } from '../dtos/listar-pagos-query.dto';
 import { PagoIn } from '../dtos/pago-in.dto';
 import { PagoOut } from '../dtos/pago-out.dto';
 import { PagosService } from '../services/pagos.service';
@@ -105,6 +108,73 @@ export class PagosController {
     const pago = await this.pagosService.procesarPago(dto, idempotencyKey);
     res.setHeader('Location', `/api/v1/pagos/${pago.id}`);
     return pago;
+  }
+
+  // Declarado antes que `@Get(':pago_id')`: `/pagos` no cae en la ruta con parámetro,
+  // pero el orden deja el listado primero como en el resto de los controllers.
+  @Get()
+  @ApiOperation({
+    operationId: 'listarPagos',
+    // Textos literales del contrato: el comparador los mira, así que parafrasear el
+    // summary rompe el diff sin ganar nada.
+    summary: 'Listado de pagos con filtros',
+    description:
+      'Filtros por usuario, estado, tipo de concepto, concepto concreto y período ' +
+      '(lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los APROBADO: ' +
+      'es el único estado en el que el dinero se movió y existe comprobante. PENDIENTE, ' +
+      'RECHAZADO y ANULADO se piden explícitamente con ?estado=, porque un pago anulado no ' +
+      'se borra del histórico: se repaga con una nueva Idempotency-Key. `tipo` es el ' +
+      'discriminante de ConceptoPago (RESERVA_CANCHA cruza con PagoReserva, MEMBRESIA con ' +
+      'PagoMembresia). `desde` y `hasta` son días (YYYY-MM-DD) en hora local y forman un ' +
+      'intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo.',
+  })
+  @ApiOkResponse({ description: 'Listado de pagos', type: [PagoOut] })
+  @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
+  listar(@Query() query: ListarPagosQueryDto): Promise<PagoOut[]> {
+    return this.pagosService.listarPagos({
+      usuarioId: query.usuario_id,
+      estado: query.estado,
+      tipo: query.tipo,
+      reservaCanchaId: query.reserva_cancha_id,
+      membresiaId: query.membresia_id,
+      desde: query.desde,
+      hasta: query.hasta,
+      page: query.page ?? 1,
+      perPage: query.per_page ?? 20,
+    });
+  }
+
+  @Get(':pago_id')
+  @ApiOperation({ operationId: 'obtenerPago', summary: 'Obtener pago por id' })
+  @ApiParam({ name: 'pago_id', type: 'integer', description: 'ID numérico del pago', example: 8 })
+  @ApiOkResponse({ description: 'Pago', type: PagoOut })
+  @ApiNotFoundResponse({ description: 'Pago inexistente', content: PROBLEM_JSON })
+  obtener(@Param('pago_id', ParseIntPipe) pagoId: number): Promise<PagoOut> {
+    return this.pagosService.obtenerPago(pagoId);
+  }
+
+  @Post(':pago_id/anulaciones')
+  // 204 explícito: el default de POST en Nest es 201, y dejar el 204 implícito es lo que
+  // hace que un día un cambio de comportamiento pase inadvertido.
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    operationId: 'anularPago',
+    // Textos literales del contrato.
+    summary: 'Anular un pago',
+    description:
+      'Única forma de mover un pago hacia ANULADO (sin PATCH ni DELETE). Aplica a un pago ' +
+      'PENDIENTE o APROBADO (por ej. cobro duplicado o mal hecho). Re-anular un pago ya ' +
+      'ANULADO es idempotente: responde 204 sin cambios. Un pago RECHAZADO nunca se cobró y ' +
+      'no es anulable: responde 409. El pago anulado no se borra del histórico: se repaga ' +
+      'con una nueva Idempotency-Key.',
+  })
+  @ApiParam({ name: 'pago_id', type: 'integer', description: 'ID numérico del pago', example: 8 })
+  @ApiNoContentResponse({ description: 'Pago anulado (sin cuerpo)' })
+  @ApiNotFoundResponse({ description: 'Pago inexistente', content: PROBLEM_JSON })
+  @ApiConflictResponse({ description: 'El pago está RECHAZADO y no es anulable', content: PROBLEM_JSON })
+  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos', content: PROBLEM_JSON })
+  async anular(@Param('pago_id', ParseIntPipe) pagoId: number): Promise<void> {
+    await this.pagosService.anularPago(pagoId);
   }
 
   @Get(':pago_id/comprobante')

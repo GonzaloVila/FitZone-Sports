@@ -2,16 +2,18 @@ import { Injectable } from '@nestjs/common';
 import {
   idempotenciaRepetida,
   pagoNoAprobado,
+  pagoNoAnulable,
   pagoRechazado,
   recursoNoEncontrado,
   reservaYaCobrada,
 } from '../../../commons/filters/problem.exception';
+import { rangoDelDia } from '../../../commons/fechas';
 import { MembresiaPrecioService } from '../../m1-usuarios/services/membresia-precio.service';
 import { ReservaPrecioService } from '../../m4-canchas/services/reserva-precio.service';
 import { conceptoDePago, PagoIn } from '../dtos/pago-in.dto';
 import { PagoOut } from '../dtos/pago-out.dto';
 import { ConceptoPago, Pago } from '../entities/pago.entity';
-import { PagoRepository } from '../repositories/pago.repository';
+import { FiltrosListarPagos, PagoRepository } from '../repositories/pago.repository';
 import { ComprobantesService } from './comprobantes.service';
 import { PasarelaPagoService, ResultadoPasarela } from './pasarela-pago.service';
 
@@ -38,6 +40,21 @@ interface ConceptoResuelto {
 export interface ComprobanteParaDescargar {
   buffer: Buffer;
   nombre: string;
+}
+
+/**
+ * Los filtros que llegan del controller, todavía en días, más la paginación.
+ *
+ * Extiende `FiltrosListarPagos` EXCEPTO el rango: el repositorio lo quiere en instantes
+ * y el service lo traduce, así que acá `desde`/`hasta` son strings y se redeclaran. Es la
+ * misma separación que en M4, donde el service recibe `fecha?: string` y le pasa al
+ * repositorio el `rangoDelDia()` de esa fecha.
+ */
+export interface ListarPagos extends Omit<FiltrosListarPagos, 'desde' | 'hasta'> {
+  desde?: string;
+  hasta?: string;
+  page: number;
+  perPage: number;
 }
 
 @Injectable()
@@ -119,7 +136,126 @@ export class PagosService {
   }
 
   /**
-   * RF-13: servir el comprobante de un pago.
+   * RF-13: el listado de pagos, con la lista blanca de filtros del contrato.
+   *
+   * Lo único que este método hace que no sea un `map` es el default del `estado`: sin
+   * `?estado=` devuelve SOLO los APROBADO, porque es el único estado en el que el dinero
+   * se movió y hay comprobante. Los otros tres existen y no se borran (un anulado se
+   * repaga con una clave nueva), pero se piden explícitos. El default va acá y no en el
+   * DTO ni en el repositorio porque es negocio: el repositorio no decide defaults y el
+   * DTO no describe reglas.
+   *
+   * `desde`/`hasta` son días INCLUSIVOS en hora local, que es lo que dice el contrato
+   * (`?desde=2026-03-01&hasta=2026-03-31` trae todo marzo). `rangoDelDia()` devuelve
+   * `[desde, hasta)` semiabierto, así que el `hasta` se pasa como `lt` del día siguiente
+   * al que se pidió: el último día entra completo y el día siguiente no. Por eso el
+   * filtro no puede ser un `gte`/`lte` con las fechas tal cual.
+   */
+  async listarPagos({ page, perPage, ...filtros }: ListarPagos): Promise<PagoOut[]> {
+    const desde = filtros.desde !== undefined ? rangoDelDia(filtros.desde).desde : undefined;
+    const hasta = filtros.hasta !== undefined ? rangoDelDia(filtros.hasta).hasta : undefined;
+
+    const filas = await this.pagos.listar(
+      {
+        ...filtros,
+        estado: filtros.estado ?? 'APROBADO',
+        desde,
+        hasta,
+      },
+      { page, perPage },
+    );
+
+    return filas.map((pago) => this.aOut(pago));
+  }
+
+  /**
+   * `GET /pagos/{pago_id}`: el pago por id, o 404.
+   *
+   * Reusa `buscarPorId()` del repositorio tal cual: el `aOut()` de acá ya omite `token` e
+   * `idempotencia_key`, así que no hay nada que filtrar antes de devolver. Que un GET
+   * por id y el comprobante compartan la búsqueda es a propósito: el endpoint del PDF
+   * necesita el mismo dato y con el mismo criterio de "no existe".
+   */
+  async obtenerPago(pagoId: number): Promise<PagoOut> {
+    const pago = await this.pagos.buscarPorId(pagoId);
+    if (!pago) {
+      throw recursoNoEncontrado(`No existe el pago ${pagoId}.`);
+    }
+
+    return this.aOut(pago);
+  }
+
+  /**
+   * Anula un pago. Es la ÚNICA forma de pasarlo a `ANULADO` (no hay `PATCH` ni `DELETE`
+   * en `/pagos`) y el pago anulado no se borra: queda en el histórico y se repaga con una
+   * `Idempotency-Key` nueva.
+   *
+   * Los tres caminos, en orden:
+   *
+   *  1. No existe → 404.
+   *  2. Ya está `ANULADO` → 204 sin escribir nada. Reanular es idempotente: el estado
+   *     pedido ya es el actual, y el contrato lo declara así. Es el criterio de
+   *     `salirDeEspera` en M3 y el opuesto DELIBERADO de `cancelarReservaCancha` en M4,
+   *     que sí es 409 porque el contrato lo define así. No se vuelve a llamar a la
+   *     pasarela en este caso: reembolsar un pago ya devuelto devolvería dos veces.
+   *  3. `RECHAZADO` → 409 `PagoNoAnulable`. Nunca se cobró, así que no hay nada que
+   *     devolver ni a la pasarela ni al socio.
+   *
+   * El filtro de qué estados son anulables lo hace el propio UPDATE del repositorio
+   * (no un `if` acá): dos anulaciones simultáneas del mismo pago no pueden ganar las
+   * dos. Si el UPDATE no matcheó, el estado no era `PENDIENTE` ni `APROBADO`, y como
+   * los casos 1 y 2 ya están resueltos arriba, el que queda es `RECHAZADO`.
+   *
+   * El `reembolsar` se invoca solo si el pago estaba `APROBADO`: un `PENDIENTE` nunca se
+   * cobró, así que no hay contra qué devolver, y el caso es el que el plan llama "si
+   * corresponde".
+   */
+  async anularPago(pagoId: number): Promise<void> {
+    const pago = await this.pagos.buscarPorId(pagoId);
+    if (!pago) {
+      throw recursoNoEncontrado(`No existe el pago ${pagoId}.`);
+    }
+
+    if (pago.estado === 'ANULADO') {
+      return;
+    }
+
+    const anulado = await this.pagos.anular({
+      id: pagoId,
+      token: pago.token,
+      monto: pago.monto,
+      moneda: pago.moneda,
+    });
+
+    if (!anulado) {
+      throw pagoNoAnulable(pagoId, 'RECHAZADO');
+    }
+
+    if (pago.estado !== 'APROBADO') {
+      return;
+    }
+
+    // Si la devolución falla, el pago queda ANULADO igual y el error sube. Declararlo es
+    // más honesto que tragarse el fallo y devolver 204: el estado local ya cambió y no
+    // se puede volver atrás sin mentir sobre un hecho que ocurrió. El contrato no
+    // declara una respuesta para "se anuló pero no se pudo devolver" y con el mock esto
+    // no se puede producir: es deuda declarada para cuando haya pasarela real.
+    const reembolso = await this.pasarela.reembolsar({
+      token: pago.token,
+      monto: pago.monto,
+      moneda: pago.moneda,
+      idempotencia_key: pago.idempotencia_key,
+    });
+
+    if (!reembolso.ok) {
+      throw new Error(
+        `El pago ${pagoId} quedó ANULADO pero la pasarela no devolvió el dinero: ${reembolso.motivo}`,
+      );
+    }
+  }
+
+  /**
+   * RF-14: servir el comprobante de un pago.
    *
    * El orden de las tres validaciones es el que da el status correcto y no por casualidad:
    *

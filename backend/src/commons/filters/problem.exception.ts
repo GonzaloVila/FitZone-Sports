@@ -183,3 +183,23 @@ export function pagoNoAprobado(pagoId: number, estado: string): ProblemException
     detail: `El pago ${pagoId} está en estado ${estado} y no tiene comprobante.`,
   });
 }
+
+/**
+ * Se intentó anular un pago `RECHAZADO`. No es anulable porque nunca se cobró: no hay
+ * nada que devolver ni a la pasarela ni al socio, así que la anulación no sería un
+ * cambio de estado sino una mentira sobre el histórico.
+ *
+ * El `title` es el del ejemplo de la respuesta `PagoNoAnulable` del contrato ("Pago no
+ * anulable") y la redacción del `detail` copia la del ejemplo, que también nombra el
+ * estado concreto. Es el hermano de `pagoNoAprobado()`: mismo 409, mismo `about:blank`,
+ * y la misma decisión de poner el estado en el `detail` para que el cliente que está
+ * por reintentar el cobro sepa si tiene algo que cobrar o no.
+ */
+export function pagoNoAnulable(pagoId: number, estado: string): ProblemException {
+  return new ProblemException({
+    type: GENERIC_TYPE,
+    title: 'Pago no anulable',
+    status: HttpStatus.CONFLICT,
+    detail: `El pago ${pagoId} está en estado ${estado} y no puede anularse.`,
+  });
+}

@@ -62,6 +62,9 @@ describe('PagosService', () => {
     generar?: ReturnType<typeof vi.fn>;
     leer?: ReturnType<typeof vi.fn>;
     buscarPorId?: ReturnType<typeof vi.fn>;
+    listar?: ReturnType<typeof vi.fn>;
+    anular?: ReturnType<typeof vi.fn>;
+    reembolsar?: ReturnType<typeof vi.fn>;
     reserva?: unknown;
     membresia?: unknown;
   } = {}) {
@@ -74,9 +77,12 @@ describe('PagosService', () => {
           pagoPersistido({ estado: 'APROBADO', comprobante_pdf_url: '/storage/comprobantes/12.pdf' }),
         ),
       buscarPorId: over.buscarPorId ?? vi.fn().mockResolvedValue(pagoPersistido({ estado: 'APROBADO' })),
+      listar: over.listar ?? vi.fn().mockResolvedValue([]),
+      anular: over.anular ?? vi.fn().mockResolvedValue(pagoPersistido({ estado: 'ANULADO' })),
     };
     const pasarela = {
       cobrar: over.cobrar ?? vi.fn().mockResolvedValue({ estado: 'APROBADO', pasarela_token: 'tok_aprobado_1' }),
+      reembolsar: over.reembolsar ?? vi.fn().mockResolvedValue({ ok: true }),
     };
     const reservas = {
       obtenerParaCobro: vi.fn().mockResolvedValue(
@@ -399,6 +405,211 @@ describe('PagosService', () => {
       const cuerpo = await cuerpoDe(service.obtenerComprobante(12));
 
       expect(cuerpo.status).toBe(404);
+    });
+  });
+
+  describe('listarPagos', () => {
+    // El default del estado es la regla del módulo y no un detalle del DTO: sin
+    // `?estado=` solo salen los APROBADO. El test la fija desde el service porque es
+    // ahí donde vive; si alguien la mueve al repositorio, este test sigue marcando que
+    // la regla tiene un dueño.
+    it('sin estado devuelve solo APROBADO, no todos', async () => {
+      const { service, pagos } = armar();
+
+      await service.listarPagos({ page: 1, perPage: 20 });
+
+      expect(pagos.listar).toHaveBeenCalledWith(
+        expect.objectContaining({ estado: 'APROBADO' }),
+        { page: 1, perPage: 20 },
+      );
+    });
+
+    it('un estado pedido explícitamente pisa el default', async () => {
+      const { service, pagos } = armar();
+
+      await service.listarPagos({ estado: 'ANULADO', page: 1, perPage: 20 });
+
+      expect(pagos.listar).toHaveBeenCalledWith(
+        expect.objectContaining({ estado: 'ANULADO' }),
+        expect.anything(),
+      );
+    });
+
+    // El `hasta` inclusivo es el detalle que más fácil se implementa mal: si se pasa
+    // como `lte` con la fecha tal cual, `?hasta=2026-03-31` corta a las 00:00 del 31 y
+    // deja fuera todo ese día, que es justo el día que el contrato dice que entra.
+    it('traduce desde/hasta a un rango semiabierto que incluye el último día', async () => {
+      const { service, pagos } = armar();
+
+      await service.listarPagos({ desde: '2026-03-01', hasta: '2026-03-31', page: 1, perPage: 20 });
+
+      const [filtros] = pagos.listar.mock.calls[0] as [
+        { desde?: Date; hasta?: Date },
+        unknown,
+      ];
+      // Buenos Aires es UTC-3: el 1/3 arranca a las 03:00Z y el 1/4 (exclusive) también.
+      expect(filtros.desde?.toISOString()).toBe('2026-03-01T03:00:00.000Z');
+      expect(filtros.hasta?.toISOString()).toBe('2026-04-01T03:00:00.000Z');
+    });
+
+    it('deja el rango abierto si solo viene uno de los dos días', async () => {
+      const { service, pagos } = armar();
+
+      await service.listarPagos({ desde: '2026-03-01', page: 1, perPage: 20 });
+
+      const [filtros] = pagos.listar.mock.calls[0] as [
+        { desde?: Date; hasta?: Date },
+        unknown,
+      ];
+      expect(filtros.desde?.toISOString()).toBe('2026-03-01T03:00:00.000Z');
+      expect(filtros.hasta).toBeUndefined();
+    });
+
+    it('pasa los siete filtros y la paginación al repositorio', async () => {
+      const { service, pagos } = armar();
+
+      await service.listarPagos({
+        usuarioId: 3,
+        tipo: 'RESERVA_CANCHA',
+        reservaCanchaId: 7,
+        membresiaId: undefined,
+        page: 3,
+        perPage: 5,
+      });
+
+      expect(pagos.listar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          usuarioId: 3,
+          tipo: 'RESERVA_CANCHA',
+          reservaCanchaId: 7,
+          membresiaId: undefined,
+        }),
+        { page: 3, perPage: 5 },
+      );
+    });
+
+    it('mapea a PagoOut sin filtrar token ni idempotencia', async () => {
+      const { service } = armar({
+        listar: vi.fn().mockResolvedValue([
+          pagoPersistido({ estado: 'APROBADO', comprobante_pdf_url: '/storage/comprobantes/12.pdf' }),
+        ]),
+      });
+
+      const salida = await service.listarPagos({ page: 1, perPage: 20 });
+
+      expect(salida).toHaveLength(1);
+      expect(salida[0].id).toBe(12);
+      expect(salida[0]).not.toHaveProperty('token');
+      expect(salida[0]).not.toHaveProperty('idempotencia_key');
+    });
+  });
+
+  describe('obtenerPago', () => {
+    it('devuelve el pago sin token ni clave', async () => {
+      const { service } = armar({ buscarPorId: vi.fn().mockResolvedValue(pagoPersistido()) });
+
+      const salida = await service.obtenerPago(12);
+
+      expect(salida.id).toBe(12);
+      expect(salida).not.toHaveProperty('token');
+      expect(salida).not.toHaveProperty('idempotencia_key');
+    });
+
+    it('404 si el pago no existe', async () => {
+      const { service } = armar({ buscarPorId: vi.fn().mockResolvedValue(null) });
+
+      const cuerpo = await cuerpoDe(service.obtenerPago(999));
+
+      expect(cuerpo.status).toBe(404);
+      expect(cuerpo.detail).toContain('999');
+    });
+  });
+
+  describe('anularPago', () => {
+    it('404 si el pago no existe', async () => {
+      const { service, pagos } = armar({ buscarPorId: vi.fn().mockResolvedValue(null) });
+
+      const cuerpo = await cuerpoDe(service.anularPago(999));
+
+      expect(cuerpo.status).toBe(404);
+      expect(pagos.anular).not.toHaveBeenCalled();
+    });
+
+    it('anula un APROBADO y pide la devolución a la pasarela', async () => {
+      const { service, pagos, pasarela } = armar({
+        buscarPorId: vi.fn().mockResolvedValue(pagoPersistido({ estado: 'APROBADO' })),
+      });
+
+      await service.anularPago(12);
+
+      expect(pagos.anular).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 12, token: 'tok_aprobado_1', monto: 8000, moneda: 'ARS' }),
+      );
+      expect(pasarela.reembolsar).toHaveBeenCalledWith(
+        expect.objectContaining({ token: 'tok_aprobado_1', monto: 8000 }),
+      );
+    });
+
+    // Reanular es 204 idempotente y NO vuelve a tocar la pasarela: reembolsar un pago
+    // ya devuelto devolvería el dinero dos veces.
+    it('un ANULADO responde sin escribir y sin reembolsar otra vez', async () => {
+      const { service, pagos, pasarela } = armar({
+        buscarPorId: vi.fn().mockResolvedValue(pagoPersistido({ estado: 'ANULADO' })),
+      });
+
+      await expect(service.anularPago(12)).resolves.toBeUndefined();
+
+      expect(pagos.anular).not.toHaveBeenCalled();
+      expect(pasarela.reembolsar).not.toHaveBeenCalled();
+    });
+
+    // Un PENDIENTE nunca se cobró: se anula (para que no quede colgado esperando) pero no
+    // se reembolsa, porque no hay contra qué devolver.
+    it('un PENDIENTE se anula sin pedir devolución', async () => {
+      const { service, pagos, pasarela } = armar({
+        buscarPorId: vi.fn().mockResolvedValue(pagoPersistido({ estado: 'PENDIENTE' })),
+      });
+
+      await service.anularPago(12);
+
+      expect(pagos.anular).toHaveBeenCalled();
+      expect(pasarela.reembolsar).not.toHaveBeenCalled();
+    });
+
+    it('409 pago-no-anulable si el UPDATE no matcheó porque estaba RECHAZADO', async () => {
+      const { service, pasarela } = armar({
+        buscarPorId: vi.fn().mockResolvedValue(pagoPersistido({ estado: 'RECHAZADO' })),
+        anular: vi.fn().mockResolvedValue(null),
+      });
+
+      const cuerpo = await cuerpoDe(service.anularPago(12));
+
+      expect(cuerpo).toMatchObject({ status: 409, title: 'Pago no anulable' });
+      expect(cuerpo.detail).toContain('RECHAZADO');
+      expect(pasarela.reembolsar).not.toHaveBeenCalled();
+    });
+
+    // Si la devolución falla, el estado local ya cambió y no se puede volver atrás sin
+    // mentir. El test fija que el error sube en vez de tragarse el fallo y devolver 204.
+    it('sube el error si el pago se anuló pero la pasarela no devolvió', async () => {
+      const { service } = armar({
+        buscarPorId: vi.fn().mockResolvedValue(pagoPersistido({ estado: 'APROBADO' })),
+        reembolsar: vi.fn().mockResolvedValue({ ok: false, motivo: 'la pasarela rechazó la devolución' }),
+      });
+
+      await expect(service.anularPago(12)).rejects.toThrow(/no devolvió el dinero/);
+    });
+
+    it('anula antes de pedir la devolución', async () => {
+      const { service, pagos, pasarela } = armar({
+        buscarPorId: vi.fn().mockResolvedValue(pagoPersistido({ estado: 'APROBADO' })),
+      });
+
+      await service.anularPago(12);
+
+      expect(pagos.anular.mock.invocationCallOrder[0]).toBeLessThan(
+        pasarela.reembolsar.mock.invocationCallOrder[0],
+      );
     });
   });
 });

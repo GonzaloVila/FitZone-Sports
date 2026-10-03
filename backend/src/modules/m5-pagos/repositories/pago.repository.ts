@@ -1,7 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../commons/database/prisma.service';
-import { Pago, PagoAAnular, PagoNuevo } from '../entities/pago.entity';
+import type { OpcionesPaginacion } from '../../../commons/paginacion';
+import { ConceptoPago, Pago, PagoAAnular, PagoNuevo } from '../entities/pago.entity';
+
+// Lista blanca de filtros de `GET /pagos`. El repositorio NO decide defaults: el del
+// `estado` (sin el parámetro solo salen los APROBADO) es regla de negocio y lo aplica
+// el service. `desde`/`hasta` llegan ya traducidos a instantes por el service, igual
+// que en el listado de reservas de M4.
+export interface FiltrosListarPagos {
+  usuarioId?: number;
+  estado?: Pago['estado'];
+  tipo?: ConceptoPago['tipo'];
+  reservaCanchaId?: number;
+  membresiaId?: number;
+  desde?: Date;
+  hasta?: Date;
+}
 
 /**
  * Decisión 6 del plan: la idempotencia la garantiza el `@unique` del esquema, no
@@ -89,6 +104,67 @@ export class PagoRepository {
     });
 
     return fila ? this.aDominio(fila) : null;
+  }
+
+  /**
+   * El listado de pagos, con la lista blanca de filtros del contrato.
+   *
+   * Dos detalles que no son obvios:
+   *
+   *  1. `reserva_cancha_id` y `membresia_id` se filtran por RELACIÓN, no por una
+   *     columna del `Pago`. El id del concepto vive en la tabla del subtipo (decisión 3:
+   *     la herencia es parte-todo y el `id` está en el subtipo, no en `Pago`), así que
+   *     el filtro es `pago_reserva: { reserva_id: X }`. Cada subtipo existe como máximo
+   *     una vez por pago, así que el filtro es 1-a-1 y no necesita `some`.
+   *
+   *  2. El `orderBy` desempata por `id` porque `fecha_pago` no es única: dos pagos del
+   *     mismo lote comparten el instante y, sin un orden total, `skip`/`take` repite
+   *     filas entre páginas y deja paginar inconsistente. Es el mismo criterio que el
+   *     listado de reservas de M4.
+   */
+  async listar(
+    filtros: FiltrosListarPagos,
+    { page, perPage }: OpcionesPaginacion,
+  ): Promise<Pago[]> {
+    const where: Prisma.PagoWhereInput = {
+      ...(filtros.usuarioId !== undefined && { usuario_id: filtros.usuarioId }),
+      ...(filtros.estado !== undefined && { estado: filtros.estado }),
+      ...(filtros.reservaCanchaId !== undefined && {
+        pago_reserva: { reserva_id: filtros.reservaCanchaId },
+      }),
+      ...(filtros.membresiaId !== undefined && {
+        pago_membresia: { membresia_id: filtros.membresiaId },
+      }),
+      ...((filtros.desde !== undefined || filtros.hasta !== undefined) && {
+        fecha_pago: {
+          ...(filtros.desde !== undefined && { gte: filtros.desde }),
+          ...(filtros.hasta !== undefined && { lt: filtros.hasta }),
+        },
+      }),
+    };
+
+    // `tipo` es el discriminante del `oneOf` de `ConceptoPago`: RESERVA_CANCHA cruza con
+    // PagoReserva y MEMBRESIA con PagoMembresia. Se traduce a "tiene este subtipo" con
+    // un OR de is-null sobre el otro, porque en la base la ausencia del subtipo es la
+    // fila en NULL y no un discriminante materializado: preguntar por `tipo` solo, sin
+    // el `is`, traería también los pagos del otro tipo, que es exactamente el error que
+    // el filtro existe para evitar.
+    if (filtros.tipo !== undefined) {
+      where.AND =
+        filtros.tipo === 'RESERVA_CANCHA'
+          ? { pago_reserva: { isNot: null }, pago_membresia: { is: null } }
+          : { pago_membresia: { isNot: null }, pago_reserva: { is: null } };
+    }
+
+    const filas = await this.prisma.pago.findMany({
+      where,
+      skip: (page - 1) * perPage,
+      take: perPage,
+      orderBy: [{ fecha_pago: 'desc' }, { id: 'desc' }],
+      include: { pago_reserva: true, pago_membresia: true },
+    });
+
+    return filas.map((fila) => this.aDominio(fila));
   }
 
   /**

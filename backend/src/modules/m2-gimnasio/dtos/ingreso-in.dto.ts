@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Matches,
+  Min,
+} from 'class-validator';
 
 export class IngresoIn {
   // type: 'integer' explícito porque Nest infiere `number` de un number de
@@ -16,14 +25,15 @@ export class IngresoIn {
   usuario_id!: number;
 
   @ApiProperty({
-    description:
-      'Token del QR leído por el puesto de control. Campo opaco hoy: el mecanismo de QR ' +
-      'dinámico (Unidad III) queda pendiente de definir con la cátedra; por ahora solo se exige que venga presente.',
-    example: 'qr-7f3a-9c2e',
+    description: 'Código TOTP de 6 dígitos generado por la app del socio (RF-04, QR dinámico).',
+    example: '123456',
+    minLength: 6,
+    maxLength: 6,
   })
   @IsString()
-  @MinLength(1)
-  qr_token!: string;
+  @Length(6, 6)
+  @Matches(/^\d{6}$/, { message: 'codigo_totp debe ser de 6 dígitos numéricos' })
+  codigo_totp!: string;
 
   @ApiPropertyOptional({
     type: String,

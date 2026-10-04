@@ -28,6 +28,7 @@ export interface Membresia {
   fecha_fin: Date;
   precio: number;
   renueva_automatica: boolean;
+  updated_at: Date;
 }
 
 export interface MembresiaActualizable {
@@ -62,6 +63,15 @@ export interface EstadoSocioMembresia {
 // son operaciones distintas. Y en las dos se escriben las DOS fechas, nunca una sola,
 // para que el par (fecha_inicio, fecha_fin) sea siempre un periodo completo y en la
 // renovacion los periodos queden contiguos: el nuevo arranca donde termino el viejo.
+
+// GET /bloqueados (Fase 4): un socio no vigente, con el motivo (el estado
+// que lo saca de vigencia) y desde cuándo (Membresia.updated_at), para que
+// el puesto offline sincronice su lista local de forma incremental.
+export interface MembresiaNoVigente {
+  usuarioId: number;
+  motivo: 'VENCIDA' | 'SUSPENDIDA';
+  desde: Date;
+}
 export function calcularVigencia(
   plan: PlanMembresia,
   desde: Date = new Date(),

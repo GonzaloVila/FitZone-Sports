@@ -13,6 +13,7 @@ import { SocioPatch } from '../dtos/socio-patch.dto';
 import { SocioOut } from '../dtos/socio-out.dto';
 import { Socio, SocioActualizable } from '../entities/socio.entity';
 import { SocioRepository } from '../repositories/socio.repository';
+import type { SocioTotp } from '../repositories/socio.repository';
 import { UsuarioRepository } from '../repositories/usuario.repository';
 
 @Injectable()
@@ -27,6 +28,20 @@ export class SociosService {
   async obtenerEmail(socioId: number): Promise<string | null> {
     const socio = await this.socios.buscarPorId(socioId);
     return socio?.email ?? null;
+  }
+
+  // Para TotpService (modules/auth): resolver si el socio tiene QR dinamico
+  // activo y, de tenerlo, el secreto cifrado para validar un codigo_totp.
+  // null = el usuario no es socio (sin fila en Socio).
+  async obtenerEstadoTotp(usuarioId: number): Promise<SocioTotp | null> {
+    return this.socios.buscarTotpPorUsuarioId(usuarioId);
+  }
+
+  // Activa (o re-genera) el QR dinamico del socio. Perder el celular se
+  // resuelve volviendo a pedir este registro: sobrescribe el secreto
+  // anterior y no hay recovery codes (decision del plan).
+  async activarTotp(usuarioId: number, secretoCifrado: string): Promise<void> {
+    await this.socios.guardarTotpSecreto(usuarioId, secretoCifrado);
   }
 
 

@@ -2,9 +2,11 @@
 // Igual estructura que m1 (controllers/services/repositories/entities/dtos).
 import { Module } from '@nestjs/common';
 import { CommonsModule } from '../../commons/commons.module';
+import { AuthModule } from '../auth/auth.module';
 import { UsuariosModule } from '../m1-usuarios/usuarios.module';
 import { IngresosController } from './controllers/ingresos.controller';
 import { SedesController } from './controllers/sedes.controller';
+import { SincronizacionController } from './controllers/sincronizacion.controller';
 import { IngresoRepository } from './repositories/ingreso.repository';
 import { SedeRepository } from './repositories/sede.repository';
 import { IngresosService } from './services/ingresos.service';
@@ -16,9 +18,10 @@ import { SedesService } from './services/sedes.service';
 @Module({
   // M2 importa M1 explicitamente por `MembresiasService`, que es lo unico que
   // necesita de ahi (RN-03 al validar el ingreso). No ve los repositorios de M1:
-  // esos son privados de su modulo.
-  imports: [CommonsModule, UsuariosModule],
-  controllers: [SedesController, IngresosController],
+  // esos son privados de su modulo. AuthModule se agrega por `TotpService`
+  // (RF-04, validacion de codigo_totp al registrar el ingreso).
+  imports: [CommonsModule, UsuariosModule, AuthModule],
+  controllers: [SedesController, IngresosController, SincronizacionController],
   providers: [
     SedeRepository,
     IngresoRepository,

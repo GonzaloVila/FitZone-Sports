@@ -135,7 +135,7 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
     it('POST /ingresos con sede inexistente conserva su detail (M2)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/ingresos')
-        .send({ sede_id: 999999, usuario_id: 999999, qr_token: 'qr-test' })
+        .send({ sede_id: 999999, usuario_id: 999999, codigo_totp: '123456' })
         .expect(404);
 
       esProblemDeDominio(res, 404);

@@ -20,6 +20,7 @@ function membresiaValida(over: Partial<Membresia> = {}): Membresia {
     fecha_fin: new Date('2099-11-01T12:00:00.000Z'),
     precio: PRECIOS_PLAN.MENSUAL,
     renueva_automatica: true,
+    updated_at: new Date('2026-09-01T12:00:00.000Z'),
     ...over,
   };
 }

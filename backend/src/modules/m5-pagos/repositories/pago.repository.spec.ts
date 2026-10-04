@@ -193,7 +193,9 @@ describe('PagoRepository', () => {
 
   describe('listar', () => {
     function listado() {
-      const findMany = vi.fn(async (_args: unknown) => [fila()]);
+      // Tipar el arg con Prisma.PagoFindManyArgs hace que mock.calls[0]![0] sea el
+      // tipo real y no `unknown`, asi el spec puede asertar sobre .where sin casts.
+      const findMany = vi.fn(async (_args: Prisma.PagoFindManyArgs) => [fila()]);
       const prisma = { pago: { findMany } };
       return { prisma, repository: new PagoRepository(prisma as never) };
     }
@@ -207,11 +209,11 @@ describe('PagoRepository', () => {
       // El `is` sobre el subtipo contrario es lo que hace que el filtro sirva: preguntar
       // solo por `pago_reserva: { isNot: null }` traería también los pagos de membresía,
       // que es justo el error que el filtro existe para evitar.
-      expect(prisma.pago.findMany.mock.calls[0]![0].where.AND).toEqual({
+      expect(prisma.pago.findMany.mock.calls[0]![0].where!.AND).toEqual({
         pago_reserva: { isNot: null },
         pago_membresia: { is: null },
       });
-      expect(prisma.pago.findMany.mock.calls[1]![0].where.AND).toEqual({
+      expect(prisma.pago.findMany.mock.calls[1]![0].where!.AND).toEqual({
         pago_membresia: { isNot: null },
         pago_reserva: { is: null },
       });
@@ -225,7 +227,7 @@ describe('PagoRepository', () => {
         { page: 1, perPage: 20 },
       );
 
-      const where = prisma.pago.findMany.mock.calls[0]![0].where;
+      const where = prisma.pago.findMany.mock.calls[0]![0].where!;
       // El id del concepto vive en la tabla del subtipo: es la herencia parte-todo.
       expect(where.pago_reserva).toEqual({ reserva_id: 7 });
       expect(where.pago_membresia).toEqual({ membresia_id: 3 });
@@ -237,10 +239,10 @@ describe('PagoRepository', () => {
       const hasta = new Date('2026-04-01T03:00:00.000Z');
 
       await repository.listar({}, { page: 1, perPage: 20 });
-      expect(prisma.pago.findMany.mock.calls[0]![0].where.fecha_pago).toBeUndefined();
+      expect(prisma.pago.findMany.mock.calls[0]![0].where!.fecha_pago).toBeUndefined();
 
       await repository.listar({ desde, hasta }, { page: 1, perPage: 20 });
-      expect(prisma.pago.findMany.mock.calls[1]![0].where.fecha_pago).toEqual({
+      expect(prisma.pago.findMany.mock.calls[1]![0].where!.fecha_pago).toEqual({
         gte: desde,
         lt: hasta,
       });

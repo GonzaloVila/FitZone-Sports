@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   GENERIC_TYPE,
   ProblemException,
@@ -6,13 +7,15 @@ import {
   recursoNoEncontrado,
 } from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
+import { EVENTO_MEMBRESIA_PLAN } from '../../../commons/eventos';
 import { MembresiaOut } from '../dtos/membresia-out.dto';
 import { MembresiaPatch } from '../dtos/membresia-patch.dto';
-import { estaVigente } from '../entities/membresia.entity';
+import { PRECIOS_PLAN, estaVigente } from '../entities/membresia.entity';
 import type {
   EstadoSocioMembresia,
   Membresia,
   MembresiaNoVigente,
+  MembresiaRenovable,
   VigenciaMembresia,
 } from '../entities/membresia.entity';
 import { MembresiaRepository } from '../repositories/membresia.repository';
@@ -23,6 +26,9 @@ export class MembresiasService {
   constructor(
     private readonly membresias: MembresiaRepository,
     private readonly socios: SocioRepository,
+    // Global y sincrono: para avisar a M5 que hay que cobrar un cambio de plan
+    // sobre una membresia no vigente. M1 no importa a M5 (grafo M5 -> M1).
+    private readonly eventos: EventEmitter2,
   ) {}
 
   async obtenerPorSocioId(socioId: number): Promise<MembresiaOut> {
@@ -58,6 +64,24 @@ export class MembresiasService {
         status: HttpStatus.UNPROCESSABLE_ENTITY,
         detail: 'Se debe enviar al menos un campo para modificar.',
       });
+    }
+
+    // Cambio de plan sobre una membresia NO vigente (RF-02). El socio quiere
+    // pasarse a otro plan cuando el actual ya vencio (o esta suspendida): se
+    // cobra el plan NUEVO y recien si la pasarela aprueba se modifica la fila.
+    // Si era vigente, es solo un cambio de plan, sin cobro (decision del equipo).
+    // `emitAsync` es sincrono: si el listener de M5 lanza (cobro rechazado), el
+    // error se propaga aca como 402 y el update nunca corre.
+    if (dto.plan !== undefined) {
+      const previa = await this.membresias.buscarPorSocioId(socioId);
+      if (previa && !estaVigente(previa)) {
+        await this.eventos.emitAsync(EVENTO_MEMBRESIA_PLAN, {
+          membresia_id: previa.id,
+          usuario_id: socio.usuario_id,
+          precio: PRECIOS_PLAN[dto.plan],
+          plan: dto.plan,
+        });
+      }
     }
 
     const membresia = await this.membresias.actualizar(socioId, dto);
@@ -114,6 +138,22 @@ export class MembresiasService {
   // sincronice su lista local sin traer el historico completo cada vez.
   async buscarNoVigentes(desde: Date): Promise<MembresiaNoVigente[]> {
     return this.membresias.buscarNoVigentes(desde);
+  }
+
+  // RF-02 (renovacion automatica, cron de M5): las membresias vencidas con
+  // renovacion automatica habilitada. M5 cobra y, si aprobo, llama a `renovar`.
+  async listarRenovables(ahora: Date): Promise<MembresiaRenovable[]> {
+    return this.membresias.listarRenovables(ahora);
+  }
+
+  // RF-02: extiende el periodo de una membresia renovada. El periodo contiguo lo
+  // calcula el llamador (M5) con `calcularVigencia(plan, fecha_fin_previo)`.
+  async renovar(id: number, periodo: { fecha_inicio: Date; fecha_fin: Date }): Promise<MembresiaOut> {
+    const membresia = await this.membresias.renovar(id, periodo);
+    if (!membresia) {
+      throw recursoNoEncontrado('No existe la membresía indicada.');
+    }
+    return this.aOut(membresia);
   }
 
   private aOut(membresia: Membresia): MembresiaOut {

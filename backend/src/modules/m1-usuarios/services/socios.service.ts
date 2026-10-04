@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   GENERIC_TYPE,
   ProblemException,
@@ -7,20 +8,27 @@ import {
   recursoNoEncontrado,
 } from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
+import { EVENTO_SOCIO_ALTA } from '../../../commons/eventos';
 import { SocioIn } from '../dtos/socio-in.dto';
 import { ListarSociosQueryDto } from '../dtos/listar-socios-query.dto';
 import { SocioPatch } from '../dtos/socio-patch.dto';
 import { SocioOut } from '../dtos/socio-out.dto';
+import { PRECIOS_PLAN } from '../entities/membresia.entity';
 import { Socio, SocioActualizable } from '../entities/socio.entity';
 import { SocioRepository } from '../repositories/socio.repository';
 import type { SocioTotp } from '../repositories/socio.repository';
 import { UsuarioRepository } from '../repositories/usuario.repository';
+import { MembresiasService } from './membresias.service';
 
 @Injectable()
 export class SociosService {
   constructor(
     private readonly socios: SocioRepository,
     private readonly usuarios: UsuarioRepository,
+    // Para emitir el cobro del alta (RF-02): M1 no importa a M5, solo publica el
+    // evento y M5 cobra. `MembresiasService` da el id de la membresía recién creada.
+    private readonly membresias: MembresiasService,
+    private readonly eventos: EventEmitter2,
   ) {}
 
   // Lo consumia el `ConsultaSocioAdapter` desde el observer de email de M3.
@@ -57,11 +65,29 @@ export class SociosService {
       );
     }
 
+    // Alta = socio + membresía + rol, todo en una tx (socio.repository).
     const socio = await this.socios.crear({
       usuario_id: dto.usuario_id,
       sede_origen_id: dto.sede_origen_id,
       plan: dto.plan,
     });
+
+    // RF-02: el alta es consecuencia del pago. Después del commit se cobra la
+    // membresía inicial; si la pasarela rechaza (el listener de M5 lanza un 402),
+    // se revierte el alta con una compensación y no queda nada a medio hacer.
+    try {
+      const membresia = await this.membresias.obtenerPorSocioId(socio.id);
+      await this.eventos.emitAsync(EVENTO_SOCIO_ALTA, {
+        socio_id: socio.id,
+        membresia_id: membresia.id,
+        usuario_id: socio.usuario_id,
+        precio: PRECIOS_PLAN[dto.plan],
+        plan: dto.plan,
+      });
+    } catch (error) {
+      await this.socios.eliminar(socio.id);
+      throw error;
+    }
 
     return this.aOut(socio);
   }

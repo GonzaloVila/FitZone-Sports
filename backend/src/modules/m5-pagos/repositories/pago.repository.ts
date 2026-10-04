@@ -106,6 +106,19 @@ export class PagoRepository {
     return fila ? this.aDominio(fila) : null;
   }
 
+  // Para el cobro interno (renovaciones.service): cuando el @unique de
+  // idempotencia_key salta, el cobro ya existe con esa clave (pasarela idempotente)
+  // y hay que devolver el pago original en vez de reintentar o fallar. La clave es
+  // privada del Pago, así que esta búsqueda vive acá, donde el repositorio sí la ve.
+  async buscarPorIdempotenciaKey(idempotenciaKey: string): Promise<Pago | null> {
+    const fila = await this.prisma.pago.findUnique({
+      where: { idempotencia_key: idempotenciaKey },
+      include: { pago_reserva: true, pago_membresia: true },
+    });
+
+    return fila ? this.aDominio(fila) : null;
+  }
+
   /**
    * El listado de pagos, con la lista blanca de filtros del contrato.
    *

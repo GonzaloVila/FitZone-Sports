@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { EventEmitter2 } from '@nestjs/event-emitter';
 import { PRECIOS_PLAN, estaVigente } from '../entities/membresia.entity';
 import type { Membresia } from '../entities/membresia.entity';
 import { MembresiasService } from './membresias.service';
@@ -41,7 +42,11 @@ function service(opts: { socioId?: number | null; membresia?: Membresia | null }
     buscarPorSocioId: async () => membresia,
   } as unknown as MembresiaRepository;
 
-  return new MembresiasService(membresias, socios);
+  const eventos = {
+    emitAsync: async () => undefined,
+  } as unknown as EventEmitter2;
+
+  return new MembresiasService(membresias, socios, eventos);
 }
 
 describe('MembresiasService - consultas de vigencia', () => {

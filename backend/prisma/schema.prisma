@@ -252,11 +252,14 @@ model PagoReserva {
 }
 
 // Subtipo: pago de renovación de membresía (RF-02/RF-13). Una membresía puede tener varios pagos.
+// membresia_id nullable (onDelete: SetNull): la baja de un socio borra la membresía, pero el
+// pago queda como historial. La FK pone membresia_id en NULL y el Pago (monto, fecha,
+// comprobante con nombre/email del socio) sobrevive.
 model PagoMembresia {
-  id_pago      Int       @id
-  membresia_id Int
-  pago         Pago      @relation(fields: [id_pago], references: [id])
-  membresia    Membresia @relation(fields: [membresia_id], references: [id])
+  id_pago      Int        @id
+  membresia_id Int?
+  pago         Pago       @relation(fields: [id_pago], references: [id])
+  membresia    Membresia? @relation(fields: [membresia_id], references: [id], onDelete: SetNull)
 }
 
 // Turno de acceso (RF-04/RF-05): aforo actual = ingresos sin fecha_hora_egreso (RN-01).

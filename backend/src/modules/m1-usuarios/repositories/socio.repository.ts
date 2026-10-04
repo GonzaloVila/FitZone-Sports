@@ -181,6 +181,9 @@ export class SocioRepository {
       if (!socio) {
         return;
       }
+      // Se borra la membresía y el socio; los PagoMembresia del socio quedan como
+      // historial (RF-02): la FK de PagoMembresia.membresia_id hace ON DELETE SET NULL
+      // (migración 20261004020000), así que el Pago sobrevive sin apuntar a la fila.
       await tx.membresia.deleteMany({ where: { socio_id: id } });
       await tx.socio.delete({ where: { id } });
       await tx.usuario.update({

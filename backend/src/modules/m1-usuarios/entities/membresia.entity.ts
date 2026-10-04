@@ -72,6 +72,18 @@ export interface MembresiaNoVigente {
   motivo: 'VENCIDA' | 'SUSPENDIDA';
   desde: Date;
 }
+
+// RF-02 (renovacion automatica): una membresia con renueva_automatica=true cuyo
+// periodo ya vencio, con lo que el cron de M5 necesita para cobrar (usuario_id,
+// precio) y renovar (fecha_fin previa como ancla). SUSPENDIDA nunca entra aca.
+export interface MembresiaRenovable {
+  id: number;
+  usuarioId: number;
+  plan: PlanMembresia;
+  precio: number;
+  fechaFin: Date;
+}
+
 export function calcularVigencia(
   plan: PlanMembresia,
   desde: Date = new Date(),

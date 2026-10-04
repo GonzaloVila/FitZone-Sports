@@ -65,6 +65,20 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
   });
 
   afterAll(async () => {
+    // El alta de socio cobra la membresia (RF-02) y la baja la conserva como historial
+    // con PagoMembresia.membresia_id NULL (migracion 20261004020000). Los pagos se
+    // borran por el usuario ANTES de borrar la fila de Usuario (Pago.usuario_id es FK).
+    const pagos = await prisma.pago.findMany({
+      where: { usuario_id: { in: usuariosCreados } },
+      select: { id: true },
+    });
+    const idsPagos = pagos.map((p) => p.id);
+    await prisma.pagoMembresia.deleteMany({
+      where: idsPagos.length > 0 ? { id_pago: { in: idsPagos } } : { id_pago: -1 },
+    });
+    if (idsPagos.length > 0) {
+      await prisma.pago.deleteMany({ where: { id: { in: idsPagos } } });
+    }
     await prisma.ingreso.deleteMany({ where: { usuario_id: { in: usuariosCreados } } });
     await prisma.membresia.deleteMany({ where: { socio_id: { in: sociosCreados } } });
     await prisma.socio.deleteMany({ where: { id: { in: sociosCreados } } });

@@ -1973,3 +1973,40 @@ Además de los smokes, se corrieron los e2e existentes apuntando a la base de Su
 | errores-4xx | 29/29 |
 | errores-dominio | 8/8 |
 | **Total** | **157/157** |
+
+---
+
+## 2026-10-04 — RF-02: renovación automática + cobro interno de membresía, y el pago sobrevive a la baja del socio
+
+**Fecha:** 04/10/2026 — **Rama:** `m5-pagos`
+
+### RF-02 — Renovación automática y cobro interno (alta / cambio de plan)
+
+Se implementó el cobro de membresía interno, además del flujo HTTP de M5:
+
+- **Event bus** (`@nestjs/event-emitter`): M1 emite `socio.dadoDeAlta` (alta de socio) y `membresia.planCambiado` (cambio de plan sobre membresía no vigente); M5 escucha y cobra. Los nombres de eventos viven en `commons/eventos.ts` para que M1 no importe a M5 (el grafo sigue siendo M5 → M1, sin ciclos).
+- **`RenovacionesService.cobrarMembresia()`**: cobra PRIMERO con la pasarela y solo inserta el Pago si APROBADO (a diferencia de `procesarPago`, que inserta PENDIENTE antes). Un RECHAZADO deja todo como estaba.
+- **Alta de socio = consecuencia del pago**: `SociosService.crear()` cobra tras crear socio+membresía; si la pasarela rechaza, compensa (borra el socio) y el alta responde 402.
+- **Cambio de plan sobre vencida/suspendida**: `MembresiasService.modificar()` cobra el plan nuevo ANTES del update; si rechaza, el plan no se modifica (402).
+- **`RenovacionesCron`** (M5, medianoche): renueva las membresías con `renueva_automatica=true` y `fecha_fin` vencida. Cobra primero, renueva solo si APROBADO. Las SUSPENDIDA no renuevan (decisión del admin). Vive en M5 y no en M1 a propósito (el cobro es de M5; ver `pagos.module.ts`).
+
+### Variante A — El pago sobrevive a la baja del socio (historial)
+
+El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía → la FK se rompía. Decisión: el Pago es historial y no se borra.
+
+- **Migración `20261004020000_pago_membresia_set_null`**: `PagoMembresia.membresia_id` nullable con `ON DELETE SET NULL`. Al borrar la membresía, el enlace queda en NULL y el Pago sobrevive.
+- **`ConceptoPago.MEMBRESIA.membresia_id`** pasa a `number | null` en el dominio (la rama de ENTRADA de `PagoIn` sigue exigiendo el id; null solo existe en la salida).
+- **Comprobante con identidad (RF-14)**: `ComprobantesService` ahora imprime **nombre y email** del socio (resuelto al cobrar vía `UsuariosService.buscarDatosParaComprobante()`). El PDF es un snapshot autosuficiente: aunque se borre el socio, el comprobante dice quién pagó.
+- `socio.repository.eliminar()` vuelve a su versión original (no toca pagos); la FK SetNull desvincula el enlace solo.
+
+### Verificación
+
+- `npm run build` y unit **120/120** (2 nuevos del comprobante: nombre/email y "no disponible").
+- e2e **136/136** en local (nuevo test en M1: el pago sobrevive a la baja con `membresia_id: null` + comprobante servido).
+- e2e **136/136** contra **Supabase** (migración aplicada, `FITZONE_E2E_ALLOW_REMOTE=1`).
+- Contrato: **0 diferencias** contra `/docs-json`. El OpenAPI se genera de los DTOs de entrada (que exigen `membresia_id` integer), así que el nullable de la salida es de runtime y no altera el documento.
+- DBML actualizado (`PagoMembresia.membresia_id` nullable + nota del SetNull).
+
+### Commits
+
+- (pendiente: commit del working tree completo de RF-02 + Variante A)

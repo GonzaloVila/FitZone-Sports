@@ -50,18 +50,35 @@
 import { Module } from '@nestjs/common';
 import { CanchasModule } from '../m4-canchas/canchas.module';
 import { UsuariosModule } from '../m1-usuarios/usuarios.module';
+import { RenovacionesCron } from './crons/renovaciones.cron';
 import { PagosController } from './controllers/pagos.controller';
 import { PagoRepository } from './repositories/pago.repository';
 import { ComprobantesService } from './services/comprobantes.service';
 import { PagosService } from './services/pagos.service';
 import { PasarelaPagoService } from './services/pasarela-pago.service';
+import { RenovacionesListener } from './services/renovaciones.listener';
+import { RenovacionesService } from './services/renovaciones.service';
 
 // M5 no exporta nada todavía. Cuando exista el camino interno de cobro va a exportar
 // `PagosService`, pero mientras el único llamador sea HTTP no hay nada que compartir.
 // Los `.gitkeep` de las carpetas se pueden borrar ahora: cada una tiene su archivo.
+//
+// RF-02: además del cobro por HTTP, M5 tiene el cobro interno de membresía. El
+// `RenovacionesListener` escucha los eventos que emite M1 (alta de socio, cambio de
+// plan sobre membresía no vigente) y `RenovacionesCron` renueva a medianoche las
+// membresías con renovación automática. Ambos usan `RenovacionesService`, que cobra
+// primero y solo inserta el Pago si la pasarela aprobó.
 @Module({
   imports: [UsuariosModule, CanchasModule],
   controllers: [PagosController],
-  providers: [PagoRepository, PasarelaPagoService, ComprobantesService, PagosService],
+  providers: [
+    PagoRepository,
+    PasarelaPagoService,
+    ComprobantesService,
+    PagosService,
+    RenovacionesService,
+    RenovacionesListener,
+    RenovacionesCron,
+  ],
 })
 export class PagosModule {}

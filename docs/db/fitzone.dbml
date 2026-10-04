@@ -26,6 +26,9 @@
 //     SUSPENDIDA/ACTIVA actualizan sola; es el "desde" del GET /bloqueados incremental
 //     (sincronizacion offline del puesto, RNF-01).
 //   - EsperaClase.estado: se agrega CANCELADO (baja logica de la lista de espera, RF-08).
+//   - PagoMembresia.membresia_id nullable (migracion 20261004020000): la baja del socio
+//     borra la membresia y la FK hace ON DELETE SET NULL. El Pago queda como historial
+//     (RF-02) con el comprobante que lleva nombre y email del socio.
 //   - id_pago en PagoReserva/PagoMembresia: [pk, not null] explicito, tal cual la base
 //     (el pk ya implica not null; se escribe para que se lea sin ambiguedad).
 //   - Todas las columnas de fecha son timestamptz(3) (migracion 20260929000000_fechas_timestamptz).
@@ -180,7 +183,7 @@ Table PagoReserva {
 
 Table PagoMembresia {
   id_pago int [pk, not null]
-  membresia_id int [not null]
+  membresia_id int [null]  // RF-02: la baja del socio borra la membresia y la FK hace SetNull; el Pago queda como historial
 }
 
 Table Ingreso {

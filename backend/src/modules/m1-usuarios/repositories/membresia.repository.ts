@@ -6,6 +6,7 @@ import type {
   Membresia,
   MembresiaActualizable,
   MembresiaNoVigente,
+  MembresiaRenovable,
 } from '../entities/membresia.entity';
 
 type MembresiaRow = Prisma.MembresiaGetPayload<Record<string, never>>;
@@ -113,6 +114,60 @@ export class MembresiaRepository {
       motivo: fila.estado as 'VENCIDA' | 'SUSPENDIDA',
       desde: fila.updated_at,
     }));
+  }
+
+  // RF-02 (renovacion automatica, cron de M5): membresias con renovacion
+  // automatica habilitada cuyo periodo ya vencio. El `usuario_id` sale de la
+  // relacion a Socio (Pago.usuario_id lo necesita). SUSPENDIDA NO renueva: la
+  // suspension es decision del admin y una renovacion no debe revivirla.
+  async listarRenovables(ahora: Date): Promise<MembresiaRenovable[]> {
+    const filas = await this.prisma.membresia.findMany({
+      where: {
+        renueva_automatica: true,
+        estado: { in: ['ACTIVA', 'VENCIDA'] },
+        fecha_fin: { lt: ahora },
+      },
+      select: {
+        id: true,
+        plan: true,
+        fecha_fin: true,
+        precio: true,
+        socio: { select: { usuario_id: true } },
+      },
+      orderBy: { fecha_fin: 'asc' },
+    });
+
+    return filas.map((fila) => ({
+      id: fila.id,
+      usuarioId: fila.socio.usuario_id,
+      plan: fila.plan,
+      precio: fila.precio.toNumber(),
+      fechaFin: fila.fecha_fin,
+    }));
+  }
+
+  // RF-02: extiende el periodo de una membresia renovada. Las fechas nuevas se
+  // calculan SOBRE la fecha_fin previa (periodos contiguos), no desde hoy: es el
+  // mismo ancla que documenta `actualizar()` para la renovacion automatica. El
+  // precio congelado NO cambia. Devuelve null si la fila no existe.
+  async renovar(id: number, periodo: { fecha_inicio: Date; fecha_fin: Date }): Promise<Membresia | null> {
+    const fila = await this.prisma.membresia
+      .update({
+        where: { id },
+        data: {
+          estado: 'ACTIVA',
+          fecha_inicio: periodo.fecha_inicio,
+          fecha_fin: periodo.fecha_fin,
+        },
+      })
+      .catch((err) => {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+          return null;
+        }
+        throw err;
+      });
+
+    return fila ? this.aDominio(fila) : null;
   }
 
   private aDominio(fila: MembresiaRow): Membresia {

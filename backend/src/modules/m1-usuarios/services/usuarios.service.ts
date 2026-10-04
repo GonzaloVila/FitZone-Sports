@@ -93,6 +93,18 @@ export class UsuariosService {
     return this.aOut(usuario);
   }
 
+  // Lo que el comprobante de pago (M5, RF-14) necesita del usuario para que el PDF
+  // sea un snapshot con identidad: nombre y email, o null si el usuario no existe.
+  // A diferencia de obtenerPorId() (que lanza 404 para el endpoint), acá el faltante
+  // es un dato de salida del PDF, no un error: si la fila no está, el comprobante
+  // imprime "no disponible" en vez de cortarse la generación a mitad.
+  async buscarDatosParaComprobante(
+    id: number,
+  ): Promise<{ nombre: string; email: string } | null> {
+    const usuario = await this.usuarios.buscarPorId(id);
+    return usuario ? { nombre: usuario.nombre, email: usuario.email } : null;
+  }
+
   async modificar(id: number, dto: UsuarioPatch): Promise<UsuarioOut> {
     const cambios: UsuarioActualizable = {};
     if (dto.nombre !== undefined) {

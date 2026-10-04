@@ -50,16 +50,31 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
   });
 
   afterAll(async () => {
-    // Limpieza en orden inverso a las FKs (membresia -> socio -> usuario -> sede).
+    // Limpieza en orden inverso a las FKs (pago membresia -> pago -> membresia -> socio -> usuario -> sede).
     //
     // Acotada a los datos de ESTA suite. Antes era `deleteMany({})` a secas sobre
     // membresia y socio, que borra la base entera: con las tres suites sobre la misma
     // base, una podia borrar los fixtures de otra a mitad de run. Se filtra por el
     // prefijo de email de M1 (`socio.`), que es unico; M2 usa `m2.` y M3 usa `m3.`.
-    const mio = { usuario: { email: { startsWith: 'socio.' } } };
+    // El alta ahora cobra la membresia (RF-02) y la baja conserva el Pago como
+    // historial con PagoMembresia.membresia_id en NULL (migracion 20261004020000),
+    // asi que los pagos se borran por el email del USUARIO, no por la membresia.
+    const emailM1 = { email: { startsWith: 'socio.' } };
+    const pagos = await prisma.pago.findMany({
+      where: { usuario: emailM1 },
+      select: { id: true },
+    });
+    const idsPagos = pagos.map((p) => p.id);
+    await prisma.pagoMembresia.deleteMany({
+      where: idsPagos.length > 0 ? { id_pago: { in: idsPagos } } : { id_pago: -1 },
+    });
+    if (idsPagos.length > 0) {
+      await prisma.pago.deleteMany({ where: { id: { in: idsPagos } } });
+    }
+    const mio = { usuario: emailM1 };
     await prisma.membresia.deleteMany({ where: { socio: mio } });
     await prisma.socio.deleteMany({ where: mio });
-    await prisma.usuario.deleteMany({ where: { email: { startsWith: 'socio.' } } });
+    await prisma.usuario.deleteMany({ where: emailM1 });
     await prisma.sede.delete({ where: { id: sedeId } });
     await app.close();
   });
@@ -150,6 +165,59 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     await request(app.getHttpServer())
       .get(`/api/v1/socios/${socioId}/membresias`)
       .expect(404);
+  });
+
+  it('RF-02: el pago de la membresia sobrevive a la baja del socio (historial)', async () => {
+    // Alta de socio: ahora cobra la membresia inicial en el mismo flujo (RF-02).
+    const emailDelSocio = emailUnico();
+    const crearUsuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Pago Historial',
+        email: emailDelSocio,
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+    const usuarioId = crearUsuarioRes.body.id;
+
+    const socio = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({
+        usuario_id: usuarioId,
+        sede_origen_id: sedeId,
+        plan: 'MENSUAL',
+      })
+      .expect(201);
+
+    // El alta genero un PagoMembresia APROBADO (cobro interno).
+    const pagoAntes = await prisma.pago.findFirst({
+      where: { usuario_id: usuarioId, pago_membresia: { isNot: null } },
+      include: { pago_membresia: true },
+    });
+    expect(pagoAntes).not.toBeNull();
+    const pagoId = pagoAntes!.id;
+
+    // Baja del socio: 204, usuario vuelve a EXTERNO.
+    await request(app.getHttpServer())
+      .delete(`/api/v1/socios/${socio.body.id}`)
+      .expect(204);
+
+    // El Pago sigue existiendo (historial), con el enlace PagoMembresia desvinculado
+    // (membresia_id NULL por la FK SetNull) y el comprobante con la identidad del socio.
+    const pagoDespues = await prisma.pago.findUnique({
+      where: { id: pagoId },
+      include: { pago_membresia: true },
+    });
+    expect(pagoDespues).not.toBeNull();
+    expect(pagoDespues!.pago_membresia?.membresia_id).toBeNull();
+
+    // El comprobante del pago conservado sigue sirviendose (la identidad del socio
+    // en el PDF se verifica en comprobantes.service.spec.ts).
+    await request(app.getHttpServer())
+      .get(`/api/v1/pagos/${pagoId}/comprobante`)
+      .expect(200);
   });
 
   it('GET /usuarios: listado plano, filtros y lista blanca', async () => {

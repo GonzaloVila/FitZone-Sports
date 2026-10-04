@@ -2,6 +2,7 @@ import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MembresiaPrecioService } from '../../m1-usuarios/services/membresia-precio.service';
+import type { UsuariosService } from '../../m1-usuarios/services/usuarios.service';
 import type { ReservaPrecioService } from '../../m4-canchas/services/reserva-precio.service';
 import { ConceptoPago, Pago } from '../entities/pago.entity';
 import { ComprobantesService, RUTA_COMPROBANTES } from './comprobantes.service';
@@ -79,11 +80,16 @@ describe('ComprobantesService', () => {
           : over.membresia,
       ),
     };
+    const usuarios = {
+      buscarDatosParaComprobante: vi.fn().mockResolvedValue({ nombre: 'Ana Gómez', email: 'ana@fitzone.com' }),
+    };
 
-    return new ComprobantesService(
+    const service = new ComprobantesService(
       reservas as unknown as ReservaPrecioService,
       membresias as unknown as MembresiaPrecioService,
+      usuarios as unknown as UsuariosService,
     );
+    return { service, usuarios };
   }
 
   beforeEach(async () => {
@@ -95,7 +101,7 @@ describe('ComprobantesService', () => {
   });
 
   it('escribe un PDF real y devuelve la ruta pública', async () => {
-    const service = armar();
+    const { service } = armar();
 
     const ruta = await service.generar(pago(), RESERVA_CANCHA as ConceptoPago);
     const bytes = await service.leer(ruta);
@@ -109,7 +115,7 @@ describe('ComprobantesService', () => {
   // la cancha en el momento de imprimir. Se pasa un `pago.monto` de 9500 mientras el
   // export de M4 devuelve otro precio, y lo que se asserta es que gana el del pago.
   it('imprime el monto del pago y no recalcula el precio', async () => {
-    const service = armar({
+    const { service } = armar({
       reserva: {
         reserva_id: 12,
         usuario_id: 42,
@@ -130,7 +136,7 @@ describe('ComprobantesService', () => {
 
   // RF-14 pide expressly "cancha, horario y monto": los tres tienen que estar.
   it('lleva cancha, horario y monto de la reserva', async () => {
-    const service = armar();
+    const { service } = armar();
 
     const ruta = await service.generar(pago(), RESERVA_CANCHA as ConceptoPago);
     const texto = textoDelPdf((await service.leer(ruta))!);
@@ -146,7 +152,7 @@ describe('ComprobantesService', () => {
   });
 
   it('imprime el plan cuando el concepto es una membresía', async () => {
-    const service = armar();
+    const { service } = armar();
 
     const ruta = await service.generar(pago({ monto: 30000, concepto: MEMBRESIA }), MEMBRESIA);
     const texto = textoDelPdf((await service.leer(ruta))!);
@@ -157,8 +163,32 @@ describe('ComprobantesService', () => {
     expect(texto).not.toContain('Cancha:');
   });
 
+  // RF-02 (historial): el comprobante imprime nombre y email del socio, resueltos al
+  // momento del cobro. Es el snapshot de identidad que sobrevive aunque después se
+  // borre el socio (el PDF es autosuficiente y no depende de las filas).
+  it('imprime nombre y email del socio en la cabeza del comprobante', async () => {
+    const { service } = armar();
+
+    const ruta = await service.generar(pago(), RESERVA_CANCHA as ConceptoPago);
+    const texto = textoDelPdf((await service.leer(ruta))!);
+
+    expect(texto).toContain('Ana Gómez');
+    expect(texto).toContain('ana@fitzone.com');
+  });
+
+it('imprime "no disponible" si el usuario no existe, sin cortar el PDF', async () => {
+    const { service, usuarios } = armar();
+    usuarios.buscarDatosParaComprobante.mockResolvedValue(null);
+
+    const ruta = await service.generar(pago(), RESERVA_CANCHA as ConceptoPago);
+    const texto = textoDelPdf((await service.leer(ruta))!);
+
+    expect(texto).toContain('no disponible');
+    expect(texto).toContain('ARS 9.500,00');
+  });
+
   it('devuelve null al leer un archivo que no está, en vez de romper', async () => {
-    const service = armar();
+    const { service } = armar();
 
     await expect(service.leer(`${RUTA_COMPROBANTES}/999.pdf`)).resolves.toBeNull();
   });
@@ -166,7 +196,7 @@ describe('ComprobantesService', () => {
   // Es la razón de que `rutaAbsolutaDe()` se quede con el nombre del archivo: la columna
   // es de datos internos, pero un `../` en ella leería cualquier archivo del disco.
   it('ignora los directorios que vengan en la ruta guardada', async () => {
-    const service = armar();
+    const { service } = armar();
     await service.generar(pago(), RESERVA_CANCHA as ConceptoPago);
 
     const bytes = await service.leer('../../../../etc/passwd/8.pdf');
@@ -175,7 +205,7 @@ describe('ComprobantesService', () => {
   });
 
   it('sobrescribe el archivo si se regenera el mismo pago', async () => {
-    const service = armar();
+    const { service } = armar();
 
     const primera = await service.generar(pago(), RESERVA_CANCHA as ConceptoPago);
     const segunda = await service.generar(pago({ monto: 12345 }), RESERVA_CANCHA as ConceptoPago);
@@ -190,7 +220,7 @@ describe('ComprobantesService', () => {
   // tiene que salir entero: cortarlo a mitad de escritura dejaría un comprobante
   // corrupto, que es peor que uno sin detalle.
   it('igual genera un PDF si el concepto ya no está', async () => {
-    const service = armar({ reserva: null });
+    const { service } = armar({ reserva: null });
 
     const ruta = await service.generar(pago(), RESERVA_CANCHA as ConceptoPago);
     const bytes = await service.leer(ruta);

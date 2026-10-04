@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { validateEnv } from './config/env.config';
 import { CommonsModule } from './commons/commons.module';
 import { DatabaseModule } from './commons/database/database.module';
@@ -16,6 +17,11 @@ import { PagosModule } from './modules/m5-pagos/pagos.module';
       isGlobal: true,
       validate: validateEnv,
     }),
+    // Global y síncrono: M1 emite (alta de socio, cambio de plan) y M5 escucha
+    // para cobrar sin que M1 importe a M5 (el grafo es M5 → M1, sin ciclos).
+    // `emitAsync` se usa desde M1 para esperar el resultado del listener y
+    // propagar un rechazo de la pasarela como fallo del alta/cambio.
+    EventEmitterModule.forRoot(),
     DatabaseModule,
     CommonsModule,
     AuthModule,

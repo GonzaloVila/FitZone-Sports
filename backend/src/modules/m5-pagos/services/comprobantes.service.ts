@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Injectable } from '@nestjs/common';
 const PDFDocument = require('pdfkit');
+import { UsuariosService } from '../../m1-usuarios/services/usuarios.service';
 import { MembresiaPrecioService } from '../../m1-usuarios/services/membresia-precio.service';
 import { ReservaPrecioService } from '../../m4-canchas/services/reserva-precio.service';
 import { ConceptoPago, Pago } from '../entities/pago.entity';
@@ -38,6 +39,10 @@ export class ComprobantesService {
   constructor(
     private readonly reservas: ReservaPrecioService,
     private readonly membresias: MembresiaPrecioService,
+    // RF-14: el comprobante imprime nombre y email del socio en el momento del cobro,
+    // para que el PDF sea un snapshot con identidad (RF-02): aunque después se borre
+    // el socio, el papel sigue diciendo quién pagó.
+    private readonly usuarios: UsuariosService,
   ) {}
 
   /**
@@ -103,19 +108,15 @@ export class ComprobantesService {
       doc.on('end', () => resolve(Buffer.concat(trozos)));
       doc.on('error', reject);
 
-      this.cabeza(doc, pago);
-
-      // El detalle se arma con `await` porque resolver el concepto pega contra M1/M4. Por
-      // eso `doc.end()` va después de la promesa y no junto a la llamada: cerrarlo antes
-      // de que termine el detalle produciría un PDF truncado o vacío en silencio.
-      this.detalle(doc, concepto)
+      this.cabeza(doc, pago)
+        .then(() => this.detalle(doc, concepto))
         .then(() => this.pie(doc))
         .then(() => doc.end())
         .catch(reject);
     });
   }
 
-  private cabeza(doc: PDFKit.PDFDocument, pago: Pago): void {
+  private async cabeza(doc: PDFKit.PDFDocument, pago: Pago): Promise<void> {
     doc.fontSize(20).fillColor('#111111').text('FitZone Sports');
     doc.moveDown(0.2);
     doc.fontSize(12).text('Comprobante de pago');
@@ -125,6 +126,14 @@ export class ComprobantesService {
     this.linea(doc, 'Pago', `#${pago.id}`);
     this.linea(doc, 'Fecha', pago.fecha_pago.toISOString());
     this.linea(doc, 'Usuario', `#${pago.usuario_id}`);
+
+    // Nombre y email del socio, resueltos al momento del cobro. Son el snapshot de
+    // identidad del comprobante: si la fila del usuario no está (no debería, el usuario
+    // no se borra aunque el socio sí), el PDF imprime "no disponible" en vez de cortarse.
+    const usuario = await this.usuarios.buscarDatosParaComprobante(pago.usuario_id);
+    this.linea(doc, 'Nombre', usuario ? usuario.nombre : '(no disponible)');
+    this.linea(doc, 'Email', usuario ? usuario.email : '(no disponible)');
+
     this.linea(doc, 'Estado', pago.estado);
     this.linea(doc, 'Monto', this.pesos(pago.monto, pago.moneda));
     doc.moveDown();
@@ -158,6 +167,15 @@ export class ComprobantesService {
       return;
     }
 
+    // `membresia_id` es nullable en el tipo (RF-02, historial): cuando el pago se
+    // conserva tras la baja del socio, la FK de PagoMembresia lo dejó en NULL. Al
+    // GENERAR el comprobante (momento del cobro) nunca es null; el guard existe para
+    // que TypeScript lo sepa y, si igual ocurriera, salga un PDF con "no disponible"
+    // en vez de un error a mitad de escritura.
+    if (concepto.membresia_id === null) {
+      doc.fontSize(11).text('Membresía (no disponible).');
+      return;
+    }
     const membresia = await this.membresias.obtenerParaCobro(concepto.membresia_id);
     if (!membresia) {
       doc.fontSize(11).text(`Membresía ${concepto.membresia_id} (no disponible).`);

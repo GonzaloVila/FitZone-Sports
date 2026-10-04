@@ -10,6 +10,7 @@ export interface Membresia {
   fecha_inicio: Date;
   fecha_fin: Date;
   renueva_automatica: boolean;
+  updated_at: Date;
 }
 
 export interface MembresiaActualizable {
@@ -29,6 +30,15 @@ export interface EstadoSocioMembresia {
   esSocio: boolean;
   vigente: boolean;
   enMora: boolean;
+}
+
+// GET /bloqueados (Fase 4): un socio no vigente, con el motivo (el estado
+// que lo saca de vigencia) y desde cuándo (Membresia.updated_at), para que
+// el puesto offline sincronice su lista local de forma incremental.
+export interface MembresiaNoVigente {
+  usuarioId: number;
+  motivo: 'VENCIDA' | 'SUSPENDIDA';
+  desde: Date;
 }
 
 export function calcularVigencia(

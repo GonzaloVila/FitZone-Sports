@@ -15,6 +15,12 @@ export interface FiltrosSocios {
   nombre?: string;
 }
 
+export interface SocioTotp {
+  socioId: number;
+  totpSecreto: string | null;
+  qrActivo: boolean;
+}
+
 // SocioOut expone nombre/email, asi que toda lectura de Socio necesita la
 // relacion con Usuario. Se declara el payload a mano (no `typeof` de la const)
 // porque SocioGetPayload exige los select en literal `true`, no `boolean`.
@@ -118,6 +124,28 @@ export class SocioRepository {
       include: USUARIO_SELECCION,
     });
     return fila ? this.aDominio(fila) : null;
+  }
+
+  // totp_secreto/qr_activo no viven en la entidad Socio ni en SocioOut: son
+  // detalle de autenticacion (RF-04), no del perfil publico del socio. Por
+  // eso estos dos metodos devuelven su propia forma en vez de ensanchar
+  // `Socio`, y los consume unicamente TotpService (modules/auth).
+  async buscarTotpPorUsuarioId(usuarioId: number): Promise<SocioTotp | null> {
+    const fila = await this.prisma.socio.findUnique({
+      where: { usuario_id: usuarioId },
+      select: { id: true, totp_secreto: true, qr_activo: true },
+    });
+    if (!fila) {
+      return null;
+    }
+    return { socioId: fila.id, totpSecreto: fila.totp_secreto, qrActivo: fila.qr_activo };
+  }
+
+  async guardarTotpSecreto(usuarioId: number, secretoCifrado: string): Promise<void> {
+    await this.prisma.socio.update({
+      where: { usuario_id: usuarioId },
+      data: { totp_secreto: secretoCifrado, qr_activo: true },
+    });
   }
 
   async actualizar(id: number, cambios: SocioActualizable): Promise<Socio | null> {

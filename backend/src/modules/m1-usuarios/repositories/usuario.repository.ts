@@ -48,6 +48,14 @@ export class UsuarioRepository {
     return fila ? this.aDominio(fila) : null;
   }
 
+  // Dedicado (no reusa buscarPorDniOEmail): login busca por email exacto
+  // solamente, y el `OR` de buscarPorDniOEmail existe para el chequeo de
+  // unicidad del alta, no para esto.
+  async buscarPorEmail(email: string): Promise<Usuario | null> {
+    const fila = await this.prisma.usuario.findUnique({ where: { email } });
+    return fila ? this.aDominio(fila) : null;
+  }
+
   async buscarPorDniOEmail(dni: string, email: string): Promise<Usuario | null> {
     const fila = await this.prisma.usuario.findFirst({
       where: { OR: [{ dni }, { email }] },

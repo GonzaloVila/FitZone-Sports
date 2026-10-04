@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../commons/database/prisma.service';
 import { calcularVigencia } from '../entities/membresia.entity';
-import type { Membresia, MembresiaActualizable } from '../entities/membresia.entity';
+import type {
+  Membresia,
+  MembresiaActualizable,
+  MembresiaNoVigente,
+} from '../entities/membresia.entity';
 
 type MembresiaRow = Prisma.MembresiaGetPayload<Record<string, never>>;
 
@@ -56,6 +60,32 @@ export class MembresiaRepository {
     return resultado.count;
   }
 
+  // GET /bloqueados (Fase 4): no vigentes cuyo `updated_at` cambio desde
+  // `desde` (sincronizacion incremental del puesto offline). `usuario_id`
+  // sale de la relacion a Socio, que es la unica tabla con esa FK.
+  async buscarNoVigentes(desde: Date): Promise<MembresiaNoVigente[]> {
+    const filas = await this.prisma.membresia.findMany({
+      where: {
+        estado: { in: ['VENCIDA', 'SUSPENDIDA'] },
+        updated_at: { gte: desde },
+      },
+      select: {
+        estado: true,
+        updated_at: true,
+        socio: { select: { usuario_id: true } },
+      },
+      orderBy: { updated_at: 'asc' },
+    });
+
+    return filas.map((fila) => ({
+      usuarioId: fila.socio.usuario_id,
+      // El `in` de arriba ya acota el universo a estos dos valores; el cast
+      // evita repetir el tipo completo de EstadoMembresia en la firma.
+      motivo: fila.estado as 'VENCIDA' | 'SUSPENDIDA',
+      desde: fila.updated_at,
+    }));
+  }
+
   private aDominio(fila: MembresiaRow): Membresia {
     return {
       id: fila.id,
@@ -65,6 +95,7 @@ export class MembresiaRepository {
       fecha_inicio: fila.fecha_inicio,
       fecha_fin: fila.fecha_fin,
       renueva_automatica: fila.renueva_automatica,
+      updated_at: fila.updated_at,
     };
   }
 }

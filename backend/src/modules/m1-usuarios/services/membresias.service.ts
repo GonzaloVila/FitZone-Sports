@@ -12,6 +12,7 @@ import { estaVigente } from '../entities/membresia.entity';
 import type {
   EstadoSocioMembresia,
   Membresia,
+  MembresiaNoVigente,
   VigenciaMembresia,
 } from '../entities/membresia.entity';
 import { MembresiaRepository } from '../repositories/membresia.repository';
@@ -106,6 +107,13 @@ export class MembresiasService {
       vigente,
       enMora,
     };
+  }
+
+  // GET /bloqueados (Fase 4, RF-04/Unidad III). El motivo exacto del 403 de
+  // una sede offline: cualquier no-vigente desde `desde`, para que el puesto
+  // sincronice su lista local sin traer el historico completo cada vez.
+  async buscarNoVigentes(desde: Date): Promise<MembresiaNoVigente[]> {
+    return this.membresias.buscarNoVigentes(desde);
   }
 
   private aOut(membresia: Membresia): MembresiaOut {

@@ -13,15 +13,42 @@ import { ListarUsuariosQueryDto } from '../dtos/listar-usuarios-query.dto';
 import { UsuarioPatch } from '../dtos/usuario-patch.dto';
 import { UsuarioOut } from '../dtos/usuario-out.dto';
 import { Usuario, UsuarioActualizable } from '../entities/usuario.entity';
+import { EmpleadoSedeRepository } from '../repositories/empleado-sede.repository';
 import { UsuarioRepository } from '../repositories/usuario.repository';
 
 const SALT_ROUNDS = 10;
+
+export interface UsuarioParaAutenticar extends Usuario {
+  // null salvo RECEPCION con fila en EmpleadoSede. No confundir con
+  // Socio.sede_origen_id (RF-03): este es la sucursal de trabajo del staff.
+  sede_id: number | null;
+}
 
 @Injectable()
 export class UsuariosService {
   constructor(
     private readonly usuarios: UsuarioRepository,
+    private readonly empleadosSede: EmpleadoSedeRepository,
   ) {}
+
+  // Para AuthModule (login). Devuelve el hash de la contraseña a proposito:
+  // a diferencia de aOut()/UsuarioOut, este metodo no sale por HTTP y es
+  // AuthService el unico que compara el hash. No se exporta UsuarioOut con
+  // contrasenia ni se expone este metodo como endpoint.
+  async buscarParaAutenticar(email: string): Promise<UsuarioParaAutenticar | null> {
+    const usuario = await this.usuarios.buscarPorEmail(email);
+    if (!usuario) {
+      return null;
+    }
+
+    let sede_id: number | null = null;
+    if (usuario.rol === 'RECEPCION') {
+      const empleado = await this.empleadosSede.buscarPorUsuarioId(usuario.id);
+      sede_id = empleado?.sede_id ?? null;
+    }
+
+    return { ...usuario, sede_id };
+  }
 
   async crear(dto: UsuarioIn): Promise<UsuarioOut> {
     const existente = await this.usuarios.buscarPorDniOEmail(dto.dni, dto.email);

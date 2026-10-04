@@ -2009,4 +2009,5 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 
 ### Commits
 
-- (pendiente: commit del working tree completo de RF-02 + Variante A)
+- **feat(m5): RF-02 renovacion automatica y cobro interno de membresia; el pago sobrevive a la baja (historial con identidad)** → [commit 5c83f7e](https://github.com/GonzaloVila/FitZone-Sports/commit/5c83f7e)
+- **test(m5): tipa el mock de findMany para que tsc pase limpio (fix de los errores pre-existentes del spec)** → [commit 6c9aa3d](https://github.com/GonzaloVila/FitZone-Sports/commit/6c9aa3d)

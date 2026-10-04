@@ -1901,3 +1901,75 @@ Sobre `main`, ya con el checkout hecho y antes de borrar la rama: se repitieron 
 #### Commits
 
 - **fix(m5): require pdfkit instead of ES default import (CJS compatibility)** → [commit f04860d](https://github.com/GonzaloVila/FitZone-Sports/commit/f04860d)
+
+---
+
+## 2026-10-04 — Integración de Unidad III (Auth JWT+Roles, TOTP, Bloqueados, Sincronización Offline) en `m5-pagos`
+
+**Fecha:** 04/10/2026 — **Rama:** `m5-pagos` — **Origen:** rama `gonza` (commit `7f4067e`)
+
+### Merge
+
+Se integró a `m5-pagos` la implementación de la Unidad III que venía de la rama `gonza`:
+Auth JWT+Roles, TOTP/QR dinámico (RF-04), lista de bloqueados y sincronización offline (RNF-01).
+
+- Commit del merge: `43196a0` — `merge(gonza): integra Auth JWT+Roles, TOTP, Bloqueados y Sincronización Offline`.
+
+#### Conflictos resueltos (5 archivos)
+
+1. **`package.json` / `package-lock.json`** — ambas ramas sumaban dependencias: M5 traía `pdfkit`, gonza traía `otplib`, `passport`, `passport-jwt`, `@nestjs/jwt`, `@nestjs/passport`. Se combinaron (todo aditivo) y se regeneró el lock con `npm install --package-lock-only`.
+2. **`membresia.entity.ts`** — M5 conservaba `precio` y el comentario de `calcularVigencia`; gonza agregaba la interfaz `MembresiaNoVigente`. Se conservaron ambas partes.
+3. **`membresia.repository.ts`** — imports combinados (M5: `PRECIOS_PLAN`; gonza: `MembresiaNoVigente`) más `buscarNoVigentes()` que ya venía.
+4. **`usuarios.module.ts`** — el `exports` de M5 tenía `MembresiaPrecioService` y gonza sumaba `UsuariosService` (para el login). Se exportaron los tres: `[MembresiasService, SociosService, MembresiaPrecioService, UsuariosService]`.
+
+#### Verificación
+
+- `npm install` + `npx prisma generate` en verde.
+- Unitarios **118/118** (11 archivos).
+- e2e **135/135** (7 archivos) contra la base local `fitzone_test`.
+- `npm run build` en verde.
+- `npx tsc --noEmit`: quedan errores pre-existentes en `pago.repository.spec.ts` (acceden a `mock.calls[0]![0]` tipado `unknown`). No los introdujo el merge, no hay script de typecheck en el repo y el build (SWC) pasa.
+
+#### Problemas encontrados
+
+1. **El primer `prisma migrate deploy` se conectó a Supabase** (por el `.env` cargado por defecto) y no a la base local de test. Las migraciones de gonza (`20261004000000_socio_totp`, `20261004010000_membresia_updated_at`) no quedaron aplicadas en `fitzone_test`. Se corrigió apuntando `DATABASE_URL` explícito a la local y re-aplicando.
+2. **`EmpleadoSede.sede_id` es `@unique`** (1 sede = 1 recepcionista). El smoke de auth fallaba al asignar el recepcionista a la sede 1 (ya ocupada); se resuelve creando una sede propia en el smoke.
+
+#### Commits
+
+- **merge(gonza): integra Auth JWT+Roles, TOTP, Bloqueados y Sincronización Offline** → [commit 43196a0](https://github.com/GonzaloVila/FitZone-Sports/commit/43196a0)
+
+### Smokes contra Supabase
+
+Con la app corriendo contra Supabase se verificaron los flujos de M5 y de la Unidad III:
+
+#### Smoke M5 (12/12 pasos)
+
+- Fix previo: el smoke esperaba `monto: 4250` hardcodeado, pero el sistema cobra el `precio_aplicado` real de la reserva (5100 por recargo pico). Se corrigió para comparar contra `precio_aplicado` dinámico.
+- Sede → cancha → usuario → socio+membresía → reserva → cobro APROBADO → PDF → anulación ×2 → detalle ANULADO → listado.
+
+#### Smoke Auth/TOTP/Bloqueados/Sync (9/9 pasos)
+
+- Login de socio → JWT.
+- `POST /auth/registro-qr` → URI `otpauth://` generado.
+- Ingreso con **TOTP válido** → 201; con **TOTP inválido** → 403.
+- Login de RECEPCION → `sede_id` en payload (desde `EmpleadoSede`).
+- `GET /bloqueados` como RECEPCION → 200; como SOCIO → 403 (rol protegido).
+- `POST /sincronizacion/ingresos` → lote procesado con `ok: true`.
+
+Los smokes (`test/smoke-supabase.cjs` y `test/smoke-auth-qr.cjs`) quedan como untracked: son herramientas locales de QA, no parte del repo.
+
+### e2e de M1–M5 contra Supabase
+
+Además de los smokes, se corrieron los e2e existentes apuntando a la base de Supabase (`DATABASE_URL` de Supabase + `FITZONE_E2E_ALLOW_REMOTE=1`). Los e2e insertan fixtures con datos únicos y los borran en el `afterAll`, así que no ensucian la base compartida:
+
+| Suite | Resultado |
+|-------|-----------|
+| M1 | 13/13 |
+| M2 | 15/15 |
+| M3 | 20/20 |
+| M4 | 36/36 |
+| M5 | 36/36 |
+| errores-4xx | 29/29 |
+| errores-dominio | 8/8 |
+| **Total** | **157/157** |

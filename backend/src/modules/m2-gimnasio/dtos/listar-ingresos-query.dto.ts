@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 
 export class ListarIngresosQueryDto {
   @ApiPropertyOptional({ type: 'integer', description: 'ID numérico de la sede', example: 3 })
@@ -10,12 +10,21 @@ export class ListarIngresosQueryDto {
   @Min(1)
   sede_id?: number;
 
-  @ApiPropertyOptional({ type: 'integer', description: 'ID numérico del usuario', example: 2 })
+  @ApiPropertyOptional({ type: 'integer', description: 'ID numérico del socio que ingresó', example: 2 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  usuario_id?: number;
+  socio_id?: number;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    description: 'Coincidencia parcial sobre el nombre del usuario, sin distinguir mayúsculas.',
+    example: 'Juan',
+  })
+  @IsOptional()
+  @IsString()
+  nombre?: string;
 
   @ApiPropertyOptional({
     type: 'string',

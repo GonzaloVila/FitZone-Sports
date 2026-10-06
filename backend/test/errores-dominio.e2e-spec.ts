@@ -79,7 +79,7 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
     if (idsPagos.length > 0) {
       await prisma.pago.deleteMany({ where: { id: { in: idsPagos } } });
     }
-    await prisma.ingreso.deleteMany({ where: { usuario_id: { in: usuariosCreados } } });
+    await prisma.ingreso.deleteMany({ where: { socio_id: { in: sociosCreados } } });
     await prisma.membresia.deleteMany({ where: { socio_id: { in: sociosCreados } } });
     await prisma.socio.deleteMany({ where: { id: { in: sociosCreados } } });
     await prisma.usuario.deleteMany({ where: { id: { in: usuariosCreados } } });
@@ -149,7 +149,7 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
     it('POST /ingresos con sede inexistente conserva su detail (M2)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/ingresos')
-        .send({ sede_id: 999999, usuario_id: 999999, codigo_totp: '123456' })
+        .send({ sede_id: 999999, socio_id: 999999, codigo_totp: '123456' })
         .expect(404);
 
       esProblemDeDominio(res, 404);

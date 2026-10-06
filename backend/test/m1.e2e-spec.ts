@@ -204,20 +204,84 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .delete(`/api/v1/socios/${socio.body.id}`)
       .expect(204);
 
-    // El Pago sigue existiendo (historial), con el enlace PagoMembresia desvinculado
-    // (membresia_id NULL por la FK SetNull) y el comprobante con la identidad del socio.
+    // Con baja LOGICA la membresia NO se borra: el pago conserva su vinculo y la
+    // membresia queda SUSPENDIDA.
+    const membresiaTrasBaja = await prisma.membresia.findFirst({
+      where: { socio_id: socio.body.id },
+    });
+    expect(membresiaTrasBaja).not.toBeNull();
+    expect(membresiaTrasBaja!.estado).toBe('SUSPENDIDA');
+
     const pagoDespues = await prisma.pago.findUnique({
       where: { id: pagoId },
       include: { pago_membresia: true },
     });
     expect(pagoDespues).not.toBeNull();
-    expect(pagoDespues!.pago_membresia?.membresia_id).toBeNull();
+    expect(pagoDespues!.pago_membresia?.membresia_id).toBe(membresiaTrasBaja!.id);
 
     // El comprobante del pago conservado sigue sirviendose (la identidad del socio
     // en el PDF se verifica en comprobantes.service.spec.ts).
     await request(app.getHttpServer())
       .get(`/api/v1/pagos/${pagoId}/comprobante`)
       .expect(200);
+  });
+
+  it('baja lógica: la fila se conserva inactiva y la re-alta la reactiva', async () => {
+    const emailDelSocio = emailUnico();
+    const crearUsuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Baja Logica',
+        email: emailDelSocio,
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+    const usuarioId = crearUsuarioRes.body.id;
+
+    const socio = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .expect(201);
+    const socioId = socio.body.id;
+
+    // Baja: 204.
+    await request(app.getHttpServer())
+      .delete(`/api/v1/socios/${socioId}`)
+      .expect(204);
+
+    // La fila sigue existiendo en la base, inactiva, con fecha_baja (baja lógica).
+    const fila = await prisma.socio.findUnique({ where: { id: socioId } });
+    expect(fila).not.toBeNull();
+    expect(fila!.activo).toBe(false);
+    expect(fila!.fecha_baja).not.toBeNull();
+
+    // No aparece en el listado ni en el detalle (404).
+    const listado = await request(app.getHttpServer())
+      .get(`/api/v1/socios?nombre=Baja Logica`)
+      .expect(200);
+    expect(listado.body.some((s: { id: number }) => s.id === socioId)).toBe(false);
+
+    await request(app.getHttpServer()).get(`/api/v1/socios/${socioId}`).expect(404);
+
+    // Re-alta del mismo usuario: reactiva la MISMA fila (no inserta otra).
+    const reAlta = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'TRIMESTRAL' })
+      .expect(201);
+    expect(reAlta.body.id).toBe(socioId);
+
+    const reactivada = await prisma.socio.findUnique({ where: { id: socioId } });
+    expect(reactivada!.activo).toBe(true);
+    expect(reactivada!.fecha_baja).toBeNull();
+
+    // La membresía se re-aprovecha y queda ACTIVA con el plan nuevo.
+    const membresia = await prisma.membresia.findFirst({ where: { socio_id: socioId } });
+    expect(membresia).not.toBeNull();
+    expect(membresia!.estado).toBe('ACTIVA');
+    expect(membresia!.plan).toBe('TRIMESTRAL');
+    expect(membresia!.renueva_automatica).toBe(false);
   });
 
   it('GET /usuarios: listado plano, filtros y lista blanca', async () => {

@@ -5,7 +5,7 @@ import { Exclude, Expose, Type } from 'class-transformer';
 export class BloqueadoItemOut {
   @Expose()
   @ApiProperty({ type: 'integer', example: 123 })
-  usuario_id!: number;
+  socio_id!: number;
 
   @Expose()
   @ApiProperty({ enum: ['VENCIDA', 'SUSPENDIDA'], example: 'VENCIDA' })

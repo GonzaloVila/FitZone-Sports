@@ -98,17 +98,20 @@ export class MembresiaRepository {
       where: {
         estado: { in: ['VENCIDA', 'SUSPENDIDA'] },
         updated_at: { gte: desde },
+        // Un ex-socio (baja logica) no es un "bloqueado": no debe aparecer en la
+        // lista que sincroniza el puesto offline.
+        socio: { activo: true },
       },
       select: {
         estado: true,
         updated_at: true,
-        socio: { select: { usuario_id: true } },
+        socio_id: true,
       },
       orderBy: { updated_at: 'asc' },
     });
 
     return filas.map((fila) => ({
-      usuarioId: fila.socio.usuario_id,
+      socioId: fila.socio_id,
       // El `in` de arriba ya acota el universo a estos dos valores; el cast
       // evita repetir el tipo completo de EstadoMembresia en la firma.
       motivo: fila.estado as 'VENCIDA' | 'SUSPENDIDA',
@@ -126,6 +129,8 @@ export class MembresiaRepository {
         renueva_automatica: true,
         estado: { in: ['ACTIVA', 'VENCIDA'] },
         fecha_fin: { lt: ahora },
+        // Un ex-socio (baja logica) no se renueva.
+        socio: { activo: true },
       },
       select: {
         id: true,

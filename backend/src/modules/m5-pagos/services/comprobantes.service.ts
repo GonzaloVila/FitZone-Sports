@@ -167,15 +167,6 @@ export class ComprobantesService {
       return;
     }
 
-    // `membresia_id` es nullable en el tipo (RF-02, historial): cuando el pago se
-    // conserva tras la baja del socio, la FK de PagoMembresia lo dejó en NULL. Al
-    // GENERAR el comprobante (momento del cobro) nunca es null; el guard existe para
-    // que TypeScript lo sepa y, si igual ocurriera, salga un PDF con "no disponible"
-    // en vez de un error a mitad de escritura.
-    if (concepto.membresia_id === null) {
-      doc.fontSize(11).text('Membresía (no disponible).');
-      return;
-    }
     const membresia = await this.membresias.obtenerParaCobro(concepto.membresia_id);
     if (!membresia) {
       doc.fontSize(11).text(`Membresía ${concepto.membresia_id} (no disponible).`);

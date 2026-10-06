@@ -45,11 +45,24 @@ export class SociosService {
     return this.socios.buscarTotpPorUsuarioId(usuarioId);
   }
 
+  // Igual que obtenerEstadoTotp, pero por socio_id (M2 referencia socios ahora).
+  async obtenerEstadoTotpPorSocio(socioId: number): Promise<SocioTotp | null> {
+    return this.socios.buscarTotpPorSocioId(socioId);
+  }
+
   // Activa (o re-genera) el QR dinamico del socio. Perder el celular se
   // resuelve volviendo a pedir este registro: sobrescribe el secreto
   // anterior y no hay recovery codes (decision del plan).
   async activarTotp(usuarioId: number, secretoCifrado: string): Promise<void> {
     await this.socios.guardarTotpSecreto(usuarioId, secretoCifrado);
+  }
+
+  // Para AuthService (login): el JWT de un SOCIO lleva su socio_id, asi la app
+  // puede mandarlo en POST /ingresos sin resolverlo aparte. null = el usuario no
+  // es socio activo.
+  async obtenerSocioIdPorUsuario(usuarioId: number): Promise<number | null> {
+    const socio = await this.socios.buscarPorUsuarioId(usuarioId);
+    return socio?.id ?? null;
   }
 
 
@@ -85,7 +98,8 @@ export class SociosService {
         plan: dto.plan,
       });
     } catch (error) {
-      await this.socios.eliminar(socio.id);
+      // Compensación: con baja lógica no se borra, se deja inactivo (activo=false).
+      await this.socios.marcarBaja(socio.id);
       throw error;
     }
 
@@ -145,7 +159,7 @@ export class SociosService {
     if (!socio) {
       throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
-    await this.socios.eliminar(id);
+    await this.socios.marcarBaja(id);
   }
 
   private aOut(socio: Socio): SocioOut {

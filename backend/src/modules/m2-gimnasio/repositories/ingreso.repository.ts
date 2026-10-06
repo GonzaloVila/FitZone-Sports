@@ -10,7 +10,8 @@ import type { Ingreso, IngresoNuevo } from '../entities/ingreso.entity';
 // y el repository lo traduce a un rango de instantes con rangoDelDia.
 export interface IngresoFiltros {
   sede_id?: number;
-  usuario_id?: number;
+  socio_id?: number;
+  nombre?: string;
   fecha?: string;
   dentro?: boolean;
 }
@@ -24,8 +25,8 @@ export interface IngresoFiltros {
 // - AFORO_LLENO: se decide acá adentro con el lock pesimista sobre Sede + count
 //   + insert en una sola transacción (ADR-08 D5).
 // - ACCESO_DUPLICADO: llega desde la base. El índice parcial único
-//   ingreso_usuario_abierto_unq (ver migración 20260925010000) rechaza el
-//   segundo INSERT abierto del mismo usuario, así que el P2002 que Prisma
+//   ingreso_socio_abierto_unq (ver migración 20261004040000) rechaza el
+//   segundo INSERT abierto del mismo socio, así que el P2002 que Prisma
 //   levanta es la garantía de RN-01, no un fallo. El service igual mantiene un
 //   chequeo previo por fuera de la transacción para el caso común, que es el
 //   que da el 409 legible sin depender del error.
@@ -33,7 +34,17 @@ export type ResultadoCrearIngreso =
   | { ok: true; ingreso: Ingreso }
   | { ok: false; motivo: 'AFORO_LLENO' | 'ACCESO_DUPLICADO' };
 
-type IngresoRow = Prisma.IngresoGetPayload<Record<string, never>>;
+type IngresoRow = Prisma.IngresoGetPayload<{
+  include: { socio: { include: { usuario: { select: { nombre: true; dni: true } } } } };
+}>;
+
+// El join a Socio -> Usuario que trae nombre y dni para la pantalla del
+// recepcionista. Lo usan TODAS las lecturas (crear, listar, buscarPorId,
+// buscarActivo, marcarEgreso) para que `IngresoOut` sea consistente en las tres
+// respuestas del contrato.
+const SOCIO_SELECCION = {
+  socio: { include: { usuario: { select: { nombre: true, dni: true } } } },
+} as const;
 
 // Capa de acceso a datos del ingreso. Es la unica pieza de M2 que conoce Prisma,
 // y tambien la unica que puede decidir el aforo: el lock pesimista y el count
@@ -69,17 +80,18 @@ export class IngresoRepository {
         const fila = await tx.ingreso.create({
           data: {
             sede_id: ingreso.sede_id,
-            usuario_id: ingreso.usuario_id,
+            socio_id: ingreso.socio_id,
             fecha_hora_ingreso: ingreso.fecha_hora_ingreso ?? new Date(),
             validado_offline: ingreso.validado_offline ?? false,
           },
+          include: SOCIO_SELECCION,
         });
 
         return { ok: true as const, ingreso: this.aDominio(fila) };
       });
     } catch (error) {
-      // RN-01: el índice parcial único ingreso_usuario_abierto_unq rechaza el
-      // segundo ingreso abierto del mismo usuario. Cuando el service no lo ve a
+      // RN-01: el índice parcial único ingreso_socio_abierto_unq rechaza el
+      // segundo ingreso abierto del mismo socio. Cuando el service no lo ve a
       // tiempo (dos accesos simultáneos, o el lote de sincronización offline
       // de RNF-01), el motor es el que decide y el P2002 se traduce a la misma
       // respuesta de negocio en vez de exploitar como 500.
@@ -93,7 +105,13 @@ export class IngresoRepository {
   async listar(filtros: IngresoFiltros, { page, perPage }: OpcionesPaginacion): Promise<Ingreso[]> {
     const where: Prisma.IngresoWhereInput = {
       ...(filtros.sede_id !== undefined && { sede_id: filtros.sede_id }),
-      ...(filtros.usuario_id !== undefined && { usuario_id: filtros.usuario_id }),
+      ...(filtros.socio_id !== undefined && { socio_id: filtros.socio_id }),
+      // Búsqueda parcial por nombre del socio, sin distinguir mayúsculas (mismo
+      // criterio que GET /usuarios). Es lo que permite al recepcionista encontrar
+      // el ingreso abierto de una persona sin conocer el socio_id interno.
+      ...(filtros.nombre !== undefined && {
+        socio: { usuario: { nombre: { contains: filtros.nombre, mode: 'insensitive' } } },
+      }),
       // dentro=false no filtra: el contrato solo define el caso true (los que
       // siguen en la sede). Pedir los que ya egresaron sería un NOT sobre null,
       // que en SQL no significa "tiene egreso" sino "no es null".
@@ -112,25 +130,34 @@ export class IngresoRepository {
       // pueden compartir fecha_hora_ingreso al segundo, y sin un orden total la
       // paginación repite filas entre páginas.
       orderBy: [{ fecha_hora_ingreso: 'desc' }, { id: 'desc' }],
+      include: SOCIO_SELECCION,
     });
     return filas.map((fila) => this.aDominio(fila));
   }
 
   async buscarPorId(id: number): Promise<Ingreso | null> {
-    const fila = await this.prisma.ingreso.findUnique({ where: { id } });
+    const fila = await this.prisma.ingreso.findUnique({
+      where: { id },
+      include: SOCIO_SELECCION,
+    });
     return fila ? this.aDominio(fila) : null;
   }
 
-  async buscarActivoPorUsuario(usuarioId: number): Promise<Ingreso | null> {
+  async buscarActivoPorSocio(socioId: number): Promise<Ingreso | null> {
     const fila = await this.prisma.ingreso.findFirst({
-      where: { usuario_id: usuarioId, fecha_hora_egreso: null },
+      where: { socio_id: socioId, fecha_hora_egreso: null },
+      include: SOCIO_SELECCION,
     });
     return fila ? this.aDominio(fila) : null;
   }
 
   async marcarEgreso(id: number, fecha: Date): Promise<Ingreso | null> {
     const fila = await this.prisma.ingreso
-      .update({ where: { id }, data: { fecha_hora_egreso: fecha } })
+      .update({
+        where: { id },
+        data: { fecha_hora_egreso: fecha },
+        include: SOCIO_SELECCION,
+      })
       .catch((error) => {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
           return null;
@@ -150,7 +177,9 @@ export class IngresoRepository {
     return {
       id: fila.id,
       sede_id: fila.sede_id,
-      usuario_id: fila.usuario_id,
+      socio_id: fila.socio_id,
+      nombre: fila.socio.usuario.nombre,
+      dni: fila.socio.usuario.dni,
       fecha_hora_ingreso: fila.fecha_hora_ingreso,
       fecha_hora_egreso: fila.fecha_hora_egreso,
       validado_offline: fila.validado_offline,

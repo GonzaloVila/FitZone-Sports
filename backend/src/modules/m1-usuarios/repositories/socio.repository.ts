@@ -43,6 +43,8 @@ export class SocioRepository {
     { page, perPage }: OpcionesPaginacion,
   ): Promise<Socio[]> {
     const where: Prisma.SocioWhereInput = {
+      // Baja logica: el listado y las lecturas de vigencia solo ven socios activos.
+      activo: true,
       ...(sede_origen_id !== undefined && {
         sede_origen_id: sede_origen_id,
       }),
@@ -72,6 +74,44 @@ export class SocioRepository {
 
   async crear(socio: SocioNuevo): Promise<Socio> {
     const fila = await this.prisma.$transaction(async (tx) => {
+      // `calcularVigencia` sin segundo argumento toma hoy como fecha_inicio.
+      const { fecha_inicio, fecha_fin } = calcularVigencia(socio.plan);
+      const precio = PRECIOS_PLAN[socio.plan];
+
+      // Re-alta: si el usuario ya tuvo un Socio (baja logica previa), se REACTIVA
+      // esa misma fila en vez de insertar otra (el @unique(usuario_id) lo impide).
+      const existente = await tx.socio.findUnique({
+        where: { usuario_id: socio.usuario_id },
+      });
+
+      if (existente) {
+        const reactivado = await tx.socio.update({
+          where: { usuario_id: socio.usuario_id },
+          data: { activo: true, fecha_baja: null, sede_origen_id: socio.sede_origen_id },
+          include: USUARIO_SELECCION,
+        });
+
+        // La membresia es 1:1: se re-aprovecha la fila y se recobra el plan nuevo.
+        await tx.membresia.update({
+          where: { socio_id: existente.id },
+          data: {
+            plan: socio.plan,
+            estado: 'ACTIVA',
+            fecha_inicio,
+            fecha_fin,
+            precio,
+            renueva_automatica: false,
+          },
+        });
+
+        await tx.usuario.update({
+          where: { id: socio.usuario_id },
+          data: { rol: 'SOCIO' },
+        });
+
+        return reactivado;
+      }
+
       const nuevoSocio = await tx.socio.create({
         data: {
           usuario_id: socio.usuario_id,
@@ -85,9 +125,7 @@ export class SocioRepository {
       });
 
       // No existe un socio sin membresia: la fila 1:1 se crea siempre, en la
-      // misma transaccion que el socio. `calcularVigencia` sin segundo argumento
-      // toma hoy como fecha_inicio.
-      const { fecha_inicio, fecha_fin } = calcularVigencia(socio.plan);
+      // misma transaccion que el socio.
       await tx.membresia.create({
         data: {
           socio_id: nuevoSocio.id,
@@ -95,10 +133,7 @@ export class SocioRepository {
           estado: 'ACTIVA',
           fecha_inicio,
           fecha_fin,
-          // El precio se congela aca, en el alta. Despues solo se mueve si el socio
-          // cambia de plan (membresia.repository), que es el otro momento en que el
-          // precio del periodo cambia de verdad.
-          precio: PRECIOS_PLAN[socio.plan],
+          precio,
           renueva_automatica: false,
         },
       });
@@ -115,16 +150,20 @@ export class SocioRepository {
   }
 
   async buscarPorId(id: number): Promise<Socio | null> {
-    const fila = await this.prisma.socio.findUnique({
-      where: { id },
+    // findFirst (no findUnique) porque se filtra por `activo`, que no es parte
+    // de la clave: un socio dado de baja devuelve null -> 404.
+    const fila = await this.prisma.socio.findFirst({
+      where: { id, activo: true },
       include: USUARIO_SELECCION,
     });
     return fila ? this.aDominio(fila) : null;
   }
 
   async buscarPorUsuarioId(usuarioId: number): Promise<Socio | null> {
-    const fila = await this.prisma.socio.findUnique({
-      where: { usuario_id: usuarioId },
+    // Critico: la vigencia (M2/M3/M4) pasa por aca. Un ex-socio (activo=false)
+    // tiene que dar null, o seguiria considerandose vigente tras la baja.
+    const fila = await this.prisma.socio.findFirst({
+      where: { usuario_id: usuarioId, activo: true },
       include: USUARIO_SELECCION,
     });
     return fila ? this.aDominio(fila) : null;
@@ -135,8 +174,22 @@ export class SocioRepository {
   // eso estos dos metodos devuelven su propia forma en vez de ensanchar
   // `Socio`, y los consume unicamente TotpService (modules/auth).
   async buscarTotpPorUsuarioId(usuarioId: number): Promise<SocioTotp | null> {
-    const fila = await this.prisma.socio.findUnique({
-      where: { usuario_id: usuarioId },
+    const fila = await this.prisma.socio.findFirst({
+      where: { usuario_id: usuarioId, activo: true },
+      select: { id: true, totp_secreto: true, qr_activo: true },
+    });
+    if (!fila) {
+      return null;
+    }
+    return { socioId: fila.id, totpSecreto: fila.totp_secreto, qrActivo: fila.qr_activo };
+  }
+
+  // Para la validacion del QR por SOCIO (M2 ahora referencia socio_id): el secreto
+  // y el estado del QR de un socio concreto, sin pasar por el usuario. Un socio
+  // inactivo (baja logica) devuelve null -> el ingreso no valida.
+  async buscarTotpPorSocioId(socioId: number): Promise<SocioTotp | null> {
+    const fila = await this.prisma.socio.findFirst({
+      where: { id: socioId, activo: true },
       select: { id: true, totp_secreto: true, qr_activo: true },
     });
     if (!fila) {
@@ -175,17 +228,23 @@ export class SocioRepository {
     }
   }
 
-  async eliminar(id: number): Promise<void> {
+  // Baja LOGICA: no se borra el socio ni su membresia. Se marca `activo=false`
+  // (con `fecha_baja`), la membresia pasa a SUSPENDIDA y el usuario vuelve a
+  // EXTERNO. El historial de ingresos/pagos conserva la FK al socio.
+  async marcarBaja(id: number): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const socio = await tx.socio.findUnique({ where: { id } });
       if (!socio) {
         return;
       }
-      // Se borra la membresía y el socio; los PagoMembresia del socio quedan como
-      // historial (RF-02): la FK de PagoMembresia.membresia_id hace ON DELETE SET NULL
-      // (migración 20261004020000), así que el Pago sobrevive sin apuntar a la fila.
-      await tx.membresia.deleteMany({ where: { socio_id: id } });
-      await tx.socio.delete({ where: { id } });
+      await tx.socio.update({
+        where: { id },
+        data: { activo: false, fecha_baja: new Date() },
+      });
+      await tx.membresia.updateMany({
+        where: { socio_id: id },
+        data: { estado: 'SUSPENDIDA' },
+      });
       await tx.usuario.update({
         where: { id: socio.usuario_id },
         data: { rol: 'EXTERNO' },
@@ -201,6 +260,8 @@ export class SocioRepository {
       email: fila.usuario.email,
       sede_origen_id: fila.sede_origen_id,
       fecha_alta: fila.fecha_alta,
+      activo: fila.activo,
+      fecha_baja: fila.fecha_baja,
     };
   }
 }

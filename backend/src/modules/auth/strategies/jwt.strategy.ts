@@ -5,11 +5,12 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { RolUsuario } from '../../m1-usuarios/entities/usuario.entity';
 
 // Forma del payload firmado por AuthService.login(). sede_id solo esta
-// presente para RECEPCION (ver nota del plan).
+// presente para RECEPCION y socio_id solo para SOCIO (ver nota del plan).
 export interface JwtPayload {
   sub: number;
   rol: RolUsuario;
   sede_id?: number;
+  socio_id?: number;
   iat: number;
   exp: number;
 }
@@ -19,6 +20,7 @@ export interface UsuarioAutenticado {
   userId: number;
   rol: RolUsuario;
   sede_id?: number;
+  socio_id?: number;
 }
 
 @Injectable()
@@ -35,6 +37,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   // false); validate() solo traduce el payload a lo que el resto de la app
   // consume como request.user.
   validate(payload: JwtPayload): UsuarioAutenticado {
-    return { userId: payload.sub, rol: payload.rol, sede_id: payload.sede_id };
+    return {
+      userId: payload.sub,
+      rol: payload.rol,
+      sede_id: payload.sede_id,
+      socio_id: payload.socio_id,
+    };
   }
 }

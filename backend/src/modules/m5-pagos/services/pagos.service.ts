@@ -362,12 +362,6 @@ export class PagosService {
       };
     }
 
-    // El id nullable es un caso de la SALIDA (historial tras la baja de socio); acá,
-    // cobrando por HTTP, nunca llega null porque `PagoIn.concepto` lo exige. El guard
-    // existe para que TypeScript lo sepa, no porque el caso ocurra.
-    if (concepto.membresia_id === null) {
-      throw recursoNoEncontrado('No existe la membresía indicada.');
-    }
     const membresia = await this.membresias.obtenerParaCobro(concepto.membresia_id);
     if (!membresia) {
       throw recursoNoEncontrado(`No existe la membresía ${concepto.membresia_id}.`);

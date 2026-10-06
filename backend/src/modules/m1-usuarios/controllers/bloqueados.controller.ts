@@ -49,7 +49,7 @@ export class BloqueadosController {
 
     return plainToInstance(BloqueadosOut, {
       bloqueados: noVigentes.map((item) => ({
-        usuario_id: item.usuarioId,
+        socio_id: item.socioId,
         motivo: item.motivo,
         desde: item.desde.toISOString(),
       })),

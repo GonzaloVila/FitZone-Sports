@@ -19,10 +19,10 @@ export class IngresoIn {
   @Min(1)
   sede_id!: number;
 
-  @ApiProperty({ type: 'integer', description: 'Usuario que ingresa; debe tener membresía vigente (RF-04).', example: 2 })
+  @ApiProperty({ type: 'integer', description: 'Socio que ingresa; debe tener membresía vigente (RF-04).', example: 2 })
   @IsInt()
   @Min(1)
-  usuario_id!: number;
+  socio_id!: number;
 
   @ApiProperty({
     description: 'Código TOTP de 6 dígitos generado por la app del socio (RF-04, QR dinámico).',

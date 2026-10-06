@@ -1,5 +1,6 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiExtraModels,
@@ -10,15 +11,25 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
+import { Roles } from '../../../commons/guards/roles.decorator';
+import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
+import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
 import { IngresoIn } from '../dtos/ingreso-in.dto';
 import { IngresoOut } from '../dtos/ingreso-out.dto';
 import { ListarIngresosQueryDto } from '../dtos/listar-ingresos-query.dto';
 import { IngresosService } from '../services/ingresos.service';
+import type { ScopeIngreso } from '../services/ingresos.service';
+
+interface RequestConUsuario extends Request {
+  user: UsuarioAutenticado;
+}
 
 @ApiTags('ingresos')
 @ApiExtraModels(Problem)
@@ -29,12 +40,24 @@ export class IngresosController {
   // Declarado antes que @Get(':ingreso_id'): además del orden lógico de lectura,
   // deja explícito que /ingresos no cae en la ruta con parámetro.
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('RECEPCION', 'GERENTE')
+  @ApiBearerAuth()
   @ApiOperation({ operationId: 'listarIngresos', summary: 'Listado de ingresos a sede con filtros' })
   @ApiOkResponse({ description: 'Listado de ingresos', type: [IngresoOut] })
+  @ApiUnauthorizedResponse({ description: 'Token inválido, expirado o ausente', content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: 'Rol sin permiso (solo RECEPCION/GERENTE)', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
-  listar(@Query() query: ListarIngresosQueryDto): Promise<IngresoOut[]> {
+  listar(
+    @Query() query: ListarIngresosQueryDto,
+    @Req() req: RequestConUsuario,
+  ): Promise<IngresoOut[]> {
     const { page, per_page: perPage, ...filtros } = query;
-    return this.ingresosService.listar(filtros, { page: page ?? 1, perPage: perPage ?? 20 });
+    return this.ingresosService.listar(
+      filtros,
+      { page: page ?? 1, perPage: perPage ?? 20 },
+      this.scope(req),
+    );
   }
 
   @Get(':ingreso_id')
@@ -70,12 +93,26 @@ export class IngresosController {
 
   @Post(':ingreso_id/egreso')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('RECEPCION', 'GERENTE')
+  @ApiBearerAuth()
   @ApiOperation({ operationId: 'registrarEgreso', summary: 'Registrar egreso de la sede (RF-05)' })
   @ApiParam({ name: 'ingreso_id', type: 'integer', description: 'ID numérico del ingreso', example: 9 })
   @ApiNoContentResponse({ description: 'Egreso registrado (sin cuerpo)' })
+  @ApiUnauthorizedResponse({ description: 'Token inválido, expirado o ausente', content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: 'El ingreso no pertenece a la sede del recepcionista', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Ingreso inexistente', content: PROBLEM_JSON })
   @ApiConflictResponse({ description: 'El ingreso ya fue egresado', content: PROBLEM_JSON })
-  registrarEgreso(@Param('ingreso_id', ParseIntPipe) ingresoId: number): Promise<void> {
-    return this.ingresosService.registrarEgreso(ingresoId);
+  registrarEgreso(
+    @Param('ingreso_id', ParseIntPipe) ingresoId: number,
+    @Req() req: RequestConUsuario,
+  ): Promise<void> {
+    return this.ingresosService.registrarEgreso(ingresoId, this.scope(req));
+  }
+
+  // El usuario autenticado ya viene traducido por JwtStrategy; acá solo se arma
+  // el alcance por rol (sede_id está presente únicamente para RECEPCION).
+  private scope(req: RequestConUsuario): ScopeIngreso {
+    return { rol: req.user.rol, sedeId: req.user.sede_id };
   }
 }

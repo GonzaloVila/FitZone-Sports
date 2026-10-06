@@ -50,7 +50,7 @@ Reglas clave: dni y email únicos (409 si ya existen) · contrasenia se hashea c
 
 ## Bloque 2 — Socios (parte de L4)
 
-Reglas clave (RF-01/RF-02): convierte un usuario existente en socio · si el usuario ya es socio, 409 · si al crear se envía plan, la membresía inicial se crea en la misma transacción · el DELETE no es una baja física de historial: borra la fila Socio (y su membresía 1:1) y el usuario vuelve a rol EXTERNO; pagos y reservas siguen referenciando al usuario, no a la subtabla.
+Reglas clave (RF-01/RF-02): convierte un usuario existente en socio · si el usuario ya es socio, 409 · si al crear se envía plan, la membresía inicial se crea en la misma transacción · el DELETE es una BAJA LÓGICA (Socio.activo=false + fecha_baja): no borra la fila (Socio.usuario_id es única y la re-alta reactiva el mismo registro), la membresía pasa a SUSPENDIDA, el rol vuelve a EXTERNO y el usuario queda disponible para una re-alta con re-cobro; pagos y reservas siguen referenciando al usuario, no a la subtabla.
 
 | Endpoint | Archivos principales | Regla de negocio / detalle | Respuestas |
 | --- | --- | --- | --- |

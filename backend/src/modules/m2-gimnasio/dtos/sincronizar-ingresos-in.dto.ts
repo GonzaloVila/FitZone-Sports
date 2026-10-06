@@ -12,10 +12,10 @@ export class IngresoASincronizarDto {
   @Min(1)
   local_id!: number;
 
-  @ApiProperty({ type: 'integer', description: 'Usuario que ingresó.', example: 123 })
+  @ApiProperty({ type: 'integer', description: 'Socio que ingresó.', example: 123 })
   @IsInt()
   @Min(1)
-  usuario_id!: number;
+  socio_id!: number;
 
   @ApiProperty({
     description: 'Momento real del acceso, registrado por el puesto mientras estaba sin conexión.',

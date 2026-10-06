@@ -7,6 +7,10 @@ export interface Socio {
   email: string;
   sede_origen_id: number;
   fecha_alta: Date;
+  // Baja logica: false cuando el usuario dejo de ser socio (la fila se conserva
+  // para el historial). `fecha_baja` es null mientras siga activo.
+  activo: boolean;
+  fecha_baja: Date | null;
 }
 
 export interface SocioNuevo {

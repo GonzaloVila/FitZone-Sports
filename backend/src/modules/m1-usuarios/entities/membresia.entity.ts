@@ -66,11 +66,12 @@ export interface EstadoSocioMembresia {
 
 // GET /bloqueados (Fase 4): un socio no vigente, con el motivo (el estado
 // que lo saca de vigencia) y desde cuándo (Membresia.updated_at), para que
-// el puesto offline sincronice su lista local de forma incremental.
+// el puesto offline sincronice su lista local de forma incremental. Se
+// identifica por socio_id (el acceso es de socios).
 export interface MembresiaNoVigente {
-  usuarioId: number;
+  socioId: number;
   motivo: 'VENCIDA' | 'SUSPENDIDA';
-  desde: Date;
+  desde: Date; 
 }
 
 // RF-02 (renovacion automatica): una membresia con renueva_automatica=true cuyo

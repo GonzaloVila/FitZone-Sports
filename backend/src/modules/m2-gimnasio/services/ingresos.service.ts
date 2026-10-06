@@ -3,6 +3,7 @@ import { plainToInstance } from 'class-transformer';
 import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import type { OpcionesPaginacion } from '../../../commons/paginacion';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
+import type { RolUsuario } from '../../m1-usuarios/entities/usuario.entity';
 import { TotpService } from '../../auth/services/totp.service';
 import { AforoOut } from '../dtos/aforo-out.dto';
 import { IngresoIn } from '../dtos/ingreso-in.dto';
@@ -17,6 +18,15 @@ import { Ingreso } from '../entities/ingreso.entity';
 import { IngresoRepository } from '../repositories/ingreso.repository';
 import type { IngresoFiltros } from '../repositories/ingreso.repository';
 import { SedeRepository } from '../repositories/sede.repository';
+
+// Alcance por rol para el listado y el egreso (RF-04/Unidad III). RECEPCION queda
+// atado a su sede (la del JWT, que sale de EmpleadoSede); GERENTE ve y egresa en
+// cualquier sede, así que su scope no filtra. Se modela como dato y no como dos
+// métodos distintos: el service decide con la misma función en los dos casos.
+export interface ScopeIngreso {
+  rol: RolUsuario;
+  sedeId?: number;
+}
 
 @Injectable()
 export class IngresosService {
@@ -39,34 +49,36 @@ export class IngresosService {
       throw recursoNoEncontrado('No existe la sede indicada.');
     }
 
-    const vigencia = await this.membresias.consultarVigencia(dto.usuario_id);
-    if (!vigencia.vigente) {
+    // Solo entran socios (RF-04), y con membresia vigente. La vigencia se
+    // consulta por socio; un socio inactivo (baja logica) da no-vigente.
+    const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
+    if (!estado.vigente) {
       throw new ProblemException({
         type: 'https://fitzone.app/errores/membresia-inactiva',
         title: 'Membresía inactiva',
         status: HttpStatus.FORBIDDEN,
-        detail: `El usuario ${dto.usuario_id} no posee una membresía vigente para ingresar a la sede ${dto.sede_id}.`,
+        detail: `El socio ${dto.socio_id} no posee una membresía vigente para ingresar a la sede ${dto.sede_id}.`,
       });
     }
 
     // codigo_totp viene siempre (DTO lo exige); solo se verifica contra el
     // secreto si el socio activo el QR dinamico (POST /auth/registro-qr). Si
     // nunca lo activo, se permite igual (backward compatibility, ver plan).
-    await this.totp.validarIngreso(dto.usuario_id, dto.codigo_totp);
+    await this.totp.validarIngreso(dto.socio_id, dto.codigo_totp);
 
     // Atajo para el caso común: evita llegar al INSERT cuando ya sabemos que
-    // el usuario está dentro. Corre fuera de la transacción, así que no es la
+    // el socio está dentro. Corre fuera de la transacción, así que no es la
     // garantía de RN-01: dos accesos simultáneos pueden pasar los dos este
     // chequeo. Quien cierra eso es el índice parcial único, que rechaza el
     // segundo INSERT y vuelve por crear() como ACCESO_DUPLICADO.
-    const ingresoActivo = await this.ingresos.buscarActivoPorUsuario(dto.usuario_id);
+    const ingresoActivo = await this.ingresos.buscarActivoPorSocio(dto.socio_id);
     if (ingresoActivo) {
-      throw this.accesoDuplicado(dto.usuario_id);
+      throw this.accesoDuplicado(dto.socio_id);
     }
 
     const resultado = await this.ingresos.crear({
       sede_id: dto.sede_id,
-      usuario_id: dto.usuario_id,
+      socio_id: dto.socio_id,
       fecha_hora_ingreso: dto.fecha_hora_ingreso ? new Date(dto.fecha_hora_ingreso) : undefined,
       validado_offline: dto.validado_offline ?? false,
     });
@@ -76,7 +88,7 @@ export class IngresosService {
       // Si llegamos aquí con ACCESO_DUPLICADO, es que el índice único atajó un
       // acceso duplicado que el chequeo previo no llegó a ver.
       if (resultado.motivo === 'ACCESO_DUPLICADO') {
-        throw this.accesoDuplicado(dto.usuario_id);
+        throw this.accesoDuplicado(dto.socio_id);
       }
       throw new ProblemException({
         type: 'https://fitzone.app/errores/aforo-lleno',
@@ -89,8 +101,18 @@ export class IngresosService {
     return this.aOut(resultado.ingreso);
   }
 
-  async listar(filtros: IngresoFiltros, opciones: OpcionesPaginacion): Promise<IngresoOut[]> {
-    const filas = await this.ingresos.listar(filtros, opciones);
+  async listar(
+    filtros: IngresoFiltros,
+    opciones: OpcionesPaginacion,
+    scope: ScopeIngreso,
+  ): Promise<IngresoOut[]> {
+    // RECEPCION solo ve su sede: se FUERZA el sede_id del JWT y se ignora el que
+    // venga en el query (si viniera otro). GERENTE usa el filtro tal cual.
+    const filtrosEfectivos =
+      scope.rol === 'RECEPCION' && scope.sedeId !== undefined
+        ? { ...filtros, sede_id: scope.sedeId }
+        : filtros;
+    const filas = await this.ingresos.listar(filtrosEfectivos, opciones);
     return filas.map((ingreso) => this.aOut(ingreso));
   }
 
@@ -102,11 +124,23 @@ export class IngresosService {
     return this.aOut(ingreso);
   }
 
-  async registrarEgreso(ingresoId: number): Promise<void> {
+  async registrarEgreso(ingresoId: number, scope: ScopeIngreso): Promise<void> {
     const ingreso = await this.ingresos.buscarPorId(ingresoId);
     if (!ingreso) {
       throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
+
+    // RECEPCION solo egresa en su sede. El 403 va antes del chequeo de egreso
+    // duplicado a propósito: no se filtra el estado de un ingreso de otra sede.
+    if (scope.rol === 'RECEPCION' && scope.sedeId !== ingreso.sede_id) {
+      throw new ProblemException({
+        type: 'https://fitzone.app/errores/egreso-fuera-de-sede',
+        title: 'Egreso fuera de la sede',
+        status: HttpStatus.FORBIDDEN,
+        detail: `El ingreso ${ingresoId} no pertenece a la sede del recepcionista.`,
+      });
+    }
+
     if (ingreso.fecha_hora_egreso) {
       throw new ProblemException({
         type: 'https://fitzone.app/errores/egreso-duplicado',
@@ -146,23 +180,23 @@ export class IngresosService {
     const localAServerId = new Map<number, number>();
 
     for (const ing of dto.ingresos) {
-      const vigencia = await this.membresias.consultarVigencia(ing.usuario_id);
-      if (!vigencia.vigente) {
+      const estado = await this.membresias.consultarVigenciaPorSocio(ing.socio_id);
+      if (!estado.vigente) {
         resultados.push(
           this.resultadoIngreso(ing.local_id, false, {
             error: 'USUARIO_BLOQUEADO',
-            detalle: `El usuario ${ing.usuario_id} no posee una membresía vigente.`,
+            detalle: `El socio ${ing.socio_id} no posee una membresía vigente.`,
           }),
         );
         continue;
       }
 
-      const activo = await this.ingresos.buscarActivoPorUsuario(ing.usuario_id);
+      const activo = await this.ingresos.buscarActivoPorSocio(ing.socio_id);
       if (activo) {
         resultados.push(
           this.resultadoIngreso(ing.local_id, false, {
             error: 'YA_DENTRO',
-            detalle: `El usuario ${ing.usuario_id} ya tiene un ingreso sin egreso (sede ${activo.sede_id}).`,
+            detalle: `El socio ${ing.socio_id} ya tiene un ingreso sin egreso (sede ${activo.sede_id}).`,
           }),
         );
         continue;
@@ -170,7 +204,7 @@ export class IngresosService {
 
       const resultado = await this.ingresos.crear({
         sede_id: sedeId,
-        usuario_id: ing.usuario_id,
+        socio_id: ing.socio_id,
         fecha_hora_ingreso: new Date(ing.fecha_hora_ingreso),
         validado_offline: true,
       });
@@ -182,7 +216,7 @@ export class IngresosService {
             detalle:
               resultado.motivo === 'AFORO_LLENO'
                 ? `La sede ${sedeId} alcanzó su aforo máximo.`
-                : `El usuario ${ing.usuario_id} ya tiene un ingreso sin egreso (RN-01).`,
+                : `El socio ${ing.socio_id} ya tiene un ingreso sin egreso (RN-01).`,
           }),
         );
         continue;
@@ -261,12 +295,12 @@ export class IngresosService {
   // 409 acceso-duplicado (RN-01), compartido entre el atajo previo y el que
   // devuelve el índice único, para que los dos caminos emitan exactamente la
   // misma problem+json.
-  private accesoDuplicado(usuarioId: number): ProblemException {
+  private accesoDuplicado(socioId: number): ProblemException {
     return new ProblemException({
       type: 'https://fitzone.app/errores/acceso-duplicado',
       title: 'Acceso duplicado',
       status: HttpStatus.CONFLICT,
-      detail: `El usuario ${usuarioId} ya tiene un ingreso sin egreso registrado (RN-01).`,
+      detail: `El socio ${socioId} ya tiene un ingreso sin egreso registrado (RN-01).`,
     });
   }
 }

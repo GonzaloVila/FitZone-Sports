@@ -92,7 +92,6 @@ model Usuario {
   empleado    EmpleadoSede?
   reservas    Reserva[]
   pagos       Pago[]
-  ingresos    Ingreso[]
 }
 
 // Staff de sucursal (rol RECEPCION, A3): subtable 1:1 con Usuario y con Sede.
@@ -111,6 +110,12 @@ model Socio {
   usuario_id     Int            @unique
   sede_origen_id Int
   fecha_alta     DateTime       @db.Timestamptz(3)
+  // Baja logica: dejar de ser socio NO borra la fila (se conserva el historial de
+  // ingresos/pagos). `activo=false` + `fecha_baja` marcan la baja; el filtro
+  // `activo=true` en las lecturas de M1 corta la vigencia y saca al ex-socio del
+  // listado. La re-alta reactiva esta misma fila (el @unique(usuario_id) sigue).
+  activo         Boolean        @default(true)
+  fecha_baja     DateTime?      @db.Timestamptz(3)
   // TOTP para QR dinamico (RF-04, Unidad III). NULL = el socio no activo el
   // QR por app todavia: el ingreso sigue validando solo membresia vigente
   // (ver IngresosService, backward compatibility explicita del plan).
@@ -122,6 +127,7 @@ model Socio {
   membresia      Membresia?
   reservas_clase ReservaClase[]
   espera_clase   EsperaClase[]
+  ingresos       Ingreso[]
 }
 
 // Membresia 1:1 con Socio (DBML corregido): un socio = UNA fila; la renovación
@@ -256,34 +262,39 @@ model PagoReserva {
 // pago queda como historial. La FK pone membresia_id en NULL y el Pago (monto, fecha,
 // comprobante con nombre/email del socio) sobrevive.
 model PagoMembresia {
-  id_pago      Int        @id
-  membresia_id Int?
-  pago         Pago       @relation(fields: [id_pago], references: [id])
-  membresia    Membresia? @relation(fields: [membresia_id], references: [id], onDelete: SetNull)
+  id_pago      Int       @id
+  // NOT NULL: con la baja LOGICA del socio la membresia ya no se borra, asi que
+  // el enlace nunca queda en NULL. (Antes era nullable con SetNull, de la epoca
+  // en que la baja borraba la membresia.)
+  membresia_id Int
+  pago         Pago      @relation(fields: [id_pago], references: [id])
+  membresia    Membresia @relation(fields: [membresia_id], references: [id])
 }
 
 // Turno de acceso (RF-04/RF-05): aforo actual = ingresos sin fecha_hora_egreso (RN-01).
 // validado_offline (RNF-01, ADR-08 D3): true cuando el puesto de control lo
 // registró sin conexión y lo sincronizó después con la hora real del acceso.
 //
-// Ojo: la migración 20260925010000_ingreso_usuario_abierto_unq crea además el
-// índice parcial único ingreso_usuario_abierto_unq sobre (usuario_id) WHERE
-// fecha_hora_egreso IS NULL. Ahí es donde RN-01 queda atómica frente a accesos
-// simultáneos, y es lo que el service traduce de P2002 a 409 acceso-duplicado.
+// Ojo: la migración 20261004040000_ingreso_socio_id recrea el índice parcial
+// único ingreso_socio_abierto_unq sobre (socio_id) WHERE fecha_hora_egreso IS
+// NULL. Ahí es donde RN-01 queda atómica frente a accesos simultáneos, y es lo
+// que el service traduce a 409 acceso-duplicado.
 // No se declara en este archivo porque Prisma 6.19.3 no modela índices
 // parciales: requiere el preview feature `partialIndexes`, que todavía no
 // existe en esta versión (aparece en Prisma 7.4+). Si algún día se actualiza,
 // se puede escribir acá como
-//   @@unique([usuario_id], where: raw("\"fecha_hora_egreso\" IS NULL"),
-//             map: "ingreso_usuario_abierto_unq")
+//   @@unique([socio_id], where: raw("\"fecha_hora_egreso\" IS NULL"),
+//             map: "ingreso_socio_abierto_unq")
 // manteniendo el map para no duplicar el índice en bases ya migradas.
 model Ingreso {
   id                 Int       @id @default(autoincrement())
   sede_id            Int
-  usuario_id         Int
+  // El acceso es de un SOCIO (solo los socios entran al gimnasio; los externos
+  // solo alquilan canchas). Por eso la FK es a Socio, no a Usuario (ver plan M2).
+  socio_id           Int
   fecha_hora_ingreso DateTime  @db.Timestamptz(3)
   fecha_hora_egreso  DateTime? @db.Timestamptz(3)
   validado_offline   Boolean   @default(false)
   sede               Sede      @relation(fields: [sede_id], references: [id])
-  usuario            Usuario   @relation(fields: [usuario_id], references: [id])
+  socio              Socio     @relation(fields: [socio_id], references: [id])
 }

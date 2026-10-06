@@ -26,4 +26,11 @@ export class LoginOut {
     description: 'Sucursal de trabajo. Solo presente para rol RECEPCION.',
   })
   sede_id?: number;
+
+  @Expose()
+  @ApiPropertyOptional({
+    example: 12,
+    description: 'ID de socio. Solo presente para rol SOCIO (se usa en POST /ingresos).',
+  })
+  socio_id?: number;
 }

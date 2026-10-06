@@ -13,7 +13,15 @@ export class IngresoOut {
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 2 })
-  usuario_id!: number;
+  socio_id!: number;
+
+  @Expose()
+  @ApiProperty({ example: 'Juan Pérez', description: 'Nombre del socio que ingresó (join Socio → Usuario).' })
+  nombre!: string;
+
+  @Expose()
+  @ApiProperty({ example: '30123456', description: 'DNI del socio que ingresó (join Socio → Usuario).' })
+  dni!: string;
 
   @Expose()
   @ApiProperty({ example: '2026-09-16T18:02:11-03:00' })

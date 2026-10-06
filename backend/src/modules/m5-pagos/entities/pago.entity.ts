@@ -19,15 +19,9 @@ export type EstadoPago = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'ANULADO';
 // Un pago referencia estructuralmente UN solo concepto (reserva de cancha o
 // membresía, herencia parte-todo). Es la discriminated union del contrato
 // `ConceptoPago`: el `tipo` decide cuál id viene poblado.
-//
-// `MEMBRESIA.membresia_id` es nullable a propósito (RF-02, historial): la baja de un
-// socio borra la membresía y la FK de PagoMembresia hace SetNull. El Pago queda como
-// historial con `membresia_id: null` — el cobro ocurrió y el comprobante (que lleva
-// nombre y email del socio) lo documenta, aunque la membresía ya no exista. La rama de
-// entrada (`PagoIn.concepto`) sigue exigiendo el id: null solo existe en la salida.
 export type ConceptoPago =
   | { tipo: 'RESERVA_CANCHA'; reserva_cancha_id: number }
-  | { tipo: 'MEMBRESIA'; membresia_id: number | null };
+  | { tipo: 'MEMBRESIA'; membresia_id: number };
 
 export interface Pago {
   id: number;

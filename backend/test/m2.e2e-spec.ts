@@ -24,16 +24,55 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
   const usuariosCreados: number[] = [];
   const sociosCreados: number[] = [];
   const sedesCreadas: number[] = [];
+  const tokensPorSede = new Map<number, string>();
 
   const emailUnico = () => `m2.${Date.now()}.${Math.floor(Math.random() * 1000)}@e2e.fitzone.test`;
   const dniUnico = () => String(10000000 + Math.floor(Math.random() * 89999999));
 
-  async function crearSocioConMembresia(opts: { vigente: boolean; sedeOrigenId: number }) {
+  // Crea (una sola vez por sede) un usuario RECEPCION con su EmpleadoSede en esa
+  // sede y hace login. Devuelve el JWT, que ya trae el sede_id en el payload.
+  // GET /ingresos y el egreso están protegidos y el RECEPCION solo ve/egresa su
+  // sede, así que cada test que los usa necesita el token de su propia sede.
+  async function tokenRecepcion(sedeId: number): Promise<string> {
+    const cache = tokensPorSede.get(sedeId);
+    if (cache) return cache;
+
+    const email = emailUnico();
+    const crearRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'RECEPCION',
+        dni: dniUnico(),
+        nombre: 'Recep E2E M2',
+        email,
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+    usuariosCreados.push(crearRes.body.id);
+
+    await prisma.empleadoSede.create({
+      data: { usuario_id: crearRes.body.id, sede_id: sedeId },
+    });
+
+    const loginRes = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({ email, contrasenia: 'clave12345' })
+      .expect(200);
+    const token = loginRes.body.access_token as string;
+    tokensPorSede.set(sedeId, token);
+    return token;
+  }
+
+  async function crearSocioConMembresia(opts: {
+    vigente: boolean;
+    sedeOrigenId: number;
+    nombre?: string;
+  }) {
     const usuario = await prisma.usuario.create({
       data: {
         rol: 'SOCIO',
         dni: dniUnico(),
-        nombre: 'Socio E2E M2',
+        nombre: opts.nombre ?? 'Socio E2E M2',
         email: emailUnico(),
         contrasenia: 'hash-no-relevante',
       },
@@ -89,10 +128,11 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
   });
 
   afterAll(async () => {
-    // Limpieza en orden inverso a las FKs (ingreso -> membresia -> socio -> usuario -> sede).
-    await prisma.ingreso.deleteMany({ where: { usuario_id: { in: usuariosCreados } } });
+    // Limpieza en orden inverso a las FKs (ingreso -> membresia -> socio -> empleado -> usuario -> sede).
+    await prisma.ingreso.deleteMany({ where: { socio_id: { in: sociosCreados } } });
     await prisma.membresia.deleteMany({ where: { socio_id: { in: sociosCreados } } });
     await prisma.socio.deleteMany({ where: { id: { in: sociosCreados } } });
+    await prisma.empleadoSede.deleteMany({ where: { usuario_id: { in: usuariosCreados } } });
     await prisma.usuario.deleteMany({ where: { id: { in: usuariosCreados } } });
     await prisma.sede.deleteMany({ where: { id: { in: sedesCreadas } } });
     await app.close();
@@ -127,11 +167,11 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
     const sedeId: number = sedeRes.body.id;
     sedesCreadas.push(sedeId);
 
-    const { usuarioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+    const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
 
     const ingresoRes = await request(app.getHttpServer())
       .post('/api/v1/ingresos')
-      .send({ sede_id: sedeId, usuario_id: usuarioId, codigo_totp: '123456' })
+      .send({ sede_id: sedeId, socio_id: socioId, codigo_totp: '123456' })
       .expect(201);
     const ingresoId: number = ingresoRes.body.id;
     expect(ingresoRes.headers.location).toBe(`/api/v1/ingresos/${ingresoId}`);
@@ -146,16 +186,19 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
     // RN-01: mismo usuario no puede tener dos ingresos abiertos a la vez
     await request(app.getHttpServer())
       .post('/api/v1/ingresos')
-      .send({ sede_id: sedeId, usuario_id: usuarioId, codigo_totp: '123456' })
+      .send({ sede_id: sedeId, socio_id: socioId, codigo_totp: '123456' })
       .expect(409);
 
+    const token = await tokenRecepcion(sedeId);
     await request(app.getHttpServer())
       .post(`/api/v1/ingresos/${ingresoId}/egreso`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(204);
 
     // Egresar dos veces el mismo ingreso responde 409
     await request(app.getHttpServer())
       .post(`/api/v1/ingresos/${ingresoId}/egreso`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(409);
 
     const aforoLiberadoRes = await request(app.getHttpServer())
@@ -173,28 +216,32 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
     const sedeId: number = sedeRes.body.id;
     sedesCreadas.push(sedeId);
 
-    const { usuarioId } = await crearSocioConMembresia({ vigente: false, sedeOrigenId: sedeId });
+    const { socioId } = await crearSocioConMembresia({ vigente: false, sedeOrigenId: sedeId });
 
     await request(app.getHttpServer())
       .post('/api/v1/ingresos')
-      .send({ sede_id: sedeId, usuario_id: usuarioId, codigo_totp: '123456' })
+      .send({ sede_id: sedeId, socio_id: socioId, codigo_totp: '123456' })
       .expect(403);
   });
 
   it('POST /ingresos responde 404 si la sede no existe', async () => {
-    const { usuarioId } = await crearSocioConMembresia({
+    const { socioId } = await crearSocioConMembresia({
       vigente: true,
       sedeOrigenId: sedesCreadas[0],
     });
 
     await request(app.getHttpServer())
       .post('/api/v1/ingresos')
-      .send({ sede_id: 999999, usuario_id: usuarioId, codigo_totp: '123456' })
+      .send({ sede_id: 999999, socio_id: socioId, codigo_totp: '123456' })
       .expect(404);
   });
 
   it('POST /ingresos/{id}/egreso responde 404 si el ingreso no existe', async () => {
-    await request(app.getHttpServer()).post('/api/v1/ingresos/999999/egreso').expect(404);
+    const token = await tokenRecepcion(sedesCreadas[0]);
+    await request(app.getHttpServer())
+      .post('/api/v1/ingresos/999999/egreso')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
   });
 
   it('GET /sedes/{id}/aforo responde 404 si la sede no existe', async () => {
@@ -214,12 +261,12 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/api/v1/ingresos')
-      .send({ sede_id: sedeId, usuario_id: socioA.usuarioId, codigo_totp: '123456' })
+      .send({ sede_id: sedeId, socio_id: socioA.socioId, codigo_totp: '123456' })
       .expect(201);
 
     await request(app.getHttpServer())
       .post('/api/v1/ingresos')
-      .send({ sede_id: sedeId, usuario_id: socioB.usuarioId, codigo_totp: '123456' })
+      .send({ sede_id: sedeId, socio_id: socioB.socioId, codigo_totp: '123456' })
       .expect(409);
   });
 
@@ -247,15 +294,17 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
 
       const ingresoRes = await request(app.getHttpServer())
         .post('/api/v1/ingresos')
-        .send({ sede_id: sedeId, usuario_id: enEsta.usuarioId, codigo_totp: '123456' })
+        .send({ sede_id: sedeId, socio_id: enEsta.socioId, codigo_totp: '123456' })
         .expect(201);
       await request(app.getHttpServer())
         .post('/api/v1/ingresos')
-        .send({ sede_id: otraSedeId, usuario_id: enLaOtra.usuarioId, codigo_totp: '123456' })
+        .send({ sede_id: otraSedeId, socio_id: enLaOtra.socioId, codigo_totp: '123456' })
         .expect(201);
 
+      const token = await tokenRecepcion(sedeId);
       const res = await request(app.getHttpServer())
         .get(`/api/v1/ingresos?sede_id=${sedeId}`)
+        .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
       expect(Array.isArray(res.body)).toBe(true);
@@ -269,26 +318,30 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
 
     it('GET /ingresos/{id} devuelve el registro y 404 si no existe', async () => {
       const sedeId = await crearSede(10);
-      const { usuarioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+      const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
 
       const ingresoRes = await request(app.getHttpServer())
         .post('/api/v1/ingresos')
-        .send({ sede_id: sedeId, usuario_id: usuarioId, codigo_totp: '123456' })
+        .send({ sede_id: sedeId, socio_id: socioId, codigo_totp: '123456' })
         .expect(201);
 
       const res = await request(app.getHttpServer())
         .get(`/api/v1/ingresos/${ingresoRes.body.id}`)
         .expect(200);
 
-      // Contrato IngresoOut: los 6 campos, sin mas ni menos.
+      // Contrato IngresoOut: los 8 campos (nombre y dni vienen del join a Usuario).
       expect(Object.keys(res.body).sort()).toEqual([
+        'dni',
         'fecha_hora_egreso',
         'fecha_hora_ingreso',
         'id',
+        'nombre',
         'sede_id',
-        'usuario_id',
+        'socio_id',
         'validado_offline',
       ]);
+      expect(res.body.nombre).toBe('Socio E2E M2');
+      expect(res.body.dni).toBeTruthy();
       expect(res.body.fecha_hora_egreso).toBeNull();
       expect(res.body.validado_offline).toBe(false);
 
@@ -302,19 +355,22 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
 
       const ingresoDentroRes = await request(app.getHttpServer())
         .post('/api/v1/ingresos')
-        .send({ sede_id: sedeId, usuario_id: dentro.usuarioId, codigo_totp: '123456' })
+        .send({ sede_id: sedeId, socio_id: dentro.socioId, codigo_totp: '123456' })
         .expect(201);
       const ingresoFueraRes = await request(app.getHttpServer())
         .post('/api/v1/ingresos')
-        .send({ sede_id: sedeId, usuario_id: fuera.usuarioId, codigo_totp: '123456' })
+        .send({ sede_id: sedeId, socio_id: fuera.socioId, codigo_totp: '123456' })
         .expect(201);
 
+      const token = await tokenRecepcion(sedeId);
       await request(app.getHttpServer())
         .post(`/api/v1/ingresos/${ingresoFueraRes.body.id}/egreso`)
+        .set('Authorization', `Bearer ${token}`)
         .expect(204);
 
       const res = await request(app.getHttpServer())
         .get(`/api/v1/ingresos?sede_id=${sedeId}&dentro=true`)
+        .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
       expect(res.body).toHaveLength(1);
@@ -325,13 +381,14 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
       // que en SQL no significa "tiene egreso").
       const sinFiltro = await request(app.getHttpServer())
         .get(`/api/v1/ingresos?sede_id=${sedeId}&dentro=false`)
+        .set('Authorization', `Bearer ${token}`)
         .expect(200);
       expect(sinFiltro.body).toHaveLength(2);
     });
 
     it('el filtro fecha usa el dia de la sede (-03:00), no el dia UTC', async () => {
       const sedeId = await crearSede(10);
-      const { usuarioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+      const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
 
       // 01:30 UTC del dia 15 son las 22:30 del dia 14 en Argentina. Si el filtro
       // usara UTC el ingreso caeria en el 15; con -03:00 tiene que caer en el 14.
@@ -339,20 +396,23 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
         .post('/api/v1/ingresos')
         .send({
           sede_id: sedeId,
-          usuario_id: usuarioId,
+          socio_id: socioId,
           codigo_totp: '123456',
           fecha_hora_ingreso: '2026-03-15T01:30:00.000Z',
         })
         .expect(201);
 
+      const token = await tokenRecepcion(sedeId);
       const diaLocal = await request(app.getHttpServer())
         .get(`/api/v1/ingresos?sede_id=${sedeId}&fecha=2026-03-14`)
+        .set('Authorization', `Bearer ${token}`)
         .expect(200);
       expect(diaLocal.body).toHaveLength(1);
       expect(diaLocal.body[0].id).toBe(ingresoRes.body.id);
 
       const diaUtc = await request(app.getHttpServer())
         .get(`/api/v1/ingresos?sede_id=${sedeId}&fecha=2026-03-15`)
+        .set('Authorization', `Bearer ${token}`)
         .expect(200);
       expect(diaUtc.body).toHaveLength(0);
     });
@@ -362,18 +422,20 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
       const esperados: number[] = [];
 
       for (let i = 0; i < 3; i++) {
-        const { usuarioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+        const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
         const res = await request(app.getHttpServer())
           .post('/api/v1/ingresos')
-          .send({ sede_id: sedeId, usuario_id: usuarioId, codigo_totp: '123456' })
+          .send({ sede_id: sedeId, socio_id: socioId, codigo_totp: '123456' })
           .expect(201);
         esperados.push(res.body.id);
       }
 
+      const token = await tokenRecepcion(sedeId);
       const vistos: number[] = [];
       for (const page of [1, 2, 3]) {
         const res = await request(app.getHttpServer())
           .get(`/api/v1/ingresos?sede_id=${sedeId}&per_page=1&page=${page}`)
+          .set('Authorization', `Bearer ${token}`)
           .expect(200);
         expect(res.body).toHaveLength(1);
         vistos.push(res.body[0].id);
@@ -386,30 +448,31 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
 
     it('rechaza con 422 los filtros y la paginacion invalidos', async () => {
       const q = '/api/v1/ingresos';
+      const token = await tokenRecepcion(sedesCreadas[0]);
       // per_page por encima del maximo del contrato
-      await request(app.getHttpServer()).get(`${q}?per_page=500`).expect(422);
+      await request(app.getHttpServer()).get(`${q}?per_page=500`).set('Authorization', `Bearer ${token}`).expect(422);
       // fecha como instante en vez de dia
-      await request(app.getHttpServer()).get(`${q}?fecha=2026-03-15T01:30:00.000Z`).expect(422);
+      await request(app.getHttpServer()).get(`${q}?fecha=2026-03-15T01:30:00.000Z`).set('Authorization', `Bearer ${token}`).expect(422);
       // fecha en formato regional
-      await request(app.getHttpServer()).get(`${q}?fecha=15-03-2026`).expect(422);
+      await request(app.getHttpServer()).get(`${q}?fecha=15-03-2026`).set('Authorization', `Bearer ${token}`).expect(422);
       // dentro con un valor que no es boolean: si se casteara con Boolean(),
       // "1" y "false" se volverian true y el filtro pasaria silenciosamente.
-      await request(app.getHttpServer()).get(`${q}?dentro=1`).expect(422);
-      await request(app.getHttpServer()).get(`${q}?dentro=quilmil`).expect(422);
+      await request(app.getHttpServer()).get(`${q}?dentro=1`).set('Authorization', `Bearer ${token}`).expect(422);
+      await request(app.getHttpServer()).get(`${q}?dentro=quilmil`).set('Authorization', `Bearer ${token}`).expect(422);
       // paginacion en cero
-      await request(app.getHttpServer()).get(`${q}?page=0`).expect(422);
+      await request(app.getHttpServer()).get(`${q}?page=0`).set('Authorization', `Bearer ${token}`).expect(422);
     });
 
     it('RNF-01: el puesto offline reporta la hora real del acceso', async () => {
       const sedeId = await crearSede(10);
-      const { usuarioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+      const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
 
       const momentoReal = '2026-05-04T22:15:00.000Z';
       const res = await request(app.getHttpServer())
         .post('/api/v1/ingresos')
         .send({
           sede_id: sedeId,
-          usuario_id: usuarioId,
+          socio_id: socioId,
           codigo_totp: '123456',
           fecha_hora_ingreso: momentoReal,
           validado_offline: true,
@@ -425,6 +488,88 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
         .expect(200);
       expect(detalle.body.validado_offline).toBe(true);
       expect(new Date(detalle.body.fecha_hora_ingreso).toISOString()).toBe(momentoReal);
+    });
+  });
+
+  // Unidad III: GET /ingresos y el egreso están protegidos y el RECEPCION solo
+  // ve/egresa en su sede. Estas pruebas fijan esa regla y el filtro ?nombre=.
+  describe('M2 - acceso por sede y búsqueda por nombre (Unidad III)', () => {
+    async function crearSede(aforo: number): Promise<number> {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/sedes')
+        .send({ nombre: 'Sede E2E Sede-Scope', direccion: 'Calle Falsa 555', aforo_maximo: aforo })
+        .expect(201);
+      sedesCreadas.push(res.body.id);
+      return res.body.id as number;
+    }
+
+    async function ingresar(sedeId: number, socioId: number): Promise<number> {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/ingresos')
+        .send({ sede_id: sedeId, socio_id: socioId, codigo_totp: '123456' })
+        .expect(201);
+      return res.body.id as number;
+    }
+
+    it('RECEPCION solo ve su sede aunque pida otra en el query', async () => {
+      const sedeA = await crearSede(10);
+      const sedeB = await crearSede(10);
+      const enA = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeA });
+      const enB = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeB });
+      const ingresoA = await ingresar(sedeA, enA.socioId);
+      await ingresar(sedeB, enB.socioId);
+
+      // Token de la sede A; se pide explícitamente la sede B.
+      const tokenA = await tokenRecepcion(sedeA);
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/ingresos?sede_id=${sedeB}`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200);
+
+      // La sede del JWT manda: solo aparece el ingreso de A.
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].id).toBe(ingresoA);
+      expect(res.body[0].sede_id).toBe(sedeA);
+    });
+
+    it('RECEPCION no puede egresar un ingreso de otra sede (403)', async () => {
+      const sedeA = await crearSede(10);
+      const sedeB = await crearSede(10);
+      const enB = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeB });
+      const ingresoB = await ingresar(sedeB, enB.socioId);
+
+      const tokenA = await tokenRecepcion(sedeA);
+      await request(app.getHttpServer())
+        .post(`/api/v1/ingresos/${ingresoB}/egreso`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(403);
+    });
+
+    it('el listado exige token (401 sin Authorization)', async () => {
+      await request(app.getHttpServer()).get('/api/v1/ingresos').expect(401);
+    });
+
+    it('filtra por nombre parcial, sin distinguir mayúsculas', async () => {
+      const sedeId = await crearSede(10);
+      const objetivo = 'Wenceslao Ñandú';
+      const socio = await crearSocioConMembresia({
+        vigente: true,
+        sedeOrigenId: sedeId,
+        nombre: objetivo,
+      });
+      await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId, nombre: 'Otro Socio' });
+      const ingresoId = await ingresar(sedeId, socio.socioId);
+
+      const token = await tokenRecepcion(sedeId);
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/ingresos?sede_id=${sedeId}&nombre=ñand`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body).toHaveLength(1);
+      expect(res.body[0].id).toBe(ingresoId);
+      expect(res.body[0].nombre).toBe(objetivo);
+      expect(res.body[0].dni).toBeTruthy();
     });
   });
 });

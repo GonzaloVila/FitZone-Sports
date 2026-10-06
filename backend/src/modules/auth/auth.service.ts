@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
 import { GENERIC_TYPE, ProblemException, TITLES } from '../../commons/filters/problem.exception';
+import { SociosService } from '../m1-usuarios/services/socios.service';
 import { UsuariosService } from '../m1-usuarios/services/usuarios.service';
 import { LoginIn } from './dtos/login-in.dto';
 import { LoginOut } from './dtos/login-out.dto';
@@ -19,6 +20,7 @@ const DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8Rw0yhlOqFV/VFWmvfUwm6Qp3pbFBK
 export class AuthService {
   constructor(
     private readonly usuariosService: UsuariosService,
+    private readonly sociosService: SociosService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -37,11 +39,17 @@ export class AuthService {
     }
 
     const sedeId = usuario.rol === 'RECEPCION' && usuario.sede_id !== null ? usuario.sede_id : undefined;
+    // El socio_id viaja en el token para que la app lo mande en POST /ingresos
+    // sin resolverlo aparte (igual que sede_id para RECEPCION).
+    const socioId =
+      usuario.rol === 'SOCIO' ? await this.sociosService.obtenerSocioIdPorUsuario(usuario.id) : null;
+    const socioIdPayload = socioId ?? undefined;
 
     const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
       sub: usuario.id,
       rol: usuario.rol,
       ...(sedeId !== undefined && { sede_id: sedeId }),
+      ...(socioIdPayload !== undefined && { socio_id: socioIdPayload }),
     };
 
     const expiresIn = this.configService.get<number>('JWT_EXPIRES_IN')!;
@@ -53,6 +61,7 @@ export class AuthService {
       expires_in: expiresIn,
       rol: usuario.rol,
       sede_id: sedeId,
+      socio_id: socioIdPayload,
     });
   }
 }

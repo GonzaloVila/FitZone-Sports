@@ -33,6 +33,18 @@
 //     (el pk ya implica not null; se escribe para que se lea sin ambiguedad).
 //   - Todas las columnas de fecha son timestamptz(3) (migracion 20260929000000_fechas_timestamptz).
 //
+// CAMBIOS POST-VARIANTE-A (baja logica + acceso por socio):
+//   - Socio.activo / fecha_baja (migracion 20261004030000): DELETE /socios ya NO borra la
+//     fila (el rol pasa a EXTERNO y la membresia a SUSPENDIDA); la fila se conserva para que
+//     la re-alta sea idempotente (Socio.usuario_id es unica). El payload del login/JWT del
+//     rol SOCIO lleva socio_id para usarse en POST /ingresos.
+//   - Ingreso.socio_id (migracion 20261004040000): reemplaza a Ingreso.usuario_id. Solo los
+//     socios entran al gimnasio (A1); los externos solo alquilan canchas (A2). GET /ingresos,
+//     el filtro por socio, el sincronizar offline (IngresoASincronizarDto) y el
+//     GET /bloqueados pasan a identificarse por socio_id (indice parcial unicidad_abierto sobre socio_id).
+//   - PagoMembresia.membresia_id vuelve a NOT NULL (migracion 20261004050000): con la baja
+//     logica la membresia ya no se borra, asi que el enlace del cobro nunca queda colgando.
+//
 // TIPOS: las columnas de texto son "text" (sin limite), no varchar(n). Es el mapeo que Prisma
 // genera para String sobre Postgres; en la base real no hay ni una sola columna varchar. NO se
 // Pon @db.VarChar(n) en el schema, asi que la base no impone ninguna longitud: la validacion de
@@ -102,6 +114,8 @@ Table Socio {
   usuario_id int [unique, not null]
   sede_origen_id int [not null]
   fecha_alta timestamptz [not null]
+  activo boolean [not null, default: 'true']  // baja logica: false cuando deja de ser socio (la fila se conserva)
+  fecha_baja timestamptz                     // fecha de la baja logica; NULL mientras sigue activo
   totp_secreto text            // QR dinamico TOTP (RF-04): secreto cifrado AES-256-GCM; NULL si no activo el QR
   qr_activo boolean [not null, default: 'true']  // permite revocar el QR sin borrar el secreto
 }
@@ -183,19 +197,19 @@ Table PagoReserva {
 
 Table PagoMembresia {
   id_pago int [pk, not null]
-  membresia_id int [null]  // RF-02: la baja del socio borra la membresia y la FK hace SetNull; el Pago queda como historial
+  membresia_id int [not null]  // con la baja LOGICA la membresia ya no se borra, asi que el enlace nunca queda NULL
 }
 
 Table Ingreso {
   id int [pk, increment]
   sede_id int [not null]
-  usuario_id int [not null]
+  socio_id int [not null]      // solo los socios entran al gimnasio (los externos solo alquilan canchas)
   fecha_hora_ingreso timestamptz [not null]
   fecha_hora_egreso timestamptz
   validado_offline boolean [not null, default: 'false']
-  // ingreso_usuario_abierto_unq: indice parcial unico sobre (usuario_id) WHERE fecha_hora_egreso IS NULL.
-  // Es la garantia atomica de RN-01 (un usuario no puede estar dentro de dos sedes a la vez).
-  // Prisma 6 no modela indices parciales; se crea en SQL (migracion 20260925010000).
+  // ingreso_socio_abierto_unq: indice parcial unico sobre (socio_id) WHERE fecha_hora_egreso IS NULL.
+  // Es la garantia atomica de RN-01 (un socio no puede estar dentro de dos sedes a la vez).
+  // Prisma 6 no modela indices parciales; se crea en SQL (migracion 20261004040000).
 }
 
 // Usuario - Socio: 1:1 (Socio.usuario_id unica)
@@ -220,4 +234,4 @@ Ref: Reserva.id - PagoReserva.reserva_id
 Ref: Pago.id - PagoMembresia.id_pago
 Ref: Membresia.id < PagoMembresia.membresia_id
 Ref: Sede.id < Ingreso.sede_id
-Ref: Usuario.id < Ingreso.usuario_id
+Ref: Socio.id < Ingreso.socio_id

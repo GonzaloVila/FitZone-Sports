@@ -48,13 +48,13 @@ export class TotpService {
     };
   }
 
-  // Llamado desde IngresosService (M2) al registrar un ingreso. `codigo_totp`
-  // es obligatorio en el DTO, pero solo se verifica contra un secreto real
-  // si el socio activo el QR (totp_secreto + qr_activo); si nunca lo activo
-  // se permite igual (backward compatibility explicita del plan), asi que
+  // Llamado desde IngresosService (M2) al registrar un ingreso, ahora por socio.
+  // `codigo_totp` es obligatorio en el DTO, pero solo se verifica contra un
+  // secreto real si el socio activo el QR (totp_secreto + qr_activo); si nunca lo
+  // activo se permite igual (backward compatibility explicita del plan), asi que
   // un socio sin TOTP no se ve afectado por este cambio.
-  async validarIngreso(usuarioId: number, codigo: string): Promise<void> {
-    const estado = await this.sociosService.obtenerEstadoTotp(usuarioId);
+  async validarIngreso(socioId: number, codigo: string): Promise<void> {
+    const estado = await this.sociosService.obtenerEstadoTotpPorSocio(socioId);
     if (!estado || !estado.totpSecreto || !estado.qrActivo) {
       return;
     }

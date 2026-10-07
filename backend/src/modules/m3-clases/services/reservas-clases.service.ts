@@ -1,12 +1,20 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import { ReservaClaseIn } from '../dtos/reserva-clase-in.dto';
 import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query.dto';
 import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
 import { CupoLiberadoSubject } from '../observers/cupo-liberado.subject';
+import {
+  cancelacionFueraDeTermino,
+  claseNoDisponibleParaReserva,
+  cupoAgotado,
+  reservaAnticipadaNoPermitida,
+  reservaDuplicada,
+  socioEnMoraParaReserva,
+} from '../errors/reservas-clases.errors';
 import { ClaseRepository } from '../repositories/clase.repository';
 import { ReservaClaseRepository } from '../repositories/reserva-clase.repository';
 
@@ -69,12 +77,7 @@ export class ReservasClasesService {
       throw recursoNoEncontrado('El socio indicado no existe.');
     }
     if (estado.enMora || !estado.vigente) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/socio-en-mora',
-        title: 'Socio en mora',
-        status: HttpStatus.FORBIDDEN,
-        detail: `El socio ${dto.socio_id} posee cuotas vencidas. No puede reservar con tarifa bonificada. Puede abonar el precio de cliente externo.`,
-      });
+      throw socioEnMoraParaReserva(dto.socio_id);
     }
 
     // Regla de Ventana Temporal (RF-07): reserva habilitada hasta 48 hs antes
@@ -83,42 +86,22 @@ export class ReservasClasesService {
     const aperturaReserva = inicioClase - 48 * 60 * 60 * 1000;
 
     if (ahora < aperturaReserva) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/reserva-anticipada-no-permitida',
-        title: 'Reserva anticipada no permitida',
-        status: HttpStatus.CONFLICT,
-        detail: 'Las reservas de clases solo se habilitan dentro de las 48 horas previas al inicio.',
-      });
+      throw reservaAnticipadaNoPermitida();
     }
 
     if (ahora >= inicioClase) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/clase-pasada',
-        title: 'Clase no disponible',
-        status: HttpStatus.CONFLICT,
-        detail: 'No es posible reservar una clase que ya comenzó o ha finalizado.',
-      });
+      throw claseNoDisponibleParaReserva();
     }
 
     const resultado = await this.reservasRepo.crearConLock(claseId, dto.socio_id);
 
     if (!resultado.ok) {
       if (resultado.motivo === 'CUPO_AGOTADO') {
-        throw new ProblemException({
-          type: 'https://fitzone.app/errores/cupo-agotado',
-          title: 'Cupo de clase agotado',
-          status: HttpStatus.CONFLICT,
-          detail: `La clase ${claseId} alcanzó su capacidad máxima (${clase.capacidad}). Puede ingresar a la lista de espera (RF-08).`,
-        });
+        throw cupoAgotado(claseId, clase.capacidad);
       }
 
       if (resultado.motivo === 'RESERVA_DUPLICADA') {
-        throw new ProblemException({
-          type: 'https://fitzone.app/errores/reserva-duplicada',
-          title: 'Reserva duplicada',
-          status: HttpStatus.CONFLICT,
-          detail: `El socio ${dto.socio_id} ya posee una reserva confirmada para la clase ${claseId}.`,
-        });
+        throw reservaDuplicada(dto.socio_id, claseId);
       }
 
       throw recursoNoEncontrado('No existe la clase indicada.');
@@ -156,12 +139,7 @@ export class ReservasClasesService {
     const limiteCancelacion = inicioClase - 2 * 60 * 60 * 1000;
 
     if (ahora > limiteCancelacion) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/cancelacion-fuera-de-termino',
-        title: 'Cancelación fuera de término',
-        status: HttpStatus.CONFLICT,
-        detail: 'No es posible cancelar la reserva sin penalidad con menos de 2 horas de anticipación.',
-      });
+      throw cancelacionFueraDeTermino();
     }
 
     await this.reservasRepo.marcarCancelada(reservaClaseId);

@@ -3,7 +3,7 @@ import type { EventEmitter2 } from '@nestjs/event-emitter';
 import { PRECIOS_PLAN, estaVigente } from '../entities/membresia.entity';
 import type { Membresia } from '../entities/membresia.entity';
 import { MembresiasService } from './membresias.service';
-import type { MembresiaRepository } from '../repositories/membresia.repository';
+import type { MembresiaRepository } from '../domain/membresia.port';
 import type { SocioRepository } from '../repositories/socio.repository';
 
 // La regla RN-03 vivia en `MembresiaValidationAdapter` y no tenia cobertura propia:

@@ -28,7 +28,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { faltaIdempotencyKey } from '../../../commons/filters/problem.exception';
+import { faltaIdempotencyKey } from '../errors/pago.errors';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { ListarPagosQueryDto } from '../dtos/listar-pagos-query.dto';

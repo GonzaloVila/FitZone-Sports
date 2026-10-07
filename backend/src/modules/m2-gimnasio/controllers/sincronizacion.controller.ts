@@ -1,4 +1,4 @@
-import { Body, Controller, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -10,7 +10,6 @@ import {
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
-import { GENERIC_TYPE, ProblemException, TITLES } from '../../../commons/filters/problem.exception';
 import { Roles } from '../../../commons/guards/roles.decorator';
 import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
@@ -18,6 +17,7 @@ import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
 import { SincronizarIngresosIn } from '../dtos/sincronizar-ingresos-in.dto';
 import { SincronizarIngresosOut } from '../dtos/sincronizar-ingresos-out.dto';
+import { sinSedeAsignada } from '../errors/ingresos.errors';
 import { IngresosService } from '../services/ingresos.service';
 
 interface RequestConUsuario extends Request {
@@ -51,12 +51,7 @@ export class SincronizacionController {
   ): Promise<SincronizarIngresosOut> {
     const sedeId = req.user.sede_id;
     if (sedeId === undefined) {
-      throw new ProblemException({
-        type: GENERIC_TYPE,
-        title: TITLES[HttpStatus.FORBIDDEN],
-        status: HttpStatus.FORBIDDEN,
-        detail: 'El usuario autenticado no tiene una sede de trabajo asignada (EmpleadoSede).',
-      });
+      throw sinSedeAsignada();
     }
     return this.ingresosService.sincronizar(dto, sedeId);
   }

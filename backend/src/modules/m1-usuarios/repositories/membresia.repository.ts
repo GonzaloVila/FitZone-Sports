@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../commons/database/prisma.service';
+import { mapearErrorPrisma } from '../../../commons/errors/prisma.mapper';
+import { MembresiaRepository } from '../domain/membresia.port';
+import type { MembresiaParaCobro } from '../domain/membresia.port';
 import { PRECIOS_PLAN, calcularVigencia } from '../entities/membresia.entity';
 import type {
   Membresia,
@@ -11,19 +14,13 @@ import type {
 
 type MembresiaRow = Prisma.MembresiaGetPayload<Record<string, never>>;
 
-// La fila con el cruce a Socio, que es la que consume el caso de uso de cobro de M5:
-// la membresía no tiene usuario_id, lo tiene el socio, y Pago.usuario_id lo necesita.
-// El join queda adentro de M1, que es dueña de las dos tablas, y el tipo viene del
-// schema para no escribirlo a mano.
-type MembresiaConSocioRow = Prisma.MembresiaGetPayload<{
-  include: { socio: { select: { usuario_id: true } } };
-}>;
-
-// Capa de acceso a datos de la membresia. Es la unica pieza de M1 que conoce
-// Prisma: los services de arriba reciben el tipo `Membresia`.
+// Adaptador de Prisma del puerto MembresiaRepository. Es la unica pieza de M1 que
+// conoce Prisma: los services de arriba reciben tipos de dominio, nunca filas.
 @Injectable()
-export class MembresiaRepository {
-  constructor(private readonly prisma: PrismaService) {}
+export class PrismaMembresiaRepository extends MembresiaRepository {
+  constructor(private readonly prisma: PrismaService) {
+    super();
+  }
 
   async buscarPorSocioId(socioId: number): Promise<Membresia | null> {
     const fila = await this.prisma.membresia.findUnique({
@@ -32,14 +29,26 @@ export class MembresiaRepository {
     return fila ? this.aDominio(fila) : null;
   }
 
-  // Lectura minima para el caso de uso de cobro: la fila con el socio adjunto. Va
-  // acá y no en el service de M5 para que la tabla Membresia se consulte desde un
-  // solo lugar (ADR-07).
-  async obtenerParaCobro(membresiaId: number): Promise<MembresiaConSocioRow | null> {
-    return this.prisma.membresia.findUnique({
+  // Lectura minima para el caso de uso de cobro: la fila con el socio adjunto (la
+  // membresia no tiene usuario_id, lo tiene el socio, y Pago.usuario_id lo necesita).
+  // El precio sale como number y no como el Decimal de Prisma. Va acá y no en el
+  // service de M5 para que la tabla Membresia se consulte desde un solo lugar (ADR-07).
+  async obtenerParaCobro(membresiaId: number): Promise<MembresiaParaCobro | null> {
+    const fila = await this.prisma.membresia.findUnique({
       where: { id: membresiaId },
       include: { socio: { select: { usuario_id: true } } },
     });
+    if (!fila) {
+      return null;
+    }
+
+    return {
+      membresia_id: fila.id,
+      usuario_id: fila.socio.usuario_id,
+      plan: fila.plan,
+      precio: fila.precio.toNumber(),
+      estado: fila.estado,
+    };
   }
 
   async actualizar(
@@ -73,7 +82,7 @@ export class MembresiaRepository {
         data,
       })
       .catch((err) => {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        if (mapearErrorPrisma(err) === 'NO_ENCONTRADO') {
           return null;
         }
         throw err;
@@ -166,7 +175,7 @@ export class MembresiaRepository {
         },
       })
       .catch((err) => {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        if (mapearErrorPrisma(err) === 'NO_ENCONTRADO') {
           return null;
         }
         throw err;

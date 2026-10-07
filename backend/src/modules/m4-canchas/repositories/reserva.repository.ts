@@ -1,45 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../commons/database/prisma.service';
+import { mapearErrorPrisma } from '../../../commons/errors/prisma.mapper';
+import {
+  ReservaRepository,
+  type FiltrosListarReservas,
+  type ReservaNueva,
+  type ResultadoCrearReserva,
+} from '../domain/reserva.port';
 import type { Reserva } from '../entities/reserva.entity';
-
-export interface ReservaNueva {
-  cancha_id: number;
-  usuario_id: number;
-  fecha_hora_inicio: Date;
-  fecha_hora_fin: Date;
-  precio_aplicado: number;
-}
-
-// Resultado discriminado: el solapamiento (RN-02) solo es detectable en la
-// base, por la constraint exq_reserva_turno; este repositorio lo traduce a este
-// motivo y el service decide el 409 (mismo criterio que ResultadoCrearIngreso en M2).
-export type ResultadoCrearReserva =
-  | { ok: true; reserva: Reserva }
-  | { ok: false; motivo: 'TURNO_OCUPADO' };
-
-// Lista blanca de filtros: solo filtra por los campos presentes. El repositorio
-// no decide defaults (p. ej. el estado): eso es regla de negocio del service.
-// desde/hasta acotan fecha_hora_inicio como [desde, hasta).
-export interface FiltrosListarReservas {
-  canchaId?: number;
-  usuarioId?: number;
-  estado?: 'CONFIRMADA' | 'CANCELADA';
-  desde?: Date;
-  hasta?: Date;
-  page: number;
-  perPage: number;
-}
 
 type ReservaRow = Prisma.ReservaGetPayload<Record<string, never>>;
 
-const CONSTRAINT_TURNO = 'exq_reserva_turno';
-
-// Capa de acceso a datos de la reserva de cancha. Es la unica pieza de M4 que
-// conoce Prisma y la unica que puede detectar el solapamiento por constraint.
+// Adaptador de Prisma del puerto ReservaRepository. Es la unica pieza de M4 que
+// conoce Prisma y la unica que traduce el solapamiento (la constraint de
+// exclusion) al motivo del resultado discriminado.
 @Injectable()
-export class ReservaRepository {
-  constructor(private readonly prisma: PrismaService) {}
+export class PrismaReservaRepository extends ReservaRepository {
+  constructor(private readonly prisma: PrismaService) {
+    super();
+  }
 
   async crear(reserva: ReservaNueva): Promise<ResultadoCrearReserva> {
     try {
@@ -57,14 +37,10 @@ export class ReservaRepository {
       );
       return { ok: true, reserva: this.aDominio(fila) };
     } catch (error) {
-      // exq_reserva_turno es una constraint de exclusión (23P01): Prisma no la
-      // mapea, así que llega como PrismaClientUnknownRequestError con code
-      // undefined y el nombre de la constraint solo en el mensaje. No sirve el
-      // patrón `error.code === 'P2002'` de M2.
-      if (
-        error instanceof Prisma.PrismaClientUnknownRequestError &&
-        error.message.includes(CONSTRAINT_TURNO)
-      ) {
+      // La constraint de exclusion de RN-02 (23P01) no la modela Prisma: el mapper
+      // la reconoce y la sube a la causa EXCLUSION. Acá se baja al motivo del
+      // resultado; el service lo traduce al 409 turno-ocupado.
+      if (mapearErrorPrisma(error) === 'EXCLUSION') {
         return { ok: false, motivo: 'TURNO_OCUPADO' };
       }
       throw error;
@@ -86,7 +62,7 @@ export class ReservaRepository {
       });
       return this.aDominio(fila);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (mapearErrorPrisma(error) === 'NO_ENCONTRADO') {
         return null;
       }
       throw error;

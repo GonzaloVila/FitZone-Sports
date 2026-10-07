@@ -1,6 +1,6 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import type { OpcionesPaginacion } from '../../../commons/paginacion';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import type { RolUsuario } from '../../m1-usuarios/entities/usuario.entity';
@@ -15,6 +15,13 @@ import {
   SincronizarIngresosOut,
 } from '../dtos/sincronizar-ingresos-out.dto';
 import { Ingreso } from '../entities/ingreso.entity';
+import {
+  accesoDuplicado,
+  aforoLleno,
+  egresoDuplicado,
+  egresoFueraDeSede,
+  membresiaInactiva,
+} from '../errors/ingresos.errors';
 import { IngresoRepository } from '../repositories/ingreso.repository';
 import type { IngresoFiltros } from '../repositories/ingreso.repository';
 import { SedeRepository } from '../repositories/sede.repository';
@@ -53,12 +60,7 @@ export class IngresosService {
     // consulta por socio; un socio inactivo (baja logica) da no-vigente.
     const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
     if (!estado.vigente) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/membresia-inactiva',
-        title: 'Membresía inactiva',
-        status: HttpStatus.FORBIDDEN,
-        detail: `El socio ${dto.socio_id} no posee una membresía vigente para ingresar a la sede ${dto.sede_id}.`,
-      });
+      throw membresiaInactiva(dto.socio_id, dto.sede_id);
     }
 
     // codigo_totp viene siempre (DTO lo exige); solo se verifica contra el
@@ -73,7 +75,7 @@ export class IngresosService {
     // segundo INSERT y vuelve por crear() como ACCESO_DUPLICADO.
     const ingresoActivo = await this.ingresos.buscarActivoPorSocio(dto.socio_id);
     if (ingresoActivo) {
-      throw this.accesoDuplicado(dto.socio_id);
+      throw accesoDuplicado(dto.socio_id);
     }
 
     const resultado = await this.ingresos.crear({
@@ -88,14 +90,9 @@ export class IngresosService {
       // Si llegamos aquí con ACCESO_DUPLICADO, es que el índice único atajó un
       // acceso duplicado que el chequeo previo no llegó a ver.
       if (resultado.motivo === 'ACCESO_DUPLICADO') {
-        throw this.accesoDuplicado(dto.socio_id);
+        throw accesoDuplicado(dto.socio_id);
       }
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/aforo-lleno',
-        title: 'Aforo de la sede completo',
-        status: HttpStatus.CONFLICT,
-        detail: `La sede ${dto.sede_id} alcanzó su aforo máximo (${sede.aforo_maximo} personas); no se admiten más ingresos (RF-05).`,
-      });
+      throw aforoLleno(dto.sede_id, sede.aforo_maximo);
     }
 
     return this.aOut(resultado.ingreso);
@@ -133,21 +130,11 @@ export class IngresosService {
     // RECEPCION solo egresa en su sede. El 403 va antes del chequeo de egreso
     // duplicado a propósito: no se filtra el estado de un ingreso de otra sede.
     if (scope.rol === 'RECEPCION' && scope.sedeId !== ingreso.sede_id) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/egreso-fuera-de-sede',
-        title: 'Egreso fuera de la sede',
-        status: HttpStatus.FORBIDDEN,
-        detail: `El ingreso ${ingresoId} no pertenece a la sede del recepcionista.`,
-      });
+      throw egresoFueraDeSede(ingresoId);
     }
 
     if (ingreso.fecha_hora_egreso) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/egreso-duplicado',
-        title: 'Egreso duplicado',
-        status: HttpStatus.CONFLICT,
-        detail: `El ingreso ${ingresoId} ya tiene fecha_hora_egreso; no se puede egresar dos veces.`,
-      });
+      throw egresoDuplicado(ingresoId);
     }
 
     await this.ingresos.marcarEgreso(ingresoId, new Date());
@@ -290,17 +277,5 @@ export class IngresosService {
 
   private aOut(ingreso: Ingreso): IngresoOut {
     return plainToInstance(IngresoOut, ingreso);
-  }
-
-  // 409 acceso-duplicado (RN-01), compartido entre el atajo previo y el que
-  // devuelve el índice único, para que los dos caminos emitan exactamente la
-  // misma problem+json.
-  private accesoDuplicado(socioId: number): ProblemException {
-    return new ProblemException({
-      type: 'https://fitzone.app/errores/acceso-duplicado',
-      title: 'Acceso duplicado',
-      status: HttpStatus.CONFLICT,
-      detail: `El socio ${socioId} ya tiene un ingreso sin egreso registrado (RN-01).`,
-    });
   }
 }

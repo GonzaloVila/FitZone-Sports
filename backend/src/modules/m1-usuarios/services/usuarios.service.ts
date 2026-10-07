@@ -1,11 +1,5 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import {
-  GENERIC_TYPE,
-  ProblemException,
-  TITLES,
-  conflictoDeDominio,
-  recursoNoEncontrado,
-} from '../../../commons/filters/problem.exception';
+import { Injectable } from '@nestjs/common';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import * as bcrypt from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
 import { UsuarioIn } from '../dtos/usuario-in.dto';
@@ -13,6 +7,7 @@ import { ListarUsuariosQueryDto } from '../dtos/listar-usuarios-query.dto';
 import { UsuarioPatch } from '../dtos/usuario-patch.dto';
 import { UsuarioOut } from '../dtos/usuario-out.dto';
 import { Usuario, UsuarioActualizable } from '../entities/usuario.entity';
+import { sinCamposParaModificar, usuarioDuplicado } from '../errors/socios.errors';
 import { EmpleadoSedeRepository } from '../repositories/empleado-sede.repository';
 import { UsuarioRepository } from '../repositories/usuario.repository';
 
@@ -53,8 +48,7 @@ export class UsuariosService {
   async crear(dto: UsuarioIn): Promise<UsuarioOut> {
     const existente = await this.usuarios.buscarPorDniOEmail(dto.dni, dto.email);
     if (existente) {
-      throw conflictoDeDominio(
-        'Conflicto de unicidad',
+      throw usuarioDuplicado(
         existente.dni === dto.dni
           ? `El DNI ${dto.dni} ya está registrado.`
           : `El email ${dto.email} ya está registrado.`,
@@ -126,12 +120,7 @@ export class UsuariosService {
     // "actualizado" sin haber actualizado nada. El contrato declara 422 para
     // esta operacion, asi que se corta aca.
     if (Object.keys(cambios).length === 0) {
-      throw new ProblemException({
-        type: GENERIC_TYPE,
-        title: TITLES[HttpStatus.UNPROCESSABLE_ENTITY],
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        detail: 'Se debe enviar al menos un campo para modificar.',
-      });
+      throw sinCamposParaModificar();
     }
 
     const usuario = await this.usuarios.actualizar(id, cambios);

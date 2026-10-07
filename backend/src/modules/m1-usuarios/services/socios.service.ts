@@ -1,12 +1,6 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  GENERIC_TYPE,
-  ProblemException,
-  TITLES,
-  conflictoDeDominio,
-  recursoNoEncontrado,
-} from '../../../commons/filters/problem.exception';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
 import { EVENTO_SOCIO_ALTA } from '../../../commons/eventos';
 import { SocioIn } from '../dtos/socio-in.dto';
@@ -15,6 +9,7 @@ import { SocioPatch } from '../dtos/socio-patch.dto';
 import { SocioOut } from '../dtos/socio-out.dto';
 import { PRECIOS_PLAN } from '../entities/membresia.entity';
 import { Socio, SocioActualizable } from '../entities/socio.entity';
+import { sinCamposParaModificar, usuarioYaEsSocio } from '../errors/socios.errors';
 import { SocioRepository } from '../repositories/socio.repository';
 import type { SocioTotp } from '../repositories/socio.repository';
 import { UsuarioRepository } from '../repositories/usuario.repository';
@@ -72,10 +67,7 @@ export class SociosService {
       throw recursoNoEncontrado('No existe el usuario indicado.');
     }
     if (usuario.rol === 'SOCIO') {
-      throw conflictoDeDominio(
-        'El usuario ya es socio',
-        `El usuario ${usuario.id} ya tiene un registro de socio.`,
-      );
+      throw usuarioYaEsSocio(usuario.id);
     }
 
     // Alta = socio + membresía + rol, todo en una tx (socio.repository).
@@ -139,12 +131,7 @@ export class SociosService {
     // "actualizado" sin haber actualizado nada. El contrato declara 422 para
     // esta operacion, asi que se corta aca.
     if (Object.keys(cambios).length === 0) {
-      throw new ProblemException({
-        type: GENERIC_TYPE,
-        title: TITLES[HttpStatus.UNPROCESSABLE_ENTITY],
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        detail: 'Se debe enviar al menos un campo para modificar.',
-      });
+      throw sinCamposParaModificar();
     }
 
     const socio = await this.socios.actualizar(id, cambios);

@@ -6,8 +6,9 @@ import { MembresiasController } from './controllers/membresias.controller';
 import { SociosController } from './controllers/socios.controller';
 import { UsuariosController } from './controllers/usuarios.controller';
 import { MembresiasCron } from './crons/membresias.cron';
+import { MembresiaRepository } from './domain/membresia.port';
 import { EmpleadoSedeRepository } from './repositories/empleado-sede.repository';
-import { MembresiaRepository } from './repositories/membresia.repository';
+import { PrismaMembresiaRepository } from './repositories/membresia.repository';
 import { SocioRepository } from './repositories/socio.repository';
 import { UsuarioRepository } from './repositories/usuario.repository';
 import { MembresiasService } from './services/membresias.service';
@@ -33,7 +34,9 @@ import { UsuariosService } from './services/usuarios.service';
   providers: [
     UsuarioRepository,
     SocioRepository,
-    MembresiaRepository,
+    // Puerto de dominio (Fowler) con su adaptador de Prisma: unica excepcion, junto
+    // con ReservaRepository de M4, a "repositorio = clase concreta".
+    { provide: MembresiaRepository, useClass: PrismaMembresiaRepository },
     EmpleadoSedeRepository,
     UsuariosService,
     SociosService,

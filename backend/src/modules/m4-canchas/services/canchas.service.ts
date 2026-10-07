@@ -1,16 +1,12 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import {
-  GENERIC_TYPE,
-  ProblemException,
-  TITLES,
-  recursoNoEncontrado,
-} from '../../../commons/filters/problem.exception';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { SedesService } from '../../m2-gimnasio/services/sedes.service';
 import { CanchaIn } from '../dtos/cancha-in.dto';
 import { CanchaOut } from '../dtos/cancha-out.dto';
 import { CanchaPatch } from '../dtos/cancha-patch.dto';
 import { Cancha } from '../entities/cancha.entity';
+import { canchaSinCamposParaModificar } from '../errors/canchas.errors';
 import { CanchaRepository } from '../repositories/cancha.repository';
 
 const NO_ENCONTRADO = 'No existe el recurso solicitado para el id indicado.';
@@ -63,12 +59,7 @@ export class CanchasService {
     // respuesta era un 200 que decia "actualizado" sin haber actualizado nada.
     // El contrato declara 422 para esta operacion, asi que se corta aca.
     if (dto.costo_por_hora === undefined && dto.estado === undefined) {
-      throw new ProblemException({
-        type: GENERIC_TYPE,
-        title: TITLES[HttpStatus.UNPROCESSABLE_ENTITY],
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        detail: 'Se debe enviar al menos un campo: costo_por_hora o estado.',
-      });
+      throw canchaSinCamposParaModificar();
     }
 
     const cancha = await this.canchas.actualizar(id, {

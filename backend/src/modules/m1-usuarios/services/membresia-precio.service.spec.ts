@@ -1,34 +1,33 @@
-import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import { MembresiaPrecioService } from './membresia-precio.service';
-import type { MembresiaRepository } from '../repositories/membresia.repository';
+import type { MembresiaRepository } from '../domain/membresia.port';
 
-// Fijan el contrato del export que M5 consume. Lo que importa no es la logica (es un
-// rename) sino tres cosas que se rompen en silencio: que el precio salga como `number`
-// y no como el `Decimal` de Prisma (el `Pago.monto` es Decimal y un number[float]
-// manda ruido ahi), que cruce a Socio por `usuario_id` (la membresia no lo tiene), y
-// que un id inexistente sea `null` y no una excepcion de M1.
+// Fijan el contrato del export que M5 consume. El cruce a Socio y la conversion del
+// Decimal de Prisma a number viven ahora en el adaptador (ver
+// membresia.repository.spec.ts); aca se fija que el service entregue el tipo de
+// dominio tal cual, con las mismas claves, y que un id inexistente sea `null` y no
+// una excepcion de M1.
 describe('MembresiaPrecioService', () => {
-  function service(fila: unknown) {
+  function service(dominio: unknown) {
     const repo = {
-      obtenerParaCobro: async () => fila,
+      obtenerParaCobro: async () => dominio,
     } as unknown as MembresiaRepository;
     return new MembresiaPrecioService(repo);
   }
 
-  function fila(over: Record<string, unknown> = {}) {
+  function paraCobro(over: Record<string, unknown> = {}) {
     return {
-      id: 7,
+      membresia_id: 7,
+      usuario_id: 42,
       plan: 'TRIMESTRAL',
+      precio: 80000,
       estado: 'ACTIVA',
-      precio: new Prisma.Decimal('80000'),
-      socio: { usuario_id: 42 },
       ...over,
     };
   }
 
   it('devuelve precio como number, con plan, estado y usuario del socio', async () => {
-    const resultado = await service(fila()).obtenerParaCobro(7);
+    const resultado = await service(paraCobro()).obtenerParaCobro(7);
 
     expect(resultado).toEqual({
       membresia_id: 7,
@@ -41,7 +40,7 @@ describe('MembresiaPrecioService', () => {
   });
 
   it('no filtra el precio por la API aunque si lo lleve en el dominio', async () => {
-    const resultado = await service(fila()).obtenerParaCobro(7);
+    const resultado = await service(paraCobro()).obtenerParaCobro(7);
 
     // El precio viaja en el tipo de retorno a proposito (M5 lo necesita) pero no se
     // expone: `MembresiaOut` es lista blanca. Este test existe para que agregar

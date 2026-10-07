@@ -5,7 +5,7 @@ import { recursoNoEncontrado } from '../../../commons/filters/problem.exception'
 import { DisponibilidadEntrada } from '../dtos/disponibilidad-entrada.dto';
 import { Reserva } from '../entities/reserva.entity';
 import { CanchaRepository } from '../repositories/cancha.repository';
-import { ReservaRepository } from '../repositories/reserva.repository';
+import { ReservaRepository } from '../domain/reserva.port';
 import {
   GRILLA_HORA_FIN,
   GRILLA_HORA_INICIO,
@@ -50,7 +50,7 @@ export class DisponibilidadService {
       fecha_hora_inicio: inicio,
       fecha_hora_fin: fin,
       // Solapamiento de intervalos semiabiertos: un turno que termina justo
-      // cuando empieza el tramo no lo ocupa (mismo criterio que exq_reserva_turno).
+      // cuando empieza el tramo no lo ocupa (mismo criterio que la constraint de exclusion de RN-02).
       disponible:
         !bloqueada &&
         !ocupadas.some(

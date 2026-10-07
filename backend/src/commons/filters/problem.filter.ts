@@ -8,11 +8,12 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Request, Response } from 'express';
+import { turnoOcupadoBody } from '../../modules/m4-canchas/errors/reserva.errors';
+import { mapearErrorPrisma } from '../errors/prisma.mapper';
 import {
   GENERIC_TYPE,
   ProblemException,
   TITLES,
-  turnoOcupadoBody,
   type ProblemDetails,
 } from './problem.exception';
 
@@ -89,10 +90,7 @@ export class ProblemFilter implements ExceptionFilter {
     // Red de contension para la constraint de exclusion de M4. La regla normal
     // es que PrismaReservaRepository la intercepte y devuelva TURNO_OCUPADO; si
     // alguna otra via la deja pasar, aca se traduce igual a 409 en vez de 500.
-    if (
-      exception instanceof Prisma.PrismaClientUnknownRequestError &&
-      exception.message.includes('exq_reserva_turno')
-    ) {
+    if (mapearErrorPrisma(exception) === 'EXCLUSION') {
       return turnoOcupadoBody(this.instanceOf(request));
     }
 
@@ -190,7 +188,7 @@ export class ProblemFilter implements ExceptionFilter {
     if (exception.code === 'P2002') {
       const target = this.metaTarget(exception).toLowerCase();
       // OJO: `unq_reserva_turno` (unique parcial) ya NO existe. Lo sustituyo
-      // `exq_reserva_turno`, una constraint de exclusion que Prisma no modela,
+      // una constraint de exclusion que Prisma no modela (ver commons/errors/prisma.mapper),
       // asi que su violaciones no llegan por acá como P2002 sino como
       // PrismaClientUnknownRequestError (ver rama Unknown de más abajo).
       if (target.includes('idempotencia_key')) {

@@ -1,12 +1,22 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import { EsperaIn } from '../dtos/espera-in.dto';
 import { EsperaOut } from '../dtos/espera-out.dto';
 import { ListarEsperaDeClaseQueryDto } from '../dtos/listar-espera-de-clase-query.dto';
 import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
+import {
+  claseNoDisponibleParaEspera,
+  cupoDisponible,
+  cupoTomado,
+  esperaConfirmada,
+  esperaExistente,
+  esperaNoNotificada,
+  reservaDuplicadaAlConfirmar,
+  socioEnMoraParaEspera,
+} from '../errors/esperas.errors';
 import { ClaseRepository } from '../repositories/clase.repository';
 import { EsperaClaseRepository } from '../repositories/espera-clase.repository';
 
@@ -61,12 +71,7 @@ export class EsperasClasesService {
     }
 
     if (new Date(clase.horario).getTime() <= Date.now()) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/clase-pasada',
-        title: 'Clase no disponible',
-        status: HttpStatus.CONFLICT,
-        detail: 'No es posible anotarse en espera para una clase que ya comenzó o ha finalizado.',
-      });
+      throw claseNoDisponibleParaEspera();
     }
 
     const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
@@ -74,12 +79,7 @@ export class EsperasClasesService {
       throw recursoNoEncontrado('El socio indicado no existe.');
     }
     if (estado.enMora || !estado.vigente) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/socio-en-mora',
-        title: 'Socio en mora',
-        status: HttpStatus.FORBIDDEN,
-        detail: `El socio ${dto.socio_id} posee cuotas vencidas. No puede ingresar a la lista de espera de clases bonificadas.`,
-      });
+      throw socioEnMoraParaEspera(dto.socio_id);
     }
 
     const resultado = await this.esperasRepo.crear({
@@ -91,21 +91,11 @@ export class EsperasClasesService {
 
     if (!resultado.ok) {
       if (resultado.motivo === 'CUPO_DISPONIBLE') {
-        throw new ProblemException({
-          type: 'https://fitzone.app/errores/cupo-disponible',
-          title: 'Cupo disponible',
-          status: HttpStatus.CONFLICT,
-          detail: `La clase ${claseId} aún cuenta con lugares disponibles (${clase.cupo_disponible}). Puede reservar directamente sin ingresar a la lista de espera.`,
-        });
+        throw cupoDisponible(claseId, clase.cupo_disponible);
       }
 
       if (resultado.motivo === 'ESPERA_EXISTENTE') {
-        throw new ProblemException({
-          type: 'https://fitzone.app/errores/espera-existente',
-          title: 'Espera o reserva existente',
-          status: HttpStatus.CONFLICT,
-          detail: `El socio ${dto.socio_id} ya se encuentra inscripto en espera o ya posee una reserva confirmada para la clase ${claseId}.`,
-        });
+        throw esperaExistente(dto.socio_id, claseId);
       }
 
       throw recursoNoEncontrado('No existe la clase indicada.');
@@ -129,12 +119,7 @@ export class EsperasClasesService {
     }
 
     if (espera.estado === 'CONFIRMADO') {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/espera-confirmada',
-        title: 'Espera confirmada',
-        status: HttpStatus.CONFLICT,
-        detail: 'La solicitud de espera ya fue confirmada como reserva; debe gestionarse desde la cancelación de reservas.',
-      });
+      throw esperaConfirmada();
     }
 
     if (espera.estado === 'CANCELADO') {
@@ -153,29 +138,14 @@ export class EsperasClasesService {
       }
 
       if (resultado.motivo === 'NO_NOTIFICADA') {
-        throw new ProblemException({
-          type: 'https://fitzone.app/errores/espera-no-notificada',
-          title: 'Confirmación rechazada',
-          status: HttpStatus.CONFLICT,
-          detail: 'No es posible confirmar la espera porque aún no ha sido notificada con un cupo disponible.',
-        });
+        throw esperaNoNotificada();
       }
 
       if (resultado.motivo === 'CUPO_TOMADO') {
-        throw new ProblemException({
-          type: 'https://fitzone.app/errores/cupo-tomado',
-          title: 'Cupo liberado tomado',
-          status: HttpStatus.CONFLICT,
-          detail: 'El lugar liberado ya fue tomado por otro socio que confirmó primero (first-come).',
-        });
+        throw cupoTomado();
       }
 
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/reserva-duplicada',
-        title: 'Reserva duplicada',
-        status: HttpStatus.CONFLICT,
-        detail: 'El socio ya posee una reserva confirmada para esta clase.',
-      });
+      throw reservaDuplicadaAlConfirmar();
     }
 
     return plainToInstance(ReservaClaseOut, resultado.reserva);

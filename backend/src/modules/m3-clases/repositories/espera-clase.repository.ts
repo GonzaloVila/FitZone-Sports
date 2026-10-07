@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../commons/database/prisma.service';
+import { mapearErrorPrisma } from '../../../commons/errors/prisma.mapper';
 import type { OpcionesPaginacion } from '../../../commons/paginacion';
 import type {
   EstadoEspera,
@@ -132,7 +133,7 @@ export class EsperaClaseRepository {
       // El indice parcial unico unq_espera_clase_socio_activa (migracion
       // 20260928000000) es el que decide en la base, y su P2002 se traduce al
       // mismo motivo que ya producia la comprobacion en application.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (mapearErrorPrisma(error) === 'UNIQUE') {
         return { ok: false as const, motivo: 'ESPERA_EXISTENTE' as const };
       }
       throw error;
@@ -168,7 +169,7 @@ export class EsperaClaseRepository {
       });
       return this.aDominio(fila);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (mapearErrorPrisma(error) === 'NO_ENCONTRADO') {
         return null;
       }
       throw error;
@@ -284,7 +285,7 @@ export class EsperaClaseRepository {
         };
       });
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (mapearErrorPrisma(error) === 'UNIQUE') {
         return { ok: false as const, motivo: 'RESERVA_DUPLICADA' as const };
       }
       throw error;

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { rangoDelDia } from '../../../commons/fechas';
 import { PrismaService } from '../../../commons/database/prisma.service';
+import { mapearErrorPrisma } from '../../../commons/errors/prisma.mapper';
 import type { OpcionesPaginacion } from '../../../commons/paginacion';
 import type { Ingreso, IngresoNuevo } from '../entities/ingreso.entity';
 
@@ -95,7 +96,7 @@ export class IngresoRepository {
       // tiempo (dos accesos simultáneos, o el lote de sincronización offline
       // de RNF-01), el motor es el que decide y el P2002 se traduce a la misma
       // respuesta de negocio en vez de exploitar como 500.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (mapearErrorPrisma(error) === 'UNIQUE') {
         return { ok: false as const, motivo: 'ACCESO_DUPLICADO' as const };
       }
       throw error;
@@ -159,7 +160,7 @@ export class IngresoRepository {
         include: SOCIO_SELECCION,
       })
       .catch((error) => {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        if (mapearErrorPrisma(error) === 'NO_ENCONTRADO') {
           return null;
         }
         throw error;

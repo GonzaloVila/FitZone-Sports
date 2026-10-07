@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import {
-  idempotenciaRepetida,
-  pagoNoAprobado,
-  pagoNoAnulable,
-  pagoRechazado,
-  recursoNoEncontrado,
-  reservaYaCobrada,
-} from '../../../commons/filters/problem.exception';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { rangoDelDia } from '../../../commons/fechas';
 import { MembresiaPrecioService } from '../../m1-usuarios/services/membresia-precio.service';
 import { ReservaPrecioService } from '../../m4-canchas/services/reserva-precio.service';
 import { conceptoDePago, PagoIn } from '../dtos/pago-in.dto';
 import { PagoOut } from '../dtos/pago-out.dto';
 import { ConceptoPago, Pago } from '../entities/pago.entity';
+import {
+  idempotenciaRepetida,
+  pagoNoAnulable,
+  pagoNoAprobado,
+  pagoRechazado,
+  reservaYaCobrada,
+} from '../errors/pago.errors';
 import { FiltrosListarPagos, PagoRepository } from '../repositories/pago.repository';
 import { ComprobantesService } from './comprobantes.service';
 import { PasarelaPagoService, ResultadoPasarela } from './pasarela-pago.service';

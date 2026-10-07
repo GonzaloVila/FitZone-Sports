@@ -1,10 +1,11 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { ProblemException, recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { SedesService } from '../../m2-gimnasio/services/sedes.service';
 import { ClaseOut } from '../dtos/clase-out.dto';
 import { ClaseIn } from '../dtos/clase-in.dto';
 import { ListarClasesQueryDto } from '../dtos/listar-clases-query.dto';
+import { claseEnHorarioPasado, horarioInvalido } from '../errors/clases.errors';
 import { ClaseRepository } from '../repositories/clase.repository';
 
 @Injectable()
@@ -24,21 +25,11 @@ export class ClasesService {
 
     const fechaInicio = new Date(dto.horario);
     if (isNaN(fechaInicio.getTime())) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/fecha-invalida',
-        title: 'Horario inválido',
-        status: HttpStatus.CONFLICT,
-        detail: 'El formato de fecha y hora no corresponde a un ISO-8601 válido.',
-      });
+      throw horarioInvalido();
     }
 
     if (fechaInicio.getTime() <= Date.now()) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/clase-pasada',
-        title: 'Clase en horario pasado',
-        status: HttpStatus.CONFLICT,
-        detail: 'No se puede programar una clase en una fecha u hora pasada.',
-      });
+      throw claseEnHorarioPasado();
     }
 
     const clase = await this.clasesRepo.crear({

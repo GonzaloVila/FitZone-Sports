@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ReservaRepository } from '../repositories/reserva.repository';
+import { ReservaRepository } from '../domain/reserva.port';
 
 // Lo único que M5 necesita de una reserva para cobrar: el precio ya congelado, de
 // quién es, cuándo se juega y si todavía se puede cobrar. Los ids y las fechas se los

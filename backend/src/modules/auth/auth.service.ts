@@ -1,13 +1,13 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
-import { GENERIC_TYPE, ProblemException, TITLES } from '../../commons/filters/problem.exception';
 import { SociosService } from '../m1-usuarios/services/socios.service';
 import { UsuariosService } from '../m1-usuarios/services/usuarios.service';
 import { LoginIn } from './dtos/login-in.dto';
 import { LoginOut } from './dtos/login-out.dto';
+import { credencialesInvalidas } from './errors/auth.errors';
 import type { JwtPayload } from './strategies/jwt.strategy';
 
 // Hash valido de bcrypt que no corresponde a ninguna contraseña real. Se usa
@@ -30,12 +30,7 @@ export class AuthService {
     const coincide = await bcrypt.compare(dto.contrasenia, usuario?.contrasenia ?? DUMMY_HASH);
 
     if (!usuario || !coincide) {
-      throw new ProblemException({
-        type: GENERIC_TYPE,
-        title: TITLES[HttpStatus.UNAUTHORIZED],
-        status: HttpStatus.UNAUTHORIZED,
-        detail: 'Email o contraseña incorrectos.',
-      });
+      throw credencialesInvalidas();
     }
 
     const sedeId = usuario.rol === 'RECEPCION' && usuario.sede_id !== null ? usuario.sede_id : undefined;

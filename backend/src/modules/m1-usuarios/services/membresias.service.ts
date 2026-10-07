@@ -1,16 +1,16 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  GENERIC_TYPE,
-  ProblemException,
-  TITLES,
-  recursoNoEncontrado,
-} from '../../../commons/filters/problem.exception';
 import { plainToInstance } from 'class-transformer';
 import { EVENTO_MEMBRESIA_PLAN } from '../../../commons/eventos';
 import { MembresiaOut } from '../dtos/membresia-out.dto';
 import { MembresiaPatch } from '../dtos/membresia-patch.dto';
 import { PRECIOS_PLAN, estaVigente } from '../entities/membresia.entity';
+import {
+  membresiaNoEncontrada,
+  membresiaSinCamposParaModificar,
+  socioNoEncontrado,
+  socioSinMembresia,
+} from '../errors/membresias.errors';
 import type {
   EstadoSocioMembresia,
   Membresia,
@@ -18,7 +18,7 @@ import type {
   MembresiaRenovable,
   VigenciaMembresia,
 } from '../entities/membresia.entity';
-import { MembresiaRepository } from '../repositories/membresia.repository';
+import { MembresiaRepository } from '../domain/membresia.port';
 import { SocioRepository } from '../repositories/socio.repository';
 
 @Injectable()
@@ -34,12 +34,12 @@ export class MembresiasService {
   async obtenerPorSocioId(socioId: number): Promise<MembresiaOut> {
     const socio = await this.socios.buscarPorId(socioId);
     if (!socio) {
-      throw recursoNoEncontrado('No existe el socio indicado.');
+      throw socioNoEncontrado();
     }
 
     const membresia = await this.membresias.buscarPorSocioId(socioId);
     if (!membresia) {
-      throw recursoNoEncontrado('El socio no posee una membresía activa.');
+      throw socioSinMembresia();
     }
 
     return this.aOut(membresia);
@@ -48,7 +48,7 @@ export class MembresiasService {
   async modificar(socioId: number, dto: MembresiaPatch): Promise<MembresiaOut> {
     const socio = await this.socios.buscarPorId(socioId);
     if (!socio) {
-      throw recursoNoEncontrado('No existe el socio indicado.');
+      throw socioNoEncontrado();
     }
 
     // Los tres campos del PATCH son opcionales, asi que con body {} pasa entero
@@ -58,12 +58,7 @@ export class MembresiasService {
     // actualizado nada. El contrato declara 422 para esta operacion, asi que se
     // corta aca.
     if (dto.plan === undefined && dto.renueva_automatica === undefined && dto.estado === undefined) {
-      throw new ProblemException({
-        type: GENERIC_TYPE,
-        title: TITLES[HttpStatus.UNPROCESSABLE_ENTITY],
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        detail: 'Se debe enviar al menos un campo para modificar.',
-      });
+      throw membresiaSinCamposParaModificar();
     }
 
     // Cambio de plan sobre una membresia NO vigente (RF-02). El socio quiere
@@ -86,7 +81,7 @@ export class MembresiasService {
 
     const membresia = await this.membresias.actualizar(socioId, dto);
     if (!membresia) {
-      throw recursoNoEncontrado('El socio no posee una membresía activa.');
+      throw socioSinMembresia();
     }
 
     return this.aOut(membresia);
@@ -151,7 +146,7 @@ export class MembresiasService {
   async renovar(id: number, periodo: { fecha_inicio: Date; fecha_fin: Date }): Promise<MembresiaOut> {
     const membresia = await this.membresias.renovar(id, periodo);
     if (!membresia) {
-      throw recursoNoEncontrado('No existe la membresía indicada.');
+      throw membresiaNoEncontrada();
     }
     return this.aOut(membresia);
   }

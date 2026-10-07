@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { OpcionesPaginacion } from '../../../commons/paginacion';
 import { PrismaService } from '../../../commons/database/prisma.service';
+import { mapearErrorPrisma } from '../../../commons/errors/prisma.mapper';
 import type { RolUsuario, Usuario, UsuarioActualizable, UsuarioNuevo } from '../entities/usuario.entity';
 
 export interface FiltrosUsuarios {
@@ -68,10 +69,7 @@ export class UsuarioRepository {
       const fila = await this.prisma.usuario.update({ where: { id }, data: cambios });
       return this.aDominio(fila);
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
+      if (mapearErrorPrisma(error) === 'NO_ENCONTRADO') {
         return null;
       }
       throw error;

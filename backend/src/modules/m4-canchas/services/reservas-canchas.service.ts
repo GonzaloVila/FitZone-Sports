@@ -1,18 +1,20 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { rangoDelDia } from '../../../commons/fechas';
-import {
-  ProblemException,
-  recursoNoEncontrado,
-  turnoOcupado,
-} from '../../../commons/filters/problem.exception';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import { ReservaCanchaIn } from '../dtos/reserva-cancha-in.dto';
 import { ReservaCanchaOut } from '../dtos/reserva-cancha-out.dto';
 import { Reserva } from '../entities/reserva.entity';
+import {
+  canchaEnMantenimiento,
+  rangoHorarioInvalido,
+  reservaYaCancelada,
+  turnoOcupado,
+} from '../errors/reserva.errors';
 import { PricingStrategyFactory } from '../pricing/pricing-strategy.factory';
 import { CanchaRepository } from '../repositories/cancha.repository';
-import { ReservaRepository } from '../repositories/reserva.repository';
+import { ReservaRepository } from '../domain/reserva.port';
 
 export interface FiltrosListarReservasCanchas {
   canchaId?: number;
@@ -46,7 +48,7 @@ export class ReservasCanchasService {
     // usuario, la cancha esta inhabilitada, y el detail de TurnoOcupado
     // ("Otro usuario reservo el turno... antes que vos") seria falso.
     if (cancha.estado === 'EN_MANTENIMIENTO') {
-      throw this.canchaEnMantenimiento(cancha.id);
+      throw canchaEnMantenimiento(cancha.id);
     }
 
     const inicio = new Date(dto.fecha_hora_inicio);
@@ -54,12 +56,7 @@ export class ReservasCanchasService {
     // No se valida contra un horario de apertura/cierre de la sede: ese dato no
     // existe en el modelo (decisión 11 del plan M4, deuda asumida a propósito).
     if (inicio.getTime() >= fin.getTime()) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/rango-horario-invalido',
-        title: 'Rango horario inválido',
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        detail: 'fecha_hora_inicio debe ser anterior a fecha_hora_fin.',
-      });
+      throw rangoHorarioInvalido();
     }
 
     // RN-03: un socio con cuota vencida paga como externo; consultarVigencia
@@ -83,7 +80,7 @@ export class ReservasCanchasService {
     });
 
     if (!resultado.ok) {
-      // RN-02: el solapamiento lo detecta exq_reserva_turno, no un chequeo previo
+      // RN-02: el solapamiento lo detecta la constraint de exclusion, no un chequeo previo
       // (que dos reservas simultáneas pasarían las dos). El `type` y el `detail`
       // son los que declara el contrato en `ConflictoReservaCancha.turno-ocupado`.
       throw turnoOcupado();
@@ -120,42 +117,19 @@ export class ReservasCanchasService {
       throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
     if (reserva.estado === 'CANCELADA') {
-      throw this.yaCancelada(id);
+      throw reservaYaCancelada(id);
     }
 
-    // Baja lógica: exq_reserva_turno excluye las CANCELADA, así que el horario
+    // Baja lógica: la constraint de exclusion excluye las CANCELADA, así que el horario
     // queda libre solo. null acá significa que otra cancelación ganó entre el
     // buscarPorId y este UPDATE: mismo 409.
     const cancelada = await this.reservas.cancelar(id);
     if (!cancelada) {
-      throw this.yaCancelada(id);
+      throw reservaYaCancelada(id);
     }
   }
 
   private aOut(reserva: Reserva): ReservaCanchaOut {
     return plainToInstance(ReservaCanchaOut, reserva);
-  }
-
-  private yaCancelada(id: number): ProblemException {
-    // 409 y no 404: la reserva existe (GET la devuelve con estado CANCELADA, y
-    // RF-12 manda conservar el histórico). Lo que choca es la transición pedida
-    // contra el estado actual. Mismo criterio que `EgresoDuplicado` de M2, que
-    // modela exactamente el mismo hecho — una transición ya realizada — con un
-    // componente nombrado propio en vez de `NotFound`.
-    return new ProblemException({
-      type: 'https://fitzone.app/errores/reserva-ya-cancelada',
-      title: 'Reserva ya cancelada',
-      status: HttpStatus.CONFLICT,
-      detail: `La reserva ${id} ya estaba cancelada y no puede cancelarse de nuevo.`,
-    });
-  }
-
-  private canchaEnMantenimiento(canchaId: number): ProblemException {
-    return new ProblemException({
-      type: 'https://fitzone.app/errores/cancha-en-mantenimiento',
-      title: 'Cancha en mantenimiento',
-      status: HttpStatus.CONFLICT,
-      detail: `La cancha ${canchaId} está en mantenimiento y no admite reservas nuevas (RF-12).`,
-    });
   }
 }

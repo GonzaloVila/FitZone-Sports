@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../commons/database/prisma.service';
+import { mapearErrorPrisma } from '../../../commons/errors/prisma.mapper';
 import type { OpcionesPaginacion } from '../../../commons/paginacion';
 import type {
   EstadoReservaClase,
@@ -90,7 +91,7 @@ export class ReservaClaseRepository {
       });
     } catch (error) {
       // Si el motor captura una colisión única simultánea mediante unq_reserva_clase_socio_activa
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (mapearErrorPrisma(error) === 'UNIQUE') {
         return { ok: false as const, motivo: 'RESERVA_DUPLICADA' as const };
       }
       throw error;
@@ -117,7 +118,7 @@ export class ReservaClaseRepository {
       });
       return this.aDominio(fila);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (mapearErrorPrisma(error) === 'NO_ENCONTRADO') {
         return null;
       }
       throw error;

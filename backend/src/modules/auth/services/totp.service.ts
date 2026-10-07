@@ -1,11 +1,12 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { authenticator } from 'otplib';
 import { cifrarAesGcm, descifrarAesGcm } from '../../../commons/criptografia';
-import { GENERIC_TYPE, ProblemException, recursoNoEncontrado, TITLES } from '../../../commons/filters/problem.exception';
+import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { SociosService } from '../../m1-usuarios/services/socios.service';
 import { UsuariosService } from '../../m1-usuarios/services/usuarios.service';
 import { RegistroQrOut } from '../dtos/registro-qr-out.dto';
+import { claveTotpNoConfigurada, totpInvalido } from '../errors/auth.errors';
 
 const ISSUER = 'FitZone';
 
@@ -62,24 +63,14 @@ export class TotpService {
     const secreto = descifrarAesGcm(estado.totpSecreto, this.claveCifrado());
     const esValido = authenticator.verify({ token: codigo, secret: secreto });
     if (!esValido) {
-      throw new ProblemException({
-        type: 'https://fitzone.app/errores/totp-invalido',
-        title: 'Código TOTP inválido',
-        status: HttpStatus.FORBIDDEN,
-        detail: 'El código de verificación expiró o es incorrecto.',
-      });
+      throw totpInvalido();
     }
   }
 
   private claveCifrado(): string {
     const clave = this.configService.get<string>('TOTP_ENCRYPTION_KEY');
     if (!clave) {
-      throw new ProblemException({
-        type: GENERIC_TYPE,
-        title: TITLES[HttpStatus.INTERNAL_SERVER_ERROR],
-        status: HttpStatus.INTERNAL_SERVER_ERROR,
-        detail: 'Falta configurar TOTP_ENCRYPTION_KEY.',
-      });
+      throw claveTotpNoConfigurada();
     }
     return clave;
   }

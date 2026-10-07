@@ -1,10 +1,14 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
-import { ProblemException } from '../../../commons/filters/problem.exception';
+import { Injectable } from '@nestjs/common';
 import { PagoOut } from '../dtos/pago-out.dto';
 import { ConceptoPago, Pago } from '../entities/pago.entity';
+import {
+  cobroRechazado,
+  cobroRechazadoPendiente,
+  idempotenciaRepetidaEnCobroInterno,
+} from '../errors/renovaciones.errors';
 import { PagoRepository } from '../repositories/pago.repository';
 import { ComprobantesService } from './comprobantes.service';
-import { PasarelaPagoService, ResultadoPasarela } from './pasarela-pago.service';
+import { PasarelaPagoService } from './pasarela-pago.service';
 
 // RF-02 (renovación automática + cobro interno del alta y del cambio de plan).
 //
@@ -56,10 +60,10 @@ export class RenovacionesService {
     });
 
     if (resultado.estado === 'RECHAZADO') {
-      throw this.cobroRechazado(resultado);
+      throw cobroRechazado(resultado.motivo);
     }
     if (resultado.estado !== 'APROBADO') {
-      throw this.cobroRechazadoPendiente();
+      throw cobroRechazadoPendiente();
     }
 
     const creado = await this.pagos.crear({
@@ -78,7 +82,7 @@ export class RenovacionesService {
       if (existente) {
         return this.aOut(existente);
       }
-      throw this.idempotenciaRepetida();
+      throw idempotenciaRepetidaEnCobroInterno();
     }
 
     // El insert arranca en PENDIENTE (decisión 7 del plan de M5). El flujo interno
@@ -99,33 +103,6 @@ export class RenovacionesService {
 
   private conceptoMembresia(membresiaId: number): ConceptoPago {
     return { tipo: 'MEMBRESIA', membresia_id: membresiaId };
-  }
-
-  private cobroRechazado(resultado: Extract<ResultadoPasarela, { estado: 'RECHAZADO' }>): ProblemException {
-    return new ProblemException({
-      type: 'https://fitzone.app/errores/cobro-rechazado',
-      title: 'Cobro rechazado',
-      status: HttpStatus.PAYMENT_REQUIRED,
-      detail: `La pasarela rechazó el cobro de la membresía: ${resultado.motivo}`,
-    });
-  }
-
-  private cobroRechazadoPendiente(): ProblemException {
-    return new ProblemException({
-      type: 'https://fitzone.app/errores/cobro-rechazado',
-      title: 'Cobro rechazado',
-      status: HttpStatus.PAYMENT_REQUIRED,
-      detail: 'La pasarela no resolvió el cobro de la membresía.',
-    });
-  }
-
-  private idempotenciaRepetida(): ProblemException {
-    return new ProblemException({
-      type: 'https://fitzone.app/errores/idempotencia-repetida',
-      title: 'Idempotencia repetida',
-      status: HttpStatus.CONFLICT,
-      detail: 'Ya existe un pago con esa Idempotency-Key.',
-    });
   }
 
   private aOut(pago: Pago): PagoOut {

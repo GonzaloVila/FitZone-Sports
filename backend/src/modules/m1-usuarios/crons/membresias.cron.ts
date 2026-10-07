@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { MembresiaRepository } from '../repositories/membresia.repository';
+import { MembresiaRepository } from '../domain/membresia.port';
 
 // Job diario que cierra el gap descrito en membresia.entity.ts (estaVigente):
 // sin este cron, `estado` nunca se movería de ACTIVA a VENCIDA por sí solo.

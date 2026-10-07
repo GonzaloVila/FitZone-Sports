@@ -2011,3 +2011,62 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 
 - **feat(m5): RF-02 renovacion automatica y cobro interno de membresia; el pago sobrevive a la baja (historial con identidad)** → [commit 5c83f7e](https://github.com/GonzaloVila/FitZone-Sports/commit/5c83f7e)
 - **test(m5): tipa el mock de findMany para que tsc pase limpio (fix de los errores pre-existentes del spec)** → [commit 6c9aa3d](https://github.com/GonzaloVila/FitZone-Sports/commit/6c9aa3d)
+
+---
+
+## 2026-10-07 — Unidad III: errores por módulo, mapper de errores de Prisma y repository de dominio (Fowler) para Reserva y Membresía – Santino Mazzulla (P3 - Frontend Developer) y Exequiel Ansaldi (P2 - Backend Developer)
+ 
+**Fecha:** 07/10/2026 — **Rama:** `m5-pagos` — Santino + Exequiel
+ 
+### Actividades
+ 
+1. **Errores por módulo (`errors/`) — Santino y Exequiel**
+   - `commons/filters/problem.exception.ts` queda solo con lo genérico: `ProblemDetails`, `ProblemException`, `TITLES`, `GENERIC_TYPE`, `recursoNoEncontrado()`, `conflictoDeDominio()` y `datosInvalidos()`. Los guards de `commons/` no se movieron (el 401/403 es genérico).
+   - Archivos nuevos, con los mismos `type`/`title`/`detail`/`status` que tenían: M1 `socios.errors.ts` y `membresias.errors.ts`; M2 `ingresos.errors.ts` (incluye el 403 de sincronización sin sede); M3 `clases.errors.ts`, `esperas.errors.ts` y `reservas-clases.errors.ts` (16 `ProblemException` que estaban inline en los tres services); M4 `reserva.errors.ts` (`turnoOcupado`, `turnoOcupadoBody`, `canchaEnMantenimiento`, `reservaYaCancelada`, `rangoHorarioInvalido`) y `canchas.errors.ts`; M5 `pago.errors.ts` y `renovaciones.errors.ts`; Auth `auth.errors.ts` (credenciales, TOTP inválido, clave TOTP sin configurar).
+   - Los imports de services, controllers y módulos se actualizaron. Ningún spec necesitó cambios por este paso.
+2. **Mapper de errores de Prisma — Santino y Exequiel**
+   - `commons/errors/prisma.mapper.ts`: `mapearErrorPrisma(error)` devuelve `'UNIQUE'` (P2002), `'NO_ENCONTRADO'` (P2025), `'FK'` (P2003), `'EXCLUSION'` (violación de una constraint de exclusión registrada) o `null`. El nombre de la constraint de RN-02 vive una sola vez en el código, como dato de un registro (`EXCLUSION_CONSTRAINTS`) dentro del mapper.
+   - `problem.filter.ts` usa el mapper en la rama de la constraint de exclusión (`EXCLUSION` → `turnoOcupadoBody()`, importado desde `m4-canchas/errors/reserva.errors`). Diff mínimo en el filtro.
+   - Dos capas: el mapper sube el string de la base a una causa, una sola vez; el `errors/` de cada módulo baja esa causa al vocabulario del contrato.
+   - `prisma.mapper.spec.ts`: un unit por código, el caso de la constraint de exclusión y los `null`.
+3. **Repository de dominio para Reserva (M4) — Santino y Exequiel**
+   - `m4-canchas/domain/reserva.port.ts`: `abstract class ReservaRepository` (`crear`, `buscarPorId`, `cancelar`, `listarOcupadasEnRango`, `listar`) y los tipos `ReservaNueva`, `ResultadoCrearReserva` y `FiltrosListarReservas`.
+   - `m4-canchas/repositories/reserva.repository.ts`: `PrismaReservaRepository extends ReservaRepository`. `crear()` traduce `EXCLUSION` → `{ ok: false, motivo: 'TURNO_OCUPADO' }` y `cancelar()` traduce `NO_ENCONTRADO` → `null`, ambos con el mapper.
+   - `canchas.module.ts`: `{ provide: ReservaRepository, useClass: PrismaReservaRepository }`. Los services conservan `constructor(private readonly reservas: ReservaRepository)`, ahora contra el puerto.
+   - Flujo de RN-02 sin cambios: la base rechaza la segunda reserva → el adaptador la mapea a `EXCLUSION` → `TURNO_OCUPADO` → el service lanza `turnoOcupado()` → 409 `turno-ocupado`.
+4. **Repository de dominio para Membresía (M1) — Santino y Exequiel**
+   - `m1-usuarios/domain/membresia.port.ts`: `abstract class MembresiaRepository` (`buscarPorSocioId`, `obtenerParaCobro`, `actualizar`, `marcarVencidas`, `buscarNoVigentes`, `listarRenovables`, `renovar`) y el tipo de dominio `MembresiaParaCobro`, que reemplaza al tipo-fila `MembresiaConSocioRow`.
+   - `m1-usuarios/repositories/membresia.repository.ts`: `PrismaMembresiaRepository`. `obtenerParaCobro` ahora devuelve `MembresiaParaCobro` (el cruce a `Socio` y el `Decimal` → `number` pasaron al adaptador). Donde se capturaba P2025 (`actualizar`, `renovar`) se usa el mapper (`NO_ENCONTRADO` → `null`).
+   - `usuarios.module.ts`: `{ provide: MembresiaRepository, useClass: PrismaMembresiaRepository }`. `MembresiasService`, `MembresiaPrecioService` y `MembresiasCron` inyectan el puerto. La firma pública de los services no cambió; `estaVigente` y `EstadoMembresia` tampoco.
+5. **Mapper aplicado a los repositorios de M1, M2 y M3 — Santino y Exequiel**
+   - Las capturas manuales de P2002 y P2025 pasaron a `mapearErrorPrisma`: M1 (`socio.repository`, `usuario.repository`: `NO_ENCONTRADO` → `null`), M2 (`ingreso.repository`: `UNIQUE` → `ACCESO_DUPLICADO`, `NO_ENCONTRADO` → `null`) y M3 (`espera-clase.repository`: `UNIQUE` → `ESPERA_EXISTENTE` / `RESERVA_DUPLICADA`, `NO_ENCONTRADO` → `null`; `reserva-clase.repository`: `UNIQUE` → `RESERVA_DUPLICADA`, `NO_ENCONTRADO` → `null`). 9 puntos en 5 archivos; la equivalencia es exacta (mismos códigos, mismos resultados), sin cambios de comportamiento.
+### Decisiones tomadas
+ 
+1. **El puerto con `abstract class` es una reversión acotada, solo para Reserva y Membresía.** Cierra, para esos dos repositorios, la decisión de la entrada «Migración de M1-M5 a arquitectura en capas» («no hay interfaz por repositorio ni token de inyección»). Se reintroduce porque la cátedra pidió un repositorio de dominio tipo Fowler (el equivalente al puerto JPA de Spring) para esas dos entidades. El resto de los repositorios sigue como clase concreta `@Injectable()`. Una `abstract class` sirve de contrato y de token de inyección a la vez, sin tokens string.
+2. **No se renombraron los métodos a vocabulario de colección** (`agregar`, `deId`, etc.): se mantienen los nombres actuales para no tocar todos los call sites de M2, M3, M4 y M5.
+3. **Dos capas para los errores de base.** El mapper (`commons/errors`) traduce la mecánica de Prisma a una causa; cada `errors/` traduce la causa al contrato. No se unificaron textos que hoy difieren (ver 4).
+4. **Textos repetidos con variantes se conservan como factories distintas** para no cambiar el contrato HTTP: `clase-pasada` (3 textos), `socio-en-mora` (2), `reserva-duplicada` (2) en M3, e `idempotencia-repetida` en M5 (`pago.errors` con title «Idempotency-Key repetida» y `renovaciones.errors` con title «Idempotencia repetida»).
+5. **Los 422 de «al menos un campo para modificar»** (usuarios, socios, membresías, canchas) se construyen con `datosInvalidos()` desde el `errors/` de cada módulo: la respuesta es idéntica a la del `ProblemException` inline que había.
+6. **`MembresiaParaCobro`** ya existía con la misma forma en `membresia-precio.service.ts` (nadie más lo importaba). Se movió al puerto y el service dejó de mapear: devuelve lo que entrega el repositorio. La mecánica del mapeo (Decimal → number, `usuario_id` del socio) pasó a testearse en el adaptador (`membresia.repository.spec.ts`).
+7. **Fuera de alcance, sin tocar:** `prisma/schema.prisma` y migraciones, Strategy (`PricingStrategyFactory`), Observer (`CupoLiberadoSubject`), el event bus, la máquina de estados de la membresía y los repositorios de M4 (cancha) y M5.
+### Verificación
+ 
+- `npx tsc --noEmit`, `npm run build` y `npx prisma validate`: en verde. Se corrieron tras cada paso.
+- `npm run test:unit`: **131/131** en 13 archivos (antes 120/120 en 11): los 7 nuevos de `prisma.mapper.spec.ts` y los 4 nuevos de `membresia.repository.spec.ts`. Los specs de membresías, de precio de membresía y de precio de reserva dan el mismo resultado que antes; el único cambio de lógica es que el mock de `membresia-precio.service.spec.ts` ahora devuelve el tipo de dominio y no la fila.
+- El server levanta con `node dist/main.js`: la DI resuelve los dos puertos.
+- **Smoke contra Supabase (20 chequeos, todos OK):** alta de sede, cancha, usuario y socio con membresía; `GET /socios/{id}/membresias` → 200 (MENSUAL / ACTIVA, sin `precio`); socio inexistente → 404; reserva 19:00–20:00 → 201; reserva 19:30–20:30 (solape parcial) → **409 `turno-ocupado` con el mismo body de antes** (`application/problem+json`); reserva contigua 20:00–21:00 → 201; dos reservas simultáneas al mismo turno → un 201 y un 409; cancelar → 204, cancelar de nuevo → 409 `reserva-ya-cancelada`; el turno liberado vuelve a reservarse. Los datos se borraron al final, solo los creados por el smoke (sede, cancha, usuario, socio, membresía, pagos y reservas): 0 restos verificados por conteo. El smoke se corrió antes de la actividad 5: los repositorios de M1, M2 y M3 migrados al mapper se verificaron con `tsc`, `build` y los unitarios, y sus caminos de ACCESO_DUPLICADO, ESPERA_EXISTENTE y RESERVA_DUPLICADA quedan para el e2e.
+- `npm run test:e2e` (esperado 141): **no se corrió**, ver pendientes.
+- Comparador de contrato contra `/docs-json`: **no se corrió**, ver pendientes.
+
+### Commits
+
+- [commit 6a4b25f](https://github.com/GonzaloVila/FitZone-Sports/commit/6a4b25f) `refactor(u3): errores por modulo, mapper de errores de Prisma y repository de dominio para Reserva y Membresia`
+- `docs: registra en el LOG los errores por modulo, el mapper de Prisma y los repositorios de dominio` (este mismo commit)
+
+### Pendientes que siguen abiertos
+
+1. **e2e sin correr:** este equipo no tiene Docker (`docker` no está en el PATH) ni `backend/.env.test`, así que no se pudo levantar el Postgres de `docker-compose.test.yml`. Hay que correr `npm run test:e2e` (esperado 141, incluido el test de concurrencia de RN-02) antes de integrar.
+2. **Comparador de contrato sin correr:** `backend/contrato/` (gitignored) no existe en este checkout. Hay que correrlo contra `/docs-json` (esperado 0 diferencias). El refactor no toca DTOs ni decoradores de Swagger.
+3. **Repositorios que siguen capturando P2002/P2025 a mano:** `cancha.repository` (M4) y `pago.repository` (M5, dos puntos). M1, M2 y M3 ya usan el mapper. Se pueden migrar cuando se toquen.
+4. **`problem.filter.ts` importa de `m4-canchas/errors`** (commons → módulo de dominio), como se pidió. Si el equipo prefiere no tener esa dependencia, la alternativa es que el filtro delegue el body de `EXCLUSION` a un registro en commons.
+5. **Máquina de estados de la membresía (State):** sigue fuera de alcance.

@@ -19,11 +19,11 @@ const REF = '#/components/schemas/';
  *
  * 2. `EstadoPago` como enum con nombre, por la misma razón.
  *
- * 3. `ConceptoReservaCancha` y `ConceptoMembresia` se BORRAN del documento. Son las
- *    clases con las que el DTO valida el `oneOf` en runtime, y `@ApiExtraModels` las
- *    registra como schemas con nombre, pero el contrato NO las tiene: define las dos
- *    ramas inline dentro del `oneOf`. Si se dejaran, el documento publicaría dos
- *    schemas que el cliente no encuentra en el contrato.
+ * 3. `ConceptoReservaCancha`, `ConceptoMembresia` y `ConceptoReservaClase` se BORRAN del
+ *    documento. Son las clases con las que el DTO valida el `oneOf` en runtime, y
+ *    `@ApiExtraModels` las registra como schemas con nombre, pero el contrato NO las
+ *    tiene: define las ramas inline dentro del `oneOf`. Si se dejaran, el documento
+ *    publicaría schemas que el cliente no encuentra en el contrato.
  *
  * Lo que NO se hace acá: tocar el resto de `PagoIn`/`PagoOut` a mano. Eso sale de los
  * decoradores de los DTOs, y si algo de esos dos se desalinea lo arregla el DTO, no
@@ -38,6 +38,7 @@ export function marcarSchemasDePagos(doc: OpenAPIObject): string[] {
   schemas.EstadoPago = estadoPago();
   delete schemas.ConceptoReservaCancha;
   delete schemas.ConceptoMembresia;
+  delete schemas.ConceptoReservaClase;
 
   const tocados = ['ConceptoPago', 'EstadoPago'];
 
@@ -64,7 +65,7 @@ export function marcarSchemasDePagos(doc: OpenAPIObject): string[] {
 }
 
 // Las ramas van INLINE, que es como las declara el contrato. Referenciarlas por
-// `$ref` obligaría a que existan dos schemas con nombre que el contrato no tiene.
+// `$ref` obligaría a que existan schemas con nombre que el contrato no tiene.
 function conceptoPago(): SchemaObject {
   return {
     oneOf: [
@@ -86,10 +87,19 @@ function conceptoPago(): SchemaObject {
         },
         additionalProperties: false,
       },
+      {
+        type: 'object',
+        required: ['tipo', 'reserva_clase_id'],
+        properties: {
+          tipo: { type: 'string', enum: ['RESERVA_CLASE'] },
+          reserva_clase_id: { type: 'integer' },
+        },
+        additionalProperties: false,
+      },
     ],
     description:
-      'Un pago referencia estructuralmente UN solo concepto (reserva de cancha o ' +
-      'membresía, herencia parte-todo).',
+      'Un pago referencia estructuralmente UN solo concepto (reserva de cancha, ' +
+      'membresía o penalidad de clase, herencia parte-todo).',
   };
 }
 

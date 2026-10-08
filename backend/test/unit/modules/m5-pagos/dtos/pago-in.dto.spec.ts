@@ -1,7 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import { validate, ValidationError } from 'class-validator';
 import { describe, expect, it } from 'vitest';
-import { PagoIn } from './pago-in.dto';
+import { PagoIn } from 'src/modules/m5-pagos/dtos/pago-in.dto';
 
 // La traducción de `ConceptoPago` a runtime. El contrato lo modela como `oneOf` con
 // `additionalProperties: false` en cada rama, o sea que la rama elegida prohíbe el
@@ -76,6 +76,28 @@ describe('PagoIn', () => {
     });
 
     expect(mensajes.join(' ')).toContain('no admite reserva_cancha_id');
+  });
+
+  // RF-07: la penalidad por cancelacion tardia es la tercera rama del oneOf.
+  it('acepta un concepto RESERVA_CLASE con su id', async () => {
+    expect(
+      await errores({ ...cuerpo, concepto: { tipo: 'RESERVA_CLASE', reserva_clase_id: 4 } }),
+    ).toEqual([]);
+  });
+
+  it('rechaza una rama RESERVA_CLASE con el id de otra', async () => {
+    const mensajes = await errores({
+      ...cuerpo,
+      concepto: { tipo: 'RESERVA_CLASE', reserva_clase_id: 4, membresia_id: 3 },
+    });
+
+    expect(mensajes.join(' ')).toContain('no admite');
+  });
+
+  it('rechaza una rama RESERVA_CLASE sin su id obligatorio', async () => {
+    const mensajes = await errores({ ...cuerpo, concepto: { tipo: 'RESERVA_CLASE' } });
+
+    expect(mensajes.join(' ')).toContain('requiere reserva_clase_id');
   });
 
   it('rechaza una rama sin su id obligatorio', async () => {

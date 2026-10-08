@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { rangoDelDia, ZONA_SEDE } from './fechas';
-import { TIMEZONE_SEDE } from '../modules/m4-canchas/pricing/pricing-constants';
+import { rangoDelDia, ZONA_SEDE } from 'src/commons/fechas';
+import { TIMEZONE_SEDE } from 'src/modules/m4-canchas/pricing/pricing-constants';
 
 describe('fechas', () => {
   it('exporta la zona horaria de la sede en formato IANA', () => {

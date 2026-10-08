@@ -100,13 +100,11 @@ export class ReservasClasesController {
     example: 10,
   })
   @ApiNoContentResponse({
-    description: 'Reserva cancelada sin penalidad; cupo liberado para lista de espera',
+    description:
+      'Reserva cancelada y cupo liberado para la lista de espera. Con menos de 2 hs de ' +
+      'anticipación se cobró la penalidad (RF-07) antes de liberar el cupo.',
   })
   @ApiNotFoundResponse({ description: 'Reserva no encontrada', content: PROBLEM_JSON })
-  @ApiConflictResponse({
-    description: 'La cancelación se intentó con menos de 2 hs de anticipación al inicio de la clase.',
-    content: PROBLEM_JSON,
-  })
   cancelar(@Param('reserva_clase_id', ParseIntPipe) reserva_clase_id: number): Promise<void> {
     return this.reservasService.cancelarReservaClase(reserva_clase_id);
   }

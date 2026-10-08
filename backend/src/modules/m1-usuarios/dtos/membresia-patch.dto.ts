@@ -7,8 +7,8 @@ const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];
 
 // Estados que el endpoint acepta de entrada. VENCIDA queda afuera a propósito: solo
 // lo produce el proceso diario que vence las membresías cuya fecha_fin ya pasó.
-// Aceptarlo por API permitía dejar un VENCIDA con fecha_fin futura, y esa fila la
-// daba por vigente `estaVigente` (m.estado !== 'SUSPENDIDA' && fecha_fin >= ahora).
+// Aceptarlo por API permitía dejar un VENCIDA con fecha_fin futura, y esa fila
+// la daría por vigente `estadoDe().esVigente` (ACTIVA con fecha_fin futura).
 const ESTADOS: EstadoMembresia[] = ['ACTIVA', 'SUSPENDIDA'];
 
 export class MembresiaPatch {

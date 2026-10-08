@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PricingContext } from './pricing-context';
-import { PricingStrategyFactory } from './pricing-strategy.factory';
+import { PricingContext } from 'src/modules/m4-canchas/pricing/pricing-context';
+import { PricingStrategyFactory } from 'src/modules/m4-canchas/pricing/pricing-strategy.factory';
 
 // Horarios con offset explícito -03:00 (Buenos Aires no observa horario de
 // verano): representan sin ambigüedad la hora local de la sede, sin depender

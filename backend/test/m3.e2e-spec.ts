@@ -5,6 +5,7 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/commons/database/prisma.service';
 import { ProblemFilter } from '../src/commons/filters/problem.filter';
 import { PRECIOS_PLAN } from '../src/modules/m1-usuarios/entities/membresia.entity';
+import { penalidadCancelacionTardia } from '../src/modules/m3-clases/entities/reserva-clase.entity';
 
 // Flujo completo de M3:
 // 1) RF-06: Alta de clases, listado con aforo disponible y detalle.
@@ -21,6 +22,8 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
   const usuariosCreados: number[] = [];
   const sociosCreados: number[] = [];
   const clasesCreadas: number[] = [];
+  const pagosDePenalidad: number[] = [];
+  const reservasClasesConPenalidad: number[] = [];
 
   const emailUnico = () => `m3.${Date.now()}.${Math.floor(Math.random() * 100000)}@e2e.fitzone.test`;
   const dniUnico = () => String(10000000 + Math.floor(Math.random() * 89999999));
@@ -97,6 +100,13 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
   afterAll(async () => {
     // Limpieza en orden inverso a las foreign keys
     await prisma.esperaClase.deleteMany({ where: { clase_id: { in: clasesCreadas } } });
+    // La cancelación tardía (RF-07) cobra una penalidad como Pago (concepto
+    // RESERVA_CLASE) que referencia la reserva: se limpia ANTES que la reserva,
+    // porque la FK de PagoReservaClase es restrict.
+    await prisma.pagoReservaClase.deleteMany({
+      where: { reserva_clase_id: { in: reservasClasesConPenalidad } },
+    });
+    await prisma.pago.deleteMany({ where: { id: { in: pagosDePenalidad } } });
     await prisma.reservaClase.deleteMany({ where: { clase_id: { in: clasesCreadas } } });
     await prisma.clase.deleteMany({ where: { id: { in: clasesCreadas } } });
     await prisma.membresia.deleteMany({ where: { socio_id: { in: sociosCreados } } });
@@ -325,7 +335,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       expect(resConsulta.body.estado).toBe('CANCELADA');
     });
 
-    it('cancelación con < 2 hs de anticipación responde 409 (cancelación fuera de término)', async () => {
+    it('cancelación con < 2 hs de anticipación se permite y cobra la penalidad (RF-07)', async () => {
       const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
 
       // Clase en 1 hora (< 2 hs)
@@ -350,10 +360,34 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .expect(201);
 
       const reservaId: number = resReserva.body.id;
+      reservasClasesConPenalidad.push(reservaId);
 
+      // Ya no es 409: la cancelación se permite y se cobra el 50% del valor nominal.
       await request(app.getHttpServer())
         .post(`/api/v1/reservas-clases/${reservaId}/cancelaciones`)
-        .expect(409);
+        .expect(204);
+
+      const pago = await prisma.pago.findFirst({
+        where: { pago_reserva_clase: { reserva_clase_id: reservaId } },
+      });
+
+      expect(pago).not.toBeNull();
+      expect(pago!.estado).toBe('APROBADO');
+      expect(pago!.monto.toNumber()).toBe(penalidadCancelacionTardia());
+      expect(pago!.comprobante_pdf_url).not.toBeNull();
+      pagosDePenalidad.push(pago!.id);
+
+      // El comprobante también existe: la penalidad es un pago real (RF-14).
+      const resComprobante = await request(app.getHttpServer())
+        .get(`/api/v1/pagos/${pago!.id}/comprobante`)
+        .expect(200);
+      expect((resComprobante.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+
+      // La reserva queda cancelada igual que la cancelación sin penalidad.
+      const resConsulta = await request(app.getHttpServer())
+        .get(`/api/v1/reservas-clases/${reservaId}`)
+        .expect(200);
+      expect(resConsulta.body.estado).toBe('CANCELADA');
     });
   });
 

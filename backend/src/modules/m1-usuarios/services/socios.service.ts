@@ -60,6 +60,14 @@ export class SociosService {
     return socio?.id ?? null;
   }
 
+  // Para el cobro de la penalidad por cancelacion tardia de clase (RF-07): M5
+  // arma el Pago contra el usuario del socio que cancelo. El inverso de
+  // `obtenerSocioIdPorUsuario`.
+  async obtenerUsuarioIdPorSocio(socioId: number): Promise<number | null> {
+    const socio = await this.socios.buscarPorId(socioId);
+    return socio?.usuario_id ?? null;
+  }
+
 
   async crear(dto: SocioIn): Promise<SocioOut> {
     const usuario = await this.usuarios.buscarPorId(dto.usuario_id);

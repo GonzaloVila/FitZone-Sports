@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { rangoDelDia } from '../../../commons/fechas';
 import { MembresiaPrecioService } from '../../m1-usuarios/services/membresia-precio.service';
+import { ReservaClasePrecioService } from '../../m3-clases/services/reserva-clase-precio.service';
 import { ReservaPrecioService } from '../../m4-canchas/services/reserva-precio.service';
 import { conceptoDePago, PagoIn } from '../dtos/pago-in.dto';
 import { PagoOut } from '../dtos/pago-out.dto';
@@ -64,6 +65,9 @@ export class PagosService {
     private readonly pasarela: PasarelaPagoService,
     private readonly membresias: MembresiaPrecioService,
     private readonly reservas: ReservaPrecioService,
+    // RF-07: la penalidad por cancelacion tardia de una clase sale de M3, el
+    // monto es la penalidad de dominio (50% del valor nominal).
+    private readonly reservaClases: ReservaClasePrecioService,
     private readonly comprobantes: ComprobantesService,
   ) {}
 
@@ -105,11 +109,15 @@ export class PagosService {
       // Se traduce acá y no en el repositorio: el repositorio no sabe qué status
       // HTTP ni qué `type` corresponde a cada motivo de dominio.
       //
-      // La narrowing del `tipo` es lo que evita el `!` sobre `reserva_cancha_id`: si
-      // el motivo es RESERVA_YA_COBRADA fue porque el concepto era una reserva, y el
-      // resto de los casos caen en el default que el contrato ya declara.
+      // La narrowing del `tipo` es lo que evita el `!`: si el motivo es
+      // RESERVA_YA_COBRADA fue porque el concepto era una reserva (de cancha o de
+      // clase), y el resto de los casos caen en el default que el contrato ya
+      // declara.
       if (creado.motivo === 'RESERVA_YA_COBRADA' && resuelto.concepto.tipo === 'RESERVA_CANCHA') {
         throw reservaYaCobrada(resuelto.concepto.reserva_cancha_id);
+      }
+      if (creado.motivo === 'RESERVA_YA_COBRADA' && resuelto.concepto.tipo === 'RESERVA_CLASE') {
+        throw reservaYaCobrada(resuelto.concepto.reserva_clase_id);
       }
       throw idempotenciaRepetida();
     }
@@ -359,6 +367,19 @@ export class PagosService {
         concepto,
         usuario_id: reserva.usuario_id,
         monto: reserva.precio,
+      };
+    }
+
+    if (concepto.tipo === 'RESERVA_CLASE') {
+      const clase = await this.reservaClases.obtenerParaCobro(concepto.reserva_clase_id);
+      if (!clase) {
+        throw recursoNoEncontrado(`No existe la reserva de clase ${concepto.reserva_clase_id}.`);
+      }
+
+      return {
+        concepto,
+        usuario_id: clase.usuario_id,
+        monto: clase.penalidad,
       };
     }
 

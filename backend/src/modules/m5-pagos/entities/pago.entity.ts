@@ -16,12 +16,13 @@
 
 export type EstadoPago = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'ANULADO';
 
-// Un pago referencia estructuralmente UN solo concepto (reserva de cancha o
-// membresía, herencia parte-todo). Es la discriminated union del contrato
-// `ConceptoPago`: el `tipo` decide cuál id viene poblado.
+// Un pago referencia estructuralmente UN solo concepto (reserva de cancha,
+// membresía o penalidad de clase, herencia parte-todo). Es la discriminated union
+// del contrato `ConceptoPago`: el `tipo` decide cuál id viene poblado.
 export type ConceptoPago =
   | { tipo: 'RESERVA_CANCHA'; reserva_cancha_id: number }
-  | { tipo: 'MEMBRESIA'; membresia_id: number };
+  | { tipo: 'MEMBRESIA'; membresia_id: number }
+  | { tipo: 'RESERVA_CLASE'; reserva_clase_id: number };
 
 export interface Pago {
   id: number;

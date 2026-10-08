@@ -1,7 +1,10 @@
-// Nombres de los eventos del bus interno (RF-02). Viven en commons porque los
-// emite M1 (que no puede importar M5: el grafo es M5 → M1) y los escucha M5:
-// es el único lugar que los dos lados pueden importar sin cerrar un ciclo.
-// La carga útil de cada evento está tipada en el módulo que la escucha.
+// Nombres de los eventos del bus interno (RF-02, RF-07). Viven en commons porque
+// los emite un modulo que NO puede importar al que los escucha (el grafo es quien
+// escucha -> quien emite): M1 emite y M5 escucha (RF-02), M3 emite y M5 escucha
+// (RF-07, penalidad por cancelacion tardia). Es el unico lugar que los dos lados
+// pueden importar sin cerrar un ciclo. La carga util de cada evento esta tipada
+// en el modulo que la escucha.
 
 export const EVENTO_SOCIO_ALTA = 'socio.dadoDeAlta';
 export const EVENTO_MEMBRESIA_PLAN = 'membresia.planCambiado';
+export const EVENTO_RESERVA_CLASE_CANCELADA_TARDIA = 'reservaClase.canceladaTardia';

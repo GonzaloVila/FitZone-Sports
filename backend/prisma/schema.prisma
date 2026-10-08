@@ -216,6 +216,9 @@ model ReservaClase {
   estado   EstadoReservaClase
   clase    Clase              @relation(fields: [clase_id], references: [id])
   socio    Socio              @relation(fields: [socio_id], references: [id])
+  // Penalidad por cancelacion tardia (RF-07): la reserva puede tener un solo
+  // cobro de penalidad, o ninguno.
+  pago_reserva_clase PagoReservaClase?
 }
 
 // Lista de espera RF-08: se notifica a TODOS y el cupo lo toma el PRIMERO que confirme
@@ -247,6 +250,17 @@ model Pago {
   usuario             Usuario        @relation(fields: [usuario_id], references: [id])
   pago_reserva        PagoReserva?
   pago_membresia      PagoMembresia?
+  pago_reserva_clase  PagoReservaClase?
+}
+
+// Subtipo: pago de la PENALIDAD por cancelacion tardia de una clase (RF-07).
+// reserva_clase_id unica => un solo cobro de penalidad por reserva, igual que
+// el PagoReserva de canchas (exactamente un comprobante por reserva).
+model PagoReservaClase {
+  id_pago          Int          @id
+  reserva_clase_id Int          @unique
+  pago             Pago         @relation(fields: [id_pago], references: [id])
+  reserva_clase    ReservaClase @relation(fields: [reserva_clase_id], references: [id])
 }
 
 // Subtipo: pago de reserva de cancha (RF-13). reserva_id única => un comprobante por reserva.

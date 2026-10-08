@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ProblemDetails, ProblemException } from '../../../commons/filters/problem.exception';
-import type { MembresiaPrecioService } from '../../m1-usuarios/services/membresia-precio.service';
-import type { ReservaPrecioService } from '../../m4-canchas/services/reserva-precio.service';
-import type { PagoIn } from '../dtos/pago-in.dto';
-import type { Pago } from '../entities/pago.entity';
-import type { PagoRepository } from '../repositories/pago.repository';
-import type { PasarelaPagoService } from './pasarela-pago.service';
-import type { ComprobantesService } from './comprobantes.service';
-import { PagosService } from './pagos.service';
+import { ProblemDetails, ProblemException } from 'src/commons/filters/problem.exception';
+import type { MembresiaPrecioService } from 'src/modules/m1-usuarios/services/membresia-precio.service';
+import type { ReservaClasePrecioService } from 'src/modules/m3-clases/services/reserva-clase-precio.service';
+import type { ReservaPrecioService } from 'src/modules/m4-canchas/services/reserva-precio.service';
+import type { PagoIn } from 'src/modules/m5-pagos/dtos/pago-in.dto';
+import type { Pago } from 'src/modules/m5-pagos/entities/pago.entity';
+import type { PagoRepository } from 'src/modules/m5-pagos/repositories/pago.repository';
+import type { PasarelaPagoService } from 'src/modules/m5-pagos/services/pasarela-pago.service';
+import type { ComprobantesService } from 'src/modules/m5-pagos/services/comprobantes.service';
+import { PagosService } from 'src/modules/m5-pagos/services/pagos.service';
 
 /**
  * Devuelve el CUERPO del problem+json, no la excepción.
@@ -106,6 +107,21 @@ describe('PagosService', () => {
           : over.membresia,
       ),
     };
+    // RF-07: la penalidad de clase la resuelve M3 (ReservaClasePrecioService).
+    const reservaClases = {
+      obtenerParaCobro: vi.fn().mockResolvedValue(
+        over.reservaClase === undefined
+          ? {
+              reserva_clase_id: 9,
+              socio_id: 3,
+              usuario_id: 3,
+              clase_id: 4,
+              horario: '2026-10-02T18:00:00Z',
+              penalidad: 5000,
+            }
+          : over.reservaClase,
+      ),
+    };
     // El comprobante se aísla detrás de un mock: los tests de este archivo son sobre el
     // cobro, y escribir PDFs de verdad en `storage/` para cada caso los volvería
     // dependientes del disco. El armado del PDF tiene su propio spec.
@@ -119,10 +135,11 @@ describe('PagosService', () => {
       pasarela as unknown as PasarelaPagoService,
       membresias as unknown as MembresiaPrecioService,
       reservas as unknown as ReservaPrecioService,
+      reservaClases as unknown as ReservaClasePrecioService,
       comprobantes as unknown as ComprobantesService,
     );
 
-    return { service, pagos, pasarela, reservas, membresias, comprobantes };
+    return { service, pagos, pasarela, reservas, membresias, reservaClases, comprobantes };
   }
 
   describe('orden de los pasos', () => {

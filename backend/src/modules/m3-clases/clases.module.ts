@@ -13,11 +13,14 @@ import { EsperaClaseRepository } from './repositories/espera-clase.repository';
 import { ReservaClaseRepository } from './repositories/reserva-clase.repository';
 import { ClasesService } from './services/clases.service';
 import { EsperasClasesService } from './services/esperas-clases.service';
+import { ReservaClasePrecioService } from './services/reserva-clase-precio.service';
 import { ReservasClasesService } from './services/reservas-clases.service';
 
 // M3 depende de M1 (RN-03 en reservas y esperas, y el email del observer de cupo
-// liberado) y de M2 (la sede de una clase nueva debe existir). No exporta nada:
-// ningun otro modulo necesita leer la cola de espera o el cupo de una clase.
+// liberado) y de M2 (la sede de una clase nueva debe existir). Exporta UNA sola
+// cosa, `ReservaClasePrecioService`, para que M5 resuelva el importe de la
+// penalidad por cancelacion tardia (RF-07) sin exponer el resto de M3 (la cola
+// de espera, el cupo o la alta de clases no le sirven a nadie).
 @Module({
   imports: [CommonsModule, UsuariosModule, GimnasioModule],
   controllers: [
@@ -32,10 +35,12 @@ import { ReservasClasesService } from './services/reservas-clases.service';
     ClasesService,
     ReservasClasesService,
     EsperasClasesService,
+    ReservaClasePrecioService,
     CupoLiberadoSubject,
     NotificarSociosEsperaObserver,
     EmailCupoLiberadoObserver,
   ],
+  exports: [ReservaClasePrecioService],
 })
 export class ClasesModule implements OnModuleInit {
   constructor(

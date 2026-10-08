@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { EventEmitter2 } from '@nestjs/event-emitter';
-import { PRECIOS_PLAN, estaVigente } from '../entities/membresia.entity';
-import type { Membresia } from '../entities/membresia.entity';
-import { MembresiasService } from './membresias.service';
-import type { MembresiaRepository } from '../domain/membresia.port';
-import type { SocioRepository } from '../repositories/socio.repository';
+import { PRECIOS_PLAN } from 'src/modules/m1-usuarios/entities/membresia.entity';
+import type { Membresia } from 'src/modules/m1-usuarios/entities/membresia.entity';
+import { estadoDe } from 'src/modules/m1-usuarios/entities/membresia-estado';
+import { MembresiasService } from 'src/modules/m1-usuarios/services/membresias.service';
+import type { MembresiaRepository } from 'src/modules/m1-usuarios/domain/membresia.port';
+import type { SocioRepository } from 'src/modules/m1-usuarios/repositories/socio.repository';
 
 // La regla RN-03 vivia en `MembresiaValidationAdapter` y no tenia cobertura propia:
 // los e2e solo la cruzaban de paso al reservar o al ingresar. Con la migracion a
@@ -69,7 +70,7 @@ describe('MembresiasService - consultas de vigencia', () => {
     expect(await s.consultarVigencia(1)).toEqual({ vigente: false });
   });
 
-  // RN-03 junto con estaVigente(): el cron diario mueve `estado` a VENCIDA, pero
+  // RN-03 junto con estadoDe(): el cron diario mueve `estado` a VENCIDA, pero
   // entre la fecha_fin y la corrida siguiente el registro sigue ACTIVA. La
   // vigencia real tiene que depender de la fecha, no solo del estado.
   it('da por no vigente una membresia ACTIVA cuya fecha_fin ya paso', async () => {
@@ -116,8 +117,9 @@ describe('MembresiasService - consultas de vigencia', () => {
     });
   });
 
-  it('estaVigente acepta una membresia que termina exactamente ahora', () => {
+  it('estadoDe acepta como vigente una membresia que termina exactamente ahora', () => {
     const ahora = new Date('2026-10-01T12:00:00.000Z');
-    expect(estaVigente(membresiaValida({ fecha_fin: ahora }), ahora)).toBe(true);
+    const m = membresiaValida({ fecha_fin: ahora });
+    expect(estadoDe(m).esVigente(m, ahora)).toBe(true);
   });
 });

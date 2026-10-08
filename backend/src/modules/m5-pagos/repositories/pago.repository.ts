@@ -14,6 +14,7 @@ export interface FiltrosListarPagos {
   tipo?: ConceptoPago['tipo'];
   reservaCanchaId?: number;
   membresiaId?: number;
+  reservaClaseId?: number;
   desde?: Date;
   hasta?: Date;
 }
@@ -44,7 +45,7 @@ export type ResultadoCrearPago =
 // El pago con su subtipo, que es lo que hace falta para reconstruir el `ConceptoPago`
 // (decisión 3: el polimorfismo es de esquema, no de `tipo` + `concepto_id` sueltos).
 type PagoConSubtipo = Prisma.PagoGetPayload<{
-  include: { pago_reserva: true; pago_membresia: true };
+  include: { pago_reserva: true; pago_membresia: true; pago_reserva_clase: true };
 }>;
 
 @Injectable()
@@ -82,7 +83,7 @@ export class PagoRepository {
     try {
       const fila = await this.prisma.pago.create({
         data,
-        include: { pago_reserva: true, pago_membresia: true },
+        include: { pago_reserva: true, pago_membresia: true, pago_reserva_clase: true },
       });
 
       return { ok: true, pago: this.aDominio(fila) };
@@ -100,7 +101,7 @@ export class PagoRepository {
   async buscarPorId(id: number): Promise<Pago | null> {
     const fila = await this.prisma.pago.findUnique({
       where: { id },
-      include: { pago_reserva: true, pago_membresia: true },
+      include: { pago_reserva: true, pago_membresia: true, pago_reserva_clase: true },
     });
 
     return fila ? this.aDominio(fila) : null;
@@ -113,7 +114,7 @@ export class PagoRepository {
   async buscarPorIdempotenciaKey(idempotenciaKey: string): Promise<Pago | null> {
     const fila = await this.prisma.pago.findUnique({
       where: { idempotencia_key: idempotenciaKey },
-      include: { pago_reserva: true, pago_membresia: true },
+      include: { pago_reserva: true, pago_membresia: true, pago_reserva_clase: true },
     });
 
     return fila ? this.aDominio(fila) : null;
@@ -148,6 +149,9 @@ export class PagoRepository {
       ...(filtros.membresiaId !== undefined && {
         pago_membresia: { membresia_id: filtros.membresiaId },
       }),
+      ...(filtros.reservaClaseId !== undefined && {
+        pago_reserva_clase: { reserva_clase_id: filtros.reservaClaseId },
+      }),
       ...((filtros.desde !== undefined || filtros.hasta !== undefined) && {
         fecha_pago: {
           ...(filtros.desde !== undefined && { gte: filtros.desde }),
@@ -157,16 +161,30 @@ export class PagoRepository {
     };
 
     // `tipo` es el discriminante del `oneOf` de `ConceptoPago`: RESERVA_CANCHA cruza con
-    // PagoReserva y MEMBRESIA con PagoMembresia. Se traduce a "tiene este subtipo" con
-    // un OR de is-null sobre el otro, porque en la base la ausencia del subtipo es la
-    // fila en NULL y no un discriminante materializado: preguntar por `tipo` solo, sin
-    // el `is`, traería también los pagos del otro tipo, que es exactamente el error que
-    // el filtro existe para evitar.
+    // PagoReserva, MEMBRESIA con PagoMembresia y RESERVA_CLASE con PagoReservaClase. Se
+    // traduce a "tiene este subtipo" con un AND de is-null sobre los otros dos, porque en
+    // la base la ausencia de subtipo es la fila en NULL y no un discriminante
+    // materializado: preguntar por `tipo` solo, sin los `is`, traería también los pagos de
+    // los otros tipos, que es exactamente el error que el filtro existe para evitar.
     if (filtros.tipo !== undefined) {
       where.AND =
         filtros.tipo === 'RESERVA_CANCHA'
-          ? { pago_reserva: { isNot: null }, pago_membresia: { is: null } }
-          : { pago_membresia: { isNot: null }, pago_reserva: { is: null } };
+          ? {
+              pago_reserva: { isNot: null },
+              pago_membresia: { is: null },
+              pago_reserva_clase: { is: null },
+            }
+          : filtros.tipo === 'RESERVA_CLASE'
+            ? {
+                pago_reserva_clase: { isNot: null },
+                pago_reserva: { is: null },
+                pago_membresia: { is: null },
+              }
+            : {
+                pago_membresia: { isNot: null },
+                pago_reserva: { is: null },
+                pago_reserva_clase: { is: null },
+              };
     }
 
     const filas = await this.prisma.pago.findMany({
@@ -174,7 +192,7 @@ export class PagoRepository {
       skip: (page - 1) * perPage,
       take: perPage,
       orderBy: [{ fecha_pago: 'desc' }, { id: 'desc' }],
-      include: { pago_reserva: true, pago_membresia: true },
+      include: { pago_reserva: true, pago_membresia: true, pago_reserva_clase: true },
     });
 
     return filas.map((fila) => this.aDominio(fila));
@@ -194,7 +212,7 @@ export class PagoRepository {
     const fila = await this.prisma.pago.update({
       where: { id },
       data: { estado },
-      include: { pago_reserva: true, pago_membresia: true },
+      include: { pago_reserva: true, pago_membresia: true, pago_reserva_clase: true },
     });
 
     return this.aDominio(fila);
@@ -217,7 +235,7 @@ export class PagoRepository {
     const fila = await this.prisma.pago.update({
       where: { id },
       data: { comprobante_pdf_url: comprobantePdfUrl },
-      include: { pago_reserva: true, pago_membresia: true },
+      include: { pago_reserva: true, pago_membresia: true, pago_reserva_clase: true },
     });
 
     return this.aDominio(fila);
@@ -239,7 +257,7 @@ export class PagoRepository {
       const fila = await this.prisma.pago.update({
         where: { id: pago.id, estado: { in: ['PENDIENTE', 'APROBADO'] } },
         data: { estado: 'ANULADO' },
-        include: { pago_reserva: true, pago_membresia: true },
+        include: { pago_reserva: true, pago_membresia: true, pago_reserva_clase: true },
       });
 
       return this.aDominio(fila);
@@ -257,10 +275,20 @@ export class PagoRepository {
    */
   private subtipoDe(
     pago: PagoNuevo,
-  ): Pick<Prisma.PagoUncheckedCreateInput, 'pago_reserva' | 'pago_membresia'> {
-    return pago.concepto.tipo === 'RESERVA_CANCHA'
-      ? { pago_reserva: { create: { reserva_id: pago.concepto.reserva_cancha_id } } }
-      : { pago_membresia: { create: { membresia_id: pago.concepto.membresia_id } } };
+  ): Pick<
+    Prisma.PagoUncheckedCreateInput,
+    'pago_reserva' | 'pago_membresia' | 'pago_reserva_clase'
+  > {
+    switch (pago.concepto.tipo) {
+      case 'RESERVA_CANCHA':
+        return { pago_reserva: { create: { reserva_id: pago.concepto.reserva_cancha_id } } };
+      case 'MEMBRESIA':
+        return { pago_membresia: { create: { membresia_id: pago.concepto.membresia_id } } };
+      case 'RESERVA_CLASE':
+        return {
+          pago_reserva_clase: { create: { reserva_clase_id: pago.concepto.reserva_clase_id } },
+        };
+    }
   }
 
   /**
@@ -276,7 +304,12 @@ export class PagoRepository {
     const objetivo = meta?.target;
     const texto = Array.isArray(objetivo) ? objetivo.join(',') : String(objetivo ?? '');
 
-    return texto.includes('reserva_id') ? 'RESERVA_YA_COBRADA' : 'IDEMPOTENCIA_REPETIDA';
+    // Las dos únicas FKs únicas de los subtipos (cancha y clase) significan "esta
+    // reserva ya fue cobrada"; la de membresía no es única a propósito. La de
+    // clase no contiene el substring `reserva_id`, por eso se mira por separado.
+    return texto.includes('reserva_id') || texto.includes('reserva_clase_id')
+      ? 'RESERVA_YA_COBRADA'
+      : 'IDEMPOTENCIA_REPETIDA';
   }
 
   private aDominio(fila: PagoConSubtipo): Pago {
@@ -294,6 +327,16 @@ export class PagoRepository {
       return {
         ...this.camposDe(fila),
         concepto: { tipo: 'MEMBRESIA', membresia_id: fila.pago_membresia.membresia_id },
+      };
+    }
+
+    if (fila.pago_reserva_clase) {
+      return {
+        ...this.camposDe(fila),
+        concepto: {
+          tipo: 'RESERVA_CLASE',
+          reserva_clase_id: fila.pago_reserva_clase.reserva_clase_id,
+        },
       };
     }
 

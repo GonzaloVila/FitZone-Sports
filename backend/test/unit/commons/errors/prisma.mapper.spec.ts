@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import { mapearErrorPrisma } from './prisma.mapper';
+import { mapearErrorPrisma } from 'src/commons/errors/prisma.mapper';
 
 const CLIENT_VERSION = 'test';
 

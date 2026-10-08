@@ -72,6 +72,27 @@ export class ConceptoMembresia {
   membresia_id!: number;
 }
 
+/** Rama del `oneOf` para `ConceptoPago`: penalidad por cancelacion tardia de clase (RF-07). */
+export class ConceptoReservaClase {
+  @ApiProperty({
+    type: 'string',
+    enum: ['RESERVA_CLASE'],
+    description: 'Pago de la penalidad por cancelación tardía de una clase (PagoReservaClase).',
+    example: 'RESERVA_CLASE',
+  })
+  @IsIn(['RESERVA_CLASE'])
+  tipo!: 'RESERVA_CLASE';
+
+  @ApiProperty({
+    type: 'integer',
+    description: 'Reserva de clase a penalizar. El monto sale de la regla de RF-07 (50% del valor nominal).',
+    example: 4,
+  })
+  @IsInt()
+  @Min(1)
+  reserva_clase_id!: number;
+}
+
 /**
  * El concepto como lo valida `class-validator`.
  *
@@ -89,20 +110,20 @@ export class ConceptoMembresia {
 export class ConceptoPagoIn {
   @ApiProperty({
     type: 'string',
-    enum: ['RESERVA_CANCHA', 'MEMBRESIA'],
+    enum: ['RESERVA_CANCHA', 'MEMBRESIA', 'RESERVA_CLASE'],
     description: 'Discriminante del concepto cobrado.',
     example: 'RESERVA_CANCHA',
   })
-  @IsIn(['RESERVA_CANCHA', 'MEMBRESIA'])
-  tipo!: ConceptoReservaCancha['tipo'] | ConceptoMembresia['tipo'];
+  @IsIn(['RESERVA_CANCHA', 'MEMBRESIA', 'RESERVA_CLASE'])
+  tipo!: ConceptoReservaCancha['tipo'] | ConceptoMembresia['tipo'] | ConceptoReservaClase['tipo'];
 
   @ApiProperty({ type: 'integer', required: false, example: 7 })
-  // `@IsOptional()` es OBLIGATORIO en los dos ids, por el mismo motivo que en
-  // `moneda`: el `oneOf` manda el id de UNA sola rama, así que el otro llega
+  // `@IsOptional()` es OBLIGATORIO en los ids, por el mismo motivo que en
+  // `moneda`: el `oneOf` manda el id de UNA sola rama, así que los otros llegan
   // `undefined`, y sin `@IsOptional` tanto `@IsInt()` como `@Min(1)` corren
   // contra `undefined` y un body bien formado da 422. El DTO se puede escribir sin
-  // el otro id sin que eso se confunda con "mandó un id inválido" — eso lo juzga
-  // `ConceptoUnicoConstraint`.
+  // los otros ids sin que eso se confunda con "mandó un id inválido" — eso lo
+  // juzga `ConceptoUnicoConstraint`.
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -113,6 +134,12 @@ export class ConceptoPagoIn {
   @IsInt()
   @Min(1)
   membresia_id?: number;
+
+  @ApiProperty({ type: 'integer', required: false, example: 4 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  reserva_clase_id?: number;
 }
 
 /**
@@ -137,27 +164,36 @@ class ConceptoUnico implements ValidatorConstraintInterface {
     }
 
     if (value.tipo === 'RESERVA_CANCHA') {
-      return value.reserva_cancha_id !== undefined && value.membresia_id === undefined;
+      return value.reserva_cancha_id !== undefined && value.membresia_id === undefined && value.reserva_clase_id === undefined;
     }
-    return value.membresia_id !== undefined && value.reserva_cancha_id === undefined;
+    if (value.tipo === 'RESERVA_CLASE') {
+      return value.reserva_clase_id !== undefined && value.reserva_cancha_id === undefined && value.membresia_id === undefined;
+    }
+    return value.membresia_id !== undefined && value.reserva_cancha_id === undefined && value.reserva_clase_id === undefined;
   }
 
   defaultMessage(args: ValidationArguments): string {
     const concepto = args.value as ConceptoPagoIn | undefined;
 
     if (concepto === undefined || concepto === null) {
-      return 'concepto es obligatorio (RESERVA_CANCHA o MEMBRESIA).';
+      return 'concepto es obligatorio (RESERVA_CANCHA, MEMBRESIA o RESERVA_CLASE).';
     }
 
     if (concepto.tipo === 'RESERVA_CANCHA') {
       return concepto.reserva_cancha_id === undefined
         ? 'Un concepto RESERVA_CANCHA requiere reserva_cancha_id.'
-        : 'Un concepto RESERVA_CANCHA no admite membresia_id.';
+        : 'Un concepto RESERVA_CANCHA no admite membresia_id ni reserva_clase_id.';
+    }
+
+    if (concepto.tipo === 'RESERVA_CLASE') {
+      return concepto.reserva_clase_id === undefined
+        ? 'Un concepto RESERVA_CLASE requiere reserva_clase_id.'
+        : 'Un concepto RESERVA_CLASE no admite reserva_cancha_id ni membresia_id.';
     }
 
     return concepto.membresia_id === undefined
       ? 'Un concepto MEMBRESIA requiere membresia_id.'
-      : 'Un concepto MEMBRESIA no admite reserva_cancha_id.';
+      : 'Un concepto MEMBRESIA no admite reserva_cancha_id ni reserva_clase_id.';
   }
 }
 
@@ -258,6 +294,13 @@ export function conceptoDePago(concepto: ConceptoPagoIn): ConceptoPago {
       throw datosInvalidos('Un concepto RESERVA_CANCHA requiere reserva_cancha_id.');
     }
     return { tipo: 'RESERVA_CANCHA', reserva_cancha_id: concepto.reserva_cancha_id };
+  }
+
+  if (concepto.tipo === 'RESERVA_CLASE') {
+    if (concepto.reserva_clase_id === undefined) {
+      throw datosInvalidos('Un concepto RESERVA_CLASE requiere reserva_clase_id.');
+    }
+    return { tipo: 'RESERVA_CLASE', reserva_clase_id: concepto.reserva_clase_id };
   }
 
   if (concepto.membresia_id === undefined) {

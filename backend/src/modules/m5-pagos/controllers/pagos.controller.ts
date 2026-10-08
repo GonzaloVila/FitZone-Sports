@@ -137,6 +137,7 @@ export class PagosController {
       tipo: query.tipo,
       reservaCanchaId: query.reserva_cancha_id,
       membresiaId: query.membresia_id,
+      reservaClaseId: query.reserva_clase_id,
       desde: query.desde,
       hasta: query.hasta,
       page: query.page ?? 1,

@@ -200,6 +200,11 @@ Table PagoMembresia {
   membresia_id int [not null]  // con la baja LOGICA la membresia ya no se borra, asi que el enlace nunca queda NULL
 }
 
+Table PagoReservaClase {
+  id_pago Int [pk, not null]
+  reserva_clase_id Int [unique, not null]  // RF-07: un solo cobro de penalidad por reserva de clase
+}
+
 Table Ingreso {
   id int [pk, increment]
   sede_id int [not null]
@@ -232,6 +237,8 @@ Ref: Usuario.id < Pago.usuario_id
 Ref: Pago.id - PagoReserva.id_pago
 Ref: Reserva.id - PagoReserva.reserva_id
 Ref: Pago.id - PagoMembresia.id_pago
+Ref: Pago.id - PagoReservaClase.id_pago
 Ref: Membresia.id < PagoMembresia.membresia_id
+Ref: ReservaClase.id < PagoReservaClase.reserva_clase_id
 Ref: Sede.id < Ingreso.sede_id
 Ref: Socio.id < Ingreso.socio_id

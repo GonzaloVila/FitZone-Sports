@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ReservaPrecioService } from './reserva-precio.service';
-import type { ReservaRepository } from '../domain/reserva.port';
+import { ReservaPrecioService } from 'src/modules/m4-canchas/services/reserva-precio.service';
+import type { ReservaRepository } from 'src/modules/m4-canchas/domain/reserva.port';
 
 // Fijan el contrato del export que M5 consume. Lo importante acá es que el precio
 // sea el CONGELADO de la fila (`precio_aplicado`), no una recalculacion: si M5

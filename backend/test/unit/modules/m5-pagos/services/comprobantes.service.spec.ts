@@ -1,17 +1,19 @@
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MembresiaPrecioService } from '../../m1-usuarios/services/membresia-precio.service';
-import type { UsuariosService } from '../../m1-usuarios/services/usuarios.service';
-import type { ReservaPrecioService } from '../../m4-canchas/services/reserva-precio.service';
-import { ConceptoPago, Pago } from '../entities/pago.entity';
-import { ComprobantesService, RUTA_COMPROBANTES } from './comprobantes.service';
+import type { MembresiaPrecioService } from 'src/modules/m1-usuarios/services/membresia-precio.service';
+import type { UsuariosService } from 'src/modules/m1-usuarios/services/usuarios.service';
+import type { ReservaClasePrecioService } from 'src/modules/m3-clases/services/reserva-clase-precio.service';
+import type { ReservaPrecioService } from 'src/modules/m4-canchas/services/reserva-precio.service';
+import { ConceptoPago, Pago } from 'src/modules/m5-pagos/entities/pago.entity';
+import { ComprobantesService, RUTA_COMPROBANTES } from 'src/modules/m5-pagos/services/comprobantes.service';
 
 const INICIO = new Date('2026-10-10T14:00:00.000Z');
 const FIN = new Date('2026-10-10T15:00:00.000Z');
 
 const RESERVA_CANCHA = { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 12 } as const;
 const MEMBRESIA = { tipo: 'MEMBRESIA', membresia_id: 5 } as const;
+const RESERVA_CLASE = { tipo: 'RESERVA_CLASE', reserva_clase_id: 3 } as const;
 
 /**
  * El texto que se imprime en el PDF, en orden.
@@ -57,7 +59,7 @@ function pago(over: Partial<Pago> = {}): Pago {
 describe('ComprobantesService', () => {
   const directorio = join(process.cwd(), 'storage', 'comprobantes');
 
-  function armar(over: { reserva?: unknown; membresia?: unknown } = {}) {
+  function armar(over: { reserva?: unknown; membresia?: unknown; reservaClase?: unknown } = {}) {
     const reservas = {
       obtenerParaCobro: vi.fn().mockResolvedValue(
         over.reserva === undefined
@@ -80,6 +82,21 @@ describe('ComprobantesService', () => {
           : over.membresia,
       ),
     };
+    // RF-07: la penalidad de la clase la resuelve M3 (ReservaClasePrecioService).
+    const reservasClases = {
+      obtenerParaCobro: vi.fn().mockResolvedValue(
+        over.reservaClase === undefined
+          ? {
+              reserva_clase_id: 3,
+              socio_id: 42,
+              usuario_id: 42,
+              clase_id: 9,
+              horario: '2026-10-10T14:00:00.000Z',
+              penalidad: 5000,
+            }
+          : over.reservaClase,
+      ),
+    };
     const usuarios = {
       buscarDatosParaComprobante: vi.fn().mockResolvedValue({ nombre: 'Ana Gómez', email: 'ana@fitzone.com' }),
     };
@@ -87,9 +104,10 @@ describe('ComprobantesService', () => {
     const service = new ComprobantesService(
       reservas as unknown as ReservaPrecioService,
       membresias as unknown as MembresiaPrecioService,
+      reservasClases as unknown as ReservaClasePrecioService,
       usuarios as unknown as UsuariosService,
     );
-    return { service, usuarios };
+    return { service, usuarios, reservasClases };
   }
 
   beforeEach(async () => {
@@ -145,8 +163,9 @@ describe('ComprobantesService', () => {
     expect(texto).toContain('Cancha:');
     expect(texto).toContain('N° 3');
     expect(texto).toContain('Horario:');
-    expect(texto).toContain('2026-10-10T14:00:00.000Z');
-    expect(texto).toContain('2026-10-10T15:00:00.000Z');
+    // Hora local de la sede (ART = UTC-3): 14:00Z y 15:00Z son 11:00 y 12:00.
+    expect(texto).toContain('2026-10-10 11:00');
+    expect(texto).toContain('2026-10-10 12:00');
     expect(texto).toContain('Pago:');
     expect(texto).toContain('#8');
   });
@@ -161,6 +180,21 @@ describe('ComprobantesService', () => {
     expect(texto).toContain('MENSUAL');
     expect(texto).toContain('ARS 30.000,00');
     expect(texto).not.toContain('Cancha:');
+  });
+
+  // RF-07: la penalidad por cancelacion tardia imprime su detalle (clase, horario).
+  it('imprime la penalidad de una reserva de clase (RF-07)', async () => {
+    const { service } = armar();
+
+    const ruta = await service.generar(pago({ monto: 5000, concepto: RESERVA_CLASE }), RESERVA_CLASE);
+    const texto = textoDelPdf((await service.leer(ruta))!);
+
+    expect(texto).toContain('Reserva de clase');
+    expect(texto).toContain('Clase:');
+    expect(texto).toContain('N° 9');
+    expect(texto).toContain('Horario:');
+    expect(texto).toContain('Penalidad por cancelación tardía');
+    expect(texto).toContain('ARS 5.000,00');
   });
 
   // RF-02 (historial): el comprobante imprime nombre y email del socio, resueltos al

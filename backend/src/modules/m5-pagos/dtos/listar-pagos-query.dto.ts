@@ -4,7 +4,7 @@ import { IsIn, IsInt, IsISO8601, IsOptional, Matches, Max, Min } from 'class-val
 import { ConceptoPago, Pago } from '../entities/pago.entity';
 
 const ESTADOS: Pago['estado'][] = ['PENDIENTE', 'APROBADO', 'RECHAZADO', 'ANULADO'];
-const TIPOS: ConceptoPago['tipo'][] = ['RESERVA_CANCHA', 'MEMBRESIA'];
+const TIPOS: ConceptoPago['tipo'][] = ['RESERVA_CANCHA', 'MEMBRESIA', 'RESERVA_CLASE'];
 
 /**
  * La lista blanca de filtros de `GET /pagos`.
@@ -71,6 +71,18 @@ export class ListarPagosQueryDto {
   @IsInt()
   @Min(1)
   membresia_id?: number;
+
+  @ApiPropertyOptional({
+    type: 'integer',
+    description:
+      'Solo pagos cuyo concepto es esta reserva de clase (PagoReservaClase.reserva_clase_id); penalidad por cancelación tardía (RF-07).',
+    example: 4,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  reserva_clase_id?: number;
 
   // El patrón fija "un día, no un instante" y el `IsISO8601` descarta los días que el
   // patrón acepta pero no existen (2026-02-30), que si no llegarían a `rangoDelDia()` y

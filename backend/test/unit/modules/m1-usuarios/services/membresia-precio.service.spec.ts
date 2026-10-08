@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MembresiaPrecioService } from './membresia-precio.service';
-import type { MembresiaRepository } from '../domain/membresia.port';
+import { MembresiaPrecioService } from 'src/modules/m1-usuarios/services/membresia-precio.service';
+import type { MembresiaRepository } from 'src/modules/m1-usuarios/domain/membresia.port';
 
 // Fijan el contrato del export que M5 consume. El cruce a Socio y la conversion del
 // Decimal de Prisma a number viven ahora en el adaptador (ver

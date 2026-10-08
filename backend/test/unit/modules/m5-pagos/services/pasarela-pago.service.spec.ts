@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PasarelaPagoService } from './pasarela-pago.service';
+import { PasarelaPagoService } from 'src/modules/m5-pagos/services/pasarela-pago.service';
 
 // Fijan el resultado del mock de la pasarela. Lo que importa acá es que la
 // decisión sea DETERMINISTA (el e2e tiene que ser hermético y repetible) y que el

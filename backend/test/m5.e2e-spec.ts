@@ -356,6 +356,19 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       expect(await prisma.pago.count()).toBe(antes);
     });
 
+    it('404 si la reserva de clase de la penalidad no existe (RF-07)', async () => {
+      const antes = await prisma.pago.count();
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/pagos')
+        .set('Idempotency-Key', `404-clase-${sufijo}`)
+        .send({ concepto: { tipo: 'RESERVA_CLASE', reserva_clase_id: 999999 }, token: 'tok_aprobado_1' })
+        .expect(404);
+
+      expect(res.body.status).toBe(404);
+      expect(await prisma.pago.count()).toBe(antes);
+    });
+
     it('402 si la pasarela rechaza, y el pago queda persistido como RECHAZADO', async () => {
       const reservaId = await crearReserva();
       const clave = `rech-${sufijo}`;
@@ -376,6 +389,17 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
         .set('Idempotency-Key', `oneof-ambos-${sufijo}`)
         .send({
           concepto: { tipo: 'MEMBRESIA', membresia_id: membresiaId, reserva_cancha_id: reservaId },
+          token: 'tok_aprobado_1',
+        })
+        .expect(422);
+    });
+
+    it('422 si un concepto RESERVA_CLASE manda otro id (oneOf, RF-07)', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/pagos')
+        .set('Idempotency-Key', `oneof-clase-${sufijo}`)
+        .send({
+          concepto: { tipo: 'RESERVA_CLASE', reserva_clase_id: 1, membresia_id: membresiaId },
           token: 'tok_aprobado_1',
         })
         .expect(422);

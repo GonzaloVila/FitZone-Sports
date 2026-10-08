@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
-import type { PrismaService } from '../../../commons/database/prisma.service';
-import { PrismaMembresiaRepository } from './membresia.repository';
+import type { PrismaService } from 'src/commons/database/prisma.service';
+import { PrismaMembresiaRepository } from 'src/modules/m1-usuarios/repositories/membresia.repository';
 
 // Las dos cosas que se rompen en silencio en obtenerParaCobro: que el precio salga
 // como `number` y no como el `Decimal` de Prisma (el `Pago.monto` es Decimal y un

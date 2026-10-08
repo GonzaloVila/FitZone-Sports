@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
-import { PagoRepository } from './pago.repository';
-import type { PagoNuevo } from '../entities/pago.entity';
+import { PagoRepository } from 'src/modules/m5-pagos/repositories/pago.repository';
+import type { PagoNuevo } from 'src/modules/m5-pagos/entities/pago.entity';
 
 // Fijan la traducción de la violación de `@unique` a motivo de dominio, que es la
 // garantía de idempotencia de la decisión 6 del plan. La prueba clave es la
@@ -200,22 +200,30 @@ describe('PagoRepository', () => {
       return { prisma, repository: new PagoRepository(prisma as never) };
     }
 
-    it('traduce el discriminante `tipo` al subtipo, en las dos direcciones', async () => {
+    it('traduce el discriminante `tipo` al subtipo, en las tres direcciones', async () => {
       const { prisma, repository } = listado();
 
       await repository.listar({ tipo: 'RESERVA_CANCHA' }, { page: 1, perPage: 20 });
       await repository.listar({ tipo: 'MEMBRESIA' }, { page: 1, perPage: 20 });
+      await repository.listar({ tipo: 'RESERVA_CLASE' }, { page: 1, perPage: 20 });
 
-      // El `is` sobre el subtipo contrario es lo que hace que el filtro sirva: preguntar
+      // El `is` sobre los subtipos contrarios es lo que hace que el filtro sirva: preguntar
       // solo por `pago_reserva: { isNot: null }` traería también los pagos de membresía,
       // que es justo el error que el filtro existe para evitar.
       expect(prisma.pago.findMany.mock.calls[0]![0].where!.AND).toEqual({
         pago_reserva: { isNot: null },
         pago_membresia: { is: null },
+        pago_reserva_clase: { is: null },
       });
       expect(prisma.pago.findMany.mock.calls[1]![0].where!.AND).toEqual({
         pago_membresia: { isNot: null },
         pago_reserva: { is: null },
+        pago_reserva_clase: { is: null },
+      });
+      expect(prisma.pago.findMany.mock.calls[2]![0].where!.AND).toEqual({
+        pago_reserva_clase: { isNot: null },
+        pago_reserva: { is: null },
+        pago_membresia: { is: null },
       });
     });
 

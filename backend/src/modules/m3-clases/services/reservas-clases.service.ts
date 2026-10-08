@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { plainToInstance } from 'class-transformer';
 import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import { EVENTO_RESERVA_CLASE_CANCELADA_TARDIA } from '../../../commons/eventos';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import { ReservaClaseIn } from '../dtos/reserva-clase-in.dto';
 import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query.dto';
@@ -8,7 +10,6 @@ import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
 import { CupoLiberadoSubject } from '../observers/cupo-liberado.subject';
 import {
-  cancelacionFueraDeTermino,
   claseNoDisponibleParaReserva,
   cupoAgotado,
   reservaAnticipadaNoPermitida,
@@ -28,6 +29,10 @@ export class ReservasClasesService {
     // clase bonificada pasaba sin comprobar RN-03.
     private readonly membresias: MembresiasService,
     private readonly cupoSubject: CupoLiberadoSubject,
+    // RF-07: el cobro de la penalidad por cancelación tardía vive en M5 (quien
+    // escucha el evento). M3 no puede importar M5 (el grafo es M5 -> M3), así que
+    // lo avisa por el bus global, como M1 hace con el cobro de membresía.
+    private readonly eventos: EventEmitter2,
   ) {}
 
   async listarReservasDeClase(
@@ -133,13 +138,21 @@ export class ReservasClasesService {
       throw recursoNoEncontrado('No existe la clase vinculada a la reserva.');
     }
 
-    // Regla de Cancelación (RF-07): sin penalidad hasta 2 hs antes
+    // Regla de Cancelación (RF-07): SIN penalidad hasta 2 hs antes. Dentro de las
+    // 2 hs la cancelación se PERMITE, pero el puesto del socio pierde un porcentaje
+    // del valor nominal de la clase, cobrado por M5 antes de liberar el cupo.
     const ahora = Date.now();
     const inicioClase = new Date(clase.horario).getTime();
     const limiteCancelacion = inicioClase - 2 * 60 * 60 * 1000;
 
     if (ahora > limiteCancelacion) {
-      throw cancelacionFueraDeTermino();
+      // `emitAsync` es sincrono: si M5 rechaza el cobro de la penalidad (402), el
+      // error se propaga aca y la cancelacion NO se aplica (la reserva sigue
+      // CONFIRMADA). Es el mismo patron que el cambio de plan de membresia (M1).
+      await this.eventos.emitAsync(EVENTO_RESERVA_CLASE_CANCELADA_TARDIA, {
+        reserva_clase_id: reserva.id,
+        socio_id: reserva.socio_id,
+      });
     }
 
     await this.reservasRepo.marcarCancelada(reservaClaseId);

@@ -32,23 +32,28 @@
 // alguien es M5. Con plan = precio congelado de la reserva, y con membresía = el
 // precio de la fila Membresia.
 //
-// Por eso M5 importa estos dos módulos y NO al revés:
+// Por eso M5 importa tres módulos y NO al revés:
 //   - `MembresiaPrecioService` (M1) → precio, plan y usuario de una membresía.
 //   - `ReservaPrecioService` (M4) → precio congelado y usuario de una reserva.
+//   - `ReservaClasePrecioService` (M3) → penalidad y usuario de una reserva de
+//     clase (RF-07, cancelación tardía). La reserva de clase la cobra el socio
+//     que canceló tarde.
 //
 // Son services angostos, no las entidades: cada módulo sigue siendo el único que
 // consulta su tabla (ADR-07) y cada caso de uso expone lo mínimo que necesita.
 //
-// Lo que este diseño resigna, y es una decisión consciente: como M5 importa M1 y M4,
-// ni M1 ni M4 pueden importar `PagosModule` sin cerrar un ciclo. Por eso en esta
-// pasada el único camino de cobro es `POST /pagos` por HTTP, y la renovación
-// automática de RF-02 no es un cron en M1 sino un cron en M5
-// (`crons/renovaciones.cron.ts`), que ya está del lado correcto del grafo. La
-// RF-02 se cierra igual; lo que no se hace todavía es que el alta de un socio o la
-// creación de una reserva disparen el cobro internamente.
+// Lo que este diseño resigna, y es una decisión consciente: como M5 importa M1, M3
+// y M4, ningún módulo de negocio puede importar `PagosModule` sin cerrar un ciclo.
+// Por eso todo el cobro interno entra por el event bus (Mediator): M1 emite
+// `socio.dadoDeAlta` / `membresia.planCambiado` y M3 emite
+// `reservaClase.canceladaTardia`, y los listeners de M5 escuchan. La RF-02 y la
+// RF-07 se cierran igual; lo que no se hace todavía es que el alta de un socio o
+// la creación de una reserva disparen el cobro internamente por una llamada
+// directa que invertiría el grafo.
 
 import { Module } from '@nestjs/common';
 import { CanchasModule } from '../m4-canchas/canchas.module';
+import { ClasesModule } from '../m3-clases/clases.module';
 import { UsuariosModule } from '../m1-usuarios/usuarios.module';
 import { RenovacionesCron } from './crons/renovaciones.cron';
 import { PagosController } from './controllers/pagos.controller';
@@ -56,6 +61,8 @@ import { PagoRepository } from './repositories/pago.repository';
 import { ComprobantesService } from './services/comprobantes.service';
 import { PagosService } from './services/pagos.service';
 import { PasarelaPagoService } from './services/pasarela-pago.service';
+import { PenalidadReservaClaseListener } from './services/penalidad-reserva-clase.listener';
+import { PenalidadReservaClaseService } from './services/penalidad-reserva-clase.service';
 import { RenovacionesListener } from './services/renovaciones.listener';
 import { RenovacionesService } from './services/renovaciones.service';
 
@@ -69,7 +76,7 @@ import { RenovacionesService } from './services/renovaciones.service';
 // membresías con renovación automática. Ambos usan `RenovacionesService`, que cobra
 // primero y solo inserta el Pago si la pasarela aprobó.
 @Module({
-  imports: [UsuariosModule, CanchasModule],
+  imports: [UsuariosModule, CanchasModule, ClasesModule],
   controllers: [PagosController],
   providers: [
     PagoRepository,
@@ -79,6 +86,8 @@ import { RenovacionesService } from './services/renovaciones.service';
     RenovacionesService,
     RenovacionesListener,
     RenovacionesCron,
+    PenalidadReservaClaseService,
+    PenalidadReservaClaseListener,
   ],
 })
 export class PagosModule {}

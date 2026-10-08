@@ -1,7 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import { validate, ValidationError } from 'class-validator';
 import { describe, expect, it } from 'vitest';
-import { ListarPagosQueryDto } from './listar-pagos-query.dto';
+import { ListarPagosQueryDto } from 'src/modules/m5-pagos/dtos/listar-pagos-query.dto';
 
 /**
  * La lista blanca de `GET /pagos` vive en el DTO, y `whitelist: true` +

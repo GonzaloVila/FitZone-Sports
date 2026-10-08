@@ -4,7 +4,8 @@ import { plainToInstance } from 'class-transformer';
 import { EVENTO_MEMBRESIA_PLAN } from '../../../commons/eventos';
 import { MembresiaOut } from '../dtos/membresia-out.dto';
 import { MembresiaPatch } from '../dtos/membresia-patch.dto';
-import { PRECIOS_PLAN, estaVigente } from '../entities/membresia.entity';
+import { PRECIOS_PLAN } from '../entities/membresia.entity';
+import { estadoDe } from '../entities/membresia-estado';
 import {
   membresiaNoEncontrada,
   membresiaSinCamposParaModificar,
@@ -14,6 +15,7 @@ import {
 import type {
   EstadoSocioMembresia,
   Membresia,
+  MembresiaActualizable,
   MembresiaNoVigente,
   MembresiaRenovable,
   VigenciaMembresia,
@@ -67,19 +69,29 @@ export class MembresiasService {
     // Si era vigente, es solo un cambio de plan, sin cobro (decision del equipo).
     // `emitAsync` es sincrono: si el listener de M5 lanza (cobro rechazado), el
     // error se propaga aca como 402 y el update nunca corre.
-    if (dto.plan !== undefined) {
-      const previa = await this.membresias.buscarPorSocioId(socioId);
-      if (previa && !estaVigente(previa)) {
-        await this.eventos.emitAsync(EVENTO_MEMBRESIA_PLAN, {
-          membresia_id: previa.id,
-          usuario_id: socio.usuario_id,
-          precio: PRECIOS_PLAN[dto.plan],
-          plan: dto.plan,
-        });
-      }
+    const previa = await this.membresias.buscarPorSocioId(socioId);
+    if (dto.plan !== undefined && previa && !estadoDe(previa).esVigente(previa)) {
+      await this.eventos.emitAsync(EVENTO_MEMBRESIA_PLAN, {
+        membresia_id: previa.id,
+        usuario_id: socio.usuario_id,
+        precio: PRECIOS_PLAN[dto.plan],
+        plan: dto.plan,
+      });
     }
 
-    const membresia = await this.membresias.actualizar(socioId, dto);
+    // El PATCH solo admite ACTIVA o SUSPENDIDA (VENCIDA lo reserva el cron). La
+    // transicion la decide la maquina de estados desde el estado ACTUAL, no el
+    // DTO: reactivar una ACTIVA es no-op y suspender una SUSPENDIDA es no-op.
+    const cambios: MembresiaActualizable = { ...dto };
+    if (dto.estado !== undefined) {
+      cambios.estado = previa
+        ? dto.estado === 'SUSPENDIDA'
+          ? estadoDe(previa).alSuspender().nombre
+          : estadoDe(previa).alReactivar().nombre
+        : dto.estado;
+    }
+
+    const membresia = await this.membresias.actualizar(socioId, cambios);
     if (!membresia) {
       throw socioSinMembresia();
     }
@@ -102,7 +114,7 @@ export class MembresiasService {
       return { vigente: false };
     }
 
-    return { vigente: estaVigente(membresia) };
+    return { vigente: estadoDe(membresia).esVigente(membresia) };
   }
 
   // RN-03: un socio sin membresia esta en mora por definicion, y tambien esta
@@ -118,7 +130,7 @@ export class MembresiasService {
       return { esSocio: true, vigente: false, enMora: true };
     }
 
-    const vigente = estaVigente(membresia);
+    const vigente = estadoDe(membresia).esVigente(membresia);
     const enMora =
       !vigente || membresia.estado === 'VENCIDA' || membresia.estado === 'SUSPENDIDA';
     return {
@@ -143,6 +155,9 @@ export class MembresiasService {
 
   // RF-02: extiende el periodo de una membresia renovada. El periodo contiguo lo
   // calcula el llamador (M5) con `calcularVigencia(plan, fecha_fin_previo)`.
+  // El estado resultante lo decide la maquina: `alRenovar()` devuelve ACTIVA para
+  // las dos elegibles (listarRenovables solo trae ACTIVA/VENCIDA, nunca
+  // SUSPENDIDA), que es lo que persiste el adaptador.
   async renovar(id: number, periodo: { fecha_inicio: Date; fecha_fin: Date }): Promise<MembresiaOut> {
     const membresia = await this.membresias.renovar(id, periodo);
     if (!membresia) {

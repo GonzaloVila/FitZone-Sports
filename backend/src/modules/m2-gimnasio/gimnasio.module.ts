@@ -19,7 +19,7 @@ import { SedesService } from './services/sedes.service';
   // M2 importa M1 explicitamente por `MembresiasService`, que es lo unico que
   // necesita de ahi (RN-03 al validar el ingreso). No ve los repositorios de M1:
   // esos son privados de su modulo. AuthModule se agrega por `TotpService`
-  // (RF-04, validacion de codigo_totp al registrar el ingreso).
+  // (RF-04, validacion de codigoTotp al registrar el ingreso).
   imports: [CommonsModule, UsuariosModule, AuthModule],
   controllers: [SedesController, IngresosController, SincronizacionController],
   providers: [

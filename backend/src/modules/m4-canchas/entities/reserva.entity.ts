@@ -1,9 +1,9 @@
 export interface Reserva {
   id: number;
-  cancha_id: number;
-  usuario_id: number;
-  fecha_hora_inicio: Date;
-  fecha_hora_fin: Date;
+  canchaId: number;
+  usuarioId: number;
+  fechaHoraInicio: Date;
+  fechaHoraFin: Date;
   estado: 'CONFIRMADA' | 'CANCELADA';
-  precio_aplicado: number;
+  precioAplicado: number;
 }

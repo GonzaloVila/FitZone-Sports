@@ -9,11 +9,11 @@ export class AforoOut {
     description: 'Ingresos sin egreso en la sede, en este momento (RN-01/RF-05).',
     example: 78,
   })
-  aforo_actual!: number;
+  aforoActual!: number;
 
   @Expose()
   @ApiProperty({ type: 'integer', description: 'Valor configurado en Sede.aforo_maximo.', example: 120 })
-  aforo_maximo!: number;
+  aforoMaximo!: number;
 
   @Expose()
   @ApiProperty({

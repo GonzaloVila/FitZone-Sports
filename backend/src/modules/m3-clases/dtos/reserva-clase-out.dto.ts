@@ -8,11 +8,11 @@ export class ReservaClaseOut {
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
-  clase_id!: number;
+  claseId!: number;
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
-  socio_id!: number;
+  socioId!: number;
 
   @Expose()
   @ApiProperty({ example: 'CONFIRMADA', enum: ['CONFIRMADA', 'CANCELADA'] })

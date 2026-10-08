@@ -42,8 +42,8 @@ export class EsperasClasesService {
     }
 
     const esperas = await this.esperasRepo.listar(
-      { clase_id: claseId, estado: filtros.estado },
-      { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
+      { claseId: claseId, estado: filtros.estado },
+      { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
 
     return plainToInstance(EsperaOut, esperas);
@@ -54,11 +54,11 @@ export class EsperasClasesService {
   ): Promise<EsperaOut[]> {
     const esperas = await this.esperasRepo.listar(
       {
-        clase_id: filtros.clase_id,
-        socio_id: filtros.socio_id,
+        claseId: filtros.claseId,
+        socioId: filtros.socioId,
         estado: filtros.estado,
       },
-      { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
+      { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
 
     return plainToInstance(EsperaOut, esperas);
@@ -74,28 +74,28 @@ export class EsperasClasesService {
       throw claseNoDisponibleParaEspera();
     }
 
-    const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
+    const estado = await this.membresias.consultarVigenciaPorSocio(dto.socioId);
     if (!estado.esSocio) {
       throw recursoNoEncontrado('El socio indicado no existe.');
     }
     if (estado.enMora || !estado.vigente) {
-      throw socioEnMoraParaEspera(dto.socio_id);
+      throw socioEnMoraParaEspera(dto.socioId);
     }
 
     const resultado = await this.esperasRepo.crear({
-      clase_id: claseId,
-      socio_id: dto.socio_id,
+      claseId: claseId,
+      socioId: dto.socioId,
       estado: 'EN_ESPERA',
-      fecha_anotacion: new Date(),
+      fechaAnotacion: new Date(),
     });
 
     if (!resultado.ok) {
       if (resultado.motivo === 'CUPO_DISPONIBLE') {
-        throw cupoDisponible(claseId, clase.cupo_disponible);
+        throw cupoDisponible(claseId, clase.cupoDisponible);
       }
 
       if (resultado.motivo === 'ESPERA_EXISTENTE') {
-        throw esperaExistente(dto.socio_id, claseId);
+        throw esperaExistente(dto.socioId, claseId);
       }
 
       throw recursoNoEncontrado('No existe la clase indicada.');

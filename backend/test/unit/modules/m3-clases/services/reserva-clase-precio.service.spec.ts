@@ -14,7 +14,7 @@ describe('ReservaClasePrecioService (RF-07)', () => {
       buscarPorId: vi
         .fn()
         .mockResolvedValue(
-          over.reserva ?? { id: 3, clase_id: 9, socio_id: 42, estado: 'CONFIRMADA' },
+          over.reserva ?? { id: 3, claseId: 9, socioId: 42, estado: 'CONFIRMADA' },
         ),
     };
     const clases = {
@@ -40,10 +40,10 @@ describe('ReservaClasePrecioService (RF-07)', () => {
     const r = await service.obtenerParaCobro(3);
 
     expect(r).toEqual({
-      reserva_clase_id: 3,
-      socio_id: 42,
-      usuario_id: 7,
-      clase_id: 9,
+      reservaClaseId: 3,
+      socioId: 42,
+      usuarioId: 7,
+      claseId: 9,
       horario: '2026-10-10T14:00:00.000Z',
       penalidad: penalidadCancelacionTardia(),
     });

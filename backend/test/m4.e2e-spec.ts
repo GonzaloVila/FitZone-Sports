@@ -46,7 +46,7 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
   const fin = (hhmm: string) => `${DIA}T${hhmm}:00-03:00`;
 
   // Devuelve el id de Usuario, no el de Socio: la FK de Reserva es
-  // usuario_id -> Usuario, y la membresia se consulta por el socio del usuario.
+  // usuarioId -> Usuario, y la membresia se consulta por el socio del usuario.
   async function crearSocio(opts: { vigente: boolean }): Promise<number> {
     const usuario = await prisma.usuario.create({
       data: {
@@ -150,7 +150,7 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
         .send(dto)
         .expect(201);
       canchasCreadas.push(res.body.id);
-      return res.body as { id: number; sede_id: number; tipo: string; costo_por_hora: number; estado: string };
+      return res.body as { id: number; sedeId: number; tipo: string; costoPorHora: number; estado: string };
     }
 
     async function crearExterno(): Promise<number> {
@@ -170,14 +170,14 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     it('crea una cancha, devuelve 201 con Location y deja el estado en OPERATIVA', async () => {
       const res = await request(app.getHttpServer())
         .post(`/api/v1/sedes/${sedeCanchasId}/canchas`)
-        .send({ tipo: 'PADDLE', costo_por_hora: 7000 })
+        .send({ tipo: 'PADDLE', costoPorHora: 7000 })
         .expect(201);
       canchasCreadas.push(res.body.id);
 
       expect(res.headers.location).toBe(`/api/v1/sedes/${sedeCanchasId}/canchas/${res.body.id}`);
-      expect(res.body.sede_id).toBe(sedeCanchasId);
+      expect(res.body.sedeId).toBe(sedeCanchasId);
       expect(res.body.tipo).toBe('PADDLE');
-      expect(res.body.costo_por_hora).toBe(7000);
+      expect(res.body.costoPorHora).toBe(7000);
       // Sin `estado` en el body: el default del service, no del DTO.
       expect(res.body.estado).toBe('OPERATIVA');
     });
@@ -185,16 +185,16 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     it('devuelve costo_por_hora como numero JSON y no como string', async () => {
       // Decimal con decimales: si el repository no hiciera toNumber() el body
       // saldria como "7250.50" y el contrato declara number.
-      const cancha = await crearCancha({ tipo: 'FUTBOL5', costo_por_hora: 7250.5 });
+      const cancha = await crearCancha({ tipo: 'FUTBOL5', costoPorHora: 7250.5 });
 
-      expect(typeof cancha.costo_por_hora).toBe('number');
-      expect(cancha.costo_por_hora).toBeCloseTo(7250.5, 2);
+      expect(typeof cancha.costoPorHora).toBe('number');
+      expect(cancha.costoPorHora).toBeCloseTo(7250.5, 2);
     });
 
     it('responde 404 si la sede no existe, con el detail propio del listado', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/sedes/99999999/canchas')
-        .send({ tipo: 'PADDLE', costo_por_hora: 5000 })
+        .send({ tipo: 'PADDLE', costoPorHora: 5000 })
         .expect(404);
 
       expect(res.headers['content-type']).toContain('application/problem+json');
@@ -206,17 +206,17 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     it('responde 422 si tipo, costo_por_hora o estado no son validos', async () => {
       await request(app.getHttpServer())
         .post(`/api/v1/sedes/${sedeCanchasId}/canchas`)
-        .send({ tipo: 'TENIS', costo_por_hora: 5000 })
+        .send({ tipo: 'TENIS', costoPorHora: 5000 })
         .expect(422);
 
       await request(app.getHttpServer())
         .post(`/api/v1/sedes/${sedeCanchasId}/canchas`)
-        .send({ tipo: 'PADDLE', costo_por_hora: -1 })
+        .send({ tipo: 'PADDLE', costoPorHora: -1 })
         .expect(422);
 
       await request(app.getHttpServer())
         .post(`/api/v1/sedes/${sedeCanchasId}/canchas`)
-        .send({ tipo: 'PADDLE', costo_por_hora: 5000, estado: 'ROTA' })
+        .send({ tipo: 'PADDLE', costoPorHora: 5000, estado: 'ROTA' })
         .expect(422);
 
       // Sin tipo ni costo: ambos son obligatorios.
@@ -227,10 +227,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     });
 
     it('responde 422 si el body trae un campo desconocido', async () => {
-      // forbidNonWhitelisted: sede_id y tipo_no_existe no pertenecen al DTO.
+      // forbidNonWhitelisted: sedeId y tipo_no_existe no pertenecen al DTO.
       const res = await request(app.getHttpServer())
         .post(`/api/v1/sedes/${sedeCanchasId}/canchas`)
-        .send({ tipo: 'PADDLE', costo_por_hora: 5000, sede_id: 1, tipo_no_existe: true })
+        .send({ tipo: 'PADDLE', costoPorHora: 5000, sedeId: 1, tipo_no_existe: true })
         .expect(422);
 
       expect(res.headers['content-type']).toContain('application/problem+json');
@@ -238,12 +238,12 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     });
 
     it('lista sin ?estado= devuelve tambien las canchas en mantenimiento', async () => {
-      await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000 });
-      await crearCancha({ tipo: 'FUTBOL5', costo_por_hora: 5000 });
-      await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000, estado: 'EN_MANTENIMIENTO' });
+      await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000 });
+      await crearCancha({ tipo: 'FUTBOL5', costoPorHora: 5000 });
+      await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000, estado: 'EN_MANTENIMIENTO' });
 
       const res = await request(app.getHttpServer())
-        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?per_page=100`)
+        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?perPage=100`)
         .expect(200);
 
       expect(res.body.length).toBeGreaterThanOrEqual(3);
@@ -251,21 +251,21 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       // de reservas que solo muestra CONFIRMADA.
       expect(res.body.filter((c: { estado: string }) => c.estado === 'EN_MANTENIMIENTO').length).toBeGreaterThan(0);
       expect(res.body.filter((c: { estado: string }) => c.estado === 'OPERATIVA').length).toBeGreaterThanOrEqual(2);
-      expect(res.body.every((c: { sede_id: number }) => c.sede_id === sedeCanchasId)).toBe(true);
+      expect(res.body.every((c: { sedeId: number }) => c.sedeId === sedeCanchasId)).toBe(true);
     });
 
     it('filtra el listado por ?estado=', async () => {
-      await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000 });
-      await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000, estado: 'EN_MANTENIMIENTO' });
+      await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000 });
+      await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000, estado: 'EN_MANTENIMIENTO' });
 
       const todas = await request(app.getHttpServer())
-        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?per_page=100`)
+        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?perPage=100`)
         .expect(200);
       const operativas = await request(app.getHttpServer())
-        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?estado=OPERATIVA&per_page=100`)
+        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?estado=OPERATIVA&perPage=100`)
         .expect(200);
       const mantenimiento = await request(app.getHttpServer())
-        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?estado=EN_MANTENIMIENTO&per_page=100`)
+        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?estado=EN_MANTENIMIENTO&perPage=100`)
         .expect(200);
 
       expect(operativas.body.length).toBeGreaterThan(0);
@@ -278,20 +278,20 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
 
     it('pagina con page y per_page, y devuelve vacio mas alla del total', async () => {
       for (let i = 0; i < 3; i += 1) {
-        await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000 + i });
+        await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000 + i });
       }
 
       // Baseline: el listado completo de la sede, que es el orden de referencia.
       const todas = await request(app.getHttpServer())
-        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?per_page=100`)
+        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?perPage=100`)
         .expect(200);
       expect(todas.body.length).toBeGreaterThanOrEqual(3);
 
       const pagina1 = await request(app.getHttpServer())
-        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?page=1&per_page=2`)
+        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?page=1&perPage=2`)
         .expect(200);
       const pagina2 = await request(app.getHttpServer())
-        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?page=2&per_page=2`)
+        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?page=2&perPage=2`)
         .expect(200);
 
       expect(pagina1.body.length).toBe(2);
@@ -301,9 +301,9 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       expect(pagina1.body.map((c: { id: number }) => c.id)).toEqual(todas.body.slice(0, 2).map((c: { id: number }) => c.id));
       expect(pagina2.body.map((c: { id: number }) => c.id)).toEqual(todas.body.slice(2, 4).map((c: { id: number }) => c.id));
 
-      // per_page=100 es el maximo declarado; con esa pagina el total esta lejos.
+      // perPage=100 es el maximo declarado; con esa pagina el total esta lejos.
       const vacia = await request(app.getHttpServer())
-        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?page=99&per_page=100`)
+        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?page=99&perPage=100`)
         .expect(200);
       expect(Array.isArray(vacia.body)).toBe(true);
       expect(vacia.body.length).toBe(0);
@@ -320,9 +320,9 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
         .get(`/api/v1/sedes/${sedeCanchasId}/canchas?page=0`)
         .expect(422);
 
-      // per_page=101 excede el @Max(100) del DTO y del contrato.
+      // perPage=101 excede el @Max(100) del DTO y del contrato.
       await request(app.getHttpServer())
-        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?per_page=101`)
+        .get(`/api/v1/sedes/${sedeCanchasId}/canchas?perPage=101`)
         .expect(422);
 
       // forbidNonWhitelisted tambien aplica a los query params.
@@ -338,15 +338,15 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     });
 
     it('obtiene una cancha por id con todos sus campos', async () => {
-      const creada = await crearCancha({ tipo: 'FUTBOL5', costo_por_hora: 6400 });
+      const creada = await crearCancha({ tipo: 'FUTBOL5', costoPorHora: 6400 });
 
       const res = await request(app.getHttpServer()).get(`/api/v1/canchas/${creada.id}`).expect(200);
 
       expect(res.body).toEqual({
         id: creada.id,
-        sede_id: sedeCanchasId,
+        sedeId: sedeCanchasId,
         tipo: 'FUTBOL5',
-        costo_por_hora: 6400,
+        costoPorHora: 6400,
         estado: 'OPERATIVA',
       });
     });
@@ -359,24 +359,24 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     });
 
     it('modifica solo costo_por_hora y deja el estado intacto', async () => {
-      const cancha = await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000 });
+      const cancha = await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000 });
 
       const res = await request(app.getHttpServer())
         .patch(`/api/v1/canchas/${cancha.id}`)
-        .send({ costo_por_hora: 5500 })
+        .send({ costoPorHora: 5500 })
         .expect(200);
 
-      expect(res.body.costo_por_hora).toBe(5500);
+      expect(res.body.costoPorHora).toBe(5500);
       expect(res.body.estado).toBe('OPERATIVA');
       expect(res.body.tipo).toBe('PADDLE');
 
       // Y el cambio quedo persistido, no solo en la respuesta.
       const consulta = await request(app.getHttpServer()).get(`/api/v1/canchas/${cancha.id}`).expect(200);
-      expect(consulta.body.costo_por_hora).toBe(5500);
+      expect(consulta.body.costoPorHora).toBe(5500);
     });
 
     it('modifica solo estado y deja el costo intacto', async () => {
-      const cancha = await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000 });
+      const cancha = await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000 });
 
       const res = await request(app.getHttpServer())
         .patch(`/api/v1/canchas/${cancha.id}`)
@@ -384,15 +384,15 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
         .expect(200);
 
       expect(res.body.estado).toBe('EN_MANTENIMIENTO');
-      expect(res.body.costo_por_hora).toBe(5000);
+      expect(res.body.costoPorHora).toBe(5000);
 
       const consulta = await request(app.getHttpServer()).get(`/api/v1/canchas/${cancha.id}`).expect(200);
-      expect(consulta.body.costo_por_hora).toBe(5000);
+      expect(consulta.body.costoPorHora).toBe(5000);
       expect(consulta.body.estado).toBe('EN_MANTENIMIENTO');
     });
 
     it('responde 422 y no 500 con el body vacio en el PATCH', async () => {
-      const cancha = await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000 });
+      const cancha = await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000 });
 
       // Sin @IsNotEmptyObject() los dos campos son opcionales, {} pasaba la
       // validacion y el repository armaba data: {} para Prisma. Eso no es
@@ -407,21 +407,21 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
 
       // Un 422 por body vacio no debe haber tocado la fila.
       const consulta = await request(app.getHttpServer()).get(`/api/v1/canchas/${cancha.id}`).expect(200);
-      expect(consulta.body.costo_por_hora).toBe(5000);
+      expect(consulta.body.costoPorHora).toBe(5000);
       expect(consulta.body.estado).toBe('OPERATIVA');
     });
 
     it('responde 404 y 422 en el PATCH segun el caso', async () => {
       await request(app.getHttpServer())
         .patch('/api/v1/canchas/99999999')
-        .send({ costo_por_hora: 5000 })
+        .send({ costoPorHora: 5000 })
         .expect(404);
 
-      const cancha = await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000 });
+      const cancha = await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000 });
 
       await request(app.getHttpServer())
         .patch(`/api/v1/canchas/${cancha.id}`)
-        .send({ costo_por_hora: -1 })
+        .send({ costoPorHora: -1 })
         .expect(422);
 
       await request(app.getHttpServer())
@@ -439,20 +439,20 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     it('una cancha creada por el endpoint ya esta disponible para reservar', async () => {
       // RNF-04: la sede nueva no se habilita sola, pero la cancha recien creada
       // tiene que poder reservarse de inmediato.
-      const cancha = await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000 });
+      const cancha = await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000 });
       const externoId = await crearExterno();
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: cancha.id,
-          usuario_id: externoId,
-          fecha_hora_inicio: inicio('08:00'),
-          fecha_hora_fin: fin('09:00'),
+          canchaId: cancha.id,
+          usuarioId: externoId,
+          fechaHoraInicio: inicio('08:00'),
+          fechaHoraFin: fin('09:00'),
         })
         .expect(201);
 
-      expect(res.body.cancha_id).toBe(cancha.id);
+      expect(res.body.canchaId).toBe(cancha.id);
       expect(res.body.estado).toBe('CONFIRMADA');
     });
 
@@ -460,7 +460,7 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       // El 409 de mantenimiento ya estaba cubierto metiendo la cancha en
       // mantenimiento por Prisma; aca se llega por el endpoint, que es lo que
       // conecta RF-09 con RF-12.
-      const cancha = await crearCancha({ tipo: 'PADDLE', costo_por_hora: 5000 });
+      const cancha = await crearCancha({ tipo: 'PADDLE', costoPorHora: 5000 });
       const externoId = await crearExterno();
 
       await request(app.getHttpServer())
@@ -471,10 +471,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: cancha.id,
-          usuario_id: externoId,
-          fecha_hora_inicio: inicio('09:00'),
-          fecha_hora_fin: fin('10:00'),
+          canchaId: cancha.id,
+          usuarioId: externoId,
+          fechaHoraInicio: inicio('09:00'),
+          fechaHoraFin: fin('10:00'),
         })
         .expect(409);
 
@@ -504,19 +504,19 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: externo.id,
-          fecha_hora_inicio: inicio('10:00'),
-          fecha_hora_fin: fin('11:00'),
+          canchaId: canchaId,
+          usuarioId: externo.id,
+          fechaHoraInicio: inicio('10:00'),
+          fechaHoraFin: fin('11:00'),
         })
         .expect(201);
 
       expect(res.headers.location).toBe(`/api/v1/reservas-canchas/${res.body.id}`);
       expect(res.body.estado).toBe('CONFIRMADA');
       // RN-03: sin membresia vigente se cotiza como externo (costo plano).
-      expect(Number(res.body.precio_aplicado)).toBeCloseTo(5000, 2);
+      expect(Number(res.body.precioAplicado)).toBeCloseTo(5000, 2);
       // El timestamp vuelve en UTC; se compara el instante, no el string.
-      expect(new Date(res.body.fecha_hora_inicio).toISOString()).toBe('2026-11-12T13:00:00.000Z');
+      expect(new Date(res.body.fechaHoraInicio).toISOString()).toBe('2026-11-12T13:00:00.000Z');
     });
 
     it('aplica el descuento de socio con membresia vigente (RN-03)', async () => {
@@ -525,15 +525,15 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: socioId,
-          fecha_hora_inicio: inicio('12:00'),
-          fecha_hora_fin: fin('13:00'),
+          canchaId: canchaId,
+          usuarioId: socioId,
+          fechaHoraInicio: inicio('12:00'),
+          fechaHoraFin: fin('13:00'),
         })
         .expect(201);
 
       // 15% de descuento sobre 5000, sin pico (12:00-13:00 no entra en 19-21).
-      expect(Number(res.body.precio_aplicado)).toBeCloseTo(4250, 2);
+      expect(Number(res.body.precioAplicado)).toBeCloseTo(4250, 2);
     });
 
     it('cobra como externo a un socio con membresia vencida (RN-03)', async () => {
@@ -542,14 +542,14 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: socioId,
-          fecha_hora_inicio: inicio('14:00'),
-          fecha_hora_fin: fin('15:00'),
+          canchaId: canchaId,
+          usuarioId: socioId,
+          fechaHoraInicio: inicio('14:00'),
+          fechaHoraFin: fin('15:00'),
         })
         .expect(201);
 
-      expect(Number(res.body.precio_aplicado)).toBeCloseTo(5000, 2);
+      expect(Number(res.body.precioAplicado)).toBeCloseTo(5000, 2);
     });
 
     it('responde 409 turno-ocupado ante un solapamiento parcial (RN-02)', async () => {
@@ -565,15 +565,15 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       usuariosCreados.push(externo.id);
 
       // 12:00-13:00 ya esta tomada por el test del descuento de socio. Este turno
-      // empieza 12:30: el unique parcial (cancha_id, fecha_hora_inicio) lo
+      // empieza 12:30: el unique parcial (canchaId, fechaHoraInicio) lo
       // dejaria pasar; exq_reserva_turno no.
       const res = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: externo.id,
-          fecha_hora_inicio: inicio('12:30'),
-          fecha_hora_fin: fin('13:30'),
+          canchaId: canchaId,
+          usuarioId: externo.id,
+          fechaHoraInicio: inicio('12:30'),
+          fechaHoraFin: fin('13:30'),
         })
         .expect(409);
 
@@ -599,10 +599,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: externo.id,
-          fecha_hora_inicio: inicio('13:00'),
-          fecha_hora_fin: fin('14:00'),
+          canchaId: canchaId,
+          usuarioId: externo.id,
+          fechaHoraInicio: inicio('13:00'),
+          fechaHoraFin: fin('14:00'),
         })
         .expect(201);
     });
@@ -632,10 +632,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: otra.id,
-          usuario_id: externo.id,
-          fecha_hora_inicio: inicio('10:00'),
-          fecha_hora_fin: fin('11:00'),
+          canchaId: otra.id,
+          usuarioId: externo.id,
+          fechaHoraInicio: inicio('10:00'),
+          fechaHoraFin: fin('11:00'),
         })
         .expect(409);
 
@@ -662,10 +662,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: 99999999,
-          usuario_id: externo.id,
-          fecha_hora_inicio: inicio('16:00'),
-          fecha_hora_fin: fin('17:00'),
+          canchaId: 99999999,
+          usuarioId: externo.id,
+          fechaHoraInicio: inicio('16:00'),
+          fechaHoraFin: fin('17:00'),
         })
         .expect(404);
 
@@ -674,10 +674,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const invertido = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: externo.id,
-          fecha_hora_inicio: inicio('18:00'),
-          fecha_hora_fin: fin('17:00'),
+          canchaId: canchaId,
+          usuarioId: externo.id,
+          fechaHoraInicio: inicio('18:00'),
+          fechaHoraFin: fin('17:00'),
         })
         .expect(422);
       expect(invertido.body.status).toBe(422);
@@ -686,10 +686,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: externo.id,
-          fecha_hora_inicio: '2026-11-12T19:00:00',
-          fecha_hora_fin: '2026-11-12T20:00:00',
+          canchaId: canchaId,
+          usuarioId: externo.id,
+          fechaHoraInicio: '2026-11-12T19:00:00',
+          fechaHoraFin: '2026-11-12T20:00:00',
         })
         .expect(422);
     });
@@ -698,7 +698,7 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
   describe('RF-12 - listar y obtener', () => {
     it('sin ?estado= devuelve solo CONFIRMADA y con ?estado=CANCELADA las canceladas', async () => {
       const soloConfirmada = await request(app.getHttpServer())
-        .get(`/api/v1/reservas-canchas?cancha_id=${canchaId}`)
+        .get(`/api/v1/reservas-canchas?canchaId=${canchaId}`)
         .expect(200);
 
       expect(Array.isArray(soloConfirmada.body)).toBe(true);
@@ -711,35 +711,35 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
         .expect(204);
 
       const canceladas = await request(app.getHttpServer())
-        .get(`/api/v1/reservas-canchas?cancha_id=${canchaId}&estado=CANCELADA`)
+        .get(`/api/v1/reservas-canchas?canchaId=${canchaId}&estado=CANCELADA`)
         .expect(200);
       expect(canceladas.body.some((r: { id: number }) => r.id === soloConfirmada.body[0].id)).toBe(true);
 
       const porDefecto = await request(app.getHttpServer())
-        .get(`/api/v1/reservas-canchas?cancha_id=${canchaId}`)
+        .get(`/api/v1/reservas-canchas?canchaId=${canchaId}`)
         .expect(200);
       expect(porDefecto.body.some((r: { id: number }) => r.id === soloConfirmada.body[0].id)).toBe(false);
     });
 
     it('filtra por dia de la sede y pagina', async () => {
       const delDia = await request(app.getHttpServer())
-        .get(`/api/v1/reservas-canchas?cancha_id=${canchaId}&fecha=${DIA}`)
+        .get(`/api/v1/reservas-canchas?canchaId=${canchaId}&fecha=${DIA}`)
         .expect(200);
       expect(delDia.body.length).toBeGreaterThan(0);
       // Todo lo devuelto arranca dentro del dia consultado.
       for (const r of delDia.body) {
-        expect(new Date(r.fecha_hora_inicio).toISOString().slice(0, 10)).toBe('2026-11-12');
+        expect(new Date(r.fechaHoraInicio).toISOString().slice(0, 10)).toBe('2026-11-12');
       }
 
       const primera = await request(app.getHttpServer())
-        .get(`/api/v1/reservas-canchas?cancha_id=${canchaId}&page=1&per_page=1`)
+        .get(`/api/v1/reservas-canchas?canchaId=${canchaId}&page=1&perPage=1`)
         .expect(200);
       expect(primera.body).toHaveLength(1);
     });
 
     it('GET por id devuelve la reserva y 404 si no existe', async () => {
       const creada = await request(app.getHttpServer())
-        .get(`/api/v1/reservas-canchas?cancha_id=${canchaId}&page=1&per_page=1`)
+        .get(`/api/v1/reservas-canchas?canchaId=${canchaId}&page=1&perPage=1`)
         .expect(200);
 
       const detalle = await request(app.getHttpServer())
@@ -767,10 +767,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const creada = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: externa.id,
-          fecha_hora_inicio: inicio('08:00'),
-          fecha_hora_fin: fin('09:00'),
+          canchaId: canchaId,
+          usuarioId: externa.id,
+          fechaHoraInicio: inicio('08:00'),
+          fechaHoraFin: fin('09:00'),
         })
         .expect(201);
 
@@ -801,10 +801,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const creada = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: externa.id,
-          fecha_hora_inicio: inicio('09:00'),
-          fecha_hora_fin: fin('10:00'),
+          canchaId: canchaId,
+          usuarioId: externa.id,
+          fechaHoraInicio: inicio('09:00'),
+          fechaHoraFin: fin('10:00'),
         })
         .expect(201);
 
@@ -845,10 +845,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const primera = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: uno.id,
-          fecha_hora_inicio: inicio('15:00'),
-          fecha_hora_fin: fin('16:00'),
+          canchaId: canchaId,
+          usuarioId: uno.id,
+          fechaHoraInicio: inicio('15:00'),
+          fechaHoraFin: fin('16:00'),
         })
         .expect(201);
 
@@ -861,10 +861,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: otro.id,
-          fecha_hora_inicio: inicio('15:00'),
-          fecha_hora_fin: fin('16:00'),
+          canchaId: canchaId,
+          usuarioId: otro.id,
+          fechaHoraInicio: inicio('15:00'),
+          fechaHoraFin: fin('16:00'),
         })
         .expect(201);
     });
@@ -892,21 +892,21 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const creada = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: canchaId,
-          usuario_id: usuario.id,
-          fecha_hora_inicio: inicio('17:00'),
-          fecha_hora_fin: fin('18:00'),
+          canchaId: canchaId,
+          usuarioId: usuario.id,
+          fechaHoraInicio: inicio('17:00'),
+          fechaHoraFin: fin('18:00'),
         })
         .expect(201);
 
       // 17:00 de la sede es 20:00Z.
-      const tramo = (cuerpo: Array<{ fecha_hora_inicio: string; disponible: boolean }>) =>
+      const tramo = (cuerpo: Array<{ fechaHoraInicio: string; disponible: boolean }>) =>
         cuerpo.find(
-          (e) => new Date(e.fecha_hora_inicio).toISOString() === '2026-11-12T20:00:00.000Z',
+          (e) => new Date(e.fechaHoraInicio).toISOString() === '2026-11-12T20:00:00.000Z',
         );
 
       const conOcupada = await request(app.getHttpServer())
-        .get(`/api/v1/canchas/${canchaId}/disponibilidad?fecha=${DIA}&per_page=100`)
+        .get(`/api/v1/canchas/${canchaId}/disponibilidad?fecha=${DIA}&perPage=100`)
         .expect(200);
       expect(tramo(conOcupada.body)?.disponible).toBe(false);
 
@@ -917,29 +917,29 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
         .expect(204);
 
       const conLibre = await request(app.getHttpServer())
-        .get(`/api/v1/canchas/${canchaId}/disponibilidad?fecha=${DIA}&per_page=100`)
+        .get(`/api/v1/canchas/${canchaId}/disponibilidad?fecha=${DIA}&perPage=100`)
         .expect(200);
       expect(tramo(conLibre.body)?.disponible).toBe(true);
     });
 
     it('devuelve el dia completo en orden y pagina sin repetir ni perder', async () => {
       const dia = await request(app.getHttpServer())
-        .get(`/api/v1/canchas/${canchaId}/disponibilidad?fecha=${DIA}&per_page=100`)
+        .get(`/api/v1/canchas/${canchaId}/disponibilidad?fecha=${DIA}&perPage=100`)
         .expect(200);
 
       // Grilla de 08:00 a 22:00 en pasos de 60 minutos.
       expect(dia.body).toHaveLength(14);
       for (let i = 1; i < dia.body.length; i++) {
-        expect(new Date(dia.body[i].fecha_hora_inicio).getTime()).toBeGreaterThan(
-          new Date(dia.body[i - 1].fecha_hora_inicio).getTime(),
+        expect(new Date(dia.body[i].fechaHoraInicio).getTime()).toBeGreaterThan(
+          new Date(dia.body[i - 1].fechaHoraInicio).getTime(),
         );
       }
 
       const paginada = await request(app.getHttpServer())
-        .get(`/api/v1/canchas/${canchaId}/disponibilidad?fecha=${DIA}&page=2&per_page=7`)
+        .get(`/api/v1/canchas/${canchaId}/disponibilidad?fecha=${DIA}&page=2&perPage=7`)
         .expect(200);
       expect(paginada.body).toHaveLength(7);
-      expect(paginada.body[0].fecha_hora_inicio).toBe(dia.body[7].fecha_hora_inicio);
+      expect(paginada.body[0].fechaHoraInicio).toBe(dia.body[7].fechaHoraInicio);
     });
 
     it('una cancha en mantenimiento devuelve todos los tramos ocupados sin tocar sus reservas (RF-12)', async () => {
@@ -962,10 +962,10 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
       const reserva = await request(app.getHttpServer())
         .post('/api/v1/reservas-canchas')
         .send({
-          cancha_id: conReserva.id,
-          usuario_id: usuario.id,
-          fecha_hora_inicio: inicio('11:00'),
-          fecha_hora_fin: fin('12:00'),
+          canchaId: conReserva.id,
+          usuarioId: usuario.id,
+          fechaHoraInicio: inicio('11:00'),
+          fechaHoraFin: fin('12:00'),
         })
         .expect(201);
 
@@ -975,7 +975,7 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
         .expect(200);
 
       const grilla = await request(app.getHttpServer())
-        .get(`/api/v1/canchas/${conReserva.id}/disponibilidad?fecha=${DIA}&per_page=100`)
+        .get(`/api/v1/canchas/${conReserva.id}/disponibilidad?fecha=${DIA}&perPage=100`)
         .expect(200);
       expect(grilla.body.every((e: { disponible: boolean }) => e.disponible === false)).toBe(true);
 

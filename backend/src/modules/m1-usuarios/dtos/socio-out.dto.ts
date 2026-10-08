@@ -10,16 +10,16 @@ export class SocioOut {
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
-  usuario_id!: number;
+  usuarioId!: number;
 
   // Origen y alta
   @Expose()
   @ApiProperty({ type: 'integer', example: 3 })
-  sede_origen_id!: number;
+  sedeOrigenId!: number;
 
   @Expose()
   @ApiProperty({ example: '2026-09-15T00:00:00-03:00' })
-  fecha_alta!: Date;
+  fechaAlta!: Date;
 
   // Datos de contacto
   @Expose()

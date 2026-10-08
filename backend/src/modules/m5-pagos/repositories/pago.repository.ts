@@ -69,8 +69,8 @@ export class PagoRepository {
     // la misma sentencia. Prisma no deja mezclar las dos: `PagoCreateInput` pide
     // la relación `usuario` y excluye `usuario_id`.
     const data: Prisma.PagoUncheckedCreateInput = {
-      usuario_id: pago.usuario_id,
-      idempotencia_key: pago.idempotencia_key,
+      usuario_id: pago.usuarioId,
+      idempotencia_key: pago.idempotenciaKey,
       monto: new Prisma.Decimal(pago.monto),
       moneda: pago.moneda,
       token: pago.token,
@@ -108,7 +108,7 @@ export class PagoRepository {
   }
 
   // Para el cobro interno (renovaciones.service): cuando el @unique de
-  // idempotencia_key salta, el cobro ya existe con esa clave (pasarela idempotente)
+  // idempotenciaKey salta, el cobro ya existe con esa clave (pasarela idempotente)
   // y hay que devolver el pago original en vez de reintentar o fallar. La clave es
   // privada del Pago, así que esta búsqueda vive acá, donde el repositorio sí la ve.
   async buscarPorIdempotenciaKey(idempotenciaKey: string): Promise<Pago | null> {
@@ -281,12 +281,12 @@ export class PagoRepository {
   > {
     switch (pago.concepto.tipo) {
       case 'RESERVA_CANCHA':
-        return { pago_reserva: { create: { reserva_id: pago.concepto.reserva_cancha_id } } };
+        return { pago_reserva: { create: { reserva_id: pago.concepto.reservaCanchaId } } };
       case 'MEMBRESIA':
-        return { pago_membresia: { create: { membresia_id: pago.concepto.membresia_id } } };
+        return { pago_membresia: { create: { membresia_id: pago.concepto.membresiaId } } };
       case 'RESERVA_CLASE':
         return {
-          pago_reserva_clase: { create: { reserva_clase_id: pago.concepto.reserva_clase_id } },
+          pago_reserva_clase: { create: { reserva_clase_id: pago.concepto.reservaClaseId } },
         };
     }
   }
@@ -319,14 +319,14 @@ export class PagoRepository {
     if (fila.pago_reserva) {
       return {
         ...this.camposDe(fila),
-        concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: fila.pago_reserva.reserva_id },
+        concepto: { tipo: 'RESERVA_CANCHA', reservaCanchaId: fila.pago_reserva.reserva_id },
       };
     }
 
     if (fila.pago_membresia) {
       return {
         ...this.camposDe(fila),
-        concepto: { tipo: 'MEMBRESIA', membresia_id: fila.pago_membresia.membresia_id },
+        concepto: { tipo: 'MEMBRESIA', membresiaId: fila.pago_membresia.membresia_id },
       };
     }
 
@@ -335,7 +335,7 @@ export class PagoRepository {
         ...this.camposDe(fila),
         concepto: {
           tipo: 'RESERVA_CLASE',
-          reserva_clase_id: fila.pago_reserva_clase.reserva_clase_id,
+          reservaClaseId: fila.pago_reserva_clase.reserva_clase_id,
         },
       };
     }
@@ -346,14 +346,14 @@ export class PagoRepository {
   private camposDe(fila: PagoConSubtipo): Omit<Pago, 'concepto'> {
     return {
       id: fila.id,
-      usuario_id: fila.usuario_id,
+      usuarioId: fila.usuario_id,
       monto: fila.monto.toNumber(),
       moneda: fila.moneda,
       estado: fila.estado,
-      fecha_pago: fila.fecha_pago,
-      comprobante_pdf_url: fila.comprobante_pdf_url,
+      fechaPago: fila.fecha_pago,
+      comprobantePdfUrl: fila.comprobante_pdf_url,
       token: fila.token,
-      idempotencia_key: fila.idempotencia_key,
+      idempotenciaKey: fila.idempotencia_key,
     };
   }
 }

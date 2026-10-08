@@ -59,7 +59,7 @@ export class MembresiasService {
     // sin error: la respuesta era un 200 que decia "actualizado" sin haber
     // actualizado nada. El contrato declara 422 para esta operacion, asi que se
     // corta aca.
-    if (dto.plan === undefined && dto.renueva_automatica === undefined && dto.estado === undefined) {
+    if (dto.plan === undefined && dto.renuevaAutomatica === undefined && dto.estado === undefined) {
       throw membresiaSinCamposParaModificar();
     }
 
@@ -72,8 +72,8 @@ export class MembresiasService {
     const previa = await this.membresias.buscarPorSocioId(socioId);
     if (dto.plan !== undefined && previa && !estadoDe(previa).esVigente(previa)) {
       await this.eventos.emitAsync(EVENTO_MEMBRESIA_PLAN, {
-        membresia_id: previa.id,
-        usuario_id: socio.usuario_id,
+        membresiaId: previa.id,
+        usuarioId: socio.usuarioId,
         precio: PRECIOS_PLAN[dto.plan],
         plan: dto.plan,
       });
@@ -158,7 +158,7 @@ export class MembresiasService {
   // El estado resultante lo decide la maquina: `alRenovar()` devuelve ACTIVA para
   // las dos elegibles (listarRenovables solo trae ACTIVA/VENCIDA, nunca
   // SUSPENDIDA), que es lo que persiste el adaptador.
-  async renovar(id: number, periodo: { fecha_inicio: Date; fecha_fin: Date }): Promise<MembresiaOut> {
+  async renovar(id: number, periodo: { fechaInicio: Date; fechaFin: Date }): Promise<MembresiaOut> {
     const membresia = await this.membresias.renovar(id, periodo);
     if (!membresia) {
       throw membresiaNoEncontrada();

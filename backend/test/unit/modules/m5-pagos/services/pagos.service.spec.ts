@@ -33,22 +33,22 @@ async function cuerpoDe(promesa: Promise<unknown>): Promise<ProblemDetails> {
 function pagoPersistido(over: Partial<Pago> = {}): Pago {
   return {
     id: 12,
-    usuario_id: 3,
-    concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7 },
+    usuarioId: 3,
+    concepto: { tipo: 'RESERVA_CANCHA', reservaCanchaId: 7 },
     monto: 8000,
     moneda: 'ARS',
     estado: 'PENDIENTE',
-    fecha_pago: new Date('2026-10-02T12:00:00Z'),
-    comprobante_pdf_url: null,
+    fechaPago: new Date('2026-10-02T12:00:00Z'),
+    comprobantePdfUrl: null,
     token: 'tok_aprobado_1',
-    idempotencia_key: 'clave-1',
+    idempotenciaKey: 'clave-1',
     ...over,
   };
 }
 
 function dtoDe(over: Partial<PagoIn> = {}): PagoIn {
   return {
-    concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7, membresia_id: undefined },
+    concepto: { tipo: 'RESERVA_CANCHA', reservaCanchaId: 7, membresiaId: undefined },
     token: 'tok_aprobado_1',
     ...over,
   } as PagoIn;
@@ -75,25 +75,25 @@ describe('PagosService', () => {
       registrarComprobante:
         over.registrarComprobante ??
         vi.fn().mockResolvedValue(
-          pagoPersistido({ estado: 'APROBADO', comprobante_pdf_url: '/storage/comprobantes/12.pdf' }),
+          pagoPersistido({ estado: 'APROBADO', comprobantePdfUrl: '/storage/comprobantes/12.pdf' }),
         ),
       buscarPorId: over.buscarPorId ?? vi.fn().mockResolvedValue(pagoPersistido({ estado: 'APROBADO' })),
       listar: over.listar ?? vi.fn().mockResolvedValue([]),
       anular: over.anular ?? vi.fn().mockResolvedValue(pagoPersistido({ estado: 'ANULADO' })),
     };
     const pasarela = {
-      cobrar: over.cobrar ?? vi.fn().mockResolvedValue({ estado: 'APROBADO', pasarela_token: 'tok_aprobado_1' }),
+      cobrar: over.cobrar ?? vi.fn().mockResolvedValue({ estado: 'APROBADO', pasarelaToken: 'tok_aprobado_1' }),
       reembolsar: over.reembolsar ?? vi.fn().mockResolvedValue({ ok: true }),
     };
     const reservas = {
       obtenerParaCobro: vi.fn().mockResolvedValue(
         over.reserva === undefined
           ? {
-              reserva_id: 7,
-              usuario_id: 3,
-              cancha_id: 2,
-              fecha_hora_inicio: new Date('2026-10-02T18:00:00Z'),
-              fecha_hora_fin: new Date('2026-10-02T19:30:00Z'),
+              reservaId: 7,
+              usuarioId: 3,
+              canchaId: 2,
+              fechaHoraInicio: new Date('2026-10-02T18:00:00Z'),
+              fechaHoraFin: new Date('2026-10-02T19:30:00Z'),
               precio: 8000,
               estado: 'CONFIRMADA',
             }
@@ -103,7 +103,7 @@ describe('PagosService', () => {
     const membresias = {
       obtenerParaCobro: vi.fn().mockResolvedValue(
         over.membresia === undefined
-          ? { membresia_id: 5, usuario_id: 3, plan: 'MENSUAL', precio: 30000, estado: 'ACTIVA' }
+          ? { membresiaId: 5, usuarioId: 3, plan: 'MENSUAL', precio: 30000, estado: 'ACTIVA' }
           : over.membresia,
       ),
     };
@@ -112,10 +112,10 @@ describe('PagosService', () => {
       obtenerParaCobro: vi.fn().mockResolvedValue(
         over.reservaClase === undefined
           ? {
-              reserva_clase_id: 9,
-              socio_id: 3,
-              usuario_id: 3,
-              clase_id: 4,
+              reservaClaseId: 9,
+              socioId: 3,
+              usuarioId: 3,
+              claseId: 4,
               horario: '2026-10-02T18:00:00Z',
               penalidad: 5000,
             }
@@ -183,7 +183,7 @@ describe('PagosService', () => {
       await service.procesarPago(dtoDe(), 'clave-1');
 
       expect(pagos.crear).toHaveBeenCalledWith(
-        expect.objectContaining({ monto: 8000, usuario_id: 3 }),
+        expect.objectContaining({ monto: 8000, usuarioId: 3 }),
       );
     });
 
@@ -191,7 +191,7 @@ describe('PagosService', () => {
       const { service, pagos, reservas } = armar();
 
       await service.procesarPago(
-        dtoDe({ concepto: { tipo: 'MEMBRESIA', membresia_id: 5, reserva_cancha_id: undefined } }),
+        dtoDe({ concepto: { tipo: 'MEMBRESIA', membresiaId: 5, reservaCanchaId: undefined } }),
         'clave-1',
       );
 
@@ -199,7 +199,7 @@ describe('PagosService', () => {
       expect(pagos.crear).toHaveBeenCalledWith(
         expect.objectContaining({
           monto: 30000,
-          concepto: { tipo: 'MEMBRESIA', membresia_id: 5 },
+          concepto: { tipo: 'MEMBRESIA', membresiaId: 5 },
         }),
       );
     });
@@ -219,7 +219,7 @@ describe('PagosService', () => {
 
       const cuerpo = await cuerpoDe(
         service.procesarPago(
-          dtoDe({ concepto: { tipo: 'MEMBRESIA', membresia_id: 99, reserva_cancha_id: undefined } }),
+          dtoDe({ concepto: { tipo: 'MEMBRESIA', membresiaId: 99, reservaCanchaId: undefined } }),
           'clave-1',
         ),
       );
@@ -270,7 +270,7 @@ describe('PagosService', () => {
 
     it('deja PENDIENTE sin transicionar cuando la pasarela no resuelve', async () => {
       const { service, pagos } = armar({
-        cobrar: vi.fn().mockResolvedValue({ estado: 'PENDIENTE', pasarela_token: 'tok_pendiente_1' }),
+        cobrar: vi.fn().mockResolvedValue({ estado: 'PENDIENTE', pasarelaToken: 'tok_pendiente_1' }),
       });
 
       const salida = await service.procesarPago(dtoDe(), 'clave-1');
@@ -297,7 +297,7 @@ describe('PagosService', () => {
       const salida = await service.procesarPago(dtoDe(), 'clave-1');
 
       expect(salida).not.toHaveProperty('token');
-      expect(salida).not.toHaveProperty('idempotencia_key');
+      expect(salida).not.toHaveProperty('idempotenciaKey');
     });
   });
 
@@ -312,12 +312,12 @@ describe('PagosService', () => {
 
       expect(comprobantes.generar).toHaveBeenCalledWith(
         expect.objectContaining({ id: 12, monto: 8000, estado: 'APROBADO' }),
-        { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7 },
+        { tipo: 'RESERVA_CANCHA', reservaCanchaId: 7 },
       );
       expect(pagos.registrarComprobante).toHaveBeenCalledWith(12, '/storage/comprobantes/12.pdf');
       // El 201 tiene que salir con la columna ya poblada: es lo que pide el smoke del
       // bloque 3 y lo que le permite al cliente sepa dónde buscar el PDF.
-      expect(salida.comprobante_pdf_url).toBe('/storage/comprobantes/12.pdf');
+      expect(salida.comprobantePdfUrl).toBe('/storage/comprobantes/12.pdf');
     });
 
     it('no genera comprobante de un pago RECHAZADO', async () => {
@@ -333,13 +333,13 @@ describe('PagosService', () => {
 
     it('no genera comprobante de un pago que quedó PENDIENTE', async () => {
       const { service, comprobantes } = armar({
-        cobrar: vi.fn().mockResolvedValue({ estado: 'PENDIENTE', pasarela_token: 'tok_pendiente_1' }),
+        cobrar: vi.fn().mockResolvedValue({ estado: 'PENDIENTE', pasarelaToken: 'tok_pendiente_1' }),
       });
 
       const salida = await service.procesarPago(dtoDe(), 'clave-1');
 
       expect(comprobantes.generar).not.toHaveBeenCalled();
-      expect(salida.comprobante_pdf_url).toBeNull();
+      expect(salida.comprobantePdfUrl).toBeNull();
     });
 
     it('arma el comprobante DESPUÉS de transicionar, no antes', async () => {
@@ -357,7 +357,7 @@ describe('PagosService', () => {
     const conComprobante = (over: Partial<Pago> = {}) =>
       pagoPersistido({
         estado: 'APROBADO',
-        comprobante_pdf_url: '/storage/comprobantes/12.pdf',
+        comprobantePdfUrl: '/storage/comprobantes/12.pdf',
         ...over,
       });
 
@@ -404,7 +404,7 @@ describe('PagosService', () => {
 
     it('404 si el pago está aprobado pero no tiene comprobante', async () => {
       const { service, comprobantes } = armar({
-        buscarPorId: vi.fn().mockResolvedValue(conComprobante({ comprobante_pdf_url: null })),
+        buscarPorId: vi.fn().mockResolvedValue(conComprobante({ comprobantePdfUrl: null })),
       });
 
       const cuerpo = await cuerpoDe(service.obtenerComprobante(12));
@@ -508,7 +508,7 @@ describe('PagosService', () => {
     it('mapea a PagoOut sin filtrar token ni idempotencia', async () => {
       const { service } = armar({
         listar: vi.fn().mockResolvedValue([
-          pagoPersistido({ estado: 'APROBADO', comprobante_pdf_url: '/storage/comprobantes/12.pdf' }),
+          pagoPersistido({ estado: 'APROBADO', comprobantePdfUrl: '/storage/comprobantes/12.pdf' }),
         ]),
       });
 
@@ -517,7 +517,7 @@ describe('PagosService', () => {
       expect(salida).toHaveLength(1);
       expect(salida[0].id).toBe(12);
       expect(salida[0]).not.toHaveProperty('token');
-      expect(salida[0]).not.toHaveProperty('idempotencia_key');
+      expect(salida[0]).not.toHaveProperty('idempotenciaKey');
     });
   });
 
@@ -529,7 +529,7 @@ describe('PagosService', () => {
 
       expect(salida.id).toBe(12);
       expect(salida).not.toHaveProperty('token');
-      expect(salida).not.toHaveProperty('idempotencia_key');
+      expect(salida).not.toHaveProperty('idempotenciaKey');
     });
 
     it('404 si el pago no existe', async () => {

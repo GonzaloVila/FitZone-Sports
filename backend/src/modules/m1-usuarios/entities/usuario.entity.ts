@@ -10,7 +10,7 @@ export interface Usuario {
   email: string;
   contrasenia: string;
   telefono: string | null;
-  foto_url: string | null;
+  fotoUrl: string | null;
 }
 
 export interface UsuarioNuevo {
@@ -20,13 +20,13 @@ export interface UsuarioNuevo {
   email: string;
   contrasenia: string;
   telefono?: string;
-  foto_url?: string;
+  fotoUrl?: string;
 }
 
 export interface UsuarioActualizable {
   nombre?: string;
   telefono?: string | null;
-  foto_url?: string | null;
+  fotoUrl?: string | null;
   contrasenia?: string;
   rol?: RolUsuario;
 }

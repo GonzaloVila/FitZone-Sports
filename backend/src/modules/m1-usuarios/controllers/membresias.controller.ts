@@ -24,7 +24,7 @@ import { MembresiasService } from '../services/membresias.service';
 
 @ApiTags('membresias')
 @ApiExtraModels(Problem)
-@Controller('socios/:socio_id/membresias')
+@Controller('socios/:socioId/membresias')
 export class MembresiasController {
   constructor(private readonly membresiasService: MembresiasService) {}
 
@@ -33,12 +33,12 @@ export class MembresiasController {
     operationId: 'obtenerMembresia',
     summary: 'Membresía actual del socio',
   })
-  @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socioId', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Membresía vigente del socio', type: MembresiaOut })
   @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
   obtener(
-    @Param('socio_id', ParseIntPipe) socioId: number,
+    @Param('socioId', ParseIntPipe) socioId: number,
   ): Promise<MembresiaOut> {
     return this.membresiasService.obtenerPorSocioId(socioId);
   }
@@ -60,7 +60,7 @@ export class MembresiasController {
       'del PATCH hasta un plan después. Los días que quedaban del período anterior no se ' +
       'trasladan. Sin `plan` en el body, ninguna de las dos fechas se toca.',
   })
-  @ApiParam({ name: 'socio_id', type: 'integer', description: 'ID numérico del socio', example: 2 })
+  @ApiParam({ name: 'socioId', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Membresía actualizada', type: MembresiaOut })
   @ApiBadRequestResponse({ description: 'socio_id no numérico o JSON inválido', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
@@ -69,7 +69,7 @@ export class MembresiasController {
     content: PROBLEM_JSON,
   })
   modificar(
-    @Param('socio_id', ParseIntPipe) socioId: number,
+    @Param('socioId', ParseIntPipe) socioId: number,
     @Body() dto: MembresiaPatch,
   ): Promise<MembresiaOut> {
     return this.membresiasService.modificar(socioId, dto);

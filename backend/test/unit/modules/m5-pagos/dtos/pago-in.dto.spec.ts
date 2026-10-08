@@ -38,7 +38,7 @@ describe('PagoIn', () => {
 
   it('acepta un concepto RESERVA_CANCHA con su id', async () => {
     expect(
-      await errores({ ...cuerpo, concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7 } }),
+      await errores({ ...cuerpo, concepto: { tipo: 'RESERVA_CANCHA', reservaCanchaId: 7 } }),
     ).toEqual([]);
   });
 
@@ -50,10 +50,10 @@ describe('PagoIn', () => {
   it('valida los ids del concepto aunque no sean de la rama elegida', async () => {
     const mensajes = await errores({
       ...cuerpo,
-      concepto: { tipo: 'MEMBRESIA', membresia_id: 0 },
+      concepto: { tipo: 'MEMBRESIA', membresiaId: 0 },
     });
 
-    expect(mensajes).toContain('membresia_id must not be less than 1');
+    expect(mensajes).toContain('membresiaId must not be less than 1');
   });
 
   // La mitad del bug de `@IsOptional()`, y la que pateaba el e2e. Sin el
@@ -62,17 +62,17 @@ describe('PagoIn', () => {
   // como el helper baja a `children`, un `[]` acá sí significa "no hubo nada".
   it('no exige el id de la rama que no se está cobrando', async () => {
     expect(
-      await errores({ ...cuerpo, concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7 } }),
+      await errores({ ...cuerpo, concepto: { tipo: 'RESERVA_CANCHA', reservaCanchaId: 7 } }),
     ).toEqual([]);
     expect(
-      await errores({ ...cuerpo, concepto: { tipo: 'MEMBRESIA', membresia_id: 3 } }),
+      await errores({ ...cuerpo, concepto: { tipo: 'MEMBRESIA', membresiaId: 3 } }),
     ).toEqual([]);
   });
 
   it('rechaza el id de la OTRA rama si viene junto', async () => {
     const mensajes = await errores({
       ...cuerpo,
-      concepto: { tipo: 'MEMBRESIA', reserva_cancha_id: 7, membresia_id: 3 },
+      concepto: { tipo: 'MEMBRESIA', reservaCanchaId: 7, membresiaId: 3 },
     });
 
     expect(mensajes.join(' ')).toContain('no admite reserva_cancha_id');
@@ -81,14 +81,14 @@ describe('PagoIn', () => {
   // RF-07: la penalidad por cancelacion tardia es la tercera rama del oneOf.
   it('acepta un concepto RESERVA_CLASE con su id', async () => {
     expect(
-      await errores({ ...cuerpo, concepto: { tipo: 'RESERVA_CLASE', reserva_clase_id: 4 } }),
+      await errores({ ...cuerpo, concepto: { tipo: 'RESERVA_CLASE', reservaClaseId: 4 } }),
     ).toEqual([]);
   });
 
   it('rechaza una rama RESERVA_CLASE con el id de otra', async () => {
     const mensajes = await errores({
       ...cuerpo,
-      concepto: { tipo: 'RESERVA_CLASE', reserva_clase_id: 4, membresia_id: 3 },
+      concepto: { tipo: 'RESERVA_CLASE', reservaClaseId: 4, membresiaId: 3 },
     });
 
     expect(mensajes.join(' ')).toContain('no admite');
@@ -120,7 +120,7 @@ describe('PagoIn', () => {
     const mensajes = await errores({
       ...cuerpo,
       numero_tarjeta: '4111111111111111',
-      concepto: { tipo: 'MEMBRESIA', membresia_id: 3 },
+      concepto: { tipo: 'MEMBRESIA', membresiaId: 3 },
     });
 
     expect(mensajes.join(' ')).toContain('numero_tarjeta');
@@ -129,11 +129,11 @@ describe('PagoIn', () => {
   // El contrato declara `moneda` con `default: ARS` FUERA de `required`: omitirla
   // es el caso normal y no puede dar 422. El default a ARS lo pone el service.
   it('acepta el body sin moneda y rechaza una moneda que no es ARS', async () => {
-    expect(await errores({ ...cuerpo, concepto: { tipo: 'MEMBRESIA', membresia_id: 3 } })).toEqual(
+    expect(await errores({ ...cuerpo, concepto: { tipo: 'MEMBRESIA', membresiaId: 3 } })).toEqual(
       [],
     );
     expect(
-      (await errores({ ...cuerpo, moneda: 'USD', concepto: { tipo: 'MEMBRESIA', membresia_id: 3 } }))
+      (await errores({ ...cuerpo, moneda: 'USD', concepto: { tipo: 'MEMBRESIA', membresiaId: 3 } }))
         .join(' ')
         .toLowerCase(),
     ).toContain('moneda');

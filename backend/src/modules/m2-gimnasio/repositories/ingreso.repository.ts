@@ -10,8 +10,8 @@ import type { Ingreso, IngresoNuevo } from '../entities/ingreso.entity';
 // devuelve el historial paginado completo. `fecha` viene como día (YYYY-MM-DD)
 // y el repository lo traduce a un rango de instantes con rangoDelDia.
 export interface IngresoFiltros {
-  sede_id?: number;
-  socio_id?: number;
+  sedeId?: number;
+  socioId?: number;
   nombre?: string;
   fecha?: string;
   dentro?: boolean;
@@ -61,17 +61,17 @@ export class IngresoRepository {
         // concurrentes de la misma sede sin agregar una columna contador ni un
         // retry-loop optimista. El aforo sigue siendo un COUNT derivado.
         const filasSede = await tx.$queryRaw<{ aforo_maximo: number }[]>`
-          SELECT "aforo_maximo" FROM "Sede" WHERE "id" = ${ingreso.sede_id} FOR UPDATE
+          SELECT "aforo_maximo" FROM "Sede" WHERE "id" = ${ingreso.sedeId} FOR UPDATE
         `;
         const sede = filasSede[0];
         if (!sede) {
           throw new Error(
-            `Sede ${ingreso.sede_id} no existe (debe validarse antes de llamar a crear()).`,
+            `Sede ${ingreso.sedeId} no existe (debe validarse antes de llamar a crear()).`,
           );
         }
 
         const aforoActual = await tx.ingreso.count({
-          where: { sede_id: ingreso.sede_id, fecha_hora_egreso: null },
+          where: { sede_id: ingreso.sedeId, fecha_hora_egreso: null },
         });
 
         if (aforoActual >= sede.aforo_maximo) {
@@ -80,10 +80,10 @@ export class IngresoRepository {
 
         const fila = await tx.ingreso.create({
           data: {
-            sede_id: ingreso.sede_id,
-            socio_id: ingreso.socio_id,
-            fecha_hora_ingreso: ingreso.fecha_hora_ingreso ?? new Date(),
-            validado_offline: ingreso.validado_offline ?? false,
+            sede_id: ingreso.sedeId,
+            socio_id: ingreso.socioId,
+            fecha_hora_ingreso: ingreso.fechaHoraIngreso ?? new Date(),
+            validado_offline: ingreso.validadoOffline ?? false,
           },
           include: SOCIO_SELECCION,
         });
@@ -105,11 +105,11 @@ export class IngresoRepository {
 
   async listar(filtros: IngresoFiltros, { page, perPage }: OpcionesPaginacion): Promise<Ingreso[]> {
     const where: Prisma.IngresoWhereInput = {
-      ...(filtros.sede_id !== undefined && { sede_id: filtros.sede_id }),
-      ...(filtros.socio_id !== undefined && { socio_id: filtros.socio_id }),
+      ...(filtros.sedeId !== undefined && { sede_id: filtros.sedeId }),
+      ...(filtros.socioId !== undefined && { socio_id: filtros.socioId }),
       // Búsqueda parcial por nombre del socio, sin distinguir mayúsculas (mismo
       // criterio que GET /usuarios). Es lo que permite al recepcionista encontrar
-      // el ingreso abierto de una persona sin conocer el socio_id interno.
+      // el ingreso abierto de una persona sin conocer el socioId interno.
       ...(filtros.nombre !== undefined && {
         socio: { usuario: { nombre: { contains: filtros.nombre, mode: 'insensitive' } } },
       }),
@@ -128,7 +128,7 @@ export class IngresoRepository {
       skip: (page - 1) * perPage,
       take: perPage,
       // El id desempata: con la sincronización offline (RNF-01) dos ingresos
-      // pueden compartir fecha_hora_ingreso al segundo, y sin un orden total la
+      // pueden compartir fechaHoraIngreso al segundo, y sin un orden total la
       // paginación repite filas entre páginas.
       orderBy: [{ fecha_hora_ingreso: 'desc' }, { id: 'desc' }],
       include: SOCIO_SELECCION,
@@ -177,13 +177,13 @@ export class IngresoRepository {
   private aDominio(fila: IngresoRow): Ingreso {
     return {
       id: fila.id,
-      sede_id: fila.sede_id,
-      socio_id: fila.socio_id,
+      sedeId: fila.sede_id,
+      socioId: fila.socio_id,
       nombre: fila.socio.usuario.nombre,
       dni: fila.socio.usuario.dni,
-      fecha_hora_ingreso: fila.fecha_hora_ingreso,
-      fecha_hora_egreso: fila.fecha_hora_egreso,
-      validado_offline: fila.validado_offline,
+      fechaHoraIngreso: fila.fecha_hora_ingreso,
+      fechaHoraEgreso: fila.fecha_hora_egreso,
+      validadoOffline: fila.validado_offline,
     };
   }
 }

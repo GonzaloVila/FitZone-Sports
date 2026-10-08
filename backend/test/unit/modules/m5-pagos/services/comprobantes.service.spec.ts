@@ -11,9 +11,9 @@ import { ComprobantesService, RUTA_COMPROBANTES } from 'src/modules/m5-pagos/ser
 const INICIO = new Date('2026-10-10T14:00:00.000Z');
 const FIN = new Date('2026-10-10T15:00:00.000Z');
 
-const RESERVA_CANCHA = { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 12 } as const;
-const MEMBRESIA = { tipo: 'MEMBRESIA', membresia_id: 5 } as const;
-const RESERVA_CLASE = { tipo: 'RESERVA_CLASE', reserva_clase_id: 3 } as const;
+const RESERVA_CANCHA = { tipo: 'RESERVA_CANCHA', reservaCanchaId: 12 } as const;
+const MEMBRESIA = { tipo: 'MEMBRESIA', membresiaId: 5 } as const;
+const RESERVA_CLASE = { tipo: 'RESERVA_CLASE', reservaClaseId: 3 } as const;
 
 /**
  * El texto que se imprime en el PDF, en orden.
@@ -43,15 +43,15 @@ function textoDelPdf(buffer: Buffer): string {
 function pago(over: Partial<Pago> = {}): Pago {
   return {
     id: 8,
-    usuario_id: 42,
+    usuarioId: 42,
     concepto: RESERVA_CANCHA,
     monto: 9500,
     moneda: 'ARS',
     estado: 'APROBADO',
-    fecha_pago: new Date('2026-10-10T14:05:00.000Z'),
-    comprobante_pdf_url: null,
+    fechaPago: new Date('2026-10-10T14:05:00.000Z'),
+    comprobantePdfUrl: null,
     token: 'tok_aprobado_1',
-    idempotencia_key: 'clave-1',
+    idempotenciaKey: 'clave-1',
     ...over,
   };
 }
@@ -64,11 +64,11 @@ describe('ComprobantesService', () => {
       obtenerParaCobro: vi.fn().mockResolvedValue(
         over.reserva === undefined
           ? {
-              reserva_id: 12,
-              usuario_id: 42,
-              cancha_id: 3,
-              fecha_hora_inicio: INICIO,
-              fecha_hora_fin: FIN,
+              reservaId: 12,
+              usuarioId: 42,
+              canchaId: 3,
+              fechaHoraInicio: INICIO,
+              fechaHoraFin: FIN,
               precio: 9500,
               estado: 'CONFIRMADA',
             }
@@ -78,7 +78,7 @@ describe('ComprobantesService', () => {
     const membresias = {
       obtenerParaCobro: vi.fn().mockResolvedValue(
         over.membresia === undefined
-          ? { membresia_id: 5, usuario_id: 42, plan: 'MENSUAL', precio: 30000, estado: 'ACTIVA' }
+          ? { membresiaId: 5, usuarioId: 42, plan: 'MENSUAL', precio: 30000, estado: 'ACTIVA' }
           : over.membresia,
       ),
     };
@@ -87,10 +87,10 @@ describe('ComprobantesService', () => {
       obtenerParaCobro: vi.fn().mockResolvedValue(
         over.reservaClase === undefined
           ? {
-              reserva_clase_id: 3,
-              socio_id: 42,
-              usuario_id: 42,
-              clase_id: 9,
+              reservaClaseId: 3,
+              socioId: 42,
+              usuarioId: 42,
+              claseId: 9,
               horario: '2026-10-10T14:00:00.000Z',
               penalidad: 5000,
             }
@@ -135,11 +135,11 @@ describe('ComprobantesService', () => {
   it('imprime el monto del pago y no recalcula el precio', async () => {
     const { service } = armar({
       reserva: {
-        reserva_id: 12,
-        usuario_id: 42,
-        cancha_id: 3,
-        fecha_hora_inicio: INICIO,
-        fecha_hora_fin: FIN,
+        reservaId: 12,
+        usuarioId: 42,
+        canchaId: 3,
+        fechaHoraInicio: INICIO,
+        fechaHoraFin: FIN,
         precio: 7777,
         estado: 'CONFIRMADA',
       },

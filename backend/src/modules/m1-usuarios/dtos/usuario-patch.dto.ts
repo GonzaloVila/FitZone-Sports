@@ -27,7 +27,7 @@ export class UsuarioPatch {
   })
   @IsOptional()
   @IsString()
-  foto_url?: string | null;
+  fotoUrl?: string | null;
 
   @ApiPropertyOptional({
     minLength: 8,

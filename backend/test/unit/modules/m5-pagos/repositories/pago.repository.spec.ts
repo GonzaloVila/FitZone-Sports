@@ -19,15 +19,15 @@ describe('PagoRepository', () => {
   function fila(over: Record<string, unknown> = {}) {
     return {
       id: 8,
-      usuario_id: 1,
-      idempotencia_key: 'clave-1',
-      fecha_pago: new Date('2026-09-16T18:42:11.204Z'),
+      usuarioId: 1,
+      idempotenciaKey: 'clave-1',
+      fechaPago: new Date('2026-09-16T18:42:11.204Z'),
       monto: new Prisma.Decimal('4250'),
       moneda: 'ARS',
       estado: 'PENDIENTE',
       token: 'tok_aprobado_1',
-      comprobante_pdf_url: null,
-      pago_reserva: { id_pago: 8, reserva_id: 7 },
+      comprobantePdfUrl: null,
+      pago_reserva: { idPago: 8, reservaId: 7 },
       pago_membresia: null,
       ...over,
     };
@@ -43,12 +43,12 @@ describe('PagoRepository', () => {
   }
 
   const nuevo: PagoNuevo = {
-    usuario_id: 1,
-    concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7 },
+    usuarioId: 1,
+    concepto: { tipo: 'RESERVA_CANCHA', reservaCanchaId: 7 },
     monto: 4250,
     moneda: 'ARS',
     token: 'tok_aprobado_1',
-    idempotencia_key: 'clave-1',
+    idempotenciaKey: 'clave-1',
   };
 
   describe('crear', () => {
@@ -65,17 +65,17 @@ describe('PagoRepository', () => {
       expect(data.pago_membresia).toBeUndefined();
       // Explícito, nunca por defecto (decisión 7).
       expect(data.estado).toBe('PENDIENTE');
-      expect(data.usuario_id).toBe(1);
+      expect(data.usuarioId).toBe(1);
     });
 
     it('crea el subtipo de membresía cuando el concepto es MEMBRESIA', async () => {
       const { prisma, repository } = repo(() =>
-        fila({ pago_reserva: null, pago_membresia: { id_pago: 8, membresia_id: 3 } }),
+        fila({ pago_reserva: null, pago_membresia: { idPago: 8, membresiaId: 3 } }),
       );
 
       const resultado = await repository.crear({
         ...nuevo,
-        concepto: { tipo: 'MEMBRESIA', membresia_id: 3 },
+        concepto: { tipo: 'MEMBRESIA', membresiaId: 3 },
       });
 
       expect(resultado.ok).toBe(true);
@@ -96,7 +96,7 @@ describe('PagoRepository', () => {
 
     it('traduce la violación de reserva_id a RESERVA_YA_COBRADA, no a idempotencia', async () => {
       const { repository } = repo(() => {
-        throw p2002(['reserva_id']);
+        throw p2002(['reservaId']);
       });
 
       const resultado = await repository.crear(nuevo);
@@ -143,7 +143,7 @@ describe('PagoRepository', () => {
 
       const pago = await repository.buscarPorId(8);
 
-      expect(pago?.concepto).toEqual({ tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7 });
+      expect(pago?.concepto).toEqual({ tipo: 'RESERVA_CANCHA', reservaCanchaId: 7 });
       // El Decimal de Prisma sale como number: `PagoOut.monto` es number y un
       // Decimal filtrado a la respuesta se serializa raro.
       expect(pago?.monto).toBe(4250);
@@ -237,8 +237,8 @@ describe('PagoRepository', () => {
 
       const where = prisma.pago.findMany.mock.calls[0]![0].where!;
       // El id del concepto vive en la tabla del subtipo: es la herencia parte-todo.
-      expect(where.pago_reserva).toEqual({ reserva_id: 7 });
-      expect(where.pago_membresia).toEqual({ membresia_id: 3 });
+      expect(where.pago_reserva).toEqual({ reservaId: 7 });
+      expect(where.pago_membresia).toEqual({ membresiaId: 3 });
     });
 
     it('acota el rango de fechas solo si viene alguna de las dos puntas', async () => {
@@ -247,10 +247,10 @@ describe('PagoRepository', () => {
       const hasta = new Date('2026-04-01T03:00:00.000Z');
 
       await repository.listar({}, { page: 1, perPage: 20 });
-      expect(prisma.pago.findMany.mock.calls[0]![0].where!.fecha_pago).toBeUndefined();
+      expect(prisma.pago.findMany.mock.calls[0]![0].where!.fechaPago).toBeUndefined();
 
       await repository.listar({ desde, hasta }, { page: 1, perPage: 20 });
-      expect(prisma.pago.findMany.mock.calls[1]![0].where!.fecha_pago).toEqual({
+      expect(prisma.pago.findMany.mock.calls[1]![0].where!.fechaPago).toEqual({
         gte: desde,
         lt: hasta,
       });
@@ -265,7 +265,7 @@ describe('PagoRepository', () => {
       await repository.listar({}, { page: 1, perPage: 20 });
 
       expect(prisma.pago.findMany.mock.calls[0]![0].orderBy).toEqual([
-        { fecha_pago: 'desc' },
+        { fechaPago: 'desc' },
         { id: 'desc' },
       ]);
     });
@@ -285,7 +285,7 @@ describe('PagoRepository', () => {
 
       const pagos = await repository.listar({}, { page: 1, perPage: 20 });
 
-      expect(pagos[0]?.concepto).toEqual({ tipo: 'RESERVA_CANCHA', reserva_cancha_id: 7 });
+      expect(pagos[0]?.concepto).toEqual({ tipo: 'RESERVA_CANCHA', reservaCanchaId: 7 });
     });
   });
 

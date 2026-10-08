@@ -25,9 +25,9 @@ export class CanchasService {
     await this.exigirSede(sedeId);
 
     const cancha = await this.canchas.crear({
-      sede_id: sedeId,
+      sedeId: sedeId,
       tipo: dto.tipo,
-      costo_por_hora: dto.costo_por_hora,
+      costoPorHora: dto.costoPorHora,
       estado: dto.estado ?? 'OPERATIVA',
     });
     return this.aOut(cancha);
@@ -58,12 +58,12 @@ export class CanchasService {
     // sin campos como un no-op y devuelve la fila sin error, con lo cual la
     // respuesta era un 200 que decia "actualizado" sin haber actualizado nada.
     // El contrato declara 422 para esta operacion, asi que se corta aca.
-    if (dto.costo_por_hora === undefined && dto.estado === undefined) {
+    if (dto.costoPorHora === undefined && dto.estado === undefined) {
       throw canchaSinCamposParaModificar();
     }
 
     const cancha = await this.canchas.actualizar(id, {
-      costo_por_hora: dto.costo_por_hora,
+      costoPorHora: dto.costoPorHora,
       estado: dto.estado,
     });
     if (!cancha) {

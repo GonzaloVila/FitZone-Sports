@@ -25,7 +25,7 @@ interface RequestConUsuario extends Request {
 }
 
 // RNF-01, Fase 5: el recepcionista sincroniza el lote que su puesto acumulo
-// sin conexion. sede_id sale del JWT (nunca del body): un RECEPCION solo
+// sin conexion. sedeId sale del JWT (nunca del body): un RECEPCION solo
 // puede sincronizar ingresos de la sede en la que esta registrado como staff
 // (EmpleadoSede, resuelto al loguear en AuthService).
 @ApiTags('ingresos')
@@ -49,7 +49,7 @@ export class SincronizacionController {
     @Body() dto: SincronizarIngresosIn,
     @Req() req: RequestConUsuario,
   ): Promise<SincronizarIngresosOut> {
-    const sedeId = req.user.sede_id;
+    const sedeId = req.user.sedeId;
     if (sedeId === undefined) {
       throw sinSedeAsignada();
     }

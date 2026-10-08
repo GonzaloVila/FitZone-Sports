@@ -38,7 +38,7 @@ export class ReservasCanchasService {
   ) {}
 
   async crear(dto: ReservaCanchaIn): Promise<ReservaCanchaOut> {
-    const cancha = await this.canchas.buscarPorId(dto.cancha_id);
+    const cancha = await this.canchas.buscarPorId(dto.canchaId);
     if (!cancha) {
       throw recursoNoEncontrado('No existe la cancha indicada.');
     }
@@ -51,8 +51,8 @@ export class ReservasCanchasService {
       throw canchaEnMantenimiento(cancha.id);
     }
 
-    const inicio = new Date(dto.fecha_hora_inicio);
-    const fin = new Date(dto.fecha_hora_fin);
+    const inicio = new Date(dto.fechaHoraInicio);
+    const fin = new Date(dto.fechaHoraFin);
     // No se valida contra un horario de apertura/cierre de la sede: ese dato no
     // existe en el modelo (decisión 11 del plan M4, deuda asumida a propósito).
     if (inicio.getTime() >= fin.getTime()) {
@@ -61,22 +61,22 @@ export class ReservasCanchasService {
 
     // RN-03: un socio con cuota vencida paga como externo; consultarVigencia
     // también devuelve vigente=false para quien no es socio.
-    const vigencia = await this.membresias.consultarVigencia(dto.usuario_id);
+    const vigencia = await this.membresias.consultarVigencia(dto.usuarioId);
     const socioVigente = vigencia.vigente;
 
     const precioAplicado = this.precios.cotizar({
-      costoBase: cancha.costo_por_hora,
+      costoBase: cancha.costoPorHora,
       socioVigente,
       inicio,
       fin,
     });
 
     const resultado = await this.reservas.crear({
-      cancha_id: cancha.id,
-      usuario_id: dto.usuario_id,
-      fecha_hora_inicio: inicio,
-      fecha_hora_fin: fin,
-      precio_aplicado: precioAplicado,
+      canchaId: cancha.id,
+      usuarioId: dto.usuarioId,
+      fechaHoraInicio: inicio,
+      fechaHoraFin: fin,
+      precioAplicado: precioAplicado,
     });
 
     if (!resultado.ok) {

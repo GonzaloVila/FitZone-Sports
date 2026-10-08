@@ -35,15 +35,15 @@ describe('ListarPagosQueryDto', () => {
   it('acepta los siete filtros juntos', async () => {
     expect(
       await errores({
-        usuario_id: '3',
+        usuarioId: '3',
         estado: 'APROBADO',
         tipo: 'RESERVA_CANCHA',
-        reserva_cancha_id: '7',
-        membresia_id: '3',
+        reservaCanchaId: '7',
+        membresiaId: '3',
         desde: '2026-03-01',
         hasta: '2026-03-31',
         page: '2',
-        per_page: '5',
+        perPage: '5',
       }),
     ).toEqual([]);
   });
@@ -54,18 +54,18 @@ describe('ListarPagosQueryDto', () => {
   // convertir compararía distinto en Prisma y traería cero filas sin avisar.
   it('convierte los ids y la paginación a número', async () => {
     const d = plainToInstance(ListarPagosQueryDto, {
-      usuario_id: '3',
-      reserva_cancha_id: '7',
-      membresia_id: '3',
+      usuarioId: '3',
+      reservaCanchaId: '7',
+      membresiaId: '3',
       page: '2',
-      per_page: '5',
+      perPage: '5',
     });
 
-    expect(d.usuario_id).toBe(3);
-    expect(d.reserva_cancha_id).toBe(7);
-    expect(d.membresia_id).toBe(3);
+    expect(d.usuarioId).toBe(3);
+    expect(d.reservaCanchaId).toBe(7);
+    expect(d.membresiaId).toBe(3);
     expect(d.page).toBe(2);
-    expect(d.per_page).toBe(5);
+    expect(d.perPage).toBe(5);
   });
 
   it('deja en undefined los filtros que no vinieron, para que el service distinga ausente de vacío', async () => {
@@ -76,18 +76,18 @@ describe('ListarPagosQueryDto', () => {
     // cambio, sí lo lleva (1/20) igual que en el listado de reservas de M4.
     expect(d.estado).toBeUndefined();
     expect(d.tipo).toBeUndefined();
-    expect(d.usuario_id).toBeUndefined();
+    expect(d.usuarioId).toBeUndefined();
     expect(d.desde).toBeUndefined();
     expect(d.hasta).toBeUndefined();
     expect(d.page).toBe(1);
-    expect(d.per_page).toBe(20);
+    expect(d.perPage).toBe(20);
   });
 
   it('un ?page=2 explícito pisa el default', async () => {
     expect(plainToInstance(ListarPagosQueryDto, { page: '2' }).page).toBe(2);
   });
 
-  // El contrato pone mínimo 1 en page y per_page, y tope 100 en per_page. Sin el tope,
+  // El contrato pone mínimo 1 en page y perPage, y tope 100 en perPage. Sin el tope,
   // `?per_page=100000` es un DoS con forma de paginación.
   it('rechaza page=0 y page negativa', async () => {
     expect(await errores({ page: '0' })).not.toEqual([]);
@@ -95,12 +95,12 @@ describe('ListarPagosQueryDto', () => {
   });
 
   it('rechaza per_page=0 y per_page=101', async () => {
-    expect(await errores({ per_page: '0' })).not.toEqual([]);
-    expect(await errores({ per_page: '101' })).not.toEqual([]);
+    expect(await errores({ perPage: '0' })).not.toEqual([]);
+    expect(await errores({ perPage: '101' })).not.toEqual([]);
   });
 
   it('rechaza un id no numérico', async () => {
-    expect(await errores({ usuario_id: 'tres' })).not.toEqual([]);
+    expect(await errores({ usuarioId: 'tres' })).not.toEqual([]);
   });
 
   it('rechaza un estado fuera del enum', async () => {

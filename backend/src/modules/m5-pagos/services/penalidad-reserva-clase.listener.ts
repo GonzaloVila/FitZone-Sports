@@ -12,8 +12,8 @@ import { PenalidadReservaClaseService } from './penalidad-reserva-clase.service'
 // cancelación no se aplica.
 
 export interface EventoCancelacionTardia {
-  reserva_clase_id: number;
-  socio_id: number;
+  reservaClaseId: number;
+  socioId: number;
 }
 
 @Injectable()
@@ -24,8 +24,8 @@ export class PenalidadReservaClaseListener {
   async onCancelacionTardia(datos: EventoCancelacionTardia): Promise<void> {
     // La clave es determinista: reintentar el mismo evento no cobra dos veces.
     await this.penalidades.cobrarPenalidad(
-      { reserva_clase_id: datos.reserva_clase_id },
-      `penalidad-clase-${datos.reserva_clase_id}`,
+      { reservaClaseId: datos.reservaClaseId },
+      `penalidad-clase-${datos.reservaClaseId}`,
     );
   }
 }

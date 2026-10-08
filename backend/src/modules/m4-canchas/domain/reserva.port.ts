@@ -1,11 +1,11 @@
 import type { Reserva } from '../entities/reserva.entity';
 
 export interface ReservaNueva {
-  cancha_id: number;
-  usuario_id: number;
-  fecha_hora_inicio: Date;
-  fecha_hora_fin: Date;
-  precio_aplicado: number;
+  canchaId: number;
+  usuarioId: number;
+  fechaHoraInicio: Date;
+  fechaHoraFin: Date;
+  precioAplicado: number;
 }
 
 // Resultado discriminado: el solapamiento (RN-02) solo es detectable en la
@@ -17,7 +17,7 @@ export type ResultadoCrearReserva =
 
 // Lista blanca de filtros: solo filtra por los campos presentes. El repositorio
 // no decide defaults (p. ej. el estado): eso es regla de negocio del service.
-// desde/hasta acotan fecha_hora_inicio como [desde, hasta).
+// desde/hasta acotan fechaHoraInicio como [desde, hasta).
 export interface FiltrosListarReservas {
   canchaId?: number;
   usuarioId?: number;

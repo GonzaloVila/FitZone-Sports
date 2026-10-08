@@ -29,7 +29,7 @@ type EstadoCobro = ResultadoPasarela['estado'];
 // Lo que entra por acá viene de M1 o de M4, nunca del cliente.
 interface ConceptoResuelto {
   concepto: ConceptoPago;
-  usuario_id: number;
+  usuarioId: number;
   monto: number;
 }
 
@@ -97,12 +97,12 @@ export class PagosService {
     const resuelto = await this.resolverConcepto(concepto);
 
     const creado = await this.pagos.crear({
-      usuario_id: resuelto.usuario_id,
+      usuarioId: resuelto.usuarioId,
       concepto: resuelto.concepto,
       monto: resuelto.monto,
       moneda: dto.moneda ?? 'ARS',
       token: dto.token,
-      idempotencia_key: idempotenciaKey,
+      idempotenciaKey: idempotenciaKey,
     });
 
     if (!creado.ok) {
@@ -114,10 +114,10 @@ export class PagosService {
       // clase), y el resto de los casos caen en el default que el contrato ya
       // declara.
       if (creado.motivo === 'RESERVA_YA_COBRADA' && resuelto.concepto.tipo === 'RESERVA_CANCHA') {
-        throw reservaYaCobrada(resuelto.concepto.reserva_cancha_id);
+        throw reservaYaCobrada(resuelto.concepto.reservaCanchaId);
       }
       if (creado.motivo === 'RESERVA_YA_COBRADA' && resuelto.concepto.tipo === 'RESERVA_CLASE') {
-        throw reservaYaCobrada(resuelto.concepto.reserva_clase_id);
+        throw reservaYaCobrada(resuelto.concepto.reservaClaseId);
       }
       throw idempotenciaRepetida();
     }
@@ -128,7 +128,7 @@ export class PagosService {
       token: creado.pago.token,
       monto: creado.pago.monto,
       moneda: creado.pago.moneda,
-      idempotencia_key: creado.pago.idempotencia_key,
+      idempotenciaKey: creado.pago.idempotenciaKey,
     });
 
     const pago = await this.transicionar(creado.pago, resultado.estado);
@@ -252,7 +252,7 @@ export class PagosService {
       token: pago.token,
       monto: pago.monto,
       moneda: pago.moneda,
-      idempotencia_key: pago.idempotencia_key,
+      idempotenciaKey: pago.idempotenciaKey,
     });
 
     if (!reembolso.ok) {
@@ -292,11 +292,11 @@ export class PagosService {
       throw pagoNoAprobado(pagoId, pago.estado);
     }
 
-    if (!pago.comprobante_pdf_url) {
+    if (!pago.comprobantePdfUrl) {
       throw recursoNoEncontrado(`El pago ${pagoId} no tiene comprobante.`);
     }
 
-    const buffer = await this.comprobantes.leer(pago.comprobante_pdf_url);
+    const buffer = await this.comprobantes.leer(pago.comprobantePdfUrl);
     if (!buffer) {
       throw recursoNoEncontrado(`El comprobante del pago ${pagoId} no está disponible.`);
     }
@@ -358,39 +358,39 @@ export class PagosService {
    */
   private async resolverConcepto(concepto: ConceptoPago): Promise<ConceptoResuelto> {
     if (concepto.tipo === 'RESERVA_CANCHA') {
-      const reserva = await this.reservas.obtenerParaCobro(concepto.reserva_cancha_id);
+      const reserva = await this.reservas.obtenerParaCobro(concepto.reservaCanchaId);
       if (!reserva) {
-        throw recursoNoEncontrado(`No existe la reserva ${concepto.reserva_cancha_id}.`);
+        throw recursoNoEncontrado(`No existe la reserva ${concepto.reservaCanchaId}.`);
       }
 
       return {
         concepto,
-        usuario_id: reserva.usuario_id,
+        usuarioId: reserva.usuarioId,
         monto: reserva.precio,
       };
     }
 
     if (concepto.tipo === 'RESERVA_CLASE') {
-      const clase = await this.reservaClases.obtenerParaCobro(concepto.reserva_clase_id);
+      const clase = await this.reservaClases.obtenerParaCobro(concepto.reservaClaseId);
       if (!clase) {
-        throw recursoNoEncontrado(`No existe la reserva de clase ${concepto.reserva_clase_id}.`);
+        throw recursoNoEncontrado(`No existe la reserva de clase ${concepto.reservaClaseId}.`);
       }
 
       return {
         concepto,
-        usuario_id: clase.usuario_id,
+        usuarioId: clase.usuarioId,
         monto: clase.penalidad,
       };
     }
 
-    const membresia = await this.membresias.obtenerParaCobro(concepto.membresia_id);
+    const membresia = await this.membresias.obtenerParaCobro(concepto.membresiaId);
     if (!membresia) {
-      throw recursoNoEncontrado(`No existe la membresía ${concepto.membresia_id}.`);
+      throw recursoNoEncontrado(`No existe la membresía ${concepto.membresiaId}.`);
     }
 
     return {
       concepto,
-      usuario_id: membresia.usuario_id,
+      usuarioId: membresia.usuarioId,
       monto: membresia.precio,
     };
   }
@@ -398,13 +398,13 @@ export class PagosService {
   private aOut(pago: Pago): PagoOut {
     return {
       id: pago.id,
-      usuario_id: pago.usuario_id,
+      usuarioId: pago.usuarioId,
       concepto: pago.concepto,
       monto: pago.monto,
       moneda: pago.moneda,
       estado: pago.estado,
-      fecha_pago: pago.fecha_pago,
-      comprobante_pdf_url: pago.comprobante_pdf_url,
+      fechaPago: pago.fechaPago,
+      comprobantePdfUrl: pago.comprobantePdfUrl,
     };
   }
 }

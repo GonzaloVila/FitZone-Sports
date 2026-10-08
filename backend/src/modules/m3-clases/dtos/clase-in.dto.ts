@@ -9,7 +9,7 @@ export class ClaseIn {
   })
   @IsInt()
   @IsPositive()
-  sede_id!: number;
+  sedeId!: number;
 
   @ApiProperty({ description: 'Tipo o disciplina de la clase', example: 'Spinning' })
   @IsString()

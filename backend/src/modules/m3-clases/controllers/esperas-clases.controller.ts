@@ -39,12 +39,12 @@ import { EsperasClasesService } from '../services/esperas-clases.service';
 export class EsperasClasesController {
   constructor(private readonly esperasService: EsperasClasesService) {}
 
-  @Post('clases/:clase_id/espera')
+  @Post('clases/:claseId/espera')
   @ApiOperation({
     operationId: 'anotarseEnEspera',
     summary: 'Anotarse en la lista de espera de una clase (RF-08)',
   })
-  @ApiParam({ name: 'clase_id', type: 'integer', description: 'ID de la clase completa', example: 1 })
+  @ApiParam({ name: 'claseId', type: 'integer', description: 'ID de la clase completa', example: 1 })
   @ApiCreatedResponse({
     description: 'Inscripción en lista de espera registrada exitosamente',
     type: EsperaOut,
@@ -65,50 +65,50 @@ export class EsperasClasesController {
   })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
   async anotarse(
-    @Param('clase_id', ParseIntPipe) clase_id: number,
+    @Param('claseId', ParseIntPipe) claseId: number,
     @Body() dto: EsperaIn,
     @Res({ passthrough: true }) res: Response,
   ): Promise<EsperaOut> {
-    const espera = await this.esperasService.anotarseEnEspera(clase_id, dto);
+    const espera = await this.esperasService.anotarseEnEspera(claseId, dto);
     res.setHeader('Location', `/api/v1/esperas-clases/${espera.id}`);
     return espera;
   }
 
-  @Get('esperas-clases/:espera_id')
+  @Get('esperas-clases/:esperaId')
   @ApiOperation({
     operationId: 'obtenerEspera',
     summary: 'Obtener anotación de espera por id',
   })
-  @ApiParam({ name: 'espera_id', type: 'integer', description: 'ID de la solicitud de espera', example: 4 })
+  @ApiParam({ name: 'esperaId', type: 'integer', description: 'ID de la solicitud de espera', example: 4 })
   @ApiOkResponse({ description: 'Detalle de la solicitud de espera', type: EsperaOut })
   @ApiNotFoundResponse({ description: 'Solicitud de espera no encontrada', content: PROBLEM_JSON })
-  obtener(@Param('espera_id', ParseIntPipe) espera_id: number): Promise<EsperaOut> {
-    return this.esperasService.obtenerEspera(espera_id);
+  obtener(@Param('esperaId', ParseIntPipe) esperaId: number): Promise<EsperaOut> {
+    return this.esperasService.obtenerEspera(esperaId);
   }
 
-  @Delete('esperas-clases/:espera_id')
+  @Delete('esperas-clases/:esperaId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     operationId: 'salirDeEspera',
     summary: 'Salir de la lista de espera (baja lógica)',
   })
-  @ApiParam({ name: 'espera_id', type: 'integer', description: 'ID de la espera a cancelar', example: 4 })
+  @ApiParam({ name: 'esperaId', type: 'integer', description: 'ID de la espera a cancelar', example: 4 })
   @ApiNoContentResponse({ description: 'Solicitud de espera dada de baja lógicamente (CANCELADO)' })
   @ApiNotFoundResponse({ description: 'Solicitud no encontrada', content: PROBLEM_JSON })
   @ApiConflictResponse({
     description: 'La solicitud ya fue confirmada previamente',
     content: PROBLEM_JSON,
   })
-  salir(@Param('espera_id', ParseIntPipe) espera_id: number): Promise<void> {
-    return this.esperasService.salirDeEspera(espera_id);
+  salir(@Param('esperaId', ParseIntPipe) esperaId: number): Promise<void> {
+    return this.esperasService.salirDeEspera(esperaId);
   }
 
-  @Post('esperas-clases/:espera_id/confirmaciones')
+  @Post('esperas-clases/:esperaId/confirmaciones')
   @ApiOperation({
     operationId: 'confirmarEspera',
     summary: 'Confirmar cupo desde la lista de espera (RF-08)',
   })
-  @ApiParam({ name: 'espera_id', type: 'integer', description: 'ID de la espera notificada', example: 4 })
+  @ApiParam({ name: 'esperaId', type: 'integer', description: 'ID de la espera notificada', example: 4 })
   @ApiCreatedResponse({
     description: 'Cupo confirmado y convertido a reserva de clase exitosamente',
     type: ReservaClaseOut,
@@ -125,10 +125,10 @@ export class EsperasClasesController {
     content: PROBLEM_JSON,
   })
   async confirmar(
-    @Param('espera_id', ParseIntPipe) espera_id: number,
+    @Param('esperaId', ParseIntPipe) esperaId: number,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ReservaClaseOut> {
-    const reserva = await this.esperasService.confirmarEspera(espera_id);
+    const reserva = await this.esperasService.confirmarEspera(esperaId);
     res.setHeader('Location', `/api/v1/reservas-clases/${reserva.id}`);
     return reserva;
   }

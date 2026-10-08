@@ -12,19 +12,19 @@ export class ReservaCanchaOut {
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
-  cancha_id!: number;
+  canchaId!: number;
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 2 })
-  usuario_id!: number;
+  usuarioId!: number;
 
   @Expose()
   @ApiProperty({ type: 'string', format: 'date-time', example: '2026-10-05T19:00:00-03:00' })
-  fecha_hora_inicio!: Date;
+  fechaHoraInicio!: Date;
 
   @Expose()
   @ApiProperty({ type: 'string', format: 'date-time', example: '2026-10-05T20:00:00-03:00' })
-  fecha_hora_fin!: Date;
+  fechaHoraFin!: Date;
 
   @Expose()
   @ApiProperty({ enum: ESTADOS, example: 'CONFIRMADA' })
@@ -36,5 +36,5 @@ export class ReservaCanchaOut {
     description: 'Precio final cotizado al reservar (descuento de socio y recargo de horario pico incluidos, RF-11).',
     example: 5100,
   })
-  precio_aplicado!: number;
+  precioAplicado!: number;
 }

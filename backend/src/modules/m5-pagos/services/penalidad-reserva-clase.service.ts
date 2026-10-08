@@ -25,7 +25,7 @@ import { PasarelaPagoService } from './pasarela-pago.service';
 // original sin cobrar dos veces.
 
 export interface DatosPenalidadReservaClase {
-  reserva_clase_id: number;
+  reservaClaseId: number;
 }
 
 @Injectable()
@@ -40,16 +40,16 @@ export class PenalidadReservaClaseService {
   ) {}
 
   async cobrarPenalidad(datos: DatosPenalidadReservaClase, idempotenciaKey: string): Promise<PagoOut> {
-    const clase = await this.reservaClases.obtenerParaCobro(datos.reserva_clase_id);
+    const clase = await this.reservaClases.obtenerParaCobro(datos.reservaClaseId);
     if (!clase) {
-      throw recursoNoEncontrado(`No existe la reserva de clase ${datos.reserva_clase_id}.`);
+      throw recursoNoEncontrado(`No existe la reserva de clase ${datos.reservaClaseId}.`);
     }
 
     const resultado = await this.pasarela.cobrar({
       token: 'tok_aprobado_penalidad',
       monto: clase.penalidad,
       moneda: 'ARS',
-      idempotencia_key: idempotenciaKey,
+      idempotenciaKey: idempotenciaKey,
     });
 
     if (resultado.estado === 'RECHAZADO') {
@@ -60,16 +60,16 @@ export class PenalidadReservaClaseService {
     }
 
     const creado = await this.pagos.crear({
-      usuario_id: clase.usuario_id,
-      concepto: this.conceptoClase(clase.reserva_clase_id),
+      usuarioId: clase.usuarioId,
+      concepto: this.conceptoClase(clase.reservaClaseId),
       monto: clase.penalidad,
       moneda: 'ARS',
-      token: resultado.pasarela_token,
-      idempotencia_key: idempotenciaKey,
+      token: resultado.pasarelaToken,
+      idempotenciaKey: idempotenciaKey,
     });
 
     if (!creado.ok) {
-      // El @unique de idempotencia_key saltó: este cobro ya se hizo con esta clave.
+      // El @unique de idempotenciaKey saltó: este cobro ya se hizo con esta clave.
       // Se devuelve el pago existente (reintento del mismo evento), no un error.
       const existente = await this.pagos.buscarPorIdempotenciaKey(idempotenciaKey);
       if (existente) {
@@ -79,7 +79,7 @@ export class PenalidadReservaClaseService {
     }
 
     const pagoAprobado = await this.pagos.transicionar(creado.pago.id, 'APROBADO');
-    const pago = await this.emitirComprobante(pagoAprobado, clase.reserva_clase_id);
+    const pago = await this.emitirComprobante(pagoAprobado, clase.reservaClaseId);
     return this.aOut(pago);
   }
 
@@ -92,19 +92,19 @@ export class PenalidadReservaClaseService {
   }
 
   private conceptoClase(reservaClaseId: number): ConceptoPago {
-    return { tipo: 'RESERVA_CLASE', reserva_clase_id: reservaClaseId };
+    return { tipo: 'RESERVA_CLASE', reservaClaseId: reservaClaseId };
   }
 
   private aOut(pago: Pago): PagoOut {
     return {
       id: pago.id,
-      usuario_id: pago.usuario_id,
+      usuarioId: pago.usuarioId,
       concepto: pago.concepto,
       monto: pago.monto,
       moneda: pago.moneda,
       estado: pago.estado,
-      fecha_pago: pago.fecha_pago,
-      comprobante_pdf_url: pago.comprobante_pdf_url,
+      fechaPago: pago.fechaPago,
+      comprobantePdfUrl: pago.comprobantePdfUrl,
     };
   }
 }

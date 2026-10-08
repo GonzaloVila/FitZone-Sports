@@ -44,14 +44,14 @@ export class TotpService {
     await this.sociosService.activarTotp(usuarioId, secretoCifrado);
 
     return {
-      qr_uri: authenticator.keyuri(usuario.email, ISSUER, secreto),
+      qrUri: authenticator.keyuri(usuario.email, ISSUER, secreto),
       mensaje: 'Escaneá el QR con tu app de autenticación',
     };
   }
 
   // Llamado desde IngresosService (M2) al registrar un ingreso, ahora por socio.
   // `codigo_totp` es obligatorio en el DTO, pero solo se verifica contra un
-  // secreto real si el socio activo el QR (totp_secreto + qr_activo); si nunca lo
+  // secreto real si el socio activo el QR (totpSecreto + qrActivo); si nunca lo
   // activo se permite igual (backward compatibility explicita del plan), asi que
   // un socio sin TOTP no se ve afectado por este cambio.
   async validarIngreso(socioId: number, codigo: string): Promise<void> {

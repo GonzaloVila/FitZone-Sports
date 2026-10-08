@@ -17,8 +17,8 @@ describe('MembresiaPrecioService', () => {
 
   function paraCobro(over: Record<string, unknown> = {}) {
     return {
-      membresia_id: 7,
-      usuario_id: 42,
+      membresiaId: 7,
+      usuarioId: 42,
       plan: 'TRIMESTRAL',
       precio: 80000,
       estado: 'ACTIVA',
@@ -30,8 +30,8 @@ describe('MembresiaPrecioService', () => {
     const resultado = await service(paraCobro()).obtenerParaCobro(7);
 
     expect(resultado).toEqual({
-      membresia_id: 7,
-      usuario_id: 42,
+      membresiaId: 7,
+      usuarioId: 42,
       plan: 'TRIMESTRAL',
       precio: 80000,
       estado: 'ACTIVA',
@@ -47,10 +47,10 @@ describe('MembresiaPrecioService', () => {
     // `precio` al DTO de salida sea una decision explicita, no un descuido.
     expect(Object.keys(resultado!).sort()).toEqual([
       'estado',
-      'membresia_id',
+      'membresiaId',
       'plan',
       'precio',
-      'usuario_id',
+      'usuarioId',
     ]);
   });
 

@@ -6,5 +6,5 @@ export class SocioPatch {
   @IsOptional()
   @IsInt()
   @Min(1)
-  sede_origen_id?: number;
+  sedeOrigenId?: number;
 }

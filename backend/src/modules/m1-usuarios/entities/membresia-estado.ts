@@ -15,7 +15,7 @@ import type { EstadoMembresia as NombreEstadoMembresia, Membresia } from './memb
 export interface EstadoMembresia {
   readonly nombre: NombreEstadoMembresia;
   // Vigencia real = fecha (RF-03/RN-03): el cron mueve `estado` a VENCIDA a
-  // medianoche, pero entre la fecha_fin y la corrida siguiente el registro sigue
+  // medianoche, pero entre la fechaFin y la corrida siguiente el registro sigue
   // ACTIVA. La única causa inmediata e irrevocable de no-vigencia es SUSPENDIDA;
   // el vencimiento se deriva de la fecha, que es la fuente de verdad del cobro.
   esVigente(m: Membresia, ahora?: Date): boolean;
@@ -27,8 +27,8 @@ export interface EstadoMembresia {
 
 const ACTIVA: EstadoMembresia = {
   nombre: 'ACTIVA',
-  esVigente: (m, ahora = new Date()) => m.fecha_fin.getTime() >= ahora.getTime(),
-  alVencer: (m, ahora) => (m.fecha_fin.getTime() < ahora.getTime() ? VENCIDA : ACTIVA),
+  esVigente: (m, ahora = new Date()) => m.fechaFin.getTime() >= ahora.getTime(),
+  alVencer: (m, ahora) => (m.fechaFin.getTime() < ahora.getTime() ? VENCIDA : ACTIVA),
   alSuspender: () => SUSPENDIDA,
   alReactivar: () => ACTIVA,
   alRenovar: () => ACTIVA,

@@ -58,5 +58,5 @@ export class UsuarioIn {
   @ApiPropertyOptional({ example: 'https://cdn.fitzone.com.ar/fotos/ana.jpg' })
   @IsOptional()
   @IsString()
-  foto_url?: string;
+  fotoUrl?: string;
 }

@@ -25,5 +25,5 @@ export class SedeIn {
   })
   @IsInt()
   @Min(1)
-  aforo_maximo!: number;
+  aforoMaximo!: number;
 }

@@ -2,8 +2,8 @@ export type EstadoReservaClase = 'CONFIRMADA' | 'CANCELADA';
 
 export interface ReservaClase {
   id: number;
-  clase_id: number;
-  socio_id: number;
+  claseId: number;
+  socioId: number;
   estado: EstadoReservaClase;
 }
 
@@ -22,14 +22,14 @@ export function penalidadCancelacionTardia(): number {
 }
 
 // Lo unico que M5 necesita para cobrar la penalidad y armar el comprobante:
-// quien paga (usuario_id, el Pago referencia a Usuario), el horario de la clase y
+// quien paga (usuarioId, el Pago referencia a Usuario), el horario de la clase y
 // el importe. El cruce ReservaClase -> Clase -> Socio lo resuelve el service de
 // precio de M3 (ReservaClasePrecioService).
 export interface ReservaClaseParaCobro {
-  reserva_clase_id: number;
-  socio_id: number;
-  usuario_id: number;
-  clase_id: number;
+  reservaClaseId: number;
+  socioId: number;
+  usuarioId: number;
+  claseId: number;
   horario: string;
   penalidad: number;
 }

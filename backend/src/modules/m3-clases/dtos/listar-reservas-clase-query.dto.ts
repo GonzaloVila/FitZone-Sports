@@ -12,7 +12,7 @@ export class ListarReservasClaseQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  clase_id?: number;
+  claseId?: number;
 
   @ApiPropertyOptional({
     type: 'integer', description: 'ID numérico del socio', example: 2 })
@@ -20,7 +20,7 @@ export class ListarReservasClaseQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  socio_id?: number;
+  socioId?: number;
 
   @ApiPropertyOptional({
     enum: ESTADOS,
@@ -45,5 +45,5 @@ export class ListarReservasClaseQueryDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  per_page?: number = 20;
+  perPage?: number = 20;
 }

@@ -8,7 +8,7 @@ export class RegistroQrOut {
     example: 'otpauth://totp/FitZone:socio@email.com?secret=JBSWY3DPEHPK3PXP&issuer=FitZone',
     description: 'URI del QR a escanear con una app TOTP (Google Authenticator, Authy, etc.).',
   })
-  qr_uri!: string;
+  qrUri!: string;
 
   @Expose()
   @ApiProperty({ example: 'Escaneá el QR con tu app de autenticación' })

@@ -9,5 +9,5 @@ export class EsperaIn {
   })
   @IsInt()
   @IsPositive()
-  socio_id!: number;
+  socioId!: number;
 }

@@ -51,38 +51,38 @@ export class IngresosService {
   ) {}
 
   async registrarIngreso(dto: IngresoIn): Promise<IngresoOut> {
-    const sede = await this.sedes.buscarPorId(dto.sede_id);
+    const sede = await this.sedes.buscarPorId(dto.sedeId);
     if (!sede) {
       throw recursoNoEncontrado('No existe la sede indicada.');
     }
 
     // Solo entran socios (RF-04), y con membresia vigente. La vigencia se
     // consulta por socio; un socio inactivo (baja logica) da no-vigente.
-    const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
+    const estado = await this.membresias.consultarVigenciaPorSocio(dto.socioId);
     if (!estado.vigente) {
-      throw membresiaInactiva(dto.socio_id, dto.sede_id);
+      throw membresiaInactiva(dto.socioId, dto.sedeId);
     }
 
-    // codigo_totp viene siempre (DTO lo exige); solo se verifica contra el
+    // codigoTotp viene siempre (DTO lo exige); solo se verifica contra el
     // secreto si el socio activo el QR dinamico (POST /auth/registro-qr). Si
     // nunca lo activo, se permite igual (backward compatibility, ver plan).
-    await this.totp.validarIngreso(dto.socio_id, dto.codigo_totp);
+    await this.totp.validarIngreso(dto.socioId, dto.codigoTotp);
 
     // Atajo para el caso común: evita llegar al INSERT cuando ya sabemos que
     // el socio está dentro. Corre fuera de la transacción, así que no es la
     // garantía de RN-01: dos accesos simultáneos pueden pasar los dos este
     // chequeo. Quien cierra eso es el índice parcial único, que rechaza el
     // segundo INSERT y vuelve por crear() como ACCESO_DUPLICADO.
-    const ingresoActivo = await this.ingresos.buscarActivoPorSocio(dto.socio_id);
+    const ingresoActivo = await this.ingresos.buscarActivoPorSocio(dto.socioId);
     if (ingresoActivo) {
-      throw accesoDuplicado(dto.socio_id);
+      throw accesoDuplicado(dto.socioId);
     }
 
     const resultado = await this.ingresos.crear({
-      sede_id: dto.sede_id,
-      socio_id: dto.socio_id,
-      fecha_hora_ingreso: dto.fecha_hora_ingreso ? new Date(dto.fecha_hora_ingreso) : undefined,
-      validado_offline: dto.validado_offline ?? false,
+      sedeId: dto.sedeId,
+      socioId: dto.socioId,
+      fechaHoraIngreso: dto.fechaHoraIngreso ? new Date(dto.fechaHoraIngreso) : undefined,
+      validadoOffline: dto.validadoOffline ?? false,
     });
 
     if (!resultado.ok) {
@@ -90,9 +90,9 @@ export class IngresosService {
       // Si llegamos aquí con ACCESO_DUPLICADO, es que el índice único atajó un
       // acceso duplicado que el chequeo previo no llegó a ver.
       if (resultado.motivo === 'ACCESO_DUPLICADO') {
-        throw accesoDuplicado(dto.socio_id);
+        throw accesoDuplicado(dto.socioId);
       }
-      throw aforoLleno(dto.sede_id, sede.aforo_maximo);
+      throw aforoLleno(dto.sedeId, sede.aforoMaximo);
     }
 
     return this.aOut(resultado.ingreso);
@@ -103,11 +103,11 @@ export class IngresosService {
     opciones: OpcionesPaginacion,
     scope: ScopeIngreso,
   ): Promise<IngresoOut[]> {
-    // RECEPCION solo ve su sede: se FUERZA el sede_id del JWT y se ignora el que
+    // RECEPCION solo ve su sede: se FUERZA el sedeId del JWT y se ignora el que
     // venga en el query (si viniera otro). GERENTE usa el filtro tal cual.
     const filtrosEfectivos =
       scope.rol === 'RECEPCION' && scope.sedeId !== undefined
-        ? { ...filtros, sede_id: scope.sedeId }
+        ? { ...filtros, sedeId: scope.sedeId }
         : filtros;
     const filas = await this.ingresos.listar(filtrosEfectivos, opciones);
     return filas.map((ingreso) => this.aOut(ingreso));
@@ -129,11 +129,11 @@ export class IngresosService {
 
     // RECEPCION solo egresa en su sede. El 403 va antes del chequeo de egreso
     // duplicado a propósito: no se filtra el estado de un ingreso de otra sede.
-    if (scope.rol === 'RECEPCION' && scope.sedeId !== ingreso.sede_id) {
+    if (scope.rol === 'RECEPCION' && scope.sedeId !== ingreso.sedeId) {
       throw egresoFueraDeSede(ingresoId);
     }
 
-    if (ingreso.fecha_hora_egreso) {
+    if (ingreso.fechaHoraEgreso) {
       throw egresoDuplicado(ingresoId);
     }
 
@@ -149,9 +149,9 @@ export class IngresosService {
     const aforoActual = await this.ingresos.contarActivosPorSede(sedeId);
 
     return plainToInstance(AforoOut, {
-      aforo_actual: aforoActual,
-      aforo_maximo: sede.aforo_maximo,
-      restante: sede.aforo_maximo - aforoActual,
+      aforoActual: aforoActual,
+      aforoMaximo: sede.aforoMaximo,
+      restante: sede.aforoMaximo - aforoActual,
     });
   }
 
@@ -167,63 +167,63 @@ export class IngresosService {
     const localAServerId = new Map<number, number>();
 
     for (const ing of dto.ingresos) {
-      const estado = await this.membresias.consultarVigenciaPorSocio(ing.socio_id);
+      const estado = await this.membresias.consultarVigenciaPorSocio(ing.socioId);
       if (!estado.vigente) {
         resultados.push(
-          this.resultadoIngreso(ing.local_id, false, {
+          this.resultadoIngreso(ing.localId, false, {
             error: 'USUARIO_BLOQUEADO',
-            detalle: `El socio ${ing.socio_id} no posee una membresía vigente.`,
+            detalle: `El socio ${ing.socioId} no posee una membresía vigente.`,
           }),
         );
         continue;
       }
 
-      const activo = await this.ingresos.buscarActivoPorSocio(ing.socio_id);
+      const activo = await this.ingresos.buscarActivoPorSocio(ing.socioId);
       if (activo) {
         resultados.push(
-          this.resultadoIngreso(ing.local_id, false, {
+          this.resultadoIngreso(ing.localId, false, {
             error: 'YA_DENTRO',
-            detalle: `El socio ${ing.socio_id} ya tiene un ingreso sin egreso (sede ${activo.sede_id}).`,
+            detalle: `El socio ${ing.socioId} ya tiene un ingreso sin egreso (sede ${activo.sedeId}).`,
           }),
         );
         continue;
       }
 
       const resultado = await this.ingresos.crear({
-        sede_id: sedeId,
-        socio_id: ing.socio_id,
-        fecha_hora_ingreso: new Date(ing.fecha_hora_ingreso),
-        validado_offline: true,
+        sedeId: sedeId,
+        socioId: ing.socioId,
+        fechaHoraIngreso: new Date(ing.fechaHoraIngreso),
+        validadoOffline: true,
       });
 
       if (!resultado.ok) {
         resultados.push(
-          this.resultadoIngreso(ing.local_id, false, {
+          this.resultadoIngreso(ing.localId, false, {
             error: resultado.motivo === 'AFORO_LLENO' ? 'AFORO_LLENO' : 'YA_DENTRO',
             detalle:
               resultado.motivo === 'AFORO_LLENO'
                 ? `La sede ${sedeId} alcanzó su aforo máximo.`
-                : `El socio ${ing.socio_id} ya tiene un ingreso sin egreso (RN-01).`,
+                : `El socio ${ing.socioId} ya tiene un ingreso sin egreso (RN-01).`,
           }),
         );
         continue;
       }
 
-      localAServerId.set(ing.local_id, resultado.ingreso.id);
-      resultados.push(this.resultadoIngreso(ing.local_id, true, { server_id: resultado.ingreso.id }));
+      localAServerId.set(ing.localId, resultado.ingreso.id);
+      resultados.push(this.resultadoIngreso(ing.localId, true, { serverId: resultado.ingreso.id }));
     }
 
     const egresosProcesados: ResultadoEgresoOut[] = [];
     for (const egr of dto.egresos ?? []) {
-      // ingreso_local_id referencia un local_id del MISMO lote (ver DTO): un
-      // ingreso ya sincronizado en un envío anterior no tiene local_id que
-      // resolver acá, porque ya quedó con su server_id propio.
-      const serverId = localAServerId.get(egr.ingreso_local_id);
+      // ingresoLocalId referencia un localId del MISMO lote (ver DTO): un
+      // ingreso ya sincronizado en un envío anterior no tiene localId que
+      // resolver acá, porque ya quedó con su serverId propio.
+      const serverId = localAServerId.get(egr.ingresoLocalId);
       if (serverId === undefined) {
         egresosProcesados.push(
-          this.resultadoEgreso(egr.local_id, false, {
+          this.resultadoEgreso(egr.localId, false, {
             error: 'INGRESO_NO_ENCONTRADO',
-            detalle: `No se encontró el ingreso local ${egr.ingreso_local_id} en este lote.`,
+            detalle: `No se encontró el ingreso local ${egr.ingresoLocalId} en este lote.`,
           }),
         );
         continue;
@@ -232,16 +232,16 @@ export class IngresosService {
       const ingresoActual = await this.ingresos.buscarPorId(serverId);
       if (!ingresoActual) {
         egresosProcesados.push(
-          this.resultadoEgreso(egr.local_id, false, {
+          this.resultadoEgreso(egr.localId, false, {
             error: 'INGRESO_NO_ENCONTRADO',
             detalle: `El ingreso ${serverId} no existe.`,
           }),
         );
         continue;
       }
-      if (ingresoActual.fecha_hora_egreso) {
+      if (ingresoActual.fechaHoraEgreso) {
         egresosProcesados.push(
-          this.resultadoEgreso(egr.local_id, false, {
+          this.resultadoEgreso(egr.localId, false, {
             error: 'EGRESO_DUPLICADO',
             detalle: `El ingreso ${serverId} ya tiene egreso registrado.`,
           }),
@@ -249,22 +249,22 @@ export class IngresosService {
         continue;
       }
 
-      await this.ingresos.marcarEgreso(serverId, new Date(egr.fecha_hora_egreso));
-      egresosProcesados.push(this.resultadoEgreso(egr.local_id, true));
+      await this.ingresos.marcarEgreso(serverId, new Date(egr.fechaHoraEgreso));
+      egresosProcesados.push(this.resultadoEgreso(egr.localId, true));
     }
 
     return plainToInstance(SincronizarIngresosOut, {
       resultados,
-      egresos_procesados: egresosProcesados,
+      egresosProcesados: egresosProcesados,
     });
   }
 
   private resultadoIngreso(
     localId: number,
     ok: boolean,
-    extra: Partial<Pick<ResultadoIngresoOut, 'server_id' | 'error' | 'detalle'>> = {},
+    extra: Partial<Pick<ResultadoIngresoOut, 'serverId' | 'error' | 'detalle'>> = {},
   ): ResultadoIngresoOut {
-    return plainToInstance(ResultadoIngresoOut, { local_id: localId, ok, ...extra });
+    return plainToInstance(ResultadoIngresoOut, { localId: localId, ok, ...extra });
   }
 
   private resultadoEgreso(
@@ -272,7 +272,7 @@ export class IngresosService {
     ok: boolean,
     extra: Partial<Pick<ResultadoEgresoOut, 'error' | 'detalle'>> = {},
   ): ResultadoEgresoOut {
-    return plainToInstance(ResultadoEgresoOut, { local_id: localId, ok, ...extra });
+    return plainToInstance(ResultadoEgresoOut, { localId: localId, ok, ...extra });
   }
 
   private aOut(ingreso: Ingreso): IngresoOut {

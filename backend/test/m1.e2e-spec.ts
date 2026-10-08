@@ -12,7 +12,7 @@ import { PRECIOS_PLAN } from '../src/modules/m1-usuarios/entities/membresia.enti
 //
 // Nota: M1 no tiene endpoint propio para crear Sede (eso vive en M2, que
 // todavia no esta implementado), asi que la sede necesaria para
-// SocioIn.sede_origen_id se inserta directo con Prisma en
+// SocioIn.sedeOrigenId se inserta directo con Prisma en
 // beforeAll, no via HTTP.
 
 describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
@@ -57,7 +57,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     // base, una podia borrar los fixtures de otra a mitad de run. Se filtra por el
     // prefijo de email de M1 (`socio.`), que es unico; M2 usa `m2.` y M3 usa `m3.`.
     // El alta ahora cobra la membresia (RF-02) y la baja conserva el Pago como
-    // historial con PagoMembresia.membresia_id en NULL (migracion 20261004020000),
+    // historial con PagoMembresia.membresiaId en NULL (migracion 20261004020000),
     // asi que los pagos se borran por el email del USUARIO, no por la membresia.
     const emailM1 = { email: { startsWith: 'socio.' } };
     const pagos = await prisma.pago.findMany({
@@ -105,14 +105,14 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     const crearSocioRes = await request(app.getHttpServer())
       .post('/api/v1/socios')
       .send({
-        usuario_id: usuarioId,
-        sede_origen_id: sedeId,
+        usuarioId: usuarioId,
+        sedeOrigenId: sedeId,
         plan: 'MENSUAL',
       })
       .expect(201);
 
     const socioId: number = crearSocioRes.body.id;
-    expect(crearSocioRes.body.usuario_id).toBe(usuarioId);
+    expect(crearSocioRes.body.usuarioId).toBe(usuarioId);
 
     // SocioOut expone nombre/email, tomados del Usuario relacionado. El contrato
     // los marca required, asi que tienen que venir en el POST, no solo en el GET.
@@ -135,19 +135,19 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     // PATCH /socios/{id}: los sigue exponiendo (mismo camino de actualizar)
     const socioPatched = await request(app.getHttpServer())
       .patch(`/api/v1/socios/${socioId}`)
-      .send({ sede_origen_id: sedeId })
+      .send({ sedeOrigenId: sedeId })
       .expect(200);
     expect(socioPatched.body.nombre).toBe('Socio E2E');
     expect(socioPatched.body.email).toBe(emailDelSocio);
 
-    // 3) GET /socios/{socioId}/membresias -> fecha_fin = fecha_inicio + 1 mes
+    // 3) GET /socios/{socioId}/membresias -> fechaFin = fechaInicio + 1 mes
     const membresiaRes = await request(app.getHttpServer())
       .get(`/api/v1/socios/${socioId}/membresias`)
       .expect(200);
 
     expect(membresiaRes.body.plan).toBe('MENSUAL');
-    const inicio = new Date(membresiaRes.body.fecha_inicio);
-    const fin = new Date(membresiaRes.body.fecha_fin);
+    const inicio = new Date(membresiaRes.body.fechaInicio);
+    const fin = new Date(membresiaRes.body.fechaFin);
     const esperado = new Date(inicio);
     esperado.setMonth(esperado.getMonth() + 1);
     expect(fin.toISOString().slice(0, 10)).toBe(esperado.toISOString().slice(0, 10));
@@ -185,8 +185,8 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     const socio = await request(app.getHttpServer())
       .post('/api/v1/socios')
       .send({
-        usuario_id: usuarioId,
-        sede_origen_id: sedeId,
+        usuarioId: usuarioId,
+        sedeOrigenId: sedeId,
         plan: 'MENSUAL',
       })
       .expect(201);
@@ -242,7 +242,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     const socio = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .send({ usuarioId: usuarioId, sedeOrigenId: sedeId, plan: 'MENSUAL' })
       .expect(201);
     const socioId = socio.body.id;
 
@@ -251,7 +251,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .delete(`/api/v1/socios/${socioId}`)
       .expect(204);
 
-    // La fila sigue existiendo en la base, inactiva, con fecha_baja (baja lógica).
+    // La fila sigue existiendo en la base, inactiva, con fechaBaja (baja lógica).
     const fila = await prisma.socio.findUnique({ where: { id: socioId } });
     expect(fila).not.toBeNull();
     expect(fila!.activo).toBe(false);
@@ -268,7 +268,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     // Re-alta del mismo usuario: reactiva la MISMA fila (no inserta otra).
     const reAlta = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'TRIMESTRAL' })
+      .send({ usuarioId: usuarioId, sedeOrigenId: sedeId, plan: 'TRIMESTRAL' })
       .expect(201);
     expect(reAlta.body.id).toBe(socioId);
 
@@ -299,14 +299,14 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     // Sin filtros devuelve un array plano, no un objeto paginado. No se puede
     // afirmar length: la base puede traer datos de otros tests y el default de
-    // per_page es 20, asi que se busca al usuario dentro del array.
+    // perPage es 20, asi que se busca al usuario dentro del array.
     //
-    // per_page=100 explicito: con el default 20, los fixtures de este spec se
+    // perPage=100 explicito: con el default 20, los fixtures de este spec se
     // caian fuera de la pagina cuando otra suite agrega usuarios en paralelo
     // (vitest corre los archivos concurrentemente contra la misma base).
     const todos = await request(app.getHttpServer())
       .get('/api/v1/usuarios')
-      .query({ per_page: 100 })
+      .query({ perPage: 100 })
       .expect(200);
     expect(Array.isArray(todos.body)).toBe(true);
     const ana = todos.body.find((u) => u.email === emailAna);
@@ -343,10 +343,10 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     expect(gerentes.body.every((u) => u.rol === 'GERENTE')).toBe(true);
 
     // paginacion. Ademas de acotar la pagina, prueba que el @Type(() => Number)
-    // convierte: si per_page quedara como string, @IsInt() responderia 422.
+    // convierte: si perPage quedara como string, @IsInt() responderia 422.
     const primeraPagina = await request(app.getHttpServer())
       .get('/api/v1/usuarios')
-      .query({ page: 1, per_page: 1 })
+      .query({ page: 1, perPage: 1 })
       .expect(200);
     expect(primeraPagina.body).toHaveLength(1);
 
@@ -378,7 +378,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .expect(201);
     const socioConMembresia = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioCarlos.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .send({ usuarioId: usuarioCarlos.body.id, sedeOrigenId: sedeId, plan: 'MENSUAL' })
       .expect(201);
 
     // Socio con plan ANUAL: como no existe un socio sin membresia, la
@@ -396,7 +396,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .expect(201);
     const socioOtroPlan = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioZoe.body.id, sede_origen_id: sedeId, plan: 'ANUAL' })
+      .send({ usuarioId: usuarioZoe.body.id, sedeOrigenId: sedeId, plan: 'ANUAL' })
       .expect(201);
 
     const idCon = socioConMembresia.body.id;
@@ -413,20 +413,20 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     // Filtro por sede de origen (columna, no relacion)
     const porSede = await request(app.getHttpServer())
       .get('/api/v1/socios')
-      .query({ sede_origen_id: sedeId })
+      .query({ sedeOrigenId: sedeId })
       .expect(200);
     expect(porSede.body.map((s) => s.id)).toContain(idCon);
 
     const otraSede = await request(app.getHttpServer())
       .get('/api/v1/socios')
-      .query({ sede_origen_id: sedeId + 9999 })
+      .query({ sedeOrigenId: sedeId + 9999 })
       .expect(200);
     expect(otraSede.body).toHaveLength(0);
 
     // Los filtros de membresia cruzan la relacion 1:1
     const porEstado = await request(app.getHttpServer())
       .get('/api/v1/socios')
-      .query({ estado_membresia: 'ACTIVA' })
+      .query({ estadoMembresia: 'ACTIVA' })
       .expect(200);
     expect(porEstado.body.map((s) => s.id)).toContain(idCon);
 
@@ -439,7 +439,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     // estado + plan se ANDean sobre la MISMA relacion
     const combinado = await request(app.getHttpServer())
       .get('/api/v1/socios')
-      .query({ estado_membresia: 'ACTIVA', plan: 'MENSUAL' })
+      .query({ estadoMembresia: 'ACTIVA', plan: 'MENSUAL' })
       .expect(200);
     expect(combinado.body.map((s) => s.id)).toContain(idCon);
 
@@ -477,14 +477,14 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .expect(422);
     await request(app.getHttpServer())
       .get('/api/v1/socios')
-      .query({ estado_membresia: 'INVENTADO' })
+      .query({ estadoMembresia: 'INVENTADO' })
       .expect(422);
   });
 
   it('POST /socios responde 404 si usuario_id no existe', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: 999999, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .send({ usuarioId: 999999, sedeOrigenId: sedeId, plan: 'MENSUAL' })
       .expect(404);
   });
 
@@ -503,14 +503,14 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioId, sede_origen_id: sedeId })
+      .send({ usuarioId: usuarioId, sedeOrigenId: sedeId })
       .expect(422);
 
     // El rechazo es total: no queda un socio a medias. El usuario sigue siendo
     // EXTERNO, asi que un reintento con plan funciona.
     const reintento = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .send({ usuarioId: usuarioId, sedeOrigenId: sedeId, plan: 'MENSUAL' })
       .expect(201);
 
     const membresiaRes = await request(app.getHttpServer())
@@ -520,7 +520,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
   });
 
   it('PATCH /usuarios/{id} acepta null para limpiar telefono y foto_url', async () => {
-    // El contrato declara telefono y foto_url como nullable en UsuarioPatch, asi
+    // El contrato declara telefono y fotoUrl como nullable en UsuarioPatch, asi
     // que mandarlos en null tiene que persistir el borrado y no un 422. El tipo
     // del DTO era `string | undefined`, que no permitia el null que el contrato
     // promete; y modificar() compara con `!== undefined`, no con falsy, asi que
@@ -534,27 +534,27 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
         email: emailUnico(),
         contrasenia: 'clave12345',
         telefono: '+54 351 555-0000',
-        foto_url: 'https://cdn.fitzone.com.ar/fotos/patch.jpg',
+        fotoUrl: 'https://cdn.fitzone.com.ar/fotos/patch.jpg',
       })
       .expect(201);
     const usuarioId = usuarioRes.body.id;
     expect(usuarioRes.body.telefono).toBe('+54 351 555-0000');
-    expect(usuarioRes.body.foto_url).toBe('https://cdn.fitzone.com.ar/fotos/patch.jpg');
+    expect(usuarioRes.body.fotoUrl).toBe('https://cdn.fitzone.com.ar/fotos/patch.jpg');
 
     const limpiado = await request(app.getHttpServer())
       .patch(`/api/v1/usuarios/${usuarioId}`)
-      .send({ telefono: null, foto_url: null })
+      .send({ telefono: null, fotoUrl: null })
       .expect(200);
 
     expect(limpiado.body.telefono).toBeNull();
-    expect(limpiado.body.foto_url).toBeNull();
+    expect(limpiado.body.fotoUrl).toBeNull();
 
     // Y el GET confirma que quedo en la base, no solo en la respuesta del PATCH.
     const despues = await request(app.getHttpServer())
       .get(`/api/v1/usuarios/${usuarioId}`)
       .expect(200);
     expect(despues.body.telefono).toBeNull();
-    expect(despues.body.foto_url).toBeNull();
+    expect(despues.body.fotoUrl).toBeNull();
   });
 
   it('POST /socios responde 409 si el usuario ya es socio', async () => {
@@ -572,18 +572,18 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .send({ usuarioId: usuarioId, sedeOrigenId: sedeId, plan: 'MENSUAL' })
       .expect(201);
 
     await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .send({ usuarioId: usuarioId, sedeOrigenId: sedeId, plan: 'MENSUAL' })
       .expect(409);
   });
 
   // El enum de entrada de MembresiaPatch.estado es [ACTIVA, SUSPENDIDA]: VENCIDA
   // queda afuera porque solo lo produce el proceso diario que vence las membresias
-  // con fecha_fin ya pasada. Aceptarlo por API dejaba un VENCIDA con fecha_fin
+  // con fechaFin ya pasada. Aceptarlo por API dejaba un VENCIDA con fechaFin
   // futura, y esa fila la daba por vigente `estaVigente`
   // (m.estado !== 'SUSPENDIDA' && m.fecha_fin >= ahora), dejando entrar al socio.
   it('PATCH /socios/{id}/membresias con estado VENCIDA responde 422', async () => {
@@ -600,7 +600,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     const socioRes = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioRes.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .send({ usuarioId: usuarioRes.body.id, sedeOrigenId: sedeId, plan: 'MENSUAL' })
       .expect(201);
     const socioId: number = socioRes.body.id;
 
@@ -614,12 +614,12 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     expect(Array.isArray(res.body.errors)).toBe(true);
     expect(res.body.errors.join(' ')).toContain('estado');
 
-    // La fila no se toco: sigue ACTIVA y con fecha_fin en el futuro.
+    // La fila no se toco: sigue ACTIVA y con fechaFin en el futuro.
     const get = await request(app.getHttpServer())
       .get(`/api/v1/socios/${socioId}/membresias`)
       .expect(200);
     expect(get.body.estado).toBe('ACTIVA');
-    expect(new Date(get.body.fecha_fin).getTime()).toBeGreaterThan(Date.now());
+    expect(new Date(get.body.fechaFin).getTime()).toBeGreaterThan(Date.now());
   });
 
   it('PATCH /socios/{id}/membresias suspende y reactiva una membresia', async () => {
@@ -636,7 +636,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     const socioRes = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioRes.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .send({ usuarioId: usuarioRes.body.id, sedeOrigenId: sedeId, plan: 'MENSUAL' })
       .expect(201);
     const socioId: number = socioRes.body.id;
 
@@ -646,15 +646,15 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
       .expect(200);
     expect(suspender.body.estado).toBe('SUSPENDIDA');
 
-    // Reactivar solo cambia `estado`: la fecha_fin no se recalcula porque el PATCH
+    // Reactivar solo cambia `estado`: la fechaFin no se recalcula porque el PATCH
     // no manda `plan`, y la membresia sigue vigente en el tiempo.
-    const fechaFin = suspender.body.fecha_fin;
+    const fechaFin = suspender.body.fechaFin;
     const reactivar = await request(app.getHttpServer())
       .patch(`/api/v1/socios/${socioId}/membresias`)
       .send({ estado: 'ACTIVA' })
       .expect(200);
     expect(reactivar.body.estado).toBe('ACTIVA');
-    expect(reactivar.body.fecha_fin).toBe(fechaFin);
+    expect(reactivar.body.fechaFin).toBe(fechaFin);
   });
 
   // El cambio de plan es la unica operacion de M1 que toca el precio, asi que se
@@ -674,7 +674,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     const socioRes = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioRes.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .send({ usuarioId: usuarioRes.body.id, sedeOrigenId: sedeId, plan: 'MENSUAL' })
       .expect(201);
     const socioId: number = socioRes.body.id;
 
@@ -704,7 +704,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     expect(Math.abs(inicio - ahora)).toBeLessThanOrEqual(60_000);
 
     // 3) `fecha_fin` se recalcula a un trimestre DESDE el nuevo inicio. Si solo se
-    //    hubiera escrito fecha_fin (el bug que cubria este test), fecha_inicio seguia
+    //    hubiera escrito fechaFin (el bug que cubria este test), fechaInicio seguia
     //    siendo la del alta y el par describia un periodo ya vencido a medias.
     const esperado = new Date(despues.fecha_inicio);
     esperado.setMonth(esperado.getMonth() + 3);
@@ -713,7 +713,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     // 4) El cambio es INMEDIATO: el periodo nuevo arranca antes de que terminara el
     //    viejo y los dias que quedaban no se trasladan. Si la implementacion
-    //    encadenara los periodos (anclar el nuevo en la fecha_fin anterior), el socio
+    //    encadenara los periodos (anclar el nuevo en la fechaFin anterior), el socio
     //    pagaria de mas este mes y la asercion 2 ya habria fallado.
     expect(new Date(despues.fecha_inicio).getTime()).toBeLessThan(
       new Date(antes.fecha_fin).getTime(),
@@ -759,7 +759,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
   });
 
   it('PATCH /socios/{socio_id} con body vacio responde 422 y no 500', async () => {
-    // SocioPatch tiene un solo campo (sede_origen_id) y es opcional: con {} el
+    // SocioPatch tiene un solo campo (sedeOrigenId) y es opcional: con {} el
     // service construye un objeto de cambios vacio y lo pasa igual.
     const usuarioRes = await request(app.getHttpServer())
       .post('/api/v1/usuarios')
@@ -774,7 +774,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     const socioRes = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioRes.body.id, sede_origen_id: sedeId, plan: 'MENSUAL' })
+      .send({ usuarioId: usuarioRes.body.id, sedeOrigenId: sedeId, plan: 'MENSUAL' })
       .expect(201);
 
     const vacio = await request(app.getHttpServer())
@@ -788,13 +788,13 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     const despues = await request(app.getHttpServer())
       .get(`/api/v1/socios/${socioRes.body.id}`)
       .expect(200);
-    expect(despues.body.sede_origen_id).toBe(sedeId);
+    expect(despues.body.sedeOrigenId).toBe(sedeId);
   });
 
   it('PATCH /socios/{socio_id}/membresias con body vacio responde 422 y no deja la membresia a medias', async () => {
     // Este es el caso mas delicado de los tres: MembresiaRepository arma el data
     // asignando los tres campos sin condicion, asi que con {} le llega
-    // {plan: undefined, renueva_automatica: undefined, estado: undefined}.
+    // {plan: undefined, renuevaAutomatica: undefined, estado: undefined}.
     const usuarioRes = await request(app.getHttpServer())
       .post('/api/v1/usuarios')
       .send({
@@ -808,7 +808,7 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
 
     const socioRes = await request(app.getHttpServer())
       .post('/api/v1/socios')
-      .send({ usuario_id: usuarioRes.body.id, sede_origen_id: sedeId, plan: 'TRIMESTRAL' })
+      .send({ usuarioId: usuarioRes.body.id, sedeOrigenId: sedeId, plan: 'TRIMESTRAL' })
       .expect(201);
 
     const antes = await request(app.getHttpServer())
@@ -823,14 +823,14 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     expect(vacio.headers['content-type']).toContain('application/problem+json');
     expect(vacio.body.status).toBe(422);
 
-    // Ni el estado ni el plan ni la fecha_fin pueden haber cambiado: si el update
+    // Ni el estado ni el plan ni la fechaFin pueden haber cambiado: si el update
     // hubiera corrido con data vacio, la membresia quedaria incoherentente.
     const despues = await request(app.getHttpServer())
       .get(`/api/v1/socios/${socioRes.body.id}/membresias`)
       .expect(200);
     expect(despues.body.estado).toBe(antes.body.estado);
     expect(despues.body.plan).toBe(antes.body.plan);
-    expect(despues.body.fecha_fin).toBe(antes.body.fecha_fin);
-    expect(despues.body.renueva_automatica).toBe(antes.body.renueva_automatica);
+    expect(despues.body.fechaFin).toBe(antes.body.fechaFin);
+    expect(despues.body.renuevaAutomatica).toBe(antes.body.renuevaAutomatica);
   });
 });

@@ -8,7 +8,7 @@ export class ClaseOut {
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
-  sede_id!: number;
+  sedeId!: number;
 
   @Expose()
   @ApiProperty({ example: 'Spinning' })
@@ -32,7 +32,7 @@ export class ClaseOut {
     example: 5,
     description: 'Cantidad de reservas confirmadas activas',
   })
-  reservas_confirmadas!: number;
+  reservasConfirmadas!: number;
 
   @Expose()
   @ApiProperty({
@@ -40,5 +40,5 @@ export class ClaseOut {
     example: 15,
     description: 'Cupo disponible en tiempo real',
   })
-  cupo_disponible!: number;
+  cupoDisponible!: number;
 }

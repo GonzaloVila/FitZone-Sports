@@ -10,5 +10,5 @@ export class ListarBloqueadosQueryDto {
   })
   @IsOptional()
   @IsDateString()
-  actualizado_desde?: string;
+  actualizadoDesde?: string;
 }

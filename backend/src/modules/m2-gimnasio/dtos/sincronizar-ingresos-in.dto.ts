@@ -10,19 +10,19 @@ export class IngresoASincronizarDto {
   })
   @IsInt()
   @Min(1)
-  local_id!: number;
+  localId!: number;
 
   @ApiProperty({ type: 'integer', description: 'Socio que ingresó.', example: 123 })
   @IsInt()
   @Min(1)
-  socio_id!: number;
+  socioId!: number;
 
   @ApiProperty({
     description: 'Momento real del acceso, registrado por el puesto mientras estaba sin conexión.',
     example: '2026-10-03T22:15:00Z',
   })
   @IsDateString()
-  fecha_hora_ingreso!: string;
+  fechaHoraIngreso!: string;
 }
 
 export class EgresoASincronizarDto {
@@ -33,7 +33,7 @@ export class EgresoASincronizarDto {
   })
   @IsInt()
   @Min(1)
-  local_id!: number;
+  localId!: number;
 
   @ApiProperty({
     type: 'integer',
@@ -42,11 +42,11 @@ export class EgresoASincronizarDto {
   })
   @IsInt()
   @Min(1)
-  ingreso_local_id!: number;
+  ingresoLocalId!: number;
 
   @ApiProperty({ description: 'Momento real del egreso.', example: '2026-10-03T23:00:00Z' })
   @IsDateString()
-  fecha_hora_egreso!: string;
+  fechaHoraEgreso!: string;
 }
 
 export class SincronizarIngresosIn {

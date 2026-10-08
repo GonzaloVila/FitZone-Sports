@@ -24,7 +24,7 @@ export class ListarSociosQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  sede_origen_id?: number;
+  sedeOrigenId?: number;
 
   @ApiPropertyOptional({
     enum: ESTADOS,
@@ -32,7 +32,7 @@ export class ListarSociosQueryDto {
   })
   @IsOptional()
   @IsIn(ESTADOS)
-  estado_membresia?: EstadoMembresia;
+  estadoMembresia?: EstadoMembresia;
 
   @ApiPropertyOptional({
     enum: PLANES,
@@ -64,5 +64,5 @@ export class ListarSociosQueryDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  per_page?: number = 20;
+  perPage?: number = 20;
 }

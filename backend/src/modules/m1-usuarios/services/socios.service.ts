@@ -34,13 +34,13 @@ export class SociosService {
   }
 
   // Para TotpService (modules/auth): resolver si el socio tiene QR dinamico
-  // activo y, de tenerlo, el secreto cifrado para validar un codigo_totp.
+  // activo y, de tenerlo, el secreto cifrado para validar un codigoTotp.
   // null = el usuario no es socio (sin fila en Socio).
   async obtenerEstadoTotp(usuarioId: number): Promise<SocioTotp | null> {
     return this.socios.buscarTotpPorUsuarioId(usuarioId);
   }
 
-  // Igual que obtenerEstadoTotp, pero por socio_id (M2 referencia socios ahora).
+  // Igual que obtenerEstadoTotp, pero por socioId (M2 referencia socios ahora).
   async obtenerEstadoTotpPorSocio(socioId: number): Promise<SocioTotp | null> {
     return this.socios.buscarTotpPorSocioId(socioId);
   }
@@ -52,7 +52,7 @@ export class SociosService {
     await this.socios.guardarTotpSecreto(usuarioId, secretoCifrado);
   }
 
-  // Para AuthService (login): el JWT de un SOCIO lleva su socio_id, asi la app
+  // Para AuthService (login): el JWT de un SOCIO lleva su socioId, asi la app
   // puede mandarlo en POST /ingresos sin resolverlo aparte. null = el usuario no
   // es socio activo.
   async obtenerSocioIdPorUsuario(usuarioId: number): Promise<number | null> {
@@ -65,12 +65,12 @@ export class SociosService {
   // `obtenerSocioIdPorUsuario`.
   async obtenerUsuarioIdPorSocio(socioId: number): Promise<number | null> {
     const socio = await this.socios.buscarPorId(socioId);
-    return socio?.usuario_id ?? null;
+    return socio?.usuarioId ?? null;
   }
 
 
   async crear(dto: SocioIn): Promise<SocioOut> {
-    const usuario = await this.usuarios.buscarPorId(dto.usuario_id);
+    const usuario = await this.usuarios.buscarPorId(dto.usuarioId);
     if (!usuario) {
       throw recursoNoEncontrado('No existe el usuario indicado.');
     }
@@ -80,8 +80,8 @@ export class SociosService {
 
     // Alta = socio + membresía + rol, todo en una tx (socio.repository).
     const socio = await this.socios.crear({
-      usuario_id: dto.usuario_id,
-      sede_origen_id: dto.sede_origen_id,
+      usuarioId: dto.usuarioId,
+      sedeOrigenId: dto.sedeOrigenId,
       plan: dto.plan,
     });
 
@@ -91,9 +91,9 @@ export class SociosService {
     try {
       const membresia = await this.membresias.obtenerPorSocioId(socio.id);
       await this.eventos.emitAsync(EVENTO_SOCIO_ALTA, {
-        socio_id: socio.id,
-        membresia_id: membresia.id,
-        usuario_id: socio.usuario_id,
+        socioId: socio.id,
+        membresiaId: membresia.id,
+        usuarioId: socio.usuarioId,
         precio: PRECIOS_PLAN[dto.plan],
         plan: dto.plan,
       });
@@ -109,12 +109,12 @@ export class SociosService {
   async listar(dto: ListarSociosQueryDto): Promise<SocioOut[]> {
     const socios = await this.socios.listar(
       {
-        sede_origen_id: dto.sede_origen_id,
-        estado_membresia: dto.estado_membresia,
+        sedeOrigenId: dto.sedeOrigenId,
+        estadoMembresia: dto.estadoMembresia,
         plan: dto.plan,
         nombre: dto.nombre,
       },
-      { page: dto.page ?? 1, perPage: dto.per_page ?? 20 },
+      { page: dto.page ?? 1, perPage: dto.perPage ?? 20 },
     );
     return socios.map((socio) => this.aOut(socio));
   }
@@ -129,8 +129,8 @@ export class SociosService {
 
   async modificar(id: number, dto: SocioPatch): Promise<SocioOut> {
     const cambios: SocioActualizable = {};
-    if (dto.sede_origen_id !== undefined) {
-      cambios.sede_origen_id = dto.sede_origen_id;
+    if (dto.sedeOrigenId !== undefined) {
+      cambios.sedeOrigenId = dto.sedeOrigenId;
     }
 
     // SocioPatch tiene un solo campo y es opcional, asi que con body {} el objeto

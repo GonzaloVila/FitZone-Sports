@@ -71,28 +71,28 @@ function conceptoPago(): SchemaObject {
     oneOf: [
       {
         type: 'object',
-        required: ['tipo', 'reserva_cancha_id'],
+        required: ['tipo', 'reservaCanchaId'],
         properties: {
           tipo: { type: 'string', enum: ['RESERVA_CANCHA'] },
-          reserva_cancha_id: { type: 'integer' },
+          reservaCanchaId: { type: 'integer' },
         },
         additionalProperties: false,
       },
       {
         type: 'object',
-        required: ['tipo', 'membresia_id'],
+        required: ['tipo', 'membresiaId'],
         properties: {
           tipo: { type: 'string', enum: ['MEMBRESIA'] },
-          membresia_id: { type: 'integer' },
+          membresiaId: { type: 'integer' },
         },
         additionalProperties: false,
       },
       {
         type: 'object',
-        required: ['tipo', 'reserva_clase_id'],
+        required: ['tipo', 'reservaClaseId'],
         properties: {
           tipo: { type: 'string', enum: ['RESERVA_CLASE'] },
-          reserva_clase_id: { type: 'integer' },
+          reservaClaseId: { type: 'integer' },
         },
         additionalProperties: false,
       },

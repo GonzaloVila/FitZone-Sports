@@ -22,7 +22,13 @@ export class SedeRepository {
   }
 
   async crear(sede: SedeNueva): Promise<Sede> {
-    const fila = await this.prisma.sede.create({ data: sede });
+    const fila = await this.prisma.sede.create({
+      data: {
+        nombre: sede.nombre,
+        direccion: sede.direccion,
+        aforo_maximo: sede.aforoMaximo,
+      },
+    });
     return this.aDominio(fila);
   }
 
@@ -36,7 +42,7 @@ export class SedeRepository {
       id: fila.id,
       nombre: fila.nombre,
       direccion: fila.direccion,
-      aforo_maximo: fila.aforo_maximo,
+      aforoMaximo: fila.aforo_maximo,
     };
   }
 }

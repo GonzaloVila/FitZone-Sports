@@ -21,7 +21,7 @@ export class ListarPagosQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  usuario_id?: number;
+  usuarioId?: number;
 
   // Sin `default` en el Swagger a propósito: el contrato declara el filtro como
   // `$ref: EstadoPago` sin default, y la regla "sin estado devuelve solo APROBADO"
@@ -58,7 +58,7 @@ export class ListarPagosQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  reserva_cancha_id?: number;
+  reservaCanchaId?: number;
 
   @ApiPropertyOptional({
     type: 'integer',
@@ -70,7 +70,7 @@ export class ListarPagosQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  membresia_id?: number;
+  membresiaId?: number;
 
   @ApiPropertyOptional({
     type: 'integer',
@@ -82,7 +82,7 @@ export class ListarPagosQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  reserva_clase_id?: number;
+  reservaClaseId?: number;
 
   // El patrón fija "un día, no un instante" y el `IsISO8601` descarta los días que el
   // patrón acepta pero no existen (2026-02-30), que si no llegarían a `rangoDelDia()` y
@@ -122,5 +122,5 @@ export class ListarPagosQueryDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  per_page?: number = 20;
+  perPage?: number = 20;
 }

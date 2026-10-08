@@ -17,5 +17,5 @@ export class SedeOut {
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 120 })
-  aforo_maximo!: number;
+  aforoMaximo!: number;
 }

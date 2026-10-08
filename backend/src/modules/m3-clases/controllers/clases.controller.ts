@@ -86,25 +86,25 @@ export class ClasesController {
     return this.clasesService.listarClases(query);
   }
 
-  @Get(':clase_id')
+  @Get(':claseId')
   @ApiOperation({ operationId: 'obtenerClase', summary: 'Obtener clase por id' })
-  @ApiParam({ name: 'clase_id', type: 'integer', description: 'ID numérico de la clase', example: 1 })
+  @ApiParam({ name: 'claseId', type: 'integer', description: 'ID numérico de la clase', example: 1 })
   @ApiOkResponse({ description: 'Detalle de la clase y aforo disponible', type: ClaseOut })
   @ApiNotFoundResponse({ description: 'Clase no encontrada', content: PROBLEM_JSON })
-  obtener(@Param('clase_id', ParseIntPipe) clase_id: number): Promise<ClaseOut> {
-    return this.clasesService.obtenerClase(clase_id);
+  obtener(@Param('claseId', ParseIntPipe) claseId: number): Promise<ClaseOut> {
+    return this.clasesService.obtenerClase(claseId);
   }
 
   // Estas dos operaciones viven acá y no en ReservasClasesController /
   // EsperasClasesController porque el contrato las agrupa bajo el tag `clases`:
   // son vistas de la clase, no del recurso reserva o espera. @ApiTags a nivel de
   // metodo se SUMA al del controller, as que solo asi se puede dejar un solo tag.
-  @Get(':clase_id/reservas')
+  @Get(':claseId/reservas')
   @ApiOperation({
     operationId: 'listarReservasDeClase',
     summary: 'Listado de reservas de una clase',
   })
-  @ApiParam({ name: 'clase_id', type: 'integer', description: 'ID de la clase', example: 1 })
+  @ApiParam({ name: 'claseId', type: 'integer', description: 'ID de la clase', example: 1 })
   @ApiOkResponse({
     description: 'Listado de reservas de la clase',
     type: [ReservaClaseOut],
@@ -112,18 +112,18 @@ export class ClasesController {
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Clase no encontrada', content: PROBLEM_JSON })
   listarReservasDeClase(
-    @Param('clase_id', ParseIntPipe) clase_id: number,
+    @Param('claseId', ParseIntPipe) claseId: number,
     @Query() query: ListarReservasDeClaseQueryDto,
   ): Promise<ReservaClaseOut[]> {
-    return this.reservasService.listarReservasDeClase(clase_id, query);
+    return this.reservasService.listarReservasDeClase(claseId, query);
   }
 
-  @Get(':clase_id/espera')
+  @Get(':claseId/espera')
   @ApiOperation({
     operationId: 'listarEsperaDeClase',
     summary: 'Listado de la lista de espera de una clase',
   })
-  @ApiParam({ name: 'clase_id', type: 'integer', description: 'ID de la clase', example: 1 })
+  @ApiParam({ name: 'claseId', type: 'integer', description: 'ID de la clase', example: 1 })
   @ApiOkResponse({
     description: 'Listado de solicitudes en lista de espera de la clase',
     type: [EsperaOut],
@@ -131,9 +131,9 @@ export class ClasesController {
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Clase no encontrada', content: PROBLEM_JSON })
   listarEsperaDeClase(
-    @Param('clase_id', ParseIntPipe) clase_id: number,
+    @Param('claseId', ParseIntPipe) claseId: number,
     @Query() query: ListarEsperaDeClaseQueryDto,
   ): Promise<EsperaOut[]> {
-    return this.esperasService.listarEsperaDeClase(clase_id, query);
+    return this.esperasService.listarEsperaDeClase(claseId, query);
   }
 }

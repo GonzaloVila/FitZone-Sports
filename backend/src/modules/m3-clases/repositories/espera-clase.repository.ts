@@ -11,8 +11,8 @@ import type {
 import type { ReservaClase } from '../entities/reserva-clase.entity';
 
 export interface FiltrosEsperasClase {
-  clase_id?: number;
-  socio_id?: number;
+  claseId?: number;
+  socioId?: number;
   estado?: EstadoEspera;
 }
 
@@ -39,12 +39,12 @@ export class EsperaClaseRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async listar(
-    { clase_id, socio_id, estado }: FiltrosEsperasClase,
+    { claseId, socioId, estado }: FiltrosEsperasClase,
     { page, perPage }: OpcionesPaginacion,
   ): Promise<EsperaClase[]> {
     const where: Prisma.EsperaClaseWhereInput = {
-      ...(clase_id !== undefined && { clase_id }),
-      ...(socio_id !== undefined && { socio_id }),
+      ...(claseId !== undefined && { clase_id: claseId }),
+      ...(socioId !== undefined && { socio_id: socioId }),
       ...(estado !== undefined && { estado }),
     };
 
@@ -52,7 +52,7 @@ export class EsperaClaseRepository {
       where,
       skip: (page - 1) * perPage,
       take: perPage,
-      // El id desempata: fecha_anotacion es TIMESTAMP(3) y la genera la app con
+      // El id desempata: fechaAnotacion es TIMESTAMP(3) y la genera la app con
       // new Date(), así que dos socios que se anotan en el mismo milisegundo
       // empatan. Sin un orden total, skip/take puede repetir o saltear filas
       // entre páginas. Mismo criterio que Ingreso.listar.
@@ -64,7 +64,7 @@ export class EsperaClaseRepository {
 
   async crear(espera: EsperaClaseNueva): Promise<ResultadoCrearEspera> {
     const clase = await this.prisma.clase.findUnique({
-      where: { id: espera.clase_id },
+      where: { id: espera.claseId },
       include: {
         _count: {
           select: {
@@ -86,8 +86,8 @@ export class EsperaClaseRepository {
     // Comprobación de no duplicidad en espera activa
     const esperaPrevia = await this.prisma.esperaClase.findFirst({
       where: {
-        clase_id: espera.clase_id,
-        socio_id: espera.socio_id,
+        clase_id: espera.claseId,
+        socio_id: espera.socioId,
         estado: { in: ['EN_ESPERA', 'NOTIFICADO'] },
       },
     });
@@ -99,8 +99,8 @@ export class EsperaClaseRepository {
     // Comprobación de que no tenga ya reserva confirmada
     const reservaPrevia = await this.prisma.reservaClase.findFirst({
       where: {
-        clase_id: espera.clase_id,
-        socio_id: espera.socio_id,
+        clase_id: espera.claseId,
+        socio_id: espera.socioId,
         estado: 'CONFIRMADA',
       },
     });
@@ -109,22 +109,14 @@ export class EsperaClaseRepository {
       return { ok: false as const, motivo: 'ESPERA_EXISTENTE' as const };
     }
 
-    let fila: {
-      id: number;
-      clase_id: number;
-      socio_id: number;
-      estado: string;
-      fecha_anotacion: Date;
-      fecha_notificacion: Date | null;
-      fecha_confirmacion: Date | null;
-    };
+    let fila: Prisma.EsperaClaseGetPayload<Record<string, never>>;
     try {
       fila = await this.prisma.esperaClase.create({
         data: {
-          clase_id: espera.clase_id,
-          socio_id: espera.socio_id,
+          clase_id: espera.claseId,
+          socio_id: espera.socioId,
           estado: 'EN_ESPERA',
-          fecha_anotacion: espera.fecha_anotacion ?? new Date(),
+          fecha_anotacion: espera.fechaAnotacion ?? new Date(),
         },
       });
     } catch (error) {
@@ -278,8 +270,8 @@ export class EsperaClaseRepository {
           ok: true as const,
           reserva: {
             id: reservaFila.id,
-            clase_id: reservaFila.clase_id,
-            socio_id: reservaFila.socio_id,
+            claseId: reservaFila.clase_id,
+            socioId: reservaFila.socio_id,
             estado: reservaFila.estado as 'CONFIRMADA' | 'CANCELADA',
           },
         };
@@ -292,23 +284,15 @@ export class EsperaClaseRepository {
     }
   }
 
-  private aDominio(fila: {
-    id: number;
-    clase_id: number;
-    socio_id: number;
-    estado: string;
-    fecha_anotacion: Date;
-    fecha_notificacion: Date | null;
-    fecha_confirmacion: Date | null;
-  }): EsperaClase {
+  private aDominio(fila: Prisma.EsperaClaseGetPayload<Record<string, never>>): EsperaClase {
     return {
       id: fila.id,
-      clase_id: fila.clase_id,
-      socio_id: fila.socio_id,
+      claseId: fila.clase_id,
+      socioId: fila.socio_id,
       estado: fila.estado as EsperaClase['estado'],
-      fecha_anotacion: fila.fecha_anotacion,
-      fecha_notificacion: fila.fecha_notificacion,
-      fecha_confirmacion: fila.fecha_confirmacion,
+      fechaAnotacion: fila.fecha_anotacion,
+      fechaNotificacion: fila.fecha_notificacion,
+      fechaConfirmacion: fila.fecha_confirmacion,
     };
   }
 }

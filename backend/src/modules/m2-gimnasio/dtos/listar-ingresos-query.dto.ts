@@ -8,14 +8,14 @@ export class ListarIngresosQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  sede_id?: number;
+  sedeId?: number;
 
   @ApiPropertyOptional({ type: 'integer', description: 'ID numérico del socio que ingresó', example: 2 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  socio_id?: number;
+  socioId?: number;
 
   @ApiPropertyOptional({
     type: 'string',
@@ -69,5 +69,5 @@ export class ListarIngresosQueryDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  per_page?: number = 20;
+  perPage?: number = 20;
 }

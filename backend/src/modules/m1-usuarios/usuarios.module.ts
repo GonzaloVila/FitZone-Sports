@@ -26,7 +26,7 @@ import { UsuariosService } from './services/usuarios.service';
 //
 // UsuariosService se agrega a exports para AuthModule (login): necesita
 // buscarParaAutenticar(), que vive ahí porque es el único service con acceso
-// a la vez a UsuarioRepository y a EmpleadoSedeRepository (sede_id del JWT
+// a la vez a UsuarioRepository y a EmpleadoSedeRepository (sedeId del JWT
 // de un RECEPCION). Los dos repositorios siguen privados.
 @Module({
   imports: [CommonsModule, ScheduleModule.forRoot()],

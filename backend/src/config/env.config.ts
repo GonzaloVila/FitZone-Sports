@@ -9,9 +9,9 @@ const envSchema = z.object({
   // entorno real (no hay validacion de longitud minima aca a proposito, para
   // no acoplar este esquema a una politica de secreto que vive en el deploy).
   JWT_SECRET: z.string().min(1).default('dev-secret-fitzone-cambiar-en-produccion'),
-  // Segundos hasta el vencimiento del access_token (contrato: expires_in).
+  // Segundos hasta el vencimiento del accessToken (contrato: expiresIn).
   JWT_EXPIRES_IN: z.coerce.number().int().positive().default(3600),
-  // Clave AES-256 (32 bytes) en base64 para cifrar Socio.totp_secreto en
+  // Clave AES-256 (32 bytes) en base64 para cifrar Socio.totpSecreto en
   // reposo. Default solo para dev/test, igual que JWT_SECRET: en produccion
   // se completa por variable de entorno real.
   TOTP_ENCRYPTION_KEY: z

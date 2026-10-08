@@ -40,7 +40,17 @@ export class UsuarioRepository {
   }
 
   async crear(usuario: UsuarioNuevo): Promise<Usuario> {
-    const fila = await this.prisma.usuario.create({ data: usuario });
+    const fila = await this.prisma.usuario.create({
+      data: {
+        rol: usuario.rol,
+        dni: usuario.dni,
+        nombre: usuario.nombre,
+        email: usuario.email,
+        contrasenia: usuario.contrasenia,
+        telefono: usuario.telefono ?? null,
+        foto_url: usuario.fotoUrl ?? null,
+      },
+    });
     return this.aDominio(fila);
   }
 
@@ -66,7 +76,16 @@ export class UsuarioRepository {
 
   async actualizar(id: number, cambios: UsuarioActualizable): Promise<Usuario | null> {
     try {
-      const fila = await this.prisma.usuario.update({ where: { id }, data: cambios });
+      const fila = await this.prisma.usuario.update({
+        where: { id },
+        data: {
+          ...(cambios.nombre !== undefined && { nombre: cambios.nombre }),
+          ...(cambios.telefono !== undefined && { telefono: cambios.telefono }),
+          ...(cambios.fotoUrl !== undefined && { foto_url: cambios.fotoUrl }),
+          ...(cambios.contrasenia !== undefined && { contrasenia: cambios.contrasenia }),
+          ...(cambios.rol !== undefined && { rol: cambios.rol }),
+        },
+      });
       return this.aDominio(fila);
     } catch (error) {
       if (mapearErrorPrisma(error) === 'NO_ENCONTRADO') {
@@ -85,7 +104,7 @@ export class UsuarioRepository {
       email: fila.email,
       contrasenia: fila.contrasenia,
       telefono: fila.telefono,
-      foto_url: fila.foto_url,
+      fotoUrl: fila.foto_url,
     };
   }
 }

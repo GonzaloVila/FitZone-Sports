@@ -123,7 +123,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resCrear = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Spinning',
           instructor: 'Martín Palermo',
           horario: fechaClase,
@@ -135,11 +135,11 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       clasesCreadas.push(claseId);
 
       expect(resCrear.headers.location).toBe(`/api/v1/clases/${claseId}`);
-      expect(resCrear.body.cupo_disponible).toBe(20);
-      expect(resCrear.body.reservas_confirmadas).toBe(0);
+      expect(resCrear.body.cupoDisponible).toBe(20);
+      expect(resCrear.body.reservasConfirmadas).toBe(0);
 
       const resListar = await request(app.getHttpServer())
-        .get(`/api/v1/clases?sede_id=${sedeId}&tipo=Spinning`)
+        .get(`/api/v1/clases?sedeId=${sedeId}&tipo=Spinning`)
         .expect(200);
 
       expect(Array.isArray(resListar.body)).toBe(true);
@@ -154,7 +154,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: 999999,
+          sedeId: 999999,
           tipo: 'Yoga',
           instructor: 'Buda',
           horario: fechaClase,
@@ -169,7 +169,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Pilates',
           instructor: 'Laura',
           horario: fechaPasada,
@@ -188,7 +188,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'CrossFit',
           instructor: 'Franco Colapinto',
           horario: fechaClase,
@@ -201,7 +201,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       const resReserva = await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioId })
+        .send({ claseId: claseId, socioId: socioId })
         .expect(201);
 
       expect(resReserva.headers.location).toBe(`/api/v1/reservas-clases/${resReserva.body.id}`);
@@ -212,8 +212,8 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .get(`/api/v1/clases/${claseId}`)
         .expect(200);
 
-      expect(resDetalle.body.reservas_confirmadas).toBe(1);
-      expect(resDetalle.body.cupo_disponible).toBe(9);
+      expect(resDetalle.body.reservasConfirmadas).toBe(1);
+      expect(resDetalle.body.cupoDisponible).toBe(9);
     });
 
     it('intento de reserva fuera de la ventana de 48 hs (ej. en 5 días) responde 409', async () => {
@@ -224,7 +224,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Funcional',
           instructor: 'Esteban',
           horario: fechaClase,
@@ -237,7 +237,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioId })
+        .send({ claseId: claseId, socioId: socioId })
         .expect(409);
     });
 
@@ -248,7 +248,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Zumba',
           instructor: 'Mariana',
           horario: fechaClase,
@@ -261,7 +261,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioId })
+        .send({ claseId: claseId, socioId: socioId })
         .expect(403);
     });
 
@@ -272,7 +272,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'GAP',
           instructor: 'Carla',
           horario: fechaClase,
@@ -286,13 +286,13 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       // Primera reserva exitosa
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioId })
+        .send({ claseId: claseId, socioId: socioId })
         .expect(201);
 
       // Segunda reserva responde 409 Conflict
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioId })
+        .send({ claseId: claseId, socioId: socioId })
         .expect(409);
     });
 
@@ -304,7 +304,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Boxeo',
           instructor: 'Sergio Maravilla',
           horario: fechaClase,
@@ -317,7 +317,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       const resReserva = await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioId })
+        .send({ claseId: claseId, socioId: socioId })
         .expect(201);
 
       const reservaId: number = resReserva.body.id;
@@ -343,7 +343,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Spinning Exprés',
           instructor: 'Lucas',
           horario: fechaClase,
@@ -356,7 +356,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       const resReserva = await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioId })
+        .send({ claseId: claseId, socioId: socioId })
         .expect(201);
 
       const reservaId: number = resReserva.body.id;
@@ -374,7 +374,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       expect(pago).not.toBeNull();
       expect(pago!.estado).toBe('APROBADO');
       expect(pago!.monto.toNumber()).toBe(penalidadCancelacionTardia());
-      expect(pago!.comprobante_pdf_url).not.toBeNull();
+      expect(pago!.comprobantePdfUrl).not.toBeNull();
       pagosDePenalidad.push(pago!.id);
 
       // El comprobante también existe: la penalidad es un pago real (RF-14).
@@ -401,7 +401,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'TRX Intensivo',
           instructor: 'Javier',
           horario: fechaClase,
@@ -415,13 +415,13 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       // Intento de entrar a lista de espera cuando la clase tiene cupo disponible responde 409
       await request(app.getHttpServer())
         .post(`/api/v1/clases/${claseId}/espera`)
-        .send({ socio_id: socioB.socioId })
+        .send({ socioId: socioB.socioId })
         .expect(409);
 
       // Socio A reserva el único cupo disponible
       const resReservaA = await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioA.socioId })
+        .send({ claseId: claseId, socioId: socioA.socioId })
         .expect(201);
 
       const reservaIdA: number = resReservaA.body.id;
@@ -429,7 +429,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       // Ahora que la clase está llena, Socio B se anota en lista de espera
       const resEsperaB = await request(app.getHttpServer())
         .post(`/api/v1/clases/${claseId}/espera`)
-        .send({ socio_id: socioB.socioId })
+        .send({ socioId: socioB.socioId })
         .expect(201);
 
       const esperaIdB: number = resEsperaB.body.id;
@@ -452,7 +452,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .expect(200);
 
       expect(resEsperaActualizada.body.estado).toBe('NOTIFICADO');
-      expect(resEsperaActualizada.body.fecha_notificacion).not.toBeNull();
+      expect(resEsperaActualizada.body.fechaNotificacion).not.toBeNull();
 
       // Socio B confirma el cupo liberado (First-Come)
       const resConfirmada = await request(app.getHttpServer())
@@ -461,8 +461,8 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       // La confirmacion responde 201 con la ReservaClase creada y su Location
       expect(resConfirmada.body.estado).toBe('CONFIRMADA');
-      expect(resConfirmada.body.clase_id).toBe(claseId);
-      expect(resConfirmada.body.socio_id).toBe(socioB.socioId);
+      expect(resConfirmada.body.claseId).toBe(claseId);
+      expect(resConfirmada.body.socioId).toBe(socioB.socioId);
       expect(resConfirmada.body.id).toEqual(expect.any(Number));
       expect(resConfirmada.headers.location).toBe(`/api/v1/reservas-clases/${resConfirmada.body.id}`);
 
@@ -472,7 +472,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .expect(200);
 
       expect(resEsperaConfirmada.body.estado).toBe('CONFIRMADO');
-      expect(resEsperaConfirmada.body.fecha_confirmacion).not.toBeNull();
+      expect(resEsperaConfirmada.body.fechaConfirmacion).not.toBeNull();
 
       // Socio B ahora tiene una ReservaClase confirmada, y es la que devolvio el 201
       const reservaB = await prisma.reservaClase.findFirst({
@@ -490,7 +490,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Calistenia',
           instructor: 'Nico',
           horario: fechaClase,
@@ -504,13 +504,13 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       // Socio A llena la clase
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioA.socioId })
+        .send({ claseId: claseId, socioId: socioA.socioId })
         .expect(201);
 
       // Socio B se anota en espera
       const resEspera = await request(app.getHttpServer())
         .post(`/api/v1/clases/${claseId}/espera`)
-        .send({ socio_id: socioB.socioId })
+        .send({ socioId: socioB.socioId })
         .expect(201);
 
       const esperaId: number = resEspera.body.id;
@@ -535,7 +535,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Listado Reservas',
           instructor: 'Profe Listado',
           horario: fechaClase,
@@ -550,7 +550,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         const socio = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
         await request(app.getHttpServer())
           .post('/api/v1/reservas-clases')
-          .send({ clase_id: claseId, socio_id: socio.socioId })
+          .send({ claseId: claseId, socioId: socio.socioId })
           .expect(201);
       }
 
@@ -561,10 +561,10 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       expect(Array.isArray(resTodas.body)).toBe(true);
       expect(resTodas.body).toHaveLength(3);
       for (const reserva of resTodas.body) {
-        expect(reserva.clase_id).toBe(claseId);
+        expect(reserva.claseId).toBe(claseId);
         expect(reserva.estado).toBe('CONFIRMADA');
         expect(typeof reserva.id).toBe('number');
-        expect(typeof reserva.socio_id).toBe('number');
+        expect(typeof reserva.socioId).toBe('number');
       }
 
       const resConfirmadas = await request(app.getHttpServer())
@@ -578,17 +578,17 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       expect(resCanceladas.body).toHaveLength(0);
 
       const resPagina1 = await request(app.getHttpServer())
-        .get(`/api/v1/clases/${claseId}/reservas?per_page=2&page=1`)
+        .get(`/api/v1/clases/${claseId}/reservas?perPage=2&page=1`)
         .expect(200);
       expect(resPagina1.body).toHaveLength(2);
 
       const resPagina2 = await request(app.getHttpServer())
-        .get(`/api/v1/clases/${claseId}/reservas?per_page=2&page=2`)
+        .get(`/api/v1/clases/${claseId}/reservas?perPage=2&page=2`)
         .expect(200);
       expect(resPagina2.body).toHaveLength(1);
 
       const resPagina3 = await request(app.getHttpServer())
-        .get(`/api/v1/clases/${claseId}/reservas?per_page=2&page=3`)
+        .get(`/api/v1/clases/${claseId}/reservas?perPage=2&page=3`)
         .expect(200);
       expect(resPagina3.body).toHaveLength(0);
 
@@ -602,7 +602,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Listado Global Reservas',
           instructor: 'Profe Global',
           horario: fechaClase,
@@ -618,34 +618,34 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioA.socioId })
+        .send({ claseId: claseId, socioId: socioA.socioId })
         .expect(201);
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioB.socioId })
+        .send({ claseId: claseId, socioId: socioB.socioId })
         .expect(201);
 
       const resPorClase = await request(app.getHttpServer())
-        .get(`/api/v1/reservas-clases?clase_id=${claseId}`)
+        .get(`/api/v1/reservas-clases?claseId=${claseId}`)
         .expect(200);
       expect(resPorClase.body).toHaveLength(2);
 
       const resPorSocio = await request(app.getHttpServer())
-        .get(`/api/v1/reservas-clases?socio_id=${socioA.socioId}`)
+        .get(`/api/v1/reservas-clases?socioId=${socioA.socioId}`)
         .expect(200);
       expect(resPorSocio.body).toHaveLength(1);
-      expect(resPorSocio.body[0].socio_id).toBe(socioA.socioId);
+      expect(resPorSocio.body[0].socioId).toBe(socioA.socioId);
 
       const resPorEstado = await request(app.getHttpServer())
-        .get(`/api/v1/reservas-clases?clase_id=${claseId}&estado=CONFIRMADA`)
+        .get(`/api/v1/reservas-clases?claseId=${claseId}&estado=CONFIRMADA`)
         .expect(200);
       expect(resPorEstado.body).toHaveLength(2);
 
       const resCombinado = await request(app.getHttpServer())
-        .get(`/api/v1/reservas-clases?clase_id=${claseId}&socio_id=${socioB.socioId}`)
+        .get(`/api/v1/reservas-clases?claseId=${claseId}&socioId=${socioB.socioId}`)
         .expect(200);
       expect(resCombinado.body).toHaveLength(1);
-      expect(resCombinado.body[0].socio_id).toBe(socioB.socioId);
+      expect(resCombinado.body[0].socioId).toBe(socioB.socioId);
 
       await request(app.getHttpServer())
         .get(`/api/v1/reservas-clases?estado=INVALIDO`)
@@ -661,7 +661,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Listado Espera',
           instructor: 'Profe Espera',
           horario: fechaClase,
@@ -675,14 +675,14 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const socioOcupante = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioOcupante.socioId })
+        .send({ claseId: claseId, socioId: socioOcupante.socioId })
         .expect(201);
 
       for (let i = 0; i < 2; i++) {
         const socio = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
         await request(app.getHttpServer())
           .post(`/api/v1/clases/${claseId}/espera`)
-          .send({ socio_id: socio.socioId })
+          .send({ socioId: socio.socioId })
           .expect(201);
       }
 
@@ -693,11 +693,11 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       expect(Array.isArray(resTodas.body)).toBe(true);
       expect(resTodas.body).toHaveLength(2);
       for (const espera of resTodas.body) {
-        expect(espera.clase_id).toBe(claseId);
+        expect(espera.claseId).toBe(claseId);
         expect(espera.estado).toBe('EN_ESPERA');
-        expect(espera.fecha_anotacion).toBeDefined();
-        expect(espera.fecha_notificacion).toBeNull();
-        expect(espera.fecha_confirmacion).toBeNull();
+        expect(espera.fechaAnotacion).toBeDefined();
+        expect(espera.fechaNotificacion).toBeNull();
+        expect(espera.fechaConfirmacion).toBeNull();
       }
 
       const resEnEspera = await request(app.getHttpServer())
@@ -711,12 +711,12 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       expect(resConfirmadas.body).toHaveLength(0);
 
       const resPagina1 = await request(app.getHttpServer())
-        .get(`/api/v1/clases/${claseId}/espera?per_page=1&page=1`)
+        .get(`/api/v1/clases/${claseId}/espera?perPage=1&page=1`)
         .expect(200);
       expect(resPagina1.body).toHaveLength(1);
 
       const resPagina2 = await request(app.getHttpServer())
-        .get(`/api/v1/clases/${claseId}/espera?per_page=1&page=2`)
+        .get(`/api/v1/clases/${claseId}/espera?perPage=1&page=2`)
         .expect(200);
       expect(resPagina2.body).toHaveLength(1);
       expect(resPagina1.body[0].id).not.toBe(resPagina2.body[0].id);
@@ -727,16 +727,16 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
     });
 
     it('GET /clases/{clase_id}/espera pagina sin repetir ni saltear filas cuando varias anotaciones empatan en el mismo milisegundo', async () => {
-      // Regresion del desempate por id: fecha_anotacion es TIMESTAMP(3) y la
+      // Regresion del desempate por id: fechaAnotacion es TIMESTAMP(3) y la
       // genera la app con new Date(). Con skip/take y un orderBy no unico,
       // PostgreSQL puede devolver las filas del empate en cualquier orden entre
       // paginas, repitiendo una y salteando otra. Aca se fija la misma
-      // fecha_anotacion para todos para forzar el empate y exigir orden total.
+      // fechaAnotacion para todos para forzar el empate y exigir orden total.
       const fechaClase = new Date(Date.now() + 6 * 3600 * 1000).toISOString();
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Listado Espera Empate',
           instructor: 'Profe Empate',
           horario: fechaClase,
@@ -750,7 +750,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const socioOcupante = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioOcupante.socioId })
+        .send({ claseId: claseId, socioId: socioOcupante.socioId })
         .expect(201);
 
       const CANTIDAD = 4;
@@ -758,11 +758,11 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         const socio = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
         await request(app.getHttpServer())
           .post(`/api/v1/clases/${claseId}/espera`)
-          .send({ socio_id: socio.socioId })
+          .send({ socioId: socio.socioId })
           .expect(201);
       }
 
-      // Empate forzado: las cuatro quedan con la misma fecha_anotacion.
+      // Empate forzado: las cuatro quedan con la misma fechaAnotacion.
       const empate = new Date('2026-01-02T03:04:05.678Z');
       await prisma.esperaClase.updateMany({
         where: { clase_id: claseId },
@@ -792,10 +792,10 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       }
 
       const pagina1 = await request(app.getHttpServer())
-        .get(`/api/v1/clases/${claseId}/espera?per_page=2&page=1`)
+        .get(`/api/v1/clases/${claseId}/espera?perPage=2&page=1`)
         .expect(200);
       const pagina2 = await request(app.getHttpServer())
-        .get(`/api/v1/clases/${claseId}/espera?per_page=2&page=2`)
+        .get(`/api/v1/clases/${claseId}/espera?perPage=2&page=2`)
         .expect(200);
 
       expect(pagina1.body).toHaveLength(2);
@@ -819,7 +819,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Listado Global Espera',
           instructor: 'Profe Global Espera',
           horario: fechaClase,
@@ -835,33 +835,33 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: socioOcupante.socioId })
+        .send({ claseId: claseId, socioId: socioOcupante.socioId })
         .expect(201);
 
       await request(app.getHttpServer())
         .post(`/api/v1/clases/${claseId}/espera`)
-        .send({ socio_id: socioB.socioId })
+        .send({ socioId: socioB.socioId })
         .expect(201);
 
       const resPorClase = await request(app.getHttpServer())
-        .get(`/api/v1/esperas-clases?clase_id=${claseId}`)
+        .get(`/api/v1/esperas-clases?claseId=${claseId}`)
         .expect(200);
       expect(resPorClase.body).toHaveLength(1);
-      expect(resPorClase.body[0].clase_id).toBe(claseId);
+      expect(resPorClase.body[0].claseId).toBe(claseId);
 
       const resPorSocio = await request(app.getHttpServer())
-        .get(`/api/v1/esperas-clases?socio_id=${socioB.socioId}`)
+        .get(`/api/v1/esperas-clases?socioId=${socioB.socioId}`)
         .expect(200);
       expect(resPorSocio.body).toHaveLength(1);
-      expect(resPorSocio.body[0].socio_id).toBe(socioB.socioId);
+      expect(resPorSocio.body[0].socioId).toBe(socioB.socioId);
 
       const resPorEstado = await request(app.getHttpServer())
-        .get(`/api/v1/esperas-clases?clase_id=${claseId}&estado=EN_ESPERA`)
+        .get(`/api/v1/esperas-clases?claseId=${claseId}&estado=EN_ESPERA`)
         .expect(200);
       expect(resPorEstado.body).toHaveLength(1);
 
       const resOtroEstado = await request(app.getHttpServer())
-        .get(`/api/v1/esperas-clases?clase_id=${claseId}&estado=CANCELADO`)
+        .get(`/api/v1/esperas-clases?claseId=${claseId}&estado=CANCELADO`)
         .expect(200);
       expect(resOtroEstado.body).toHaveLength(0);
 
@@ -875,7 +875,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         const resClase = await request(app.getHttpServer())
           .post('/api/v1/clases')
           .send({
-            sede_id: sedeId,
+            sedeId: sedeId,
             tipo: 'Demo Paginacion',
             instructor: 'Profe Paginacion',
             horario: new Date(Date.now() + horas * 3600 * 1000).toISOString(),
@@ -886,22 +886,22 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       }
 
       const resPagina1 = await request(app.getHttpServer())
-        .get('/api/v1/clases?tipo=Demo Paginacion&per_page=2&page=1')
+        .get('/api/v1/clases?tipo=Demo Paginacion&perPage=2&page=1')
         .expect(200);
       expect(resPagina1.body).toHaveLength(2);
 
       const resPagina2 = await request(app.getHttpServer())
-        .get('/api/v1/clases?tipo=Demo Paginacion&per_page=2&page=2')
+        .get('/api/v1/clases?tipo=Demo Paginacion&perPage=2&page=2')
         .expect(200);
       expect(resPagina2.body).toHaveLength(1);
 
       const resPagina3 = await request(app.getHttpServer())
-        .get('/api/v1/clases?tipo=Demo Paginacion&per_page=2&page=3')
+        .get('/api/v1/clases?tipo=Demo Paginacion&perPage=2&page=3')
         .expect(200);
       expect(resPagina3.body).toHaveLength(0);
 
       const resTodas = await request(app.getHttpServer())
-        .get('/api/v1/clases?tipo=Demo Paginacion&per_page=100')
+        .get('/api/v1/clases?tipo=Demo Paginacion&perPage=100')
         .expect(200);
       expect(resTodas.body).toHaveLength(3);
 
@@ -910,11 +910,11 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .expect(422);
 
       await request(app.getHttpServer())
-        .get('/api/v1/clases?per_page=0')
+        .get('/api/v1/clases?perPage=0')
         .expect(422);
 
       await request(app.getHttpServer())
-        .get('/api/v1/clases?per_page=101')
+        .get('/api/v1/clases?perPage=101')
         .expect(422);
     });
   });
@@ -926,7 +926,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Spinning VIP',
           instructor: 'Profe Concurrencia',
           horario: fechaClase,
@@ -949,7 +949,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         socios.map((s) =>
           request(app.getHttpServer())
             .post('/api/v1/reservas-clases')
-            .send({ clase_id: claseId, socio_id: s.socioId }),
+            .send({ claseId: claseId, socioId: s.socioId }),
         ),
       );
 
@@ -983,7 +983,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Espera Simultanea',
           instructor: 'Profe Espera Simultanea',
           horario: fechaClase,
@@ -997,14 +997,14 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const ocupante = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: ocupante.socioId })
+        .send({ claseId: claseId, socioId: ocupante.socioId })
         .expect(201);
 
       const socio = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
 
       const resAlta = await request(app.getHttpServer())
         .post(`/api/v1/clases/${claseId}/espera`)
-        .send({ socio_id: socio.socioId })
+        .send({ socioId: socio.socioId })
         .expect(201);
 
       // Segundo INSERT del mismo par activo, sin pasar por crear().
@@ -1022,7 +1022,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       // Y por la API, una anotacion mas del mismo socio sigue siendo 409.
       const resRepetida = await request(app.getHttpServer())
         .post(`/api/v1/clases/${claseId}/espera`)
-        .send({ socio_id: socio.socioId })
+        .send({ socioId: socio.socioId })
         .expect(409);
       expect(resRepetida.body.type).toBe('https://fitzone.app/errores/espera-existente');
 
@@ -1040,7 +1040,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const resClase = await request(app.getHttpServer())
         .post('/api/v1/clases')
         .send({
-          sede_id: sedeId,
+          sedeId: sedeId,
           tipo: 'Reinscripcion Espera',
           instructor: 'Profe Reinscripcion',
           horario: fechaClase,
@@ -1054,14 +1054,14 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
       const ocupante = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
       await request(app.getHttpServer())
         .post('/api/v1/reservas-clases')
-        .send({ clase_id: claseId, socio_id: ocupante.socioId })
+        .send({ claseId: claseId, socioId: ocupante.socioId })
         .expect(201);
 
       const socio = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
 
       const resAlta = await request(app.getHttpServer())
         .post(`/api/v1/clases/${claseId}/espera`)
-        .send({ socio_id: socio.socioId })
+        .send({ socioId: socio.socioId })
         .expect(201);
       const esperaId: number = resAlta.body.id;
 
@@ -1069,7 +1069,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       const resReinscripcion = await request(app.getHttpServer())
         .post(`/api/v1/clases/${claseId}/espera`)
-        .send({ socio_id: socio.socioId })
+        .send({ socioId: socio.socioId })
         .expect(201);
 
       expect(resReinscripcion.body.id).not.toBe(esperaId);

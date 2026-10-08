@@ -13,19 +13,19 @@ describe('PasarelaPagoService (mock)', () => {
     token: 'tok_aprobado_1',
     monto: 4250,
     moneda: 'ARS',
-    idempotencia_key: 'clave-1',
+    idempotenciaKey: 'clave-1',
   };
 
   it('aprueba el token con prefijo tok_aprobado y devuelve el token de la pasarela', async () => {
     const resultado = await pasarela.cobrar(solicitud);
 
-    expect(resultado).toEqual({ estado: 'APROBADO', pasarela_token: 'tok_aprobado_1' });
+    expect(resultado).toEqual({ estado: 'APROBADO', pasarelaToken: 'tok_aprobado_1' });
   });
 
   it('deja PENDIENTE el token con prefijo tok_pendiente', async () => {
     const resultado = await pasarela.cobrar({ ...solicitud, token: 'tok_pendiente_1' });
 
-    expect(resultado).toEqual({ estado: 'PENDIENTE', pasarela_token: 'tok_pendiente_1' });
+    expect(resultado).toEqual({ estado: 'PENDIENTE', pasarelaToken: 'tok_pendiente_1' });
   });
 
   it('rechaza cualquier otro token sin tirar excepción', async () => {

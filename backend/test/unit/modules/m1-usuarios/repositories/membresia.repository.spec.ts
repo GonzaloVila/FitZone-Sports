@@ -26,12 +26,12 @@ describe('PrismaMembresiaRepository', () => {
       plan: 'TRIMESTRAL',
       estado: 'ACTIVA',
       precio: new Prisma.Decimal('80000'),
-      socio: { usuario_id: 42 },
+      socio: { usuarioId: 42 },
     }).obtenerParaCobro(7);
 
     expect(resultado).toEqual({
-      membresia_id: 7,
-      usuario_id: 42,
+      membresiaId: 7,
+      usuarioId: 42,
       plan: 'TRIMESTRAL',
       precio: 80000,
       estado: 'ACTIVA',
@@ -50,8 +50,8 @@ describe('PrismaMembresiaRepository', () => {
     });
     await expect(
       repo(null, noEncontrado).renovar(999, {
-        fecha_inicio: new Date('2026-10-01T00:00:00.000Z'),
-        fecha_fin: new Date('2026-11-01T00:00:00.000Z'),
+        fechaInicio: new Date('2026-10-01T00:00:00.000Z'),
+        fechaFin: new Date('2026-11-01T00:00:00.000Z'),
       }),
     ).resolves.toBeNull();
   });
@@ -60,8 +60,8 @@ describe('PrismaMembresiaRepository', () => {
     const otro = new Error('conexion caida');
     await expect(
       repo(null, otro).renovar(1, {
-        fecha_inicio: new Date('2026-10-01T00:00:00.000Z'),
-        fecha_fin: new Date('2026-11-01T00:00:00.000Z'),
+        fechaInicio: new Date('2026-10-01T00:00:00.000Z'),
+        fechaFin: new Date('2026-11-01T00:00:00.000Z'),
       }),
     ).rejects.toBe(otro);
   });

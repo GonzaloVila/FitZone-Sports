@@ -19,13 +19,13 @@ export class MembresiaOut {
 
   @Expose()
   @ApiProperty({ example: '2026-09-15T00:00:00-03:00' })
-  fecha_inicio!: Date;
+  fechaInicio!: Date;
 
   @Expose()
   @ApiProperty({ example: '2026-10-15T00:00:00-03:00' })
-  fecha_fin!: Date;
+  fechaFin!: Date;
 
   @Expose()
   @ApiProperty({ example: false })
-  renueva_automatica!: boolean;
+  renuevaAutomatica!: boolean;
 }

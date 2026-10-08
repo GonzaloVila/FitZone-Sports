@@ -110,7 +110,7 @@ export class PagosController {
     return pago;
   }
 
-  // Declarado antes que `@Get(':pago_id')`: `/pagos` no cae en la ruta con parámetro,
+  // Declarado antes que `@Get(':pagoId')`: `/pagos` no cae en la ruta con parámetro,
   // pero el orden deja el listado primero como en el resto de los controllers.
   @Get()
   @ApiOperation({
@@ -132,29 +132,29 @@ export class PagosController {
   @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
   listar(@Query() query: ListarPagosQueryDto): Promise<PagoOut[]> {
     return this.pagosService.listarPagos({
-      usuarioId: query.usuario_id,
+      usuarioId: query.usuarioId,
       estado: query.estado,
       tipo: query.tipo,
-      reservaCanchaId: query.reserva_cancha_id,
-      membresiaId: query.membresia_id,
-      reservaClaseId: query.reserva_clase_id,
+      reservaCanchaId: query.reservaCanchaId,
+      membresiaId: query.membresiaId,
+      reservaClaseId: query.reservaClaseId,
       desde: query.desde,
       hasta: query.hasta,
       page: query.page ?? 1,
-      perPage: query.per_page ?? 20,
+      perPage: query.perPage ?? 20,
     });
   }
 
-  @Get(':pago_id')
+  @Get(':pagoId')
   @ApiOperation({ operationId: 'obtenerPago', summary: 'Obtener pago por id' })
-  @ApiParam({ name: 'pago_id', type: 'integer', description: 'ID numérico del pago', example: 8 })
+  @ApiParam({ name: 'pagoId', type: 'integer', description: 'ID numérico del pago', example: 8 })
   @ApiOkResponse({ description: 'Pago', type: PagoOut })
   @ApiNotFoundResponse({ description: 'Pago inexistente', content: PROBLEM_JSON })
-  obtener(@Param('pago_id', ParseIntPipe) pagoId: number): Promise<PagoOut> {
+  obtener(@Param('pagoId', ParseIntPipe) pagoId: number): Promise<PagoOut> {
     return this.pagosService.obtenerPago(pagoId);
   }
 
-  @Post(':pago_id/anulaciones')
+  @Post(':pagoId/anulaciones')
   // 204 explícito: el default de POST en Nest es 201, y dejar el 204 implícito es lo que
   // hace que un día un cambio de comportamiento pase inadvertido.
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -169,16 +169,16 @@ export class PagosController {
       'no es anulable: responde 409. El pago anulado no se borra del histórico: se repaga ' +
       'con una nueva Idempotency-Key.',
   })
-  @ApiParam({ name: 'pago_id', type: 'integer', description: 'ID numérico del pago', example: 8 })
+  @ApiParam({ name: 'pagoId', type: 'integer', description: 'ID numérico del pago', example: 8 })
   @ApiNoContentResponse({ description: 'Pago anulado (sin cuerpo)' })
   @ApiNotFoundResponse({ description: 'Pago inexistente', content: PROBLEM_JSON })
   @ApiConflictResponse({ description: 'El pago está RECHAZADO y no es anulable', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos', content: PROBLEM_JSON })
-  async anular(@Param('pago_id', ParseIntPipe) pagoId: number): Promise<void> {
+  async anular(@Param('pagoId', ParseIntPipe) pagoId: number): Promise<void> {
     await this.pagosService.anularPago(pagoId);
   }
 
-  @Get(':pago_id/comprobante')
+  @Get(':pagoId/comprobante')
   @ApiOperation({
     operationId: 'obtenerComprobante',
     // Textos literales del contrato, como en el POST.
@@ -190,7 +190,7 @@ export class PagosController {
   // Sin esto Swagger emite `type: number` y el contrato declara el parametro como
   // `integer`: el diff contractual lo marca como diferencia de tipo. Es el mismo
   // `@ApiParam` que llevan los ids de los demas modulos.
-  @ApiParam({ name: 'pago_id', type: 'integer', description: 'ID numérico del pago', example: 8 })
+  @ApiParam({ name: 'pagoId', type: 'integer', description: 'ID numérico del pago', example: 8 })
   @ApiOkResponse({
     description: 'Comprobante en PDF',
     content: {
@@ -215,7 +215,7 @@ export class PagosController {
   // respuesta: sin passthrough, este método tendría que hacer `res.send()` a mano y
   // ningún interceptor o filtro del proyecto volvería a pasar por esta respuesta.
   async obtenerComprobante(
-    @Param('pago_id', ParseIntPipe) pagoId: number,
+    @Param('pagoId', ParseIntPipe) pagoId: number,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const comprobante = await this.pagosService.obtenerComprobante(pagoId);

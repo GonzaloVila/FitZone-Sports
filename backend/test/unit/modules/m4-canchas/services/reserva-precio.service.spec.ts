@@ -17,12 +17,12 @@ describe('ReservaPrecioService', () => {
   function reserva(over: Record<string, unknown> = {}) {
     return {
       id: 12,
-      cancha_id: 3,
-      usuario_id: 42,
-      fecha_hora_inicio: new Date('2026-10-10T14:00:00.000Z'),
-      fecha_hora_fin: new Date('2026-10-10T15:00:00.000Z'),
+      canchaId: 3,
+      usuarioId: 42,
+      fechaHoraInicio: new Date('2026-10-10T14:00:00.000Z'),
+      fechaHoraFin: new Date('2026-10-10T15:00:00.000Z'),
       estado: 'CONFIRMADA',
-      precio_aplicado: 9500,
+      precioAplicado: 9500,
       ...over,
     };
   }
@@ -31,11 +31,11 @@ describe('ReservaPrecioService', () => {
     const resultado = await service(reserva()).obtenerParaCobro(12);
 
     expect(resultado).toEqual({
-      reserva_id: 12,
-      usuario_id: 42,
-      cancha_id: 3,
-      fecha_hora_inicio: new Date('2026-10-10T14:00:00.000Z'),
-      fecha_hora_fin: new Date('2026-10-10T15:00:00.000Z'),
+      reservaId: 12,
+      usuarioId: 42,
+      canchaId: 3,
+      fechaHoraInicio: new Date('2026-10-10T14:00:00.000Z'),
+      fechaHoraFin: new Date('2026-10-10T15:00:00.000Z'),
       precio: 9500,
       estado: 'CONFIRMADA',
     });
@@ -48,9 +48,9 @@ describe('ReservaPrecioService', () => {
   it('trae la cancha y el horario que imprime el comprobante', async () => {
     const resultado = await service(reserva()).obtenerParaCobro(12);
 
-    expect(resultado!.cancha_id).toBe(3);
-    expect(resultado!.fecha_hora_inicio).toEqual(new Date('2026-10-10T14:00:00.000Z'));
-    expect(resultado!.fecha_hora_fin).toEqual(new Date('2026-10-10T15:00:00.000Z'));
+    expect(resultado!.canchaId).toBe(3);
+    expect(resultado!.fechaHoraInicio).toEqual(new Date('2026-10-10T14:00:00.000Z'));
+    expect(resultado!.fechaHoraFin).toEqual(new Date('2026-10-10T15:00:00.000Z'));
   });
 
   it('arrastra el estado CANCELADA para que M5 no cobre una reserva cancelada', async () => {

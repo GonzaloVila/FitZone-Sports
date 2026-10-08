@@ -1,7 +1,7 @@
 export interface Cancha {
   id: number;
-  sede_id: number;
+  sedeId: number;
   tipo: 'PADDLE' | 'FUTBOL5';
-  costo_por_hora: number;
+  costoPorHora: number;
   estado: 'OPERATIVA' | 'EN_MANTENIMIENTO';
 }

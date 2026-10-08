@@ -27,5 +27,5 @@ export class ListarCanchasQueryDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  per_page?: number = 20;
+  perPage?: number = 20;
 }

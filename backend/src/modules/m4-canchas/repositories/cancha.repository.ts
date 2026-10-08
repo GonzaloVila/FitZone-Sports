@@ -10,14 +10,14 @@ export interface OpcionesListadoCanchas {
 }
 
 export interface CanchaNueva {
-  sede_id: number;
+  sedeId: number;
   tipo: 'PADDLE' | 'FUTBOL5';
-  costo_por_hora: number;
+  costoPorHora: number;
   estado?: 'OPERATIVA' | 'EN_MANTENIMIENTO';
 }
 
 export interface CanchaActualizable {
-  costo_por_hora?: number;
+  costoPorHora?: number;
   estado?: 'OPERATIVA' | 'EN_MANTENIMIENTO';
 }
 
@@ -44,9 +44,9 @@ export class CanchaRepository {
   async crear(cancha: CanchaNueva): Promise<Cancha> {
     const fila = await this.prisma.cancha.create({
       data: {
-        sede_id: cancha.sede_id,
+        sede_id: cancha.sedeId,
         tipo: cancha.tipo,
-        costo_por_hora: cancha.costo_por_hora,
+        costo_por_hora: cancha.costoPorHora,
         estado: cancha.estado ?? 'OPERATIVA',
       },
     });
@@ -63,7 +63,7 @@ export class CanchaRepository {
       const fila = await this.prisma.cancha.update({
         where: { id },
         data: {
-          ...(cambios.costo_por_hora !== undefined && { costo_por_hora: cambios.costo_por_hora }),
+          ...(cambios.costoPorHora !== undefined && { costo_por_hora: cambios.costoPorHora }),
           ...(cambios.estado !== undefined && { estado: cambios.estado }),
         },
       });
@@ -79,9 +79,9 @@ export class CanchaRepository {
   private aDominio(fila: CanchaRow): Cancha {
     return {
       id: fila.id,
-      sede_id: fila.sede_id,
+      sedeId: fila.sede_id,
       tipo: fila.tipo,
-      costo_por_hora: fila.costo_por_hora.toNumber(),
+      costoPorHora: fila.costo_por_hora.toNumber(),
       estado: fila.estado,
     };
   }

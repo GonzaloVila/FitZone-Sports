@@ -25,7 +25,7 @@ import { ReservasCanchasService } from '../services/reservas-canchas.service';
 export class ReservasCanchasController {
   constructor(private readonly reservasCanchasService: ReservasCanchasService) {}
 
-  // Declarado antes que @Get(':reserva_cancha_id'): /reservas-canchas no cae en
+  // Declarado antes que @Get(':reservaCanchaId'): /reservas-canchas no cae en
   // la ruta con parámetro.
   @Get()
   @ApiOperation({ operationId: 'listarReservasCancha', summary: 'Listado de reservas de cancha con filtros' })
@@ -33,12 +33,12 @@ export class ReservasCanchasController {
   @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
   listar(@Query() query: ListarReservasCanchasQueryDto): Promise<ReservaCanchaOut[]> {
     return this.reservasCanchasService.listar({
-      canchaId: query.cancha_id,
-      usuarioId: query.usuario_id,
+      canchaId: query.canchaId,
+      usuarioId: query.usuarioId,
       estado: query.estado,
       fecha: query.fecha,
       page: query.page ?? 1,
-      perPage: query.per_page ?? 20,
+      perPage: query.perPage ?? 20,
     });
   }
 
@@ -69,24 +69,24 @@ export class ReservasCanchasController {
     return reserva;
   }
 
-  @Get(':reserva_cancha_id')
+  @Get(':reservaCanchaId')
   @ApiOperation({ operationId: 'obtenerReservaCancha', summary: 'Obtener reserva de cancha por id' })
-  @ApiParam({ name: 'reserva_cancha_id', type: 'integer', description: 'ID numérico de la reserva', example: 7 })
+  @ApiParam({ name: 'reservaCanchaId', type: 'integer', description: 'ID numérico de la reserva', example: 7 })
   @ApiOkResponse({ description: 'Reserva de cancha', type: ReservaCanchaOut })
   @ApiNotFoundResponse({ description: 'Reserva inexistente', content: PROBLEM_JSON })
-  obtener(@Param('reserva_cancha_id', ParseIntPipe) reservaCanchaId: number): Promise<ReservaCanchaOut> {
+  obtener(@Param('reservaCanchaId', ParseIntPipe) reservaCanchaId: number): Promise<ReservaCanchaOut> {
     return this.reservasCanchasService.obtener(reservaCanchaId);
   }
 
-  @Post(':reserva_cancha_id/cancelaciones')
+  @Post(':reservaCanchaId/cancelaciones')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ operationId: 'cancelarReservaCancha', summary: 'Cancelar una reserva' })
-  @ApiParam({ name: 'reserva_cancha_id', type: 'integer', description: 'ID numérico de la reserva', example: 7 })
+  @ApiParam({ name: 'reservaCanchaId', type: 'integer', description: 'ID numérico de la reserva', example: 7 })
   @ApiNoContentResponse({ description: 'Reserva cancelada (sin cuerpo)' })
   @ApiNotFoundResponse({ description: 'Reserva inexistente', content: PROBLEM_JSON })
   @ApiConflictResponse({ description: 'La reserva ya estaba cancelada', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos', content: PROBLEM_JSON })
-  cancelar(@Param('reserva_cancha_id', ParseIntPipe) reservaCanchaId: number): Promise<void> {
+  cancelar(@Param('reservaCanchaId', ParseIntPipe) reservaCanchaId: number): Promise<void> {
     return this.reservasCanchasService.cancelar(reservaCanchaId);
   }
 }

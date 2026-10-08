@@ -5,7 +5,7 @@ import { Exclude, Expose, Type } from 'class-transformer';
 export class BloqueadoItemOut {
   @Expose()
   @ApiProperty({ type: 'integer', example: 123 })
-  socio_id!: number;
+  socioId!: number;
 
   @Expose()
   @ApiProperty({ enum: ['VENCIDA', 'SUSPENDIDA'], example: 'VENCIDA' })
@@ -29,5 +29,5 @@ export class BloqueadosOut {
 
   @Expose()
   @ApiProperty({ example: '2026-10-03T03:05:00Z', description: 'Hora del servidor al responder.' })
-  servidor_time!: string;
+  servidorTime!: string;
 }

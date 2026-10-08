@@ -2,15 +2,15 @@ export type EstadoEspera = 'EN_ESPERA' | 'NOTIFICADO' | 'CONFIRMADO' | 'CANCELAD
 
 export interface EsperaClase {
   id: number;
-  clase_id: number;
-  socio_id: number;
+  claseId: number;
+  socioId: number;
   estado: EstadoEspera;
-  fecha_anotacion: Date;
-  fecha_notificacion: Date | null;
-  fecha_confirmacion: Date | null;
+  fechaAnotacion: Date;
+  fechaNotificacion: Date | null;
+  fechaConfirmacion: Date | null;
 }
 
 export type EsperaClaseNueva = Omit<
   EsperaClase,
-  'id' | 'fecha_notificacion' | 'fecha_confirmacion'
+  'id' | 'fechaNotificacion' | 'fechaConfirmacion'
 >;

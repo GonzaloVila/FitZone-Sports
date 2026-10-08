@@ -11,14 +11,14 @@ export class ListarReservasCanchasQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  cancha_id?: number;
+  canchaId?: number;
 
   @ApiPropertyOptional({ type: 'integer', description: 'ID numérico del usuario', example: 2 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  usuario_id?: number;
+  usuarioId?: number;
 
   // Sin `default` en el Swagger a proposito: el contrato declara el filtro como
   // `$ref: EstadoReserva` sin default, y la regla "sin estado devuelve solo
@@ -56,5 +56,5 @@ export class ListarReservasCanchasQueryDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  per_page?: number = 20;
+  perPage?: number = 20;
 }

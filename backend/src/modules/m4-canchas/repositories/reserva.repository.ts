@@ -26,12 +26,12 @@ export class PrismaReservaRepository extends ReservaRepository {
       const fila = await this.prisma.$transaction((tx) =>
         tx.reserva.create({
           data: {
-            cancha_id: reserva.cancha_id,
-            usuario_id: reserva.usuario_id,
-            fecha_hora_inicio: reserva.fecha_hora_inicio,
-            fecha_hora_fin: reserva.fecha_hora_fin,
+            cancha_id: reserva.canchaId,
+            usuario_id: reserva.usuarioId,
+            fecha_hora_inicio: reserva.fechaHoraInicio,
+            fecha_hora_fin: reserva.fechaHoraFin,
             estado: 'CONFIRMADA',
-            precio_aplicado: reserva.precio_aplicado,
+            precio_aplicado: reserva.precioAplicado,
           },
         }),
       );
@@ -71,8 +71,8 @@ export class PrismaReservaRepository extends ReservaRepository {
 
   async listarOcupadasEnRango(canchaId: number, desde: Date, hasta: Date): Promise<Reserva[]> {
     // Solapamiento con [desde, hasta): empieza antes de `hasta` y termina
-    // después de `desde`. cancha_id + fecha_hora_inicio entran por
-    // @@index([cancha_id, fecha_hora_inicio]); no se trae el histórico.
+    // después de `desde`. canchaId + fechaHoraInicio entran por
+    // @@index([canchaId, fechaHoraInicio]); no se trae el histórico.
     const filas = await this.prisma.reserva.findMany({
       where: {
         cancha_id: canchaId,
@@ -111,12 +111,12 @@ export class PrismaReservaRepository extends ReservaRepository {
   private aDominio(fila: ReservaRow): Reserva {
     return {
       id: fila.id,
-      cancha_id: fila.cancha_id,
-      usuario_id: fila.usuario_id,
-      fecha_hora_inicio: fila.fecha_hora_inicio,
-      fecha_hora_fin: fila.fecha_hora_fin,
+      canchaId: fila.cancha_id,
+      usuarioId: fila.usuario_id,
+      fechaHoraInicio: fila.fecha_hora_inicio,
+      fechaHoraFin: fila.fecha_hora_fin,
       estado: fila.estado,
-      precio_aplicado: fila.precio_aplicado.toNumber(),
+      precioAplicado: fila.precio_aplicado.toNumber(),
     };
   }
 }

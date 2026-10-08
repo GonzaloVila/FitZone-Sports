@@ -15,11 +15,11 @@ import { ReservaRepository } from '../domain/reserva.port';
 // nombre, así que el comprobante identifica la cancha por su número. Si alguna vez hace
 // falta, el lugar del cruce es esta interfaz.
 export interface ReservaParaCobro {
-  reserva_id: number;
-  usuario_id: number;
-  cancha_id: number;
-  fecha_hora_inicio: Date;
-  fecha_hora_fin: Date;
+  reservaId: number;
+  usuarioId: number;
+  canchaId: number;
+  fechaHoraInicio: Date;
+  fechaHoraFin: Date;
   precio: number;
   estado: 'CONFIRMADA' | 'CANCELADA';
 }
@@ -43,12 +43,12 @@ export class ReservaPrecioService {
     }
 
     return {
-      reserva_id: reserva.id,
-      usuario_id: reserva.usuario_id,
-      cancha_id: reserva.cancha_id,
-      fecha_hora_inicio: reserva.fecha_hora_inicio,
-      fecha_hora_fin: reserva.fecha_hora_fin,
-      precio: reserva.precio_aplicado,
+      reservaId: reserva.id,
+      usuarioId: reserva.usuarioId,
+      canchaId: reserva.canchaId,
+      fechaHoraInicio: reserva.fechaHoraInicio,
+      fechaHoraFin: reserva.fechaHoraFin,
+      precio: reserva.precioAplicado,
       estado: reserva.estado,
     };
   }

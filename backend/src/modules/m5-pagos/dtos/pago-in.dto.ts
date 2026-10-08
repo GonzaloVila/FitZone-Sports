@@ -48,7 +48,7 @@ export class ConceptoReservaCancha {
   })
   @IsInt()
   @Min(1)
-  reserva_cancha_id!: number;
+  reservaCanchaId!: number;
 }
 
 /** Rama del `oneOf` para `ConceptoPago`: pago de una renovación de membresía. */
@@ -69,7 +69,7 @@ export class ConceptoMembresia {
   })
   @IsInt()
   @Min(1)
-  membresia_id!: number;
+  membresiaId!: number;
 }
 
 /** Rama del `oneOf` para `ConceptoPago`: penalidad por cancelacion tardia de clase (RF-07). */
@@ -90,7 +90,7 @@ export class ConceptoReservaClase {
   })
   @IsInt()
   @Min(1)
-  reserva_clase_id!: number;
+  reservaClaseId!: number;
 }
 
 /**
@@ -127,19 +127,19 @@ export class ConceptoPagoIn {
   @IsOptional()
   @IsInt()
   @Min(1)
-  reserva_cancha_id?: number;
+  reservaCanchaId?: number;
 
   @ApiProperty({ type: 'integer', required: false, example: 3 })
   @IsOptional()
   @IsInt()
   @Min(1)
-  membresia_id?: number;
+  membresiaId?: number;
 
   @ApiProperty({ type: 'integer', required: false, example: 4 })
   @IsOptional()
   @IsInt()
   @Min(1)
-  reserva_clase_id?: number;
+  reservaClaseId?: number;
 }
 
 /**
@@ -164,12 +164,12 @@ class ConceptoUnico implements ValidatorConstraintInterface {
     }
 
     if (value.tipo === 'RESERVA_CANCHA') {
-      return value.reserva_cancha_id !== undefined && value.membresia_id === undefined && value.reserva_clase_id === undefined;
+      return value.reservaCanchaId !== undefined && value.membresiaId === undefined && value.reservaClaseId === undefined;
     }
     if (value.tipo === 'RESERVA_CLASE') {
-      return value.reserva_clase_id !== undefined && value.reserva_cancha_id === undefined && value.membresia_id === undefined;
+      return value.reservaClaseId !== undefined && value.reservaCanchaId === undefined && value.membresiaId === undefined;
     }
-    return value.membresia_id !== undefined && value.reserva_cancha_id === undefined && value.reserva_clase_id === undefined;
+    return value.membresiaId !== undefined && value.reservaCanchaId === undefined && value.reservaClaseId === undefined;
   }
 
   defaultMessage(args: ValidationArguments): string {
@@ -180,18 +180,18 @@ class ConceptoUnico implements ValidatorConstraintInterface {
     }
 
     if (concepto.tipo === 'RESERVA_CANCHA') {
-      return concepto.reserva_cancha_id === undefined
+      return concepto.reservaCanchaId === undefined
         ? 'Un concepto RESERVA_CANCHA requiere reserva_cancha_id.'
         : 'Un concepto RESERVA_CANCHA no admite membresia_id ni reserva_clase_id.';
     }
 
     if (concepto.tipo === 'RESERVA_CLASE') {
-      return concepto.reserva_clase_id === undefined
+      return concepto.reservaClaseId === undefined
         ? 'Un concepto RESERVA_CLASE requiere reserva_clase_id.'
         : 'Un concepto RESERVA_CLASE no admite reserva_cancha_id ni membresia_id.';
     }
 
-    return concepto.membresia_id === undefined
+    return concepto.membresiaId === undefined
       ? 'Un concepto MEMBRESIA requiere membresia_id.'
       : 'Un concepto MEMBRESIA no admite reserva_cancha_id ni reserva_clase_id.';
   }
@@ -290,21 +290,21 @@ export class PagoIn {
  */
 export function conceptoDePago(concepto: ConceptoPagoIn): ConceptoPago {
   if (concepto.tipo === 'RESERVA_CANCHA') {
-    if (concepto.reserva_cancha_id === undefined) {
+    if (concepto.reservaCanchaId === undefined) {
       throw datosInvalidos('Un concepto RESERVA_CANCHA requiere reserva_cancha_id.');
     }
-    return { tipo: 'RESERVA_CANCHA', reserva_cancha_id: concepto.reserva_cancha_id };
+    return { tipo: 'RESERVA_CANCHA', reservaCanchaId: concepto.reservaCanchaId };
   }
 
   if (concepto.tipo === 'RESERVA_CLASE') {
-    if (concepto.reserva_clase_id === undefined) {
+    if (concepto.reservaClaseId === undefined) {
       throw datosInvalidos('Un concepto RESERVA_CLASE requiere reserva_clase_id.');
     }
-    return { tipo: 'RESERVA_CLASE', reserva_clase_id: concepto.reserva_clase_id };
+    return { tipo: 'RESERVA_CLASE', reservaClaseId: concepto.reservaClaseId };
   }
 
-  if (concepto.membresia_id === undefined) {
+  if (concepto.membresiaId === undefined) {
     throw datosInvalidos('Un concepto MEMBRESIA requiere membresia_id.');
   }
-  return { tipo: 'MEMBRESIA', membresia_id: concepto.membresia_id };
+  return { tipo: 'MEMBRESIA', membresiaId: concepto.membresiaId };
 }

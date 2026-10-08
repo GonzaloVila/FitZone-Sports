@@ -33,7 +33,7 @@ export class SedesController {
   @ApiOkResponse({ description: 'Listado de sedes', type: [SedeOut] })
   @ApiUnprocessableEntityResponse({ description: 'Parámetros de paginación inválidos', content: PROBLEM_JSON })
   listar(@Query() query: ListarSedesQueryDto): Promise<SedeOut[]> {
-    return this.sedesService.listar(query.page ?? 1, query.per_page ?? 20);
+    return this.sedesService.listar(query.page ?? 1, query.perPage ?? 20);
   }
 
   @Post()
@@ -55,12 +55,12 @@ export class SedesController {
     return sede;
   }
 
-  @Get(':sede_id/aforo')
+  @Get(':sedeId/aforo')
   @ApiOperation({ operationId: 'obtenerAforo', summary: 'Aforo actual de una sede (RF-05)' })
-  @ApiParam({ name: 'sede_id', type: 'integer', description: 'ID numérico de la sede', example: 3 })
+  @ApiParam({ name: 'sedeId', type: 'integer', description: 'ID numérico de la sede', example: 3 })
   @ApiOkResponse({ description: 'Aforo actual de la sede', type: AforoOut })
   @ApiNotFoundResponse({ description: 'Sede inexistente', content: PROBLEM_JSON })
-  obtenerAforo(@Param('sede_id', ParseIntPipe) sedeId: number): Promise<AforoOut> {
+  obtenerAforo(@Param('sedeId', ParseIntPipe) sedeId: number): Promise<AforoOut> {
     return this.ingresosService.obtenerAforo(sedeId);
   }
 }

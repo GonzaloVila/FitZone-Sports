@@ -9,8 +9,8 @@ import type {
 } from '../entities/reserva-clase.entity';
 
 export interface FiltrosReservasClase {
-  clase_id?: number;
-  socio_id?: number;
+  claseId?: number;
+  socioId?: number;
   estado?: EstadoReservaClase;
 }
 
@@ -27,12 +27,12 @@ export class ReservaClaseRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async listar(
-    { clase_id, socio_id, estado }: FiltrosReservasClase,
+    { claseId, socioId, estado }: FiltrosReservasClase,
     { page, perPage }: OpcionesPaginacion,
   ): Promise<ReservaClase[]> {
     const where: Prisma.ReservaClaseWhereInput = {
-      ...(clase_id !== undefined && { clase_id }),
-      ...(socio_id !== undefined && { socio_id }),
+      ...(claseId !== undefined && { clase_id: claseId }),
+      ...(socioId !== undefined && { socio_id: socioId }),
       ...(estado !== undefined && { estado }),
     };
 
@@ -131,16 +131,11 @@ export class ReservaClaseRepository {
     });
   }
 
-  private aDominio(fila: {
-    id: number;
-    clase_id: number;
-    socio_id: number;
-    estado: string;
-  }): ReservaClase {
+  private aDominio(fila: Prisma.ReservaClaseGetPayload<Record<string, never>>): ReservaClase {
     return {
       id: fila.id,
-      clase_id: fila.clase_id,
-      socio_id: fila.socio_id,
+      claseId: fila.clase_id,
+      socioId: fila.socio_id,
       estado: fila.estado as 'CONFIRMADA' | 'CANCELADA',
     };
   }

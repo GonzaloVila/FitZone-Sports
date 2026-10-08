@@ -12,7 +12,7 @@ import { DatosCobroMembresia, RenovacionesService } from './renovaciones.service
 // rechazado), el error se propaga al emisor y M1 revierte su operación.
 
 export interface EventoDatosAlta extends DatosCobroMembresia {
-  socio_id: number;
+  socioId: number;
   plan: string;
 }
 
@@ -26,11 +26,11 @@ export class RenovacionesListener {
 
   @OnEvent(EVENTO_SOCIO_ALTA)
   async onSocioAlta(datos: EventoDatosAlta): Promise<void> {
-    await this.renovaciones.cobrarMembresia(datos, `alta-${datos.socio_id}`);
+    await this.renovaciones.cobrarMembresia(datos, `alta-${datos.socioId}`);
   }
 
   @OnEvent(EVENTO_MEMBRESIA_PLAN)
   async onMembresiaPlan(datos: EventoDatosPlan): Promise<void> {
-    await this.renovaciones.cobrarMembresia(datos, `plan-${datos.membresia_id}-${Date.now()}`);
+    await this.renovaciones.cobrarMembresia(datos, `plan-${datos.membresiaId}-${Date.now()}`);
   }
 }

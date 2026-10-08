@@ -20,24 +20,24 @@ export type EstadoPago = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'ANULADO';
 // membresía o penalidad de clase, herencia parte-todo). Es la discriminated union
 // del contrato `ConceptoPago`: el `tipo` decide cuál id viene poblado.
 export type ConceptoPago =
-  | { tipo: 'RESERVA_CANCHA'; reserva_cancha_id: number }
-  | { tipo: 'MEMBRESIA'; membresia_id: number }
-  | { tipo: 'RESERVA_CLASE'; reserva_clase_id: number };
+  | { tipo: 'RESERVA_CANCHA'; reservaCanchaId: number }
+  | { tipo: 'MEMBRESIA'; membresiaId: number }
+  | { tipo: 'RESERVA_CLASE'; reservaClaseId: number };
 
 export interface Pago {
   id: number;
-  usuario_id: number;
+  usuarioId: number;
   concepto: ConceptoPago;
   monto: number;
   moneda: string;
   estado: EstadoPago;
-  fecha_pago: Date;
-  comprobante_pdf_url: string | null;
+  fechaPago: Date;
+  comprobantePdfUrl: string | null;
   // RNF-02: se guarda solo el token emitido por la pasarela, nunca la tarjeta.
   token: string;
   // La pasarela es idempotente por clave: repetir la misma clave devuelve el
   // pago original en vez de cobrar dos veces (ver `Pago.idempotencia_key`).
-  idempotencia_key: string;
+  idempotenciaKey: string;
 }
 
 /**
@@ -51,12 +51,12 @@ export interface Pago {
  *  - `monto` viene resuelto de M1/M4, nunca del cliente (decisión 4).
  */
 export interface PagoNuevo {
-  usuario_id: number;
+  usuarioId: number;
   concepto: ConceptoPago;
   monto: number;
   moneda: string;
   token: string;
-  idempotencia_key: string;
+  idempotenciaKey: string;
 }
 
 /**

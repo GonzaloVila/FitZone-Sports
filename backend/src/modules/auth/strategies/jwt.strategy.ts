@@ -4,13 +4,13 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { RolUsuario } from '../../m1-usuarios/entities/usuario.entity';
 
-// Forma del payload firmado por AuthService.login(). sede_id solo esta
-// presente para RECEPCION y socio_id solo para SOCIO (ver nota del plan).
+// Forma del payload firmado por AuthService.login(). sedeId solo esta
+// presente para RECEPCION y socioId solo para SOCIO (ver nota del plan).
 export interface JwtPayload {
   sub: number;
   rol: RolUsuario;
-  sede_id?: number;
-  socio_id?: number;
+  sedeId?: number;
+  socioId?: number;
   iat: number;
   exp: number;
 }
@@ -19,8 +19,8 @@ export interface JwtPayload {
 export interface UsuarioAutenticado {
   userId: number;
   rol: RolUsuario;
-  sede_id?: number;
-  socio_id?: number;
+  sedeId?: number;
+  socioId?: number;
 }
 
 @Injectable()
@@ -40,8 +40,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: payload.sub,
       rol: payload.rol,
-      sede_id: payload.sede_id,
-      socio_id: payload.socio_id,
+      sedeId: payload.sedeId,
+      socioId: payload.socioId,
     };
   }
 }

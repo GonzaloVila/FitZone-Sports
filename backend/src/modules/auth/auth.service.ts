@@ -33,9 +33,9 @@ export class AuthService {
       throw credencialesInvalidas();
     }
 
-    const sedeId = usuario.rol === 'RECEPCION' && usuario.sede_id !== null ? usuario.sede_id : undefined;
-    // El socio_id viaja en el token para que la app lo mande en POST /ingresos
-    // sin resolverlo aparte (igual que sede_id para RECEPCION).
+    const sedeId = usuario.rol === 'RECEPCION' && usuario.sedeId !== null ? usuario.sedeId : undefined;
+    // El socioId viaja en el token para que la app lo mande en POST /ingresos
+    // sin resolverlo aparte (igual que sedeId para RECEPCION).
     const socioId =
       usuario.rol === 'SOCIO' ? await this.sociosService.obtenerSocioIdPorUsuario(usuario.id) : null;
     const socioIdPayload = socioId ?? undefined;
@@ -43,20 +43,20 @@ export class AuthService {
     const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
       sub: usuario.id,
       rol: usuario.rol,
-      ...(sedeId !== undefined && { sede_id: sedeId }),
-      ...(socioIdPayload !== undefined && { socio_id: socioIdPayload }),
+      ...(sedeId !== undefined && { sedeId: sedeId }),
+      ...(socioIdPayload !== undefined && { socioId: socioIdPayload }),
     };
 
     const expiresIn = this.configService.get<number>('JWT_EXPIRES_IN')!;
-    const access_token = this.jwtService.sign(payload, { expiresIn });
+    const accessToken = this.jwtService.sign(payload, { expiresIn });
 
     return plainToInstance(LoginOut, {
-      access_token,
-      token_type: 'Bearer',
-      expires_in: expiresIn,
+      accessToken,
+      tokenType: 'Bearer',
+      expiresIn: expiresIn,
       rol: usuario.rol,
-      sede_id: sedeId,
-      socio_id: socioIdPayload,
+      sedeId: sedeId,
+      socioId: socioIdPayload,
     });
   }
 }

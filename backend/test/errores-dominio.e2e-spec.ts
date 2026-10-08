@@ -66,8 +66,8 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
 
   afterAll(async () => {
     // El alta de socio cobra la membresia (RF-02) y la baja la conserva como historial
-    // con PagoMembresia.membresia_id NULL (migracion 20261004020000). Los pagos se
-    // borran por el usuario ANTES de borrar la fila de Usuario (Pago.usuario_id es FK).
+    // con PagoMembresia.membresiaId NULL (migracion 20261004020000). Los pagos se
+    // borran por el usuario ANTES de borrar la fila de Usuario (Pago.usuarioId es FK).
     const pagos = await prisma.pago.findMany({
       where: { usuario_id: { in: usuariosCreados } },
       select: { id: true },
@@ -139,7 +139,7 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
     it('POST /socios con usuario_id inexistente conserva su detail', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/socios')
-        .send({ usuario_id: 999999, sede_origen_id: sedeId, plan: 'MENSUAL' })
+        .send({ usuarioId: 999999, sedeOrigenId: sedeId, plan: 'MENSUAL' })
         .expect(404);
 
       esProblemDeDominio(res, 404);
@@ -149,7 +149,7 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
     it('POST /ingresos con sede inexistente conserva su detail (M2)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/ingresos')
-        .send({ sede_id: 999999, socio_id: 999999, codigo_totp: '123456' })
+        .send({ sedeId: 999999, socioId: 999999, codigoTotp: '123456' })
         .expect(404);
 
       esProblemDeDominio(res, 404);
@@ -211,13 +211,13 @@ describe('Errores de dominio - 404 y 409 de M1, M2 y M3 (e2e)', () => {
       const usuarioId = await crearUsuario();
       const primerSocioRes = await request(app.getHttpServer())
         .post('/api/v1/socios')
-        .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
+        .send({ usuarioId: usuarioId, sedeOrigenId: sedeId, plan: 'MENSUAL' })
         .expect(201);
       sociosCreados.push(primerSocioRes.body.id);
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/socios')
-        .send({ usuario_id: usuarioId, sede_origen_id: sedeId, plan: 'MENSUAL' })
+        .send({ usuarioId: usuarioId, sedeOrigenId: sedeId, plan: 'MENSUAL' })
         .expect(409);
 
       esProblemDeDominio(res, 409);

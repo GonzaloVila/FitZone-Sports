@@ -8,11 +8,11 @@ export class EsperaOut {
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
-  clase_id!: number;
+  claseId!: number;
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
-  socio_id!: number;
+  socioId!: number;
 
   @ApiProperty({
     example: 'EN_ESPERA',
@@ -23,7 +23,7 @@ export class EsperaOut {
 
   @ApiProperty({ example: '2026-10-14T10:00:00.000Z' })
   @Expose()
-  fecha_anotacion!: Date;
+  fechaAnotacion!: Date;
 
   @ApiProperty({
     type: 'string',
@@ -33,7 +33,7 @@ export class EsperaOut {
     nullable: true,
   })
   @Expose()
-  fecha_notificacion!: Date | null;
+  fechaNotificacion!: Date | null;
 
   @ApiProperty({
     type: 'string',
@@ -43,5 +43,5 @@ export class EsperaOut {
     nullable: true,
   })
   @Expose()
-  fecha_confirmacion!: Date | null;
+  fechaConfirmacion!: Date | null;
 }

@@ -47,16 +47,16 @@ export class DisponibilidadService {
       : await this.reservas.listarOcupadasEnRango(canchaId, desde, hasta);
 
     const entradas = grilla.map(({ inicio, fin }) => ({
-      fecha_hora_inicio: inicio,
-      fecha_hora_fin: fin,
+      fechaHoraInicio: inicio,
+      fechaHoraFin: fin,
       // Solapamiento de intervalos semiabiertos: un turno que termina justo
       // cuando empieza el tramo no lo ocupa (mismo criterio que la constraint de exclusion de RN-02).
       disponible:
         !bloqueada &&
         !ocupadas.some(
           (r) =>
-            r.fecha_hora_inicio.getTime() < fin.getTime() &&
-            r.fecha_hora_fin.getTime() > inicio.getTime(),
+            r.fechaHoraInicio.getTime() < fin.getTime() &&
+            r.fechaHoraFin.getTime() > inicio.getTime(),
         ),
     }));
 

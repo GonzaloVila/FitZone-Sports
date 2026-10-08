@@ -6,15 +6,15 @@ import type { RolUsuario } from '../../m1-usuarios/entities/usuario.entity';
 export class LoginOut {
   @Expose()
   @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' })
-  access_token!: string;
+  accessToken!: string;
 
   @Expose()
   @ApiProperty({ example: 'Bearer' })
-  token_type!: string;
+  tokenType!: string;
 
   @Expose()
   @ApiProperty({ example: 3600, description: 'Segundos hasta el vencimiento del token.' })
-  expires_in!: number;
+  expiresIn!: number;
 
   @Expose()
   @ApiProperty({ example: 'RECEPCION' })
@@ -25,12 +25,12 @@ export class LoginOut {
     example: 5,
     description: 'Sucursal de trabajo. Solo presente para rol RECEPCION.',
   })
-  sede_id?: number;
+  sedeId?: number;
 
   @Expose()
   @ApiPropertyOptional({
     example: 12,
     description: 'ID de socio. Solo presente para rol SOCIO (se usa en POST /ingresos).',
   })
-  socio_id?: number;
+  socioId?: number;
 }

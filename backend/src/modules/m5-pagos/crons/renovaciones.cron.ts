@@ -37,11 +37,11 @@ export class RenovacionesCron {
     for (const membresia of renovables) {
       try {
         await this.renovaciones.cobrarMembresia(
-          { membresia_id: membresia.id, usuario_id: membresia.usuarioId, precio: membresia.precio },
+          { membresiaId: membresia.id, usuarioId: membresia.usuarioId, precio: membresia.precio },
           `renov-${membresia.id}-${membresia.fechaFin.getTime()}`,
         );
         // Solo un cobro aprobado llega acá. El periodo nuevo se calcula SOBRE la
-        // fecha_fin previa (contiguo, mismo ancla que actualizar() en M1).
+        // fechaFin previa (contiguo, mismo ancla que actualizar() en M1).
         const periodo = calcularVigencia(membresia.plan, membresia.fechaFin);
         await this.membresias.renovar(membresia.id, periodo);
         renovadas += 1;

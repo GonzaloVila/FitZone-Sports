@@ -7,7 +7,7 @@ export type EstadoMembresia = 'ACTIVA' | 'VENCIDA' | 'SUSPENDIDA';
 // socio y la relee el cambio de plan, y las dos cosas van por el mismo valor.
 //
 // El precio se congela en la fila de Membresia y no en una tabla de planes por la
-// misma razon que Reserva.precio_aplicado existe en M4: el comprobante tiene que
+// misma razon que Reserva.precioAplicado existe en M4: el comprobante tiene que
 // seguir cuadrando con lo que se cobro el dia del cobro. Si manana sube la tarifa,
 // esta constante cambia para las altas nuevas y las viejas conservan lo suyo.
 export const PRECIOS_PLAN: Record<PlanMembresia, number> = {
@@ -18,22 +18,22 @@ export const PRECIOS_PLAN: Record<PlanMembresia, number> = {
 
 export interface Membresia {
   id: number;
-  socio_id: number;
+  socioId: number;
   plan: PlanMembresia;
   estado: EstadoMembresia;
-  // El periodo vigente, no la fecha de alta (esa vive en Socio.fecha_alta). El par
-  // (fecha_inicio, fecha_fin) siempre es el periodo que devolvio calcularVigencia,
+  // El periodo vigente, no la fecha de alta (esa vive en Socio.fechaAlta). El par
+  // (fechaInicio, fechaFin) siempre es el periodo que devolvio calcularVigencia,
   // nunca una mezcla: ver el comentario de esa funcion.
-  fecha_inicio: Date;
-  fecha_fin: Date;
+  fechaInicio: Date;
+  fechaFin: Date;
   precio: number;
-  renueva_automatica: boolean;
-  updated_at: Date;
+  renuevaAutomatica: boolean;
+  updatedAt: Date;
 }
 
 export interface MembresiaActualizable {
   plan?: PlanMembresia;
-  renueva_automatica?: boolean;
+  renuevaAutomatica?: boolean;
   estado?: EstadoMembresia;
 }
 
@@ -56,27 +56,27 @@ export interface EstadoSocioMembresia {
 // - desde HOY: el alta (socio.repository) y el cambio de plan
 //   (membresia.repository), que el contrato define como "la fecha_fin se recalcula
 //   sobre la fecha actual segun el nuevo plan".
-// - desde la fecha_fin PREVIA: la renovacion automatica, para no perder los dias
+// - desde la fechaFin PREVIA: la renovacion automatica, para no perder los dias
 //   que el socio ya pago y no uso.
 //
 // La renovacion extiende desde la previa; el cambio de plan no. No es un descuido:
 // son operaciones distintas. Y en las dos se escriben las DOS fechas, nunca una sola,
-// para que el par (fecha_inicio, fecha_fin) sea siempre un periodo completo y en la
+// para que el par (fechaInicio, fechaFin) sea siempre un periodo completo y en la
 // renovacion los periodos queden contiguos: el nuevo arranca donde termino el viejo.
 
 // GET /bloqueados (Fase 4): un socio no vigente, con el motivo (el estado
-// que lo saca de vigencia) y desde cuándo (Membresia.updated_at), para que
+// que lo saca de vigencia) y desde cuándo (Membresia.updatedAt), para que
 // el puesto offline sincronice su lista local de forma incremental. Se
-// identifica por socio_id (el acceso es de socios).
+// identifica por socioId (el acceso es de socios).
 export interface MembresiaNoVigente {
   socioId: number;
   motivo: 'VENCIDA' | 'SUSPENDIDA';
   desde: Date; 
 }
 
-// RF-02 (renovacion automatica): una membresia con renueva_automatica=true cuyo
-// periodo ya vencio, con lo que el cron de M5 necesita para cobrar (usuario_id,
-// precio) y renovar (fecha_fin previa como ancla). SUSPENDIDA nunca entra aca.
+// RF-02 (renovacion automatica): una membresia con renuevaAutomatica=true cuyo
+// periodo ya vencio, con lo que el cron de M5 necesita para cobrar (usuarioId,
+// precio) y renovar (fechaFin previa como ancla). SUSPENDIDA nunca entra aca.
 export interface MembresiaRenovable {
   id: number;
   usuarioId: number;
@@ -88,21 +88,21 @@ export interface MembresiaRenovable {
 export function calcularVigencia(
   plan: PlanMembresia,
   desde: Date = new Date(),
-): { fecha_inicio: Date; fecha_fin: Date } {
-  const fecha_inicio = desde;
-  const fecha_fin = new Date(desde);
+): { fechaInicio: Date; fechaFin: Date } {
+  const fechaInicio = desde;
+  const fechaFin = new Date(desde);
 
   switch (plan) {
     case 'MENSUAL':
-      fecha_fin.setMonth(fecha_fin.getMonth() + 1);
+      fechaFin.setMonth(fechaFin.getMonth() + 1);
       break;
     case 'TRIMESTRAL':
-      fecha_fin.setMonth(fecha_fin.getMonth() + 3);
+      fechaFin.setMonth(fechaFin.getMonth() + 3);
       break;
     case 'ANUAL':
-      fecha_fin.setFullYear(fecha_fin.getFullYear() + 1);
+      fechaFin.setFullYear(fechaFin.getFullYear() + 1);
       break;
   }
 
-  return { fecha_inicio, fecha_fin };
+  return { fechaInicio, fechaFin };
 }

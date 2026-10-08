@@ -8,8 +8,8 @@ import { Injectable } from '@nestjs/common';
  * listar. Por eso el resultado es un tipo y nunca un `throw`.
  */
 export type ResultadoPasarela =
-  | { estado: 'APROBADO'; pasarela_token: string }
-  | { estado: 'PENDIENTE'; pasarela_token: string }
+  | { estado: 'APROBADO'; pasarelaToken: string }
+  | { estado: 'PENDIENTE'; pasarelaToken: string }
   | { estado: 'RECHAZADO'; motivo: string };
 
 export type ResultadoReembolso =
@@ -20,7 +20,7 @@ export interface SolicitudPasarela {
   token: string;
   monto: number;
   moneda: string;
-  idempotencia_key: string;
+  idempotenciaKey: string;
 }
 
 /**
@@ -61,17 +61,17 @@ const PREFIJO_PENDIENTE = 'tok_pendiente';
 @Injectable()
 export class PasarelaPagoService {
   async cobrar(solicitud: SolicitudPasarela): Promise<ResultadoPasarela> {
-    const { token, idempotencia_key } = solicitud;
+    const { token, idempotenciaKey } = solicitud;
 
     if (token.startsWith(PREFIJO_APROBADO)) {
       // El token que se persiste es el de la pasarela, no el que mandó el cliente.
       // Con el mock son el mismo string; con un proveedor real serían distintos y
       // esta línea es la que habría que cambiar.
-      return { estado: 'APROBADO', pasarela_token: token };
+      return { estado: 'APROBADO', pasarelaToken: token };
     }
 
     if (token.startsWith(PREFIJO_PENDIENTE)) {
-      return { estado: 'PENDIENTE', pasarela_token: token };
+      return { estado: 'PENDIENTE', pasarelaToken: token };
     }
 
     return {
@@ -91,7 +91,7 @@ export class PasarelaPagoService {
     token: string;
     monto: number;
     moneda: string;
-    idempotencia_key: string;
+    idempotenciaKey: string;
   }): Promise<ResultadoReembolso> {
     void pago;
     return { ok: true };

@@ -10,8 +10,8 @@ import type { Socio, SocioActualizable, SocioNuevo } from '../entities/socio.ent
 // En nomenclatura de dominio (snake_case), no la del contrato. El service
 // traduce desde el query DTO, que si usa camelCase para los filtros.
 export interface FiltrosSocios {
-  sede_origen_id?: number;
-  estado_membresia?: EstadoMembresia;
+  sedeOrigenId?: number;
+  estadoMembresia?: EstadoMembresia;
   plan?: PlanMembresia;
   nombre?: string;
 }
@@ -40,14 +40,14 @@ export class SocioRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async listar(
-    { sede_origen_id, estado_membresia, plan, nombre }: FiltrosSocios,
+    { sedeOrigenId, estadoMembresia, plan, nombre }: FiltrosSocios,
     { page, perPage }: OpcionesPaginacion,
   ): Promise<Socio[]> {
     const where: Prisma.SocioWhereInput = {
       // Baja logica: el listado y las lecturas de vigencia solo ven socios activos.
       activo: true,
-      ...(sede_origen_id !== undefined && {
-        sede_origen_id: sede_origen_id,
+      ...(sedeOrigenId !== undefined && {
+        sede_origen_id: sedeOrigenId,
       }),
       ...(nombre !== undefined && {
         usuario: { nombre: { contains: nombre, mode: 'insensitive' } },
@@ -56,9 +56,9 @@ export class SocioRepository {
 
     // Los dos filtros de membresia se acumulan en el MISMO objeto para que
     // Prisma los ANDee sobre la relacion.
-    if (estado_membresia !== undefined || plan !== undefined) {
+    if (estadoMembresia !== undefined || plan !== undefined) {
       where.membresia = {
-        ...(estado_membresia !== undefined && { estado: estado_membresia }),
+        ...(estadoMembresia !== undefined && { estado: estadoMembresia }),
         ...(plan !== undefined && { plan }),
       };
     }
@@ -75,20 +75,20 @@ export class SocioRepository {
 
   async crear(socio: SocioNuevo): Promise<Socio> {
     const fila = await this.prisma.$transaction(async (tx) => {
-      // `calcularVigencia` sin segundo argumento toma hoy como fecha_inicio.
-      const { fecha_inicio, fecha_fin } = calcularVigencia(socio.plan);
+      // `calcularVigencia` sin segundo argumento toma hoy como fechaInicio.
+      const { fechaInicio, fechaFin } = calcularVigencia(socio.plan);
       const precio = PRECIOS_PLAN[socio.plan];
 
       // Re-alta: si el usuario ya tuvo un Socio (baja logica previa), se REACTIVA
-      // esa misma fila en vez de insertar otra (el @unique(usuario_id) lo impide).
+      // esa misma fila en vez de insertar otra (el @unique(usuarioId) lo impide).
       const existente = await tx.socio.findUnique({
-        where: { usuario_id: socio.usuario_id },
+        where: { usuario_id: socio.usuarioId },
       });
 
       if (existente) {
         const reactivado = await tx.socio.update({
-          where: { usuario_id: socio.usuario_id },
-          data: { activo: true, fecha_baja: null, sede_origen_id: socio.sede_origen_id },
+          where: { usuario_id: socio.usuarioId },
+          data: { activo: true, fecha_baja: null, sede_origen_id: socio.sedeOrigenId },
           include: USUARIO_SELECCION,
         });
 
@@ -98,15 +98,15 @@ export class SocioRepository {
           data: {
             plan: socio.plan,
             estado: 'ACTIVA',
-            fecha_inicio,
-            fecha_fin,
+            fecha_inicio: fechaInicio,
+            fecha_fin: fechaFin,
             precio,
             renueva_automatica: false,
           },
         });
 
         await tx.usuario.update({
-          where: { id: socio.usuario_id },
+          where: { id: socio.usuarioId },
           data: { rol: 'SOCIO' },
         });
 
@@ -115,8 +115,8 @@ export class SocioRepository {
 
       const nuevoSocio = await tx.socio.create({
         data: {
-          usuario_id: socio.usuario_id,
-          sede_origen_id: socio.sede_origen_id,
+          usuario_id: socio.usuarioId,
+          sede_origen_id: socio.sedeOrigenId,
           fecha_alta: new Date(),
         },
         // Ojo: este snapshot del Usuario es previo al update de `rol` de mas
@@ -132,15 +132,15 @@ export class SocioRepository {
           socio_id: nuevoSocio.id,
           plan: socio.plan,
           estado: 'ACTIVA',
-          fecha_inicio,
-          fecha_fin,
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
           precio,
           renueva_automatica: false,
         },
       });
 
       await tx.usuario.update({
-        where: { id: socio.usuario_id },
+        where: { id: socio.usuarioId },
         data: { rol: 'SOCIO' },
       });
 
@@ -170,7 +170,7 @@ export class SocioRepository {
     return fila ? this.aDominio(fila) : null;
   }
 
-  // totp_secreto/qr_activo no viven en la entidad Socio ni en SocioOut: son
+  // totpSecreto/qrActivo no viven en la entidad Socio ni en SocioOut: son
   // detalle de autenticacion (RF-04), no del perfil publico del socio. Por
   // eso estos dos metodos devuelven su propia forma en vez de ensanchar
   // `Socio`, y los consume unicamente TotpService (modules/auth).
@@ -185,7 +185,7 @@ export class SocioRepository {
     return { socioId: fila.id, totpSecreto: fila.totp_secreto, qrActivo: fila.qr_activo };
   }
 
-  // Para la validacion del QR por SOCIO (M2 ahora referencia socio_id): el secreto
+  // Para la validacion del QR por SOCIO (M2 ahora referencia socioId): el secreto
   // y el estado del QR de un socio concreto, sin pasar por el usuario. Un socio
   // inactivo (baja logica) devuelve null -> el ingreso no valida.
   async buscarTotpPorSocioId(socioId: number): Promise<SocioTotp | null> {
@@ -211,8 +211,8 @@ export class SocioRepository {
       const fila = await this.prisma.socio.update({
         where: { id },
         data: {
-          ...(cambios.sede_origen_id !== undefined && {
-            sede_origen_id: cambios.sede_origen_id,
+          ...(cambios.sedeOrigenId !== undefined && {
+            sede_origen_id: cambios.sedeOrigenId,
           }),
         },
         include: USUARIO_SELECCION,
@@ -253,13 +253,13 @@ export class SocioRepository {
   private aDominio(fila: SocioRow): Socio {
     return {
       id: fila.id,
-      usuario_id: fila.usuario_id,
+      usuarioId: fila.usuario_id,
       nombre: fila.usuario.nombre,
       email: fila.usuario.email,
-      sede_origen_id: fila.sede_origen_id,
-      fecha_alta: fila.fecha_alta,
+      sedeOrigenId: fila.sede_origen_id,
+      fechaAlta: fila.fecha_alta,
       activo: fila.activo,
-      fecha_baja: fila.fecha_baja,
+      fechaBaja: fila.fecha_baja,
     };
   }
 }

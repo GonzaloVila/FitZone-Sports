@@ -5,7 +5,7 @@ import type { OpcionesPaginacion } from '../../../commons/paginacion';
 import type { Clase, ClaseConCupo, ClaseNueva } from '../entities/clase.entity';
 
 export interface ClaseFiltros {
-  sede_id?: number;
+  sedeId?: number;
   tipo?: string;
 }
 
@@ -17,7 +17,7 @@ export class ClaseRepository {
   async crear(clase: ClaseNueva): Promise<Clase> {
     const fila = await this.prisma.clase.create({
       data: {
-        sede_id: clase.sede_id,
+        sede_id: clase.sedeId,
         tipo: clase.tipo,
         instructor: clase.instructor,
         horario: clase.horario,
@@ -47,17 +47,17 @@ export class ClaseRepository {
     const reservasConfirmadas = fila._count.reservas;
     return {
       ...this.aDominio(fila),
-      reservas_confirmadas: reservasConfirmadas,
-      cupo_disponible: Math.max(0, fila.capacidad - reservasConfirmadas),
+      reservasConfirmadas: reservasConfirmadas,
+      cupoDisponible: Math.max(0, fila.capacidad - reservasConfirmadas),
     };
   }
 
   async listar(
-    { sede_id, tipo }: ClaseFiltros,
+    { sedeId, tipo }: ClaseFiltros,
     { page, perPage }: OpcionesPaginacion,
   ): Promise<ClaseConCupo[]> {
     const where: Prisma.ClaseWhereInput = {
-      ...(sede_id !== undefined && { sede_id }),
+      ...(sedeId !== undefined && { sede_id: sedeId }),
       ...(tipo !== undefined && { tipo: { contains: tipo, mode: 'insensitive' } }),
     };
 
@@ -79,23 +79,16 @@ export class ClaseRepository {
       const reservasConfirmadas = fila._count.reservas;
       return {
         ...this.aDominio(fila),
-        reservas_confirmadas: reservasConfirmadas,
-        cupo_disponible: Math.max(0, fila.capacidad - reservasConfirmadas),
+        reservasConfirmadas: reservasConfirmadas,
+        cupoDisponible: Math.max(0, fila.capacidad - reservasConfirmadas),
       };
     });
   }
 
-  private aDominio(fila: {
-    id: number;
-    sede_id: number;
-    tipo: string;
-    instructor: string;
-    horario: string;
-    capacidad: number;
-  }): Clase {
+  private aDominio(fila: Prisma.ClaseGetPayload<Record<string, never>>): Clase {
     return {
       id: fila.id,
-      sede_id: fila.sede_id,
+      sedeId: fila.sede_id,
       tipo: fila.tipo,
       instructor: fila.instructor,
       horario: fila.horario,

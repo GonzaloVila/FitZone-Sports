@@ -13,7 +13,7 @@ export class CanchaPatch {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  costo_por_hora?: number;
+  costoPorHora?: number;
 
   @ApiPropertyOptional({ enum: ESTADOS })
   @IsOptional()

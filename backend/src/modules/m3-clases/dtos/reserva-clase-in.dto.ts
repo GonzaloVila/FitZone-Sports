@@ -9,7 +9,7 @@ export class ReservaClaseIn {
   })
   @IsInt()
   @IsPositive()
-  clase_id!: number;
+  claseId!: number;
 
   @ApiProperty({
     type: 'integer',
@@ -18,5 +18,5 @@ export class ReservaClaseIn {
   })
   @IsInt()
   @IsPositive()
-  socio_id!: number;
+  socioId!: number;
 }

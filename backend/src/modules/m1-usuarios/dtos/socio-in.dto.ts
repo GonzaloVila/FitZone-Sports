@@ -13,7 +13,7 @@ export class SocioIn {
   })
   @IsInt()
   @Min(1)
-  usuario_id!: number;
+  usuarioId!: number;
 
   @ApiProperty({
     type: 'integer',
@@ -23,7 +23,7 @@ export class SocioIn {
   })
   @IsInt()
   @Min(1)
-  sede_origen_id!: number;
+  sedeOrigenId!: number;
 
   @ApiProperty({
     enum: PLANES,

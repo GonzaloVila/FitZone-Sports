@@ -25,7 +25,7 @@ export class PagoOut {
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
-  usuario_id!: number;
+  usuarioId!: number;
 
   @Expose()
   @ApiProperty()
@@ -56,7 +56,7 @@ export class PagoOut {
       '(?desde=/?hasta=) y conciliar contra el reporte de la pasarela.',
     example: '2026-09-16T18:42:11.204Z',
   })
-  fecha_pago!: Date;
+  fechaPago!: Date;
 
   @Expose()
   // Opcional de verdad: el contrato lo saca del `required` de `PagoOut` porque el
@@ -69,5 +69,5 @@ export class PagoOut {
     description:
       'Adjunto del snapshot de la RF-14, solo cuando el pago está aprobado.',
   })
-  comprobante_pdf_url!: string | null;
+  comprobantePdfUrl!: string | null;
 }

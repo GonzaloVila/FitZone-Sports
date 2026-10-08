@@ -6,9 +6,9 @@ import { PlanMembresia } from '../entities/membresia.entity';
 const PLANES: PlanMembresia[] = ['MENSUAL', 'TRIMESTRAL', 'ANUAL'];
 
 // Estados que el endpoint acepta de entrada. VENCIDA queda afuera a propósito: solo
-// lo produce el proceso diario que vence las membresías cuya fecha_fin ya pasó.
-// Aceptarlo por API permitía dejar un VENCIDA con fecha_fin futura, y esa fila
-// la daría por vigente `estadoDe().esVigente` (ACTIVA con fecha_fin futura).
+// lo produce el proceso diario que vence las membresías cuya fechaFin ya pasó.
+// Aceptarlo por API permitía dejar un VENCIDA con fechaFin futura, y esa fila
+// la daría por vigente `estadoDe().esVigente` (ACTIVA con fechaFin futura).
 const ESTADOS: EstadoMembresia[] = ['ACTIVA', 'SUSPENDIDA'];
 
 export class MembresiaPatch {
@@ -25,7 +25,7 @@ export class MembresiaPatch {
   })
   @IsOptional()
   @IsBoolean()
-  renueva_automatica?: boolean;
+  renuevaAutomatica?: boolean;
 
   @ApiPropertyOptional({
     enum: ESTADOS,

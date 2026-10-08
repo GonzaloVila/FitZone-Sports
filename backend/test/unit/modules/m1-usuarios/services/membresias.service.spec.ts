@@ -10,19 +10,19 @@ import type { SocioRepository } from 'src/modules/m1-usuarios/repositories/socio
 // La regla RN-03 vivia en `MembresiaValidationAdapter` y no tenia cobertura propia:
 // los e2e solo la cruzaban de paso al reservar o al ingresar. Con la migracion a
 // capas la regla quedo en `MembresiasService`, asi que estos tests fijan la
-// combinacion de estado y fecha_fin que antes nadie verificaba.
+// combinacion de estado y fechaFin que antes nadie verificaba.
 
 function membresiaValida(over: Partial<Membresia> = {}): Membresia {
   return {
     id: 1,
-    socio_id: 1,
+    socioId: 1,
     plan: 'MENSUAL',
     estado: 'ACTIVA',
-    fecha_inicio: new Date('2026-09-01T12:00:00.000Z'),
-    fecha_fin: new Date('2099-11-01T12:00:00.000Z'),
+    fechaInicio: new Date('2026-09-01T12:00:00.000Z'),
+    fechaFin: new Date('2099-11-01T12:00:00.000Z'),
     precio: PRECIOS_PLAN.MENSUAL,
-    renueva_automatica: true,
-    updated_at: new Date('2026-09-01T12:00:00.000Z'),
+    renuevaAutomatica: true,
+    updatedAt: new Date('2026-09-01T12:00:00.000Z'),
     ...over,
   };
 }
@@ -71,11 +71,11 @@ describe('MembresiasService - consultas de vigencia', () => {
   });
 
   // RN-03 junto con estadoDe(): el cron diario mueve `estado` a VENCIDA, pero
-  // entre la fecha_fin y la corrida siguiente el registro sigue ACTIVA. La
+  // entre la fechaFin y la corrida siguiente el registro sigue ACTIVA. La
   // vigencia real tiene que depender de la fecha, no solo del estado.
   it('da por no vigente una membresia ACTIVA cuya fecha_fin ya paso', async () => {
     const s = service({
-      membresia: membresiaValida({ estado: 'ACTIVA', fecha_fin: new Date('2020-01-01T00:00:00.000Z') }),
+      membresia: membresiaValida({ estado: 'ACTIVA', fechaFin: new Date('2020-01-01T00:00:00.000Z') }),
     });
     expect(await s.consultarVigencia(1)).toEqual({ vigente: false });
   });
@@ -91,7 +91,7 @@ describe('MembresiasService - consultas de vigencia', () => {
 
   it('marca en mora una membresia vencida por fecha aunque el estado siga ACTIVA', async () => {
     const s = service({
-      membresia: membresiaValida({ estado: 'ACTIVA', fecha_fin: new Date('2020-01-01T00:00:00.000Z') }),
+      membresia: membresiaValida({ estado: 'ACTIVA', fechaFin: new Date('2020-01-01T00:00:00.000Z') }),
     });
     expect(await s.consultarVigenciaPorSocio(1)).toEqual({
       esSocio: true,
@@ -119,7 +119,7 @@ describe('MembresiasService - consultas de vigencia', () => {
 
   it('estadoDe acepta como vigente una membresia que termina exactamente ahora', () => {
     const ahora = new Date('2026-10-01T12:00:00.000Z');
-    const m = membresiaValida({ fecha_fin: ahora });
+    const m = membresiaValida({ fechaFin: ahora });
     expect(estadoDe(m).esVigente(m, ahora)).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 export interface Clase {
   id: number;
-  sede_id: number;
+  sedeId: number;
   tipo: string;
   instructor: string;
   horario: string;
@@ -10,6 +10,6 @@ export interface Clase {
 export type ClaseNueva = Omit<Clase, 'id'>;
 
 export interface ClaseConCupo extends Clase {
-  reservas_confirmadas: number;
-  cupo_disponible: number;
+  reservasConfirmadas: number;
+  cupoDisponible: number;
 }

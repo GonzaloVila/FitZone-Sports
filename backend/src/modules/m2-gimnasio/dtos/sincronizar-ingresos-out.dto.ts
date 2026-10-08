@@ -5,7 +5,7 @@ import { Exclude, Expose, Type } from 'class-transformer';
 export class ResultadoIngresoOut {
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
-  local_id!: number;
+  localId!: number;
 
   @Expose()
   @ApiProperty({ example: true })
@@ -13,7 +13,7 @@ export class ResultadoIngresoOut {
 
   @Expose()
   @ApiPropertyOptional({ type: 'integer', example: 987, description: 'ID del ingreso en el servidor. Solo si ok:true.' })
-  server_id?: number;
+  serverId?: number;
 
   @Expose()
   @ApiPropertyOptional({ enum: ['USUARIO_BLOQUEADO', 'YA_DENTRO', 'AFORO_LLENO'], example: 'USUARIO_BLOQUEADO' })
@@ -28,7 +28,7 @@ export class ResultadoIngresoOut {
 export class ResultadoEgresoOut {
   @Expose()
   @ApiProperty({ type: 'integer', example: 1 })
-  local_id!: number;
+  localId!: number;
 
   @Expose()
   @ApiProperty({ example: true })
@@ -53,5 +53,5 @@ export class SincronizarIngresosOut {
   @Expose()
   @Type(() => ResultadoEgresoOut)
   @ApiProperty({ type: [ResultadoEgresoOut] })
-  egresos_procesados!: ResultadoEgresoOut[];
+  egresosProcesados!: ResultadoEgresoOut[];
 }

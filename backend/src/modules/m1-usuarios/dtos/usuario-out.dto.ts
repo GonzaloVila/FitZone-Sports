@@ -40,5 +40,5 @@ export class UsuarioOut {
     nullable: true,
     example: 'https://cdn.fitzone.com.ar/fotos/ana.jpg',
   })
-  foto_url?: string | null;
+  fotoUrl?: string | null;
 }

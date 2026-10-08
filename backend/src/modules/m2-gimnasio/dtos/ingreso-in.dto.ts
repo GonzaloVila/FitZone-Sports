@@ -17,12 +17,12 @@ export class IngresoIn {
   @ApiProperty({ type: 'integer', description: 'Sede de ingreso (RF-05). La define el puesto de control.', example: 3 })
   @IsInt()
   @Min(1)
-  sede_id!: number;
+  sedeId!: number;
 
   @ApiProperty({ type: 'integer', description: 'Socio que ingresa; debe tener membresía vigente (RF-04).', example: 2 })
   @IsInt()
   @Min(1)
-  socio_id!: number;
+  socioId!: number;
 
   @ApiProperty({
     description: 'Código TOTP de 6 dígitos generado por la app del socio (RF-04, QR dinámico).',
@@ -33,7 +33,7 @@ export class IngresoIn {
   @IsString()
   @Length(6, 6)
   @Matches(/^\d{6}$/, { message: 'codigo_totp debe ser de 6 dígitos numéricos' })
-  codigo_totp!: string;
+  codigoTotp!: string;
 
   @ApiPropertyOptional({
     type: String,
@@ -45,9 +45,9 @@ export class IngresoIn {
   })
   @IsOptional()
   @IsDateString()
-  fecha_hora_ingreso?: string;
+  fechaHoraIngreso?: string;
 
-  // Sin default a propósito: el contrato no declara default para validado_offline
+  // Sin default a propósito: el contrato no declara default para validadoOffline
   // y documentarlo acá agregaría una diferencia de la nada. El default real lo
   // aplica el repository con `?? false` cuando el campo no viene.
   @ApiPropertyOptional({
@@ -57,5 +57,5 @@ export class IngresoIn {
   })
   @IsOptional()
   @IsBoolean()
-  validado_offline?: boolean;
+  validadoOffline?: boolean;
 }

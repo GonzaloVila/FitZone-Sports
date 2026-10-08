@@ -41,20 +41,20 @@ export class BloqueadosController {
   @ApiUnauthorizedResponse({ description: 'Token inválido, expirado o ausente', content: PROBLEM_JSON })
   @ApiForbiddenResponse({ description: 'Rol sin permiso (solo RECEPCION/GERENTE)', content: PROBLEM_JSON })
   async listar(@Query() dto: ListarBloqueadosQueryDto): Promise<BloqueadosOut> {
-    // Epoch como default: sin ?actualizado_desde= trae el universo completo
+    // Epoch como default: sin ?actualizadoDesde= trae el universo completo
     // de no vigentes, que es lo que necesita la primera sincronizacion de un
     // puesto nuevo (todavia sin lista local contra la que comparar).
-    const desde = dto.actualizado_desde ? new Date(dto.actualizado_desde) : new Date(0);
+    const desde = dto.actualizadoDesde ? new Date(dto.actualizadoDesde) : new Date(0);
     const noVigentes = await this.membresiasService.buscarNoVigentes(desde);
 
     return plainToInstance(BloqueadosOut, {
       bloqueados: noVigentes.map((item) => ({
-        socio_id: item.socioId,
+        socioId: item.socioId,
         motivo: item.motivo,
         desde: item.desde.toISOString(),
       })),
       total: noVigentes.length,
-      servidor_time: new Date().toISOString(),
+      servidorTime: new Date().toISOString(),
     });
   }
 }

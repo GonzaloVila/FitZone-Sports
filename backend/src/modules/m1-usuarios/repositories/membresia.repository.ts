@@ -30,7 +30,7 @@ export class PrismaMembresiaRepository extends MembresiaRepository {
   }
 
   // Lectura minima para el caso de uso de cobro: la fila con el socio adjunto (la
-  // membresia no tiene usuario_id, lo tiene el socio, y Pago.usuario_id lo necesita).
+  // membresia no tiene usuarioId, lo tiene el socio, y Pago.usuarioId lo necesita).
   // El precio sale como number y no como el Decimal de Prisma. Va acá y no en el
   // service de M5 para que la tabla Membresia se consulte desde un solo lugar (ADR-07).
   async obtenerParaCobro(membresiaId: number): Promise<MembresiaParaCobro | null> {
@@ -43,8 +43,8 @@ export class PrismaMembresiaRepository extends MembresiaRepository {
     }
 
     return {
-      membresia_id: fila.id,
-      usuario_id: fila.socio.usuario_id,
+      membresiaId: fila.id,
+      usuarioId: fila.socio.usuario_id,
       plan: fila.plan,
       precio: fila.precio.toNumber(),
       estado: fila.estado,
@@ -57,7 +57,7 @@ export class PrismaMembresiaRepository extends MembresiaRepository {
   ): Promise<Membresia | null> {
     const data: Prisma.MembresiaUpdateInput = {
       plan: cambios.plan,
-      renueva_automatica: cambios.renueva_automatica,
+      renueva_automatica: cambios.renuevaAutomatica,
       estado: cambios.estado,
     };
 
@@ -65,15 +65,16 @@ export class PrismaMembresiaRepository extends MembresiaRepository {
       // Cambiar el plan mueve TRES cosas y ninguna puede quedar sin la otra:
       //   - el precio, que si no se actualizaria un socio que baja de ANUAL a
       //     MENSUAL y sigue pagando el precio del anual;
-      //   - fecha_inicio y fecha_fin, juntas, porque el periodo nuevo arranca HOY
-      //     (regla del contrato) y escribir solo la fecha_fin dejaba la fila con un
+      //   - fechaInicio y fechaFin, juntas, porque el periodo nuevo arranca HOY
+      //     (regla del contrato) y escribir solo la fechaFin dejaba la fila con un
       //     par imposible: el alta original con un fin contado desde hoy.
-      // El ancla de la renovacion automatica es la fecha_fin PREVIA, no esta; son
+      // El ancla de la renovacion automatica es la fechaFin PREVIA, no esta; son
       // operaciones distintas y por eso los periodos quedan contiguos al renovar.
       data.precio = PRECIOS_PLAN[cambios.plan];
       const periodo = calcularVigencia(cambios.plan, new Date());
-      data.fecha_inicio = periodo.fecha_inicio;
-      data.fecha_fin = periodo.fecha_fin;
+      // `data` es un Prisma.MembresiaUpdateInput: sus campos van en snake (la columna).
+      data.fecha_inicio = periodo.fechaInicio;
+      data.fecha_fin = periodo.fechaFin;
     }
 
     const fila = await this.prisma.membresia
@@ -130,7 +131,7 @@ export class PrismaMembresiaRepository extends MembresiaRepository {
 
   // RF-02 (renovacion automatica, cron de M5): membresias con renovacion
   // automatica habilitada cuyo periodo ya vencio. El `usuario_id` sale de la
-  // relacion a Socio (Pago.usuario_id lo necesita). SUSPENDIDA NO renueva: la
+  // relacion a Socio (Pago.usuarioId lo necesita). SUSPENDIDA NO renueva: la
   // suspension es decision del admin y una renovacion no debe revivirla.
   async listarRenovables(ahora: Date): Promise<MembresiaRenovable[]> {
     const filas = await this.prisma.membresia.findMany({
@@ -161,17 +162,17 @@ export class PrismaMembresiaRepository extends MembresiaRepository {
   }
 
   // RF-02: extiende el periodo de una membresia renovada. Las fechas nuevas se
-  // calculan SOBRE la fecha_fin previa (periodos contiguos), no desde hoy: es el
+  // calculan SOBRE la fechaFin previa (periodos contiguos), no desde hoy: es el
   // mismo ancla que documenta `actualizar()` para la renovacion automatica. El
   // precio congelado NO cambia. Devuelve null si la fila no existe.
-  async renovar(id: number, periodo: { fecha_inicio: Date; fecha_fin: Date }): Promise<Membresia | null> {
+  async renovar(id: number, periodo: { fechaInicio: Date; fechaFin: Date }): Promise<Membresia | null> {
     const fila = await this.prisma.membresia
       .update({
         where: { id },
         data: {
           estado: 'ACTIVA',
-          fecha_inicio: periodo.fecha_inicio,
-          fecha_fin: periodo.fecha_fin,
+          fecha_inicio: periodo.fechaInicio,
+          fecha_fin: periodo.fechaFin,
         },
       })
       .catch((err) => {
@@ -187,14 +188,14 @@ export class PrismaMembresiaRepository extends MembresiaRepository {
   private aDominio(fila: MembresiaRow): Membresia {
     return {
       id: fila.id,
-      socio_id: fila.socio_id,
+      socioId: fila.socio_id,
       plan: fila.plan,
       estado: fila.estado,
-      fecha_inicio: fila.fecha_inicio,
-      fecha_fin: fila.fecha_fin,
+      fechaInicio: fila.fecha_inicio,
+      fechaFin: fila.fecha_fin,
       precio: fila.precio.toNumber(),
-      renueva_automatica: fila.renueva_automatica,
-      updated_at: fila.updated_at,
+      renuevaAutomatica: fila.renueva_automatica,
+      updatedAt: fila.updated_at,
     };
   }
 }

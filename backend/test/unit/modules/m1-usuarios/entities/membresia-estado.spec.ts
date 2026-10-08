@@ -5,21 +5,21 @@ import { estadoDe } from 'src/modules/m1-usuarios/entities/membresia-estado';
 
 // La regla de vigencia vivia en `estaVigente()` (entity) y se usaba en los
 // services con `if` dispersos. El refactor a State la movio a objetos de estado
-// (membresia-estado.ts): estos tests fijan la combinacion estado x fecha_fin y
+// (membresia-estado.ts): estos tests fijan la combinacion estado x fechaFin y
 // todas las transiciones, que es el comportamiento sensible que consumen
 // M2 (ingreso), M3 (reservas), M4 (precio) y M5 (renovacion).
 
 function membresia(over: Partial<Membresia> = {}): Membresia {
   return {
     id: 1,
-    socio_id: 1,
+    socioId: 1,
     plan: 'MENSUAL',
     estado: 'ACTIVA',
-    fecha_inicio: new Date('2026-09-01T12:00:00.000Z'),
-    fecha_fin: new Date('2099-11-01T12:00:00.000Z'),
+    fechaInicio: new Date('2026-09-01T12:00:00.000Z'),
+    fechaFin: new Date('2099-11-01T12:00:00.000Z'),
     precio: PRECIOS_PLAN.MENSUAL,
-    renueva_automatica: true,
-    updated_at: new Date('2026-09-01T12:00:00.000Z'),
+    renuevaAutomatica: true,
+    updatedAt: new Date('2026-09-01T12:00:00.000Z'),
     ...over,
   };
 }
@@ -37,15 +37,15 @@ describe('estadoDe - esVigente (RF-03 / RN-03)', () => {
     expect(estadoDe(membresia()).esVigente(membresia(), AHORA)).toBe(true);
   });
 
-  // El cron vence a medianoche; entre la fecha_fin y la corrida el registro
+  // El cron vence a medianoche; entre la fechaFin y la corrida el registro
   // sigue ACTIVA. La fecha manda, no la etiqueta.
   it('ACTIVA con fecha_fin pasada NO es vigente', () => {
-    const m = membresia({ fecha_fin: new Date('2020-01-01T00:00:00.000Z') });
+    const m = membresia({ fechaFin: new Date('2020-01-01T00:00:00.000Z') });
     expect(estadoDe(m).esVigente(m, AHORA)).toBe(false);
   });
 
   it('ACTIVA que termina exactamente ahora es vigente', () => {
-    const m = membresia({ fecha_fin: AHORA });
+    const m = membresia({ fechaFin: AHORA });
     expect(estadoDe(m).esVigente(m, AHORA)).toBe(true);
   });
 
@@ -63,7 +63,7 @@ describe('estadoDe - esVigente (RF-03 / RN-03)', () => {
 describe('transiciones de estado', () => {
   describe('ACTIVA', () => {
     it('vence si la fecha ya paso; se mantiene si no', () => {
-      const vencida = membresia({ fecha_fin: new Date('2020-01-01T00:00:00.000Z') });
+      const vencida = membresia({ fechaFin: new Date('2020-01-01T00:00:00.000Z') });
       expect(estadoDe(vencida).alVencer(vencida, AHORA).nombre).toBe('VENCIDA');
       expect(estadoDe(membresia()).alVencer(membresia(), AHORA).nombre).toBe('ACTIVA');
     });

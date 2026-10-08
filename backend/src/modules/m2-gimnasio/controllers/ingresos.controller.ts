@@ -37,7 +37,7 @@ interface RequestConUsuario extends Request {
 export class IngresosController {
   constructor(private readonly ingresosService: IngresosService) {}
 
-  // Declarado antes que @Get(':ingreso_id'): además del orden lógico de lectura,
+  // Declarado antes que @Get(':ingresoId'): además del orden lógico de lectura,
   // deja explícito que /ingresos no cae en la ruta con parámetro.
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -52,7 +52,7 @@ export class IngresosController {
     @Query() query: ListarIngresosQueryDto,
     @Req() req: RequestConUsuario,
   ): Promise<IngresoOut[]> {
-    const { page, per_page: perPage, ...filtros } = query;
+    const { page, perPage: perPage, ...filtros } = query;
     return this.ingresosService.listar(
       filtros,
       { page: page ?? 1, perPage: perPage ?? 20 },
@@ -60,12 +60,12 @@ export class IngresosController {
     );
   }
 
-  @Get(':ingreso_id')
+  @Get(':ingresoId')
   @ApiOperation({ operationId: 'obtenerIngreso', summary: 'Obtener ingreso por id' })
-  @ApiParam({ name: 'ingreso_id', type: 'integer', description: 'ID numérico del ingreso', example: 9 })
+  @ApiParam({ name: 'ingresoId', type: 'integer', description: 'ID numérico del ingreso', example: 9 })
   @ApiOkResponse({ description: 'Registro de ingreso', type: IngresoOut })
   @ApiNotFoundResponse({ description: 'Ingreso inexistente', content: PROBLEM_JSON })
-  obtener(@Param('ingreso_id', ParseIntPipe) ingresoId: number): Promise<IngresoOut> {
+  obtener(@Param('ingresoId', ParseIntPipe) ingresoId: number): Promise<IngresoOut> {
     return this.ingresosService.obtenerIngreso(ingresoId);
   }
 
@@ -91,28 +91,28 @@ export class IngresosController {
     return ingreso;
   }
 
-  @Post(':ingreso_id/egreso')
+  @Post(':ingresoId/egreso')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('RECEPCION', 'GERENTE')
   @ApiBearerAuth()
   @ApiOperation({ operationId: 'registrarEgreso', summary: 'Registrar egreso de la sede (RF-05)' })
-  @ApiParam({ name: 'ingreso_id', type: 'integer', description: 'ID numérico del ingreso', example: 9 })
+  @ApiParam({ name: 'ingresoId', type: 'integer', description: 'ID numérico del ingreso', example: 9 })
   @ApiNoContentResponse({ description: 'Egreso registrado (sin cuerpo)' })
   @ApiUnauthorizedResponse({ description: 'Token inválido, expirado o ausente', content: PROBLEM_JSON })
   @ApiForbiddenResponse({ description: 'El ingreso no pertenece a la sede del recepcionista', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Ingreso inexistente', content: PROBLEM_JSON })
   @ApiConflictResponse({ description: 'El ingreso ya fue egresado', content: PROBLEM_JSON })
   registrarEgreso(
-    @Param('ingreso_id', ParseIntPipe) ingresoId: number,
+    @Param('ingresoId', ParseIntPipe) ingresoId: number,
     @Req() req: RequestConUsuario,
   ): Promise<void> {
     return this.ingresosService.registrarEgreso(ingresoId, this.scope(req));
   }
 
   // El usuario autenticado ya viene traducido por JwtStrategy; acá solo se arma
-  // el alcance por rol (sede_id está presente únicamente para RECEPCION).
+  // el alcance por rol (sedeId está presente únicamente para RECEPCION).
   private scope(req: RequestConUsuario): ScopeIngreso {
-    return { rol: req.user.rol, sedeId: req.user.sede_id };
+    return { rol: req.user.rol, sedeId: req.user.sedeId };
   }
 }

@@ -68,33 +68,33 @@ export class ReservasClasesController {
     @Body() dto: ReservaClaseIn,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ReservaClaseOut> {
-    const reserva = await this.reservasService.crearReservaClase(dto.clase_id, dto);
+    const reserva = await this.reservasService.crearReservaClase(dto.claseId, dto);
     res.setHeader('Location', `/api/v1/reservas-clases/${reserva.id}`);
     return reserva;
   }
 
-  @Get('reservas-clases/:reserva_clase_id')
+  @Get('reservas-clases/:reservaClaseId')
   @ApiOperation({
     operationId: 'obtenerReservaClase',
     summary: 'Obtener reserva de cupo por id',
   })
-  @ApiParam({ name: 'reserva_clase_id', type: 'integer', description: 'ID de la reserva', example: 10 })
+  @ApiParam({ name: 'reservaClaseId', type: 'integer', description: 'ID de la reserva', example: 10 })
   @ApiOkResponse({ description: 'Detalle de la reserva', type: ReservaClaseOut })
   @ApiNotFoundResponse({ description: 'Reserva no encontrada', content: PROBLEM_JSON })
   obtener(
-    @Param('reserva_clase_id', ParseIntPipe) reserva_clase_id: number,
+    @Param('reservaClaseId', ParseIntPipe) reservaClaseId: number,
   ): Promise<ReservaClaseOut> {
-    return this.reservasService.obtenerReservaClase(reserva_clase_id);
+    return this.reservasService.obtenerReservaClase(reservaClaseId);
   }
 
-  @Post('reservas-clases/:reserva_clase_id/cancelaciones')
+  @Post('reservas-clases/:reservaClaseId/cancelaciones')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     operationId: 'cancelarReservaClase',
     summary: 'Cancelar un cupo de clase (RF-07)',
   })
   @ApiParam({
-    name: 'reserva_clase_id',
+    name: 'reservaClaseId',
     type: 'integer',
     description: 'ID de la reserva a cancelar',
     example: 10,
@@ -105,8 +105,8 @@ export class ReservasClasesController {
       'anticipación se cobró la penalidad (RF-07) antes de liberar el cupo.',
   })
   @ApiNotFoundResponse({ description: 'Reserva no encontrada', content: PROBLEM_JSON })
-  cancelar(@Param('reserva_clase_id', ParseIntPipe) reserva_clase_id: number): Promise<void> {
-    return this.reservasService.cancelarReservaClase(reserva_clase_id);
+  cancelar(@Param('reservaClaseId', ParseIntPipe) reservaClaseId: number): Promise<void> {
+    return this.reservasService.cancelarReservaClase(reservaClaseId);
   }
 
   @Get('reservas-clases')

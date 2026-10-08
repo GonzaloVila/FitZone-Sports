@@ -11,10 +11,10 @@ import type {
 // plan, de quien es y en que estado esta. `MembresiaOut` no sirve para esto (expone
 // el plan pero ni el precio ni el usuario) y no se va a ampliar el DTO de la API
 // para meterle el precio a M5 por la puerta de atras. La membresia no tiene
-// usuario_id, lo tiene el socio: el cruce lo resuelve el adaptador, adentro de M1.
+// usuarioId, lo tiene el socio: el cruce lo resuelve el adaptador, adentro de M1.
 export interface MembresiaParaCobro {
-  membresia_id: number;
-  usuario_id: number;
+  membresiaId: number;
+  usuarioId: number;
   plan: PlanMembresia;
   precio: number;
   estado: EstadoMembresia;
@@ -45,6 +45,6 @@ export abstract class MembresiaRepository {
   // RF-02: extiende el periodo de una membresia renovada. null si la fila no existe.
   abstract renovar(
     id: number,
-    periodo: { fecha_inicio: Date; fecha_fin: Date },
+    periodo: { fechaInicio: Date; fechaFin: Date },
   ): Promise<Membresia | null>;
 }

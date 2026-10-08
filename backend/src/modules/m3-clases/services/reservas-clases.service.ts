@@ -45,8 +45,8 @@ export class ReservasClasesService {
     }
 
     const reservas = await this.reservasRepo.listar(
-      { clase_id: claseId, estado: filtros.estado },
-      { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
+      { claseId: claseId, estado: filtros.estado },
+      { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
 
     return plainToInstance(ReservaClaseOut, reservas);
@@ -57,11 +57,11 @@ export class ReservasClasesService {
   ): Promise<ReservaClaseOut[]> {
     const reservas = await this.reservasRepo.listar(
       {
-        clase_id: filtros.clase_id,
-        socio_id: filtros.socio_id,
+        claseId: filtros.claseId,
+        socioId: filtros.socioId,
         estado: filtros.estado,
       },
-      { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
+      { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
 
     return plainToInstance(ReservaClaseOut, reservas);
@@ -77,12 +77,12 @@ export class ReservasClasesService {
     }
 
     // Regla de Mora y Membresía: el socio con cuota vencida no puede reservar con descuento
-    const estado = await this.membresias.consultarVigenciaPorSocio(dto.socio_id);
+    const estado = await this.membresias.consultarVigenciaPorSocio(dto.socioId);
     if (!estado.esSocio) {
       throw recursoNoEncontrado('El socio indicado no existe.');
     }
     if (estado.enMora || !estado.vigente) {
-      throw socioEnMoraParaReserva(dto.socio_id);
+      throw socioEnMoraParaReserva(dto.socioId);
     }
 
     // Regla de Ventana Temporal (RF-07): reserva habilitada hasta 48 hs antes
@@ -98,7 +98,7 @@ export class ReservasClasesService {
       throw claseNoDisponibleParaReserva();
     }
 
-    const resultado = await this.reservasRepo.crearConLock(claseId, dto.socio_id);
+    const resultado = await this.reservasRepo.crearConLock(claseId, dto.socioId);
 
     if (!resultado.ok) {
       if (resultado.motivo === 'CUPO_AGOTADO') {
@@ -106,7 +106,7 @@ export class ReservasClasesService {
       }
 
       if (resultado.motivo === 'RESERVA_DUPLICADA') {
-        throw reservaDuplicada(dto.socio_id, claseId);
+        throw reservaDuplicada(dto.socioId, claseId);
       }
 
       throw recursoNoEncontrado('No existe la clase indicada.');
@@ -133,7 +133,7 @@ export class ReservasClasesService {
       return;
     }
 
-    const clase = await this.clasesRepo.buscarPorId(reserva.clase_id);
+    const clase = await this.clasesRepo.buscarPorId(reserva.claseId);
     if (!clase) {
       throw recursoNoEncontrado('No existe la clase vinculada a la reserva.');
     }
@@ -150,8 +150,8 @@ export class ReservasClasesService {
       // error se propaga aca y la cancelacion NO se aplica (la reserva sigue
       // CONFIRMADA). Es el mismo patron que el cambio de plan de membresia (M1).
       await this.eventos.emitAsync(EVENTO_RESERVA_CLASE_CANCELADA_TARDIA, {
-        reserva_clase_id: reserva.id,
-        socio_id: reserva.socio_id,
+        reservaClaseId: reserva.id,
+        socioId: reserva.socioId,
       });
     }
 
@@ -159,9 +159,9 @@ export class ReservasClasesService {
 
     // Disparo del Patrón Observer (RF-08): libera lugar y notifica a lista de espera
     await this.cupoSubject.notificar({
-      claseId: reserva.clase_id,
+      claseId: reserva.claseId,
       horarioClase: clase.horario,
-      socioIdCancelador: reserva.socio_id,
+      socioIdCancelador: reserva.socioId,
       fechaLiberacion: new Date(),
     });
   }

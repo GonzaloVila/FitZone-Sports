@@ -26,8 +26,8 @@ import { PasarelaPagoService } from './pasarela-pago.service';
 // veces. La clave la arma quien emite (alta/plan/renovación), no el cliente.
 
 export interface DatosCobroMembresia {
-  membresia_id: number;
-  usuario_id: number;
+  membresiaId: number;
+  usuarioId: number;
   precio: number;
 }
 
@@ -56,7 +56,7 @@ export class RenovacionesService {
       token: 'tok_aprobado_membresia',
       monto: datos.precio,
       moneda: 'ARS',
-      idempotencia_key: idempotenciaKey,
+      idempotenciaKey: idempotenciaKey,
     });
 
     if (resultado.estado === 'RECHAZADO') {
@@ -67,16 +67,16 @@ export class RenovacionesService {
     }
 
     const creado = await this.pagos.crear({
-      usuario_id: datos.usuario_id,
-      concepto: this.conceptoMembresia(datos.membresia_id),
+      usuarioId: datos.usuarioId,
+      concepto: this.conceptoMembresia(datos.membresiaId),
       monto: datos.precio,
       moneda: 'ARS',
-      token: resultado.pasarela_token,
-      idempotencia_key: idempotenciaKey,
+      token: resultado.pasarelaToken,
+      idempotenciaKey: idempotenciaKey,
     });
 
     if (!creado.ok) {
-      // El @unique de idempotencia_key saltó: este cobro ya se hizo con esta clave.
+      // El @unique de idempotenciaKey saltó: este cobro ya se hizo con esta clave.
       // Se devuelve el pago existente (reintento del mismo evento), no un error.
       const existente = await this.pagos.buscarPorIdempotenciaKey(idempotenciaKey);
       if (existente) {
@@ -97,24 +97,24 @@ export class RenovacionesService {
     if (pago.estado !== 'APROBADO') {
       return pago;
     }
-    const ruta = await this.comprobantes.generar(pago, this.conceptoMembresia(datos.membresia_id));
+    const ruta = await this.comprobantes.generar(pago, this.conceptoMembresia(datos.membresiaId));
     return this.pagos.registrarComprobante(pago.id, ruta);
   }
 
   private conceptoMembresia(membresiaId: number): ConceptoPago {
-    return { tipo: 'MEMBRESIA', membresia_id: membresiaId };
+    return { tipo: 'MEMBRESIA', membresiaId: membresiaId };
   }
 
   private aOut(pago: Pago): PagoOut {
     return {
       id: pago.id,
-      usuario_id: pago.usuario_id,
+      usuarioId: pago.usuarioId,
       concepto: pago.concepto,
       monto: pago.monto,
       moneda: pago.moneda,
       estado: pago.estado,
-      fecha_pago: pago.fecha_pago,
-      comprobante_pdf_url: pago.comprobante_pdf_url,
+      fechaPago: pago.fechaPago,
+      comprobantePdfUrl: pago.comprobantePdfUrl,
     };
   }
 }

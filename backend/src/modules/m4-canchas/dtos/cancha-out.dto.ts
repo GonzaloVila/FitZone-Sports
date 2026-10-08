@@ -13,7 +13,7 @@ export class CanchaOut {
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 3 })
-  sede_id!: number;
+  sedeId!: number;
 
   @Expose()
   @ApiProperty({ enum: TIPOS, example: 'PADDLE' })
@@ -21,7 +21,7 @@ export class CanchaOut {
 
   @Expose()
   @ApiProperty({ example: 5000 })
-  costo_por_hora!: number;
+  costoPorHora!: number;
 
   @Expose()
   @ApiProperty({ enum: ESTADOS, example: 'OPERATIVA' })

@@ -14,7 +14,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 // modulo, sin que ese modulo necesite importar AuthModule.
 //
 // TotpService se exporta para M2 (GimnasioModule importa AuthModule): es el
-// unico consumidor fuera de este modulo, para validar codigo_totp al
+// unico consumidor fuera de este modulo, para validar codigoTotp al
 // registrar un ingreso (RF-04). El grafo queda M2 -> M1, Auth -> M1, sin
 // ciclos, igual criterio que el resto (ADR-09).
 @Module({

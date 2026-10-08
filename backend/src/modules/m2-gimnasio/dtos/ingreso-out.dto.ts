@@ -9,11 +9,11 @@ export class IngresoOut {
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 3 })
-  sede_id!: number;
+  sedeId!: number;
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 2 })
-  socio_id!: number;
+  socioId!: number;
 
   @Expose()
   @ApiProperty({ example: 'Juan Pérez', description: 'Nombre del socio que ingresó (join Socio → Usuario).' })
@@ -25,7 +25,7 @@ export class IngresoOut {
 
   @Expose()
   @ApiProperty({ example: '2026-09-16T18:02:11-03:00' })
-  fecha_hora_ingreso!: Date;
+  fechaHoraIngreso!: Date;
 
   @Expose()
   @ApiPropertyOptional({
@@ -37,9 +37,9 @@ export class IngresoOut {
     nullable: true,
     description: 'Null mientras el usuario permanezca dentro de la sede (define el aforo, RN-01).',
   })
-  fecha_hora_egreso!: Date | null;
+  fechaHoraEgreso!: Date | null;
 
   @Expose()
   @ApiProperty({ example: false, description: 'true si se registró vía puesto offline (RNF-01).' })
-  validado_offline!: boolean;
+  validadoOffline!: boolean;
 }

@@ -22,7 +22,7 @@ import type { ConceptoPago, EstadoPago } from './pago.entity';
 export type OrigenCobro = 'M1' | 'M4' | 'RENOVACION';
 
 export interface SolicitudCobro {
-  modulo_origen: OrigenCobro;
+  moduloOrigen: OrigenCobro;
   concepto: ConceptoPago;
   detalle: string;
   // Ya resuelto por el módulo de origen: M5 no vuelve a mirar esas tablas.
@@ -30,16 +30,16 @@ export interface SolicitudCobro {
   moneda: string;
   // La pasarela es idempotente por clave: repetir la misma clave devuelve el
   // pago original en vez de cobrar dos veces.
-  idempotencia_key: string;
+  idempotenciaKey: string;
 }
 
 export interface ComprobanteDto {
-  id_pago: string;
+  idPago: string;
   estado: EstadoPago;
   // RNF-02: solo el token emitido por la pasarela, nunca la tarjeta.
   token: string;
   monto: number;
   moneda: string;
-  comprobante_pdf_url: string | null;
-  creado_en: string;
+  comprobantePdfUrl: string | null;
+  creadoEn: string;
 }

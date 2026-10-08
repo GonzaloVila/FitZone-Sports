@@ -182,14 +182,14 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
     return request(app.getHttpServer())
       .post('/api/v1/pagos')
       .set('Idempotency-Key', clave)
-      .send({ concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: reservaId }, token });
+      .send({ concepto: { tipo: 'RESERVA_CANCHA', reservaCanchaId: reservaId }, token });
   }
 
   function cobroMembresia(clave: string, token = 'tok_aprobado_abc') {
     return request(app.getHttpServer())
       .post('/api/v1/pagos')
       .set('Idempotency-Key', clave)
-      .send({ concepto: { tipo: 'MEMBRESIA', membresia_id: membresiaId }, token });
+      .send({ concepto: { tipo: 'MEMBRESIA', membresiaId: membresiaId }, token });
   }
 
   /**
@@ -241,8 +241,8 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       expect(res.headers.location).toMatch(/^\/api\/v1\/pagos\/\d+$/);
       expect(Number(res.headers.location.split('/').pop())).toBe(res.body.id);
       expect(res.body).toMatchObject({
-        usuario_id: usuarioId,
-        concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: reservaId },
+        usuarioId: usuarioId,
+        concepto: { tipo: 'RESERVA_CANCHA', reservaCanchaId: reservaId },
         // El monto lo copia `precio_aplicado`, NO el `costo_por_hora` de la cancha
         // (5000): la diferencia de 2750 es justamente la prueba de que M5 copia el
         // precio congelado y no recalcula nada.
@@ -258,14 +258,14 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       const res = await cobroReserva(reservaId, `rnf-${sufijo}`).expect(201);
 
       expect(res.body).not.toHaveProperty('token');
-      expect(res.body).not.toHaveProperty('idempotencia_key');
+      expect(res.body).not.toHaveProperty('idempotenciaKey');
     });
 
     it('cobra una membresía con el precio de su plan', async () => {
       const res = await cobroMembresia(`memb-${sufijo}`).expect(201);
 
       expect(res.body).toMatchObject({
-        concepto: { tipo: 'MEMBRESIA', membresia_id: membresiaId },
+        concepto: { tipo: 'MEMBRESIA', membresiaId: membresiaId },
         monto: 30000,
         estado: 'APROBADO',
       });
@@ -335,7 +335,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/pagos')
-        .send({ concepto: { tipo: 'MEMBRESIA', membresia_id: membresiaId }, token: 'tok_aprobado_1' })
+        .send({ concepto: { tipo: 'MEMBRESIA', membresiaId: membresiaId }, token: 'tok_aprobado_1' })
         .expect(400);
 
       expect(res.body).toMatchObject({ title: 'Falta Idempotency-Key', status: 400 });
@@ -349,7 +349,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/pagos')
         .set('Idempotency-Key', `404-${sufijo}`)
-        .send({ concepto: { tipo: 'RESERVA_CANCHA', reserva_cancha_id: 999999 }, token: 'tok_aprobado_1' })
+        .send({ concepto: { tipo: 'RESERVA_CANCHA', reservaCanchaId: 999999 }, token: 'tok_aprobado_1' })
         .expect(404);
 
       expect(res.body.status).toBe(404);
@@ -362,7 +362,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/pagos')
         .set('Idempotency-Key', `404-clase-${sufijo}`)
-        .send({ concepto: { tipo: 'RESERVA_CLASE', reserva_clase_id: 999999 }, token: 'tok_aprobado_1' })
+        .send({ concepto: { tipo: 'RESERVA_CLASE', reservaClaseId: 999999 }, token: 'tok_aprobado_1' })
         .expect(404);
 
       expect(res.body.status).toBe(404);
@@ -388,7 +388,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
         .post('/api/v1/pagos')
         .set('Idempotency-Key', `oneof-ambos-${sufijo}`)
         .send({
-          concepto: { tipo: 'MEMBRESIA', membresia_id: membresiaId, reserva_cancha_id: reservaId },
+          concepto: { tipo: 'MEMBRESIA', membresiaId: membresiaId, reservaCanchaId: reservaId },
           token: 'tok_aprobado_1',
         })
         .expect(422);
@@ -399,7 +399,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
         .post('/api/v1/pagos')
         .set('Idempotency-Key', `oneof-clase-${sufijo}`)
         .send({
-          concepto: { tipo: 'RESERVA_CLASE', reserva_clase_id: 1, membresia_id: membresiaId },
+          concepto: { tipo: 'RESERVA_CLASE', reservaClaseId: 1, membresiaId: membresiaId },
           token: 'tok_aprobado_1',
         })
         .expect(422);
@@ -418,7 +418,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
         .post('/api/v1/pagos')
         .set('Idempotency-Key', `monto-${sufijo}`)
         .send({
-          concepto: { tipo: 'MEMBRESIA', membresia_id: membresiaId },
+          concepto: { tipo: 'MEMBRESIA', membresiaId: membresiaId },
           token: 'tok_aprobado_1',
           monto: 1,
         })
@@ -427,7 +427,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
 
     it('422 si manda una moneda que no sea ARS', async () => {
       await cobroMembresia(`usd-${sufijo}`, 'tok_aprobado_1')
-        .send({ concepto: { tipo: 'MEMBRESIA', membresia_id: membresiaId }, token: 'tok_aprobado_1', moneda: 'USD' })
+        .send({ concepto: { tipo: 'MEMBRESIA', membresiaId: membresiaId }, token: 'tok_aprobado_1', moneda: 'USD' })
         .expect(422);
     });
   });
@@ -445,7 +445,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
 
       const res = await cobroReserva(reservaId, `pdf-${sufijo}`).expect(201);
 
-      expect(res.body.comprobante_pdf_url).toBe(`/storage/comprobantes/${res.body.id}.pdf`);
+      expect(res.body.comprobantePdfUrl).toBe(`/storage/comprobantes/${res.body.id}.pdf`);
       const pago = await prisma.pago.findUnique({ where: { id: res.body.id } });
       expect(pago?.comprobante_pdf_url).toBe(`/storage/comprobantes/${res.body.id}.pdf`);
     });
@@ -506,7 +506,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       const res = await comprobante(cobrado.body.id).expect(409);
 
       expect(res.body.title).toBe('Pago no aprobado');
-      expect(cobrado.body.comprobante_pdf_url).toBeNull();
+      expect(cobrado.body.comprobantePdfUrl).toBeNull();
     });
 
     it('404 si el pago no existe', async () => {
@@ -552,11 +552,11 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       const mio = await cobroReserva(reservaId1, `filtro-${sufijo}`).expect(201);
       const otro = await cobroReserva(reservaId2, `filtro-otro-${sufijo}`, 'tok_pendiente_abc').expect(201);
 
-      const sinFiltro = await listar(`?usuario_id=${usuarioId}`).expect(200);
+      const sinFiltro = await listar(`?usuarioId=${usuarioId}`).expect(200);
       const mios = sinFiltro.body.filter((p: { id: number }) => p.id === mio.body.id);
       expect(mios).toHaveLength(1);
 
-      const deOtro = await listar(`?usuario_id=${usuarioId}&estado=PENDIENTE`).expect(200);
+      const deOtro = await listar(`?usuarioId=${usuarioId}&estado=PENDIENTE`).expect(200);
       expect(deOtro.body.map((p: { id: number }) => p.id)).toContain(otro.body.id);
       expect(deOtro.body.map((p: { id: number }) => p.id)).not.toContain(mio.body.id);
     });
@@ -569,7 +569,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       const aprobado = await cobroReserva(reservaId1, `def-${sufijo}`).expect(201);
       const pendiente = await cobroReserva(reservaId2, `def-pend-${sufijo}`, 'tok_pendiente_abc').expect(201);
 
-      const res = await listar(`?usuario_id=${usuarioId}`).expect(200);
+      const res = await listar(`?usuarioId=${usuarioId}`).expect(200);
 
       expect(res.body.map((p: { id: number }) => p.id)).toContain(aprobado.body.id);
       expect(res.body.map((p: { id: number }) => p.id)).not.toContain(pendiente.body.id);
@@ -583,12 +583,12 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       await cobroReserva(reservaId, `tipo-res-${sufijo}`).expect(201);
       await cobroMembresia(`tipo-mem-${sufijo}`).expect(201);
 
-      const soloReserva = await listar(`?usuario_id=${usuarioId}&tipo=RESERVA_CANCHA`).expect(200);
+      const soloReserva = await listar(`?usuarioId=${usuarioId}&tipo=RESERVA_CANCHA`).expect(200);
       expect(soloReserva.body.every((p: { concepto: { tipo: string } }) => p.concepto.tipo === 'RESERVA_CANCHA')).toBe(true);
 
-      const porReserva = await listar(`?reserva_cancha_id=${reservaId}`).expect(200);
+      const porReserva = await listar(`?reservaCanchaId=${reservaId}`).expect(200);
       expect(porReserva.body).toHaveLength(1);
-      expect(porReserva.body[0].concepto).toEqual({ tipo: 'RESERVA_CANCHA', reserva_cancha_id: reservaId });
+      expect(porReserva.body[0].concepto).toEqual({ tipo: 'RESERVA_CANCHA', reservaCanchaId: reservaId });
     });
 
     // `desde`/`hasta` son días INCLUSIVOS. La prueba de que `hasta` es inclusivo es el
@@ -604,12 +604,12 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       const dia = diaLocal(pago.fecha_pago);
       const ayer = diaLocal(new Date(pago.fecha_pago.getTime() - 86400000));
 
-      const unDia = await listar(`?desde=${dia}&hasta=${dia}&per_page=100`).expect(200);
+      const unDia = await listar(`?desde=${dia}&hasta=${dia}&perPage=100`).expect(200);
       expect(unDia.body.map((p: { id: number }) => p.id)).toContain(cobrado.body.id);
 
       // Y el rango no se come días de más: terminándolo en el día anterior, el pago
       // queda afuera.
-      const antes = await listar(`?desde=${ayer}&hasta=${ayer}&per_page=100`).expect(200);
+      const antes = await listar(`?desde=${ayer}&hasta=${ayer}&perPage=100`).expect(200);
       expect(antes.body.map((p: { id: number }) => p.id)).not.toContain(cobrado.body.id);
     });
 
@@ -619,8 +619,8 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       await cobroReserva(reservaId1, `pag-1-${sufijo}`).expect(201);
       await cobroReserva(reservaId2, `pag-2-${sufijo}`).expect(201);
 
-      const primera = await listar(`?usuario_id=${usuarioId}&per_page=1&page=1`).expect(200);
-      const segunda = await listar(`?usuario_id=${usuarioId}&per_page=1&page=2`).expect(200);
+      const primera = await listar(`?usuarioId=${usuarioId}&perPage=1&page=1`).expect(200);
+      const segunda = await listar(`?usuarioId=${usuarioId}&perPage=1&page=2`).expect(200);
 
       expect(primera.body).toHaveLength(1);
       expect(segunda.body).toHaveLength(1);
@@ -631,12 +631,12 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       const reservaId = await crearReserva();
       await cobroReserva(reservaId, `sin-token-${sufijo}`).expect(201);
 
-      const res = await listar(`?usuario_id=${usuarioId}`).expect(200);
+      const res = await listar(`?usuarioId=${usuarioId}`).expect(200);
 
       expect(res.body.length).toBeGreaterThan(0);
       for (const pago of res.body) {
         expect(pago).not.toHaveProperty('token');
-        expect(pago).not.toHaveProperty('idempotencia_key');
+        expect(pago).not.toHaveProperty('idempotenciaKey');
       }
     });
 
@@ -644,7 +644,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       await listar('?estado=COBRADO').expect(422);
       await listar('?desde=2026-02-30').expect(422);
       await listar('?page=0').expect(422);
-      await listar('?per_page=101').expect(422);
+      await listar('?perPage=101').expect(422);
       await listar('?orden=cualquiera').expect(422);
     });
 
@@ -657,7 +657,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       expect(res.body.id).toBe(cobrado.body.id);
       expect(res.body.estado).toBe('APROBADO');
       expect(res.body).not.toHaveProperty('token');
-      expect(res.body).not.toHaveProperty('idempotencia_key');
+      expect(res.body).not.toHaveProperty('idempotenciaKey');
     });
 
     it('404 al pedir un pago que no existe', async () => {
@@ -721,7 +721,7 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
     it('el pago anulado se sigue viendo en el listado, con estado ANULADO', async () => {
       const id = await cobrarYAnular(`anular-listado-${sufijo}`);
 
-      const res = await listar(`?usuario_id=${usuarioId}&estado=ANULADO`).expect(200);
+      const res = await listar(`?usuarioId=${usuarioId}&estado=ANULADO`).expect(200);
 
       const encontrado = res.body.find((p: { id: number }) => p.id === id);
       expect(encontrado).toBeDefined();

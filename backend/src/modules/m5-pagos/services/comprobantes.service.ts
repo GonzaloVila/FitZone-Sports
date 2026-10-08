@@ -159,14 +159,14 @@ export class ComprobantesService {
     doc.y = 96;
     doc.font('Helvetica').fontSize(10);
     this.linea(doc, 'Pago', `#${pago.id}`);
-    this.linea(doc, 'Fecha', this.fechaLegible(pago.fecha_pago));
-    this.linea(doc, 'Usuario', `#${pago.usuario_id}`);
+    this.linea(doc, 'Fecha', this.fechaLegible(pago.fechaPago));
+    this.linea(doc, 'Usuario', `#${pago.usuarioId}`);
 
     // Nombre y email del socio, resueltos al momento del cobro. Son el snapshot de
     // identidad del comprobante: si la fila del usuario no está (no debería, el
     // usuario no se borra aunque el socio sí), el PDF imprime "no disponible" en
     // vez de cortarse.
-    const usuario = await this.usuarios.buscarDatosParaComprobante(pago.usuario_id);
+    const usuario = await this.usuarios.buscarDatosParaComprobante(pago.usuarioId);
     this.linea(doc, 'Nombre', usuario ? usuario.nombre : '(no disponible)');
     this.linea(doc, 'Email', usuario ? usuario.email : '(no disponible)');
 
@@ -189,50 +189,50 @@ export class ComprobantesService {
     doc.font('Helvetica').fontSize(10);
 
     if (concepto.tipo === 'RESERVA_CANCHA') {
-      const reserva = await this.reservas.obtenerParaCobro(concepto.reserva_cancha_id);
+      const reserva = await this.reservas.obtenerParaCobro(concepto.reservaCanchaId);
       if (!reserva) {
         // No debería pasar: el cobro ya validó que la reserva existe y las reservas no se
         // borran. Si igual pasa, sale un PDF sin detalle en vez de cortarse a mitad de
         // escritura, que dejaría un archivo corrupto y un comprobante inútil.
-        doc.fontSize(11).text(`Reserva ${concepto.reserva_cancha_id} (no disponible).`);
+        doc.fontSize(11).text(`Reserva ${concepto.reservaCanchaId} (no disponible).`);
         return;
       }
 
       this.linea(doc, 'Concepto', 'Reserva de cancha');
-      this.linea(doc, 'Cancha', `N° ${reserva.cancha_id}`);
+      this.linea(doc, 'Cancha', `N° ${reserva.canchaId}`);
       this.linea(
         doc,
         'Horario',
-        `${this.fechaLegible(reserva.fecha_hora_inicio)} - ${this.fechaLegible(reserva.fecha_hora_fin)}`,
+        `${this.fechaLegible(reserva.fechaHoraInicio)} - ${this.fechaLegible(reserva.fechaHoraFin)}`,
       );
-      this.linea(doc, 'Reserva', `#${reserva.reserva_id}`);
+      this.linea(doc, 'Reserva', `#${reserva.reservaId}`);
       return;
     }
 
     if (concepto.tipo === 'RESERVA_CLASE') {
-      const clase = await this.reservaClases.obtenerParaCobro(concepto.reserva_clase_id);
+      const clase = await this.reservaClases.obtenerParaCobro(concepto.reservaClaseId);
       if (!clase) {
-        doc.fontSize(11).text(`Reserva de clase ${concepto.reserva_clase_id} (no disponible).`);
+        doc.fontSize(11).text(`Reserva de clase ${concepto.reservaClaseId} (no disponible).`);
         return;
       }
 
       this.linea(doc, 'Concepto', 'Reserva de clase');
-      this.linea(doc, 'Clase', `N° ${clase.clase_id}`);
+      this.linea(doc, 'Clase', `N° ${clase.claseId}`);
       this.linea(doc, 'Horario', this.fechaLegible(clase.horario));
-      this.linea(doc, 'Reserva', `#${clase.reserva_clase_id}`);
+      this.linea(doc, 'Reserva', `#${clase.reservaClaseId}`);
       this.linea(doc, 'Nota', 'Penalidad por cancelación tardía (RF-07).');
       return;
     }
 
-    const membresia = await this.membresias.obtenerParaCobro(concepto.membresia_id);
+    const membresia = await this.membresias.obtenerParaCobro(concepto.membresiaId);
     if (!membresia) {
-      doc.fontSize(11).text(`Membresía ${concepto.membresia_id} (no disponible).`);
+      doc.fontSize(11).text(`Membresía ${concepto.membresiaId} (no disponible).`);
       return;
     }
 
     this.linea(doc, 'Concepto', 'Membresía');
     this.linea(doc, 'Plan', membresia.plan);
-    this.linea(doc, 'Membresía', `#${membresia.membresia_id}`);
+    this.linea(doc, 'Membresía', `#${membresia.membresiaId}`);
   }
 
   // El PDF tiene que dejar constancia de que es una copia: el snapshot conserva lo que se

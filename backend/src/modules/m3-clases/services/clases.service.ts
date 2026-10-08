@@ -19,7 +19,7 @@ export class ClasesService {
   ) {}
 
   async crearClase(dto: ClaseIn): Promise<ClaseOut> {
-    if (!(await this.sedes.existe(dto.sede_id))) {
+    if (!(await this.sedes.existe(dto.sedeId))) {
       throw recursoNoEncontrado('No existe la sede indicada.');
     }
 
@@ -33,7 +33,7 @@ export class ClasesService {
     }
 
     const clase = await this.clasesRepo.crear({
-      sede_id: dto.sede_id,
+      sedeId: dto.sedeId,
       tipo: dto.tipo,
       instructor: dto.instructor,
       horario: dto.horario,
@@ -42,18 +42,18 @@ export class ClasesService {
 
     return plainToInstance(ClaseOut, {
       ...clase,
-      reservas_confirmadas: 0,
-      cupo_disponible: clase.capacidad,
+      reservasConfirmadas: 0,
+      cupoDisponible: clase.capacidad,
     });
   }
 
   async listarClases(filtros: ListarClasesQueryDto): Promise<ClaseOut[]> {
     const clases = await this.clasesRepo.listar(
       {
-        sede_id: filtros.sede_id,
+        sedeId: filtros.sedeId,
         tipo: filtros.tipo,
       },
-      { page: filtros.page ?? 1, perPage: filtros.per_page ?? 20 },
+      { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
     return plainToInstance(ClaseOut, clases);
   }

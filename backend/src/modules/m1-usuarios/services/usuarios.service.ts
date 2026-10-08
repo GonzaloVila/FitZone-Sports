@@ -15,8 +15,8 @@ const SALT_ROUNDS = 10;
 
 export interface UsuarioParaAutenticar extends Usuario {
   // null salvo RECEPCION con fila en EmpleadoSede. No confundir con
-  // Socio.sede_origen_id (RF-03): este es la sucursal de trabajo del staff.
-  sede_id: number | null;
+  // Socio.sedeOrigenId (RF-03): este es la sucursal de trabajo del staff.
+  sedeId: number | null;
 }
 
 @Injectable()
@@ -36,13 +36,13 @@ export class UsuariosService {
       return null;
     }
 
-    let sede_id: number | null = null;
+    let sedeId: number | null = null;
     if (usuario.rol === 'RECEPCION') {
       const empleado = await this.empleadosSede.buscarPorUsuarioId(usuario.id);
-      sede_id = empleado?.sede_id ?? null;
+      sedeId = empleado?.sedeId ?? null;
     }
 
-    return { ...usuario, sede_id };
+    return { ...usuario, sedeId };
   }
 
   async crear(dto: UsuarioIn): Promise<UsuarioOut> {
@@ -63,7 +63,7 @@ export class UsuariosService {
       email: dto.email,
       contrasenia,
       telefono: dto.telefono,
-      foto_url: dto.foto_url,
+      fotoUrl: dto.fotoUrl,
     });
 
     return this.aOut(usuario);
@@ -74,7 +74,7 @@ export class UsuariosService {
       { rol: dto.rol, nombre: dto.nombre, email: dto.email },
       // Los defaults del DTO ya cubren el caso sin query params; estos `??`
       // son la red de seguridad para cuando el service se llame sin el pipe.
-      { page: dto.page ?? 1, perPage: dto.per_page ?? 20 },
+      { page: dto.page ?? 1, perPage: dto.perPage ?? 20 },
     );
     return usuarios.map((usuario) => this.aOut(usuario));
   }
@@ -107,8 +107,8 @@ export class UsuariosService {
     if (dto.telefono !== undefined) {
       cambios.telefono = dto.telefono;
     }
-    if (dto.foto_url !== undefined) {
-      cambios.foto_url = dto.foto_url;
+    if (dto.fotoUrl !== undefined) {
+      cambios.fotoUrl = dto.fotoUrl;
     }
     if (dto.contrasenia !== undefined) {
       cambios.contrasenia = await bcrypt.hash(dto.contrasenia, SALT_ROUNDS);

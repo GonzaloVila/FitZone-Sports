@@ -13,7 +13,7 @@ export class CanchaIn {
   @ApiProperty({ minimum: 0, description: 'Configurable por el Gerente (RF-09).', example: 5000 })
   @IsNumber()
   @Min(0)
-  costo_por_hora!: number;
+  costoPorHora!: number;
 
   @ApiPropertyOptional({ enum: ESTADOS, default: 'OPERATIVA' })
   @IsOptional()

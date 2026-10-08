@@ -11,7 +11,7 @@ export class ReservaCanchaIn {
   @ApiProperty({ type: 'integer', description: 'Cancha a reservar (RF-10).', example: 1 })
   @IsInt()
   @Min(1)
-  cancha_id!: number;
+  canchaId!: number;
 
   @ApiProperty({
     type: 'string',
@@ -21,7 +21,7 @@ export class ReservaCanchaIn {
   })
   @IsISO8601({ strict: true })
   @Matches(CON_ZONA, { message: `fecha_hora_inicio ${MENSAJE_ZONA}` })
-  fecha_hora_inicio!: string;
+  fechaHoraInicio!: string;
 
   @ApiProperty({
     type: 'string',
@@ -31,12 +31,12 @@ export class ReservaCanchaIn {
   })
   @IsISO8601({ strict: true })
   @Matches(CON_ZONA, { message: `fecha_hora_fin ${MENSAJE_ZONA}` })
-  fecha_hora_fin!: string;
+  fechaHoraFin!: string;
 
   // Obligatorio en el DTO aunque el contrato lo marca opcional: todavía no hay
   // autenticación que permita derivarlo del token (decisión 13 del plan M4).
   @ApiProperty({ type: 'integer', description: 'Usuario que reserva (socio o externo).', example: 2 })
   @IsInt()
   @Min(1)
-  usuario_id!: number;
+  usuarioId!: number;
 }

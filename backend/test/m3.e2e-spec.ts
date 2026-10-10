@@ -6,6 +6,8 @@ import { PrismaService } from '../src/commons/database/prisma.service';
 import { ProblemFilter } from '../src/commons/filters/problem.filter';
 import { PRECIOS_PLAN } from '../src/modules/m1-usuarios/entities/membresia.entity';
 import { penalidadCancelacionTardia } from '../src/modules/m3-clases/entities/reserva-clase.entity';
+import { vi } from 'vitest';
+import { EmailCupoLiberadoObserver } from '../src/modules/m3-clases/observers/email-cupo-liberado.observer';
 
 // Flujo completo de M3:
 // 1) RF-06: Alta de clases, listado con aforo disponible y detalle.
@@ -441,10 +443,17 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .post(`/api/v1/esperas-clases/${esperaIdB}/confirmaciones`)
         .expect(409);
 
+      // Espiamos el observer de EMAIL (segundo eslabón de la cadena de M3) para
+      // probar que el canal de notificación corre, no solo el cambio de estado.
+      const emailObserver = app.get(EmailCupoLiberadoObserver);
+      const spyEmail = vi.spyOn(emailObserver, 'notificarCupoDisponible');
+
       // Socio A cancela su reserva con > 2 hs de anticipación
       await request(app.getHttpServer())
         .post(`/api/v1/reservas-clases/${reservaIdA}/cancelaciones`)
         .expect(204);
+
+      expect(spyEmail).toHaveBeenCalledTimes(1);
 
       // Verificamos que el Observer actualizó a Socio B a estado NOTIFICADO
       const resEsperaActualizada = await request(app.getHttpServer())

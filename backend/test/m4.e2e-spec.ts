@@ -1056,4 +1056,40 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     const terminaEnPico = await reservar(await nuevaCancha(), externo.id, '18:30:00', '19:30:00');
     expect(terminaEnPico.body.precioAplicado).toBe(10000);
   });
+
+  // RN-02: la garantía atómica es la constraint de exclusión en la base. Dos
+  // reservas del MISMO turno disparadas EN PARALELO: sólo una gana el 201 y la otra
+  // recibe 409 turno-ocupado (un `if` en el service las dejaría pasar a las dos).
+  it('RN-02: dos reservas del mismo turno en paralelo: una 201 y la otra 409', async () => {
+    const dia = '2026-11-21';
+    const cancha = await prisma.cancha.create({
+      data: { sede_id: sedeId, tipo: 'FUTBOL5', costo_por_hora: 5000, estado: 'OPERATIVA' },
+    });
+    canchasCreadas.push(cancha.id);
+
+    const usuarioA = await prisma.usuario.create({
+      data: { rol: 'EXTERNO', dni: dniUnico(), nombre: 'Concurrencia A', email: `conc.a.${Date.now()}.${Math.floor(Math.random() * 1000)}@e2e.fitzone.test`, contrasenia: 'x' },
+    });
+    const usuarioB = await prisma.usuario.create({
+      data: { rol: 'EXTERNO', dni: dniUnico(), nombre: 'Concurrencia B', email: `conc.b.${Date.now()}.${Math.floor(Math.random() * 1000)}@e2e.fitzone.test`, contrasenia: 'x' },
+    });
+    usuariosCreados.push(usuarioA.id, usuarioB.id);
+
+    const cuerpo = (usuarioId: number) => ({
+      canchaId: cancha.id,
+      usuarioId,
+      fechaHoraInicio: `${dia}T10:00:00-03:00`,
+      fechaHoraFin: `${dia}T11:00:00-03:00`,
+    });
+
+    const [resA, resB] = await Promise.all([
+      request(app.getHttpServer()).post('/api/v1/reservas-canchas').send(cuerpo(usuarioA.id)),
+      request(app.getHttpServer()).post('/api/v1/reservas-canchas').send(cuerpo(usuarioB.id)),
+    ]);
+
+    expect([resA.status, resB.status].sort()).toEqual([201, 409]);
+    const perdedor = resA.status === 409 ? resA : resB;
+    expect(perdedor.body.status).toBe(409);
+    expect(perdedor.body.type).toContain('turno-ocupado');
+  });
 });

@@ -275,4 +275,74 @@ describe('Auth / TOTP / Bloqueados / Sincronización (e2e)', () => {
     expect(porLocal.get(10)).toMatchObject({ ok: false, error: 'USUARIO_BLOQUEADO' });
     expect(porLocal.get(11)).toMatchObject({ ok: false, error: 'YA_DENTRO' });
   });
+
+  it('RNF-01: sincroniza egresos del mismo lote y reporta el egreso de un ingreso ausente', async () => {
+    const sanoId = await crearUsuario('EXTERNO', 'syncEgreso');
+    const socio = await crearSocio(sanoId);
+
+    const primera = await request(app.getHttpServer())
+      .post('/api/v1/sincronizacion/ingresos')
+      .set('Authorization', `Bearer ${tokenRecepcion}`)
+      .send({
+        ingresos: [{ localId: 5, socioId: socio, fechaHoraIngreso: new Date().toISOString() }],
+        // El egreso referencia un ingreso DEL MISMO lote vía ingresoLocalId.
+        egresos: [
+          {
+            localId: 6,
+            ingresoLocalId: 5,
+            fechaHoraEgreso: new Date(Date.now() + 3600_000).toISOString(),
+          },
+        ],
+      })
+      .expect(201);
+
+    expect(primera.body.resultados[0]).toMatchObject({ localId: 5, ok: true });
+    expect(primera.body.egresosProcesados[0]).toMatchObject({ localId: 6, ok: true });
+
+    // Un egreso que apunta a un ingreso que NO está en el lote no rompe el lote.
+    const segunda = await request(app.getHttpServer())
+      .post('/api/v1/sincronizacion/ingresos')
+      .set('Authorization', `Bearer ${tokenRecepcion}`)
+      .send({
+        ingresos: [],
+        egresos: [{ localId: 7, ingresoLocalId: 5, fechaHoraEgreso: new Date().toISOString() }],
+      })
+      .expect(201);
+
+    expect(segunda.body.egresosProcesados[0]).toMatchObject({
+      localId: 7,
+      ok: false,
+      error: 'INGRESO_NO_ENCONTRADO',
+    });
+  });
+
+  it('GET /bloqueados respeta ?actualizadoDesde= (sincronización incremental)', async () => {
+    const usuarioId = await crearUsuario('EXTERNO', 'bloqDelta');
+    const socio = await crearSocio(usuarioId, { clavesEnMora: true });
+
+    const desdeAntes = await request(app.getHttpServer())
+      .get('/api/v1/bloqueados?actualizadoDesde=1970-01-01T00:00:00.000Z')
+      .set('Authorization', `Bearer ${tokenRecepcion}`)
+      .expect(200);
+    expect(desdeAntes.body.bloqueados.map((b: { socioId: number }) => b.socioId)).toContain(socio);
+
+    const futuro = encodeURIComponent(new Date(Date.now() + 60_000).toISOString());
+    const desdeFuturo = await request(app.getHttpServer())
+      .get(`/api/v1/bloqueados?actualizadoDesde=${futuro}`)
+      .set('Authorization', `Bearer ${tokenRecepcion}`)
+      .expect(200);
+    expect(desdeFuturo.body.bloqueados.map((b: { socioId: number }) => b.socioId)).not.toContain(socio);
+  });
+
+  it('GET /bloqueados con rol GERENTE responde 200', async () => {
+    const gerenteId = await crearUsuario('GERENTE', 'gerente');
+    const email = (await prisma.usuario.findUniqueOrThrow({ where: { id: gerenteId } })).email;
+    const token = await tokenDe(email);
+
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/bloqueados')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(Array.isArray(res.body.bloqueados)).toBe(true);
+  });
 });

@@ -996,4 +996,64 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
         .expect(404);
     });
   });
+
+// RF-11: el recargo de horario pico (19:00-21:00, hora de la sede) se aplica a la
+// reserva que EMPIEZA dentro de la franja, y el socio tiene 15% de descuento sobre
+// el precio estándar del externo. Las dos reglas se acumulan (0.85 x 1.20).
+  it('RF-11: recargo pico por inicio de la reserva + descuento del socio (15%)', async () => {
+    const picoDia = '2026-11-20';
+
+    // Una cancha por reserva: así ningún turno comparte cancha/horario y RN-02 no
+    // interfiere con lo que este test quiere medir (el precio).
+    async function nuevaCancha(): Promise<number> {
+      const c = await prisma.cancha.create({
+        data: { sede_id: sedeId, tipo: 'FUTBOL5', costo_por_hora: 10000, estado: 'OPERATIVA' },
+      });
+      canchasCreadas.push(c.id);
+      return c.id;
+    }
+
+    async function reservar(canchaId: number, usuarioId: number, desde: string, hasta: string) {
+      return request(app.getHttpServer())
+        .post('/api/v1/reservas-canchas')
+        .send({
+          canchaId,
+          usuarioId,
+          fechaHoraInicio: `${picoDia}T${desde}-03:00`,
+          fechaHoraFin: `${picoDia}T${hasta}-03:00`,
+        })
+        .expect(201);
+    }
+
+    const externo = await prisma.usuario.create({
+      data: {
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Externo Pico E2E',
+        email: `m4pico.${Date.now()}.${Math.floor(Math.random() * 1000)}@e2e.fitzone.test`,
+        contrasenia: 'hash-no-relevante',
+      },
+    });
+    usuariosCreados.push(externo.id);
+    const socioUserId = await crearSocio({ vigente: true });
+
+    // La reserva EMPIEZA 20:00 local (dentro de [19:00,21:00)): externo con recargo.
+    const pico = await reservar(await nuevaCancha(), externo.id, '20:00:00', '20:59:59');
+    expect(pico.body.precioAplicado).toBe(12000);
+
+    // Socio en pico: 15% off sobre el precio con recargo (10000 × 1.2 × 0.85).
+    const socioPico = await reservar(await nuevaCancha(), socioUserId, '20:00:00', '20:59:59');
+    expect(socioPico.body.precioAplicado).toBe(10200);
+
+    // Fuera de pico: externo paga estándar y el socio 15% off.
+    const normal = await reservar(await nuevaCancha(), externo.id, '14:00:00', '14:59:59');
+    expect(normal.body.precioAplicado).toBe(10000);
+
+    const socioNormal = await reservar(await nuevaCancha(), socioUserId, '14:00:00', '14:59:59');
+    expect(socioNormal.body.precioAplicado).toBe(8500);
+
+    // Arranca antes de la franja y termina dentro: NO es pico (cuenta el inicio).
+    const terminaEnPico = await reservar(await nuevaCancha(), externo.id, '18:30:00', '19:30:00');
+    expect(terminaEnPico.body.precioAplicado).toBe(10000);
+  });
 });

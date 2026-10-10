@@ -572,4 +572,48 @@ describe('M2 - Sedes / Ingresos / Aforo (e2e)', () => {
       expect(res.body[0].dni).toBeTruthy();
     });
   });
+
+  // RF-03: un socio registrado en la sede Central accede a la sede Norte sin
+  // restricciones. El ingreso valida la membresía vigente contra la base central,
+  // NO la sede de origen (`Socio.sedeOrigenId` solo documenta el alta).
+  it('RF-03: un socio registrado en una sede entra a OTRA sede sin restricción', async () => {
+    const sedeCentralRes = await request(app.getHttpServer())
+      .post('/api/v1/sedes')
+      .send({ nombre: 'Sede Central E2E', direccion: 'Calle Central 1', aforoMaximo: 10 })
+      .expect(201);
+    const sedeCentralId: number = sedeCentralRes.body.id;
+    sedesCreadas.push(sedeCentralId);
+
+    const sedeNorteRes = await request(app.getHttpServer())
+      .post('/api/v1/sedes')
+      .send({ nombre: 'Sede Norte E2E', direccion: 'Calle Norte 2', aforoMaximo: 10 })
+      .expect(201);
+    const sedeNorteId: number = sedeNorteRes.body.id;
+    sedesCreadas.push(sedeNorteId);
+
+    const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeCentralId });
+
+    await request(app.getHttpServer())
+      .post('/api/v1/ingresos')
+      .send({ sedeId: sedeNorteId, socioId: socioId, codigoTotp: '123456' })
+      .expect(201);
+  });
+
+  // RF-04: si el socio nunca activó el QR (sin totpSecreto/qrActivo), el ingreso
+  // se permite igual (backward compatibility explícita del plan).
+  it('RF-04: un socio sin QR activo entra igual (backward compatibility)', async () => {
+    const sedeSinQrRes = await request(app.getHttpServer())
+      .post('/api/v1/sedes')
+      .send({ nombre: 'Sede Sin QR E2E', direccion: 'Calle Sin QR 3', aforoMaximo: 10 })
+      .expect(201);
+    const sedeSinQrId: number = sedeSinQrRes.body.id;
+    sedesCreadas.push(sedeSinQrId);
+
+    const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeSinQrId });
+
+    await request(app.getHttpServer())
+      .post('/api/v1/ingresos')
+      .send({ sedeId: sedeSinQrId, socioId: socioId, codigoTotp: '123456' })
+      .expect(201);
+  });
 });

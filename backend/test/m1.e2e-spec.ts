@@ -833,4 +833,53 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     expect(despues.body.fechaFin).toBe(antes.body.fechaFin);
     expect(despues.body.renuevaAutomatica).toBe(antes.body.renuevaAutomatica);
   });
+
+  it('RF-02: cambio de plan sobre membresía NO vigente cobra el plan nuevo vía evento', async () => {
+    // El email empieza con `socio.` para que el afterAll limpie también el Pago
+    // que genera el cobro interno (ver comentario del afterAll).
+    const usuarioRes = await request(app.getHttpServer())
+      .post('/api/v1/usuarios')
+      .send({
+        rol: 'EXTERNO',
+        dni: dniUnico(),
+        nombre: 'Cambio Plan Mora E2E',
+        email: `socio.${Date.now()}.${Math.floor(Math.random() * 1000)}@e2e.fitzone.test`,
+        contrasenia: 'clave12345',
+      })
+      .expect(201);
+
+    const socioRes = await request(app.getHttpServer())
+      .post('/api/v1/socios')
+      .send({ usuarioId: usuarioRes.body.id, sedeOrigenId: sedeId, plan: 'MENSUAL' })
+      .expect(201);
+
+    // La membresía pasa a no-vigente con una SUSPENSIÓN (inmediata, no depende del cron).
+    await request(app.getHttpServer())
+      .patch(`/api/v1/socios/${socioRes.body.id}/membresias`)
+      .send({ estado: 'SUSPENDIDA' })
+      .expect(200);
+
+    // Cambiar el plan sobre una membresía NO vigente debe emitir
+    // membresia.planCambiado y M5 cobrar el plan NUEVO antes de aplicar el cambio.
+    const resCambio = await request(app.getHttpServer())
+      .patch(`/api/v1/socios/${socioRes.body.id}/membresias`)
+      .send({ plan: 'TRIMESTRAL' })
+      .expect(200);
+    expect(resCambio.body.plan).toBe('TRIMESTRAL');
+
+    const pago = await prisma.pago.findFirst({
+      where: {
+        usuario_id: usuarioRes.body.id,
+        idempotencia_key: { startsWith: 'plan-' },
+      },
+    });
+    expect(pago).not.toBeNull();
+    expect(pago!.estado).toBe('APROBADO');
+    expect(pago!.monto.toNumber()).toBe(PRECIOS_PLAN.TRIMESTRAL);
+
+    const membresia = await prisma.membresia.findFirst({
+      where: { socio_id: socioRes.body.id },
+    });
+    expect(membresia?.plan).toBe('TRIMESTRAL');
+  });
 });

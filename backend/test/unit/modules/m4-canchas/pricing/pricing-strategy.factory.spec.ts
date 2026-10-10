@@ -42,8 +42,8 @@ describe('PricingStrategyFactory', () => {
     const precio = factory.cotizar(
       ctx({
         socioVigente: true,
-        inicio: new Date('2026-10-01T18:00:00-03:00'),
-        fin: new Date('2026-10-01T19:30:00-03:00'),
+        inicio: new Date('2026-10-01T19:30:00-03:00'),
+        fin: new Date('2026-10-01T20:30:00-03:00'),
       }),
     );
     expect(precio).toBeCloseTo(5100, 5);
@@ -53,11 +53,22 @@ describe('PricingStrategyFactory', () => {
     const precio = factory.cotizar(
       ctx({
         socioVigente: false,
-        inicio: new Date('2026-10-01T18:00:00-03:00'),
-        fin: new Date('2026-10-01T19:30:00-03:00'),
+        inicio: new Date('2026-10-01T19:30:00-03:00'),
+        fin: new Date('2026-10-01T20:30:00-03:00'),
       }),
     );
     expect(precio).toBeCloseTo(6000, 5);
+  });
+
+  it('no es pico si el turno solo TERMINA dentro de la franja: cuenta el inicio', () => {
+    const precio = factory.cotizar(
+      ctx({
+        socioVigente: false,
+        inicio: new Date('2026-10-01T18:30:00-03:00'),
+        fin: new Date('2026-10-01T19:30:00-03:00'),
+      }),
+    );
+    expect(precio).toBeCloseTo(5000, 5);
   });
 
   it('turno que arranca exactamente a las 21:00: ventana medio-abierta, sin recargo de pico', () => {

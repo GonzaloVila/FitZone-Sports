@@ -8,6 +8,7 @@ import { PrismaService } from '../src/commons/database/prisma.service';
 import { ZONA_SEDE } from '../src/commons/fechas';
 import { ProblemFilter } from '../src/commons/filters/problem.filter';
 import { AppModule } from '../src/app.module';
+import { RenovacionesCron } from '../src/modules/m5-pagos/crons/renovaciones.cron';
 import { PRECIOS_PLAN } from '../src/modules/m1-usuarios/entities/membresia.entity';
 
 // RF-13: `POST /pagos`. Lo que se verifica acá es lo que un unitario no puede
@@ -726,6 +727,94 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
       const encontrado = res.body.find((p: { id: number }) => p.id === id);
       expect(encontrado).toBeDefined();
       expect(encontrado.estado).toBe('ANULADO');
+    });
+  });
+
+  // RF-02: renovación automática. El cron corre a medianoche, pero el método es
+  // público y se invoca directo: cobra la membresía (mock siempre aprueba) y recién
+  // entonces extiende el período sobre la fechaFin previa (contiguo).
+  describe('RF-02 - renovación automática', () => {
+    async function crearSocioConMembresia(opciones: {
+      renuevaAutomatica: boolean;
+      estado: 'ACTIVA' | 'SUSPENDIDA';
+      fechaFin: Date;
+    }) {
+      const usuario = await prisma.usuario.create({
+        data: {
+          rol: 'SOCIO',
+          dni: dniUnico(),
+          nombre: 'Renov E2E',
+          email: `renov.${Date.now()}.${Math.floor(Math.random() * 1000)}@e2e.fitzone.test`,
+          contrasenia: 'hash-no-relevante',
+        },
+      });
+      usuariosCreados.push(usuario.id);
+
+      const socio = await prisma.socio.create({
+        data: { usuario_id: usuario.id, sede_origen_id: (await prisma.sede.findFirstOrThrow()).id, fecha_alta: new Date() },
+      });
+      sociosCreados.push(socio.id);
+
+      const membresia = await prisma.membresia.create({
+        data: {
+          socio_id: socio.id,
+          plan: 'MENSUAL',
+          estado: opciones.estado,
+          fecha_inicio: new Date(opciones.fechaFin.getTime() - 30 * 86400000),
+          fecha_fin: opciones.fechaFin,
+          precio: PRECIOS_PLAN.MENSUAL,
+          renueva_automatica: opciones.renuevaAutomatica,
+        },
+      });
+      membresiasCreadas.push(membresia.id);
+      return { usuarioId: usuario.id, membresiaId: membresia.id };
+    }
+
+    it('renueva una membresía vencida con renovación automática (cobra y extiende)', async () => {
+      const fechaFin = new Date(Date.now() - 5 * 86400000);
+      const { usuarioId, membresiaId } = await crearSocioConMembresia({
+        renuevaAutomatica: true,
+        estado: 'ACTIVA',
+        fechaFin,
+      });
+
+      await app.get(RenovacionesCron).renovar();
+
+      const pago = await prisma.pago.findFirst({
+        where: { usuario_id: usuarioId, idempotencia_key: { startsWith: 'renov-' } },
+      });
+      expect(pago).not.toBeNull();
+      expect(pago!.estado).toBe('APROBADO');
+      expect(pago!.monto.toNumber()).toBe(PRECIOS_PLAN.MENSUAL);
+
+      const membresia = await prisma.membresia.findUniqueOrThrow({ where: { id: membresiaId } });
+      expect(membresia.estado).toBe('ACTIVA');
+      expect(membresia.fecha_fin.getTime()).toBeGreaterThan(fechaFin.getTime());
+    });
+
+    it('no renueva si renueva_automatica es false ni si está SUSPENDIDA', async () => {
+      const vencida = new Date(Date.now() - 5 * 86400000);
+      const sinAuto = await crearSocioConMembresia({
+        renuevaAutomatica: false,
+        estado: 'ACTIVA',
+        fechaFin: vencida,
+      });
+      const suspendida = await crearSocioConMembresia({
+        renuevaAutomatica: true,
+        estado: 'SUSPENDIDA',
+        fechaFin: vencida,
+      });
+
+      await app.get(RenovacionesCron).renovar();
+
+      for (const objetivo of [sinAuto, suspendida]) {
+        const pago = await prisma.pago.findFirst({
+          where: { usuario_id: objetivo.usuarioId, idempotencia_key: { startsWith: 'renov-' } },
+        });
+        expect(pago).toBeNull();
+        const m = await prisma.membresia.findUniqueOrThrow({ where: { id: objetivo.membresiaId } });
+        expect(m.fecha_fin.getTime()).toBe(vencida.getTime());
+      }
     });
   });
 });

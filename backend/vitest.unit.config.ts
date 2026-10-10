@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['test/unit/**/*.spec.ts'],
+    reporters: ['verbose'],
   },
   resolve: {
     alias: {

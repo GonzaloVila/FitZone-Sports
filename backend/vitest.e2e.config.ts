@@ -10,6 +10,17 @@ export default defineConfig({
     setupFiles: ['./test/vitest.e2e.setup.ts'],
     testTimeout: 20000,
     hookTimeout: 20000,
+    // Verboso a propósito: cada corrida imprime EN VIVO el nombre de cada test con
+    // su resultado y duración, para ver qué flujo (principal/alternativo) se está
+    // cubriendo mientras corre.
+    reporters: ['verbose'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      reportsDirectory: './coverage-e2e',
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.spec.ts', 'src/**/*.module.ts', 'src/main.ts'],
+    },
     // Las tres suites comparten UNA sola base (la de DATABASE_URL), asi que no pueden
     // correr en paralelo: se pisan los datos de fixtures y los afterAll de una borran lo
     // que la otra todavia esta usando. Con fileParallelism en true, la suite de M3

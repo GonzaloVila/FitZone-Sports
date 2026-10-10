@@ -15,13 +15,15 @@ function horaLocal(fecha: Date): string {
   return FORMATO_HORA_LOCAL.format(fecha);
 }
 
-// Ventana medio-abierta [PICO_DESDE, PICO_HASTA): un turno que arranca
+// Franja pico [PICO_DESDE, PICO_HASTA) en hora local de la sede: el recargo se
+// aplica a la reserva que EMPIEZA dentro de la franja. No importa el solape de
+// intervalos: un turno que arranca a las 18:30 y termina a las 19:30 NO es pico,
+// y uno que arranca a las 19:30 sí lo es. Ventana medio-abierta: arrancar
 // exactamente a PICO_HASTA ya no es pico.
 export class PeakHourPricing implements PricingStrategy {
   aplicar(precio: number, ctx: PricingContext): number {
     const inicio = horaLocal(ctx.inicio);
-    const fin = horaLocal(ctx.fin);
-    const seSolapaConPico = inicio < PICO_HASTA && fin > PICO_DESDE;
-    return seSolapaConPico ? precio * (1 + PICO_RECARGO_PCT / 100) : precio;
+    const empiezaEnFranja = inicio >= PICO_DESDE && inicio < PICO_HASTA;
+    return empiezaEnFranja ? precio * (1 + PICO_RECARGO_PCT / 100) : precio;
   }
 }

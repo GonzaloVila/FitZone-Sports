@@ -26,7 +26,7 @@ describe('PrismaMembresiaRepository', () => {
       plan: 'TRIMESTRAL',
       estado: 'ACTIVA',
       precio: new Prisma.Decimal('80000'),
-      socio: { usuarioId: 42 },
+      socio: { usuario_id: 42 },
     }).obtenerParaCobro(7);
 
     expect(resultado).toEqual({

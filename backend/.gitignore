@@ -32,3 +32,4 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 .vitest/
+coverage-e2e/

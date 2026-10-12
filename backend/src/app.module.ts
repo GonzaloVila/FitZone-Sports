@@ -10,6 +10,7 @@ import { GimnasioModule } from './modules/m2-gimnasio/gimnasio.module';
 import { ClasesModule } from './modules/m3-clases/clases.module';
 import { CanchasModule } from './modules/m4-canchas/canchas.module';
 import { PagosModule } from './modules/m5-pagos/pagos.module';
+import { ReportesModule } from './modules/reportes/reportes.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PagosModule } from './modules/m5-pagos/pagos.module';
     ClasesModule,
     CanchasModule,
     PagosModule,
+    ReportesModule,
   ],
 })
 export class AppModule {}

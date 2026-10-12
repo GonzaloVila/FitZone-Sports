@@ -71,6 +71,13 @@ export interface PagoNuevo {
  * No lleva `estado`: cuál es anulable lo decide el service leyendo el pago
  * (idempotencia del 204, 409 del RECHAZADO) y el repositorio solo escribe.
  */
+export interface PagoParaReporte {
+  tipo: ConceptoPago['tipo'];
+  monto: number;
+  fechaPago: Date;
+  sede: { id: number; nombre: string } | null;
+}
+
 export interface PagoAAnular {
   id: number;
   token: string;

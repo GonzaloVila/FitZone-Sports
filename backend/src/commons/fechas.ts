@@ -18,7 +18,7 @@ const OFFSET_SEDE = '-03:00';
 
 // Descompone un instante a YYYY-MM-DD en hora local de la sede. Se usa para
 // verificar que la fecha pedida no haya rodado al día siguiente.
-function aFechaLocal(instante: Date): string {
+export function aFechaLocal(instante: Date): string {
   const partes = new Intl.DateTimeFormat('en-CA', {
     timeZone: ZONA_SEDE,
     year: 'numeric',

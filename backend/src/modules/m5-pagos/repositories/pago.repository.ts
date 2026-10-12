@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../commons/database/prisma.service';
 import type { OpcionesPaginacion } from '../../../commons/paginacion';
-import { ConceptoPago, Pago, PagoAAnular, PagoNuevo } from '../entities/pago.entity';
+import { ConceptoPago, Pago, PagoAAnular, PagoNuevo, PagoParaReporte } from '../entities/pago.entity';
 
 // Lista blanca de filtros de `GET /pagos`. El repositorio NO decide defaults: el del
 // `estado` (sin el parámetro solo salen los APROBADO) es regla de negocio y lo aplica
@@ -196,6 +196,67 @@ export class PagoRepository {
     });
 
     return filas.map((fila) => this.aDominio(fila));
+  }
+
+  /**
+   * Lectura para el reporte de ingresos (Unidad IV, read side CQRS): los pagos APROBADO
+   * del rango `[desde, hasta)` con la sede ya resuelta según el concepto.
+   *
+   * La sede se resuelve en TypeScript con includes anidados y no con SQL a mano
+   * (alcance académico: simple y testeable con mocks):
+   *  - RESERVA_CANCHA: PagoReserva → Reserva → Cancha → Sede.
+   *  - MEMBRESIA: PagoMembresia → Membresia → Socio → Sede (sede de origen).
+   *  - RESERVA_CLASE: PagoReservaClase → ReservaClase → Clase → Sede.
+   * Si algún eslabón falta devuelve `sede: null` y el service lo cuenta como huérfano.
+   */
+  async listarAprobadosConSede(rango: { desde?: Date; hasta?: Date }): Promise<PagoParaReporte[]> {
+    const filas = await this.prisma.pago.findMany({
+      where: {
+        estado: 'APROBADO',
+        ...((rango.desde !== undefined || rango.hasta !== undefined) && {
+          fecha_pago: {
+            ...(rango.desde !== undefined && { gte: rango.desde }),
+            ...(rango.hasta !== undefined && { lt: rango.hasta }),
+          },
+        }),
+      },
+      orderBy: [{ fecha_pago: 'asc' }, { id: 'asc' }],
+      include: {
+        pago_reserva: { include: { reserva: { include: { cancha: { include: { sede: true } } } } } },
+        pago_membresia: {
+          include: { membresia: { include: { socio: { include: { sede: true } } } } },
+        },
+        pago_reserva_clase: {
+          include: { reserva_clase: { include: { clase: { include: { sede: true } } } } },
+        },
+      },
+    });
+
+    return filas.flatMap((fila): PagoParaReporte[] => {
+      const base = { monto: fila.monto.toNumber(), fechaPago: fila.fecha_pago };
+      const sede = (s?: { id: number; nombre: string } | null) =>
+        s ? { id: s.id, nombre: s.nombre } : null;
+
+      if (fila.pago_reserva) {
+        return [{ ...base, tipo: 'RESERVA_CANCHA', sede: sede(fila.pago_reserva.reserva?.cancha?.sede) }];
+      }
+      if (fila.pago_membresia) {
+        return [
+          { ...base, tipo: 'MEMBRESIA', sede: sede(fila.pago_membresia.membresia?.socio?.sede) },
+        ];
+      }
+      if (fila.pago_reserva_clase) {
+        return [
+          {
+            ...base,
+            tipo: 'RESERVA_CLASE',
+            sede: sede(fila.pago_reserva_clase.reserva_clase?.clase?.sede),
+          },
+        ];
+      }
+      // Un Pago sin subtipo no corresponde a ningún concepto: no se puede clasificar.
+      return [];
+    });
   }
 
   /**

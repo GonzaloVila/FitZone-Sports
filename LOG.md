@@ -2070,3 +2070,49 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 3. **Repositorios que siguen capturando P2002/P2025 a mano:** `cancha.repository` (M4) y `pago.repository` (M5, dos puntos). M1, M2 y M3 ya usan el mapper. Se pueden migrar cuando se toquen.
 4. **`problem.filter.ts` importa de `m4-canchas/errors`** (commons → módulo de dominio), como se pidió. Si el equipo prefiere no tener esa dependencia, la alternativa es que el filtro delegue el body de `EXCLUSION` a un registro en commons.
 5. **Máquina de estados de la membresía (State):** sigue fuera de alcance.
+
+---
+
+## 2026-10-12 — Unidad IV (CQRS): reporte de pagos por período en PDF — Gonzalo Vila + Santiago Rayn
+
+**Fecha:** 12/10/2026 — **Rama:** `m5-pagos`
+
+### Actividades
+
+1. **Consolidado de ingresos en M5 (read side)**
+   - `ReporteIngresosService.consolidadoPagos({ desde, hasta })`: toma los pagos **APROBADO** del rango `[desde, hasta)` y los agrupa por **día local de la sede** (`aFechaLocal`, exportada desde `commons/fechas.ts`), **sede** y **tipo de concepto**, con monto por fila y total general. Los importes se suman en centavos para evitar ruido de coma flotante.
+   - `PagoRepository.listarAprobadosConSede()`: resuelve la sede según el concepto con includes anidados (RESERVA_CANCHA: reserva → cancha → sede; MEMBRESIA: membresía → socio → sede de origen; RESERVA_CLASE: reserva de clase → clase → sede). Si un eslabón falta, la fila es **huérfana**: se descarta y se cuenta aparte, sin romper el reporte.
+   - `ReporteIngresosService` se exporta desde `PagosModule`.
+   - [commit 127550a](https://github.com/GonzaloVila/FitZone-Sports/commit/127550a)
+
+2. **Módulo `reportes` y `GET /reportes/pagos`**
+   - `ReportesModule` (importa `PagosModule` y `CommonsModule`), registrado en `AppModule`. Grafo: **reportes → M5**, M5 no importa reportes (sin ciclos).
+   - `ReportesController`: `JwtAuthGuard` + `RolesGuard` + `@Roles('GERENTE')`; `desde`/`hasta` se traducen con `rangoDelDia()` (`hasta` es un día inclusivo) y la respuesta es un `StreamableFile` `application/pdf` con `Content-Disposition`. `ListarReporteQueryDto` valida `YYYY-MM-DD` + `IsISO8601 strict` (fecha inválida → 422).
+   - `ReportesService.armarPdf()` (pdfkit, A4, `compress: false`) con la paleta del comprobante: banda de marca, período (o «histórico»), tabla con filas alternadas, **total general** y pie. Pagina si hay muchas filas. No se persiste en disco: devuelve el Buffer.
+   - [commit 1b14afc](https://github.com/GonzaloVila/FitZone-Sports/commit/1b14afc)
+
+### Decisiones tomadas
+
+1. **Agregación en TypeScript con includes anidados**, no SQL a mano: para el alcance académico es la opción simple y testeable con mocks (con volumen real convendría un `GROUP BY`).
+2. **Dos services con responsabilidades separadas:** `ReporteIngresosService` (M5) calcula los datos; `ReportesService` solo los dibuja. El mismo consolidado sirve para otros formatos (CSV/JSON) sin tocar M5.
+3. **`FilaReporte` lleva además `sedeNombre`** (el PDF muestra el nombre de la sede) y **`ReporteIngresos` lleva `huerfanos`** (el pie del PDF avisa si hubo pagos descartados). Ambos agregados respecto de la especificación.
+4. **`armarPdf` es síncrono:** se lee el buffer interno de pdfkit después de `end()`, sin listener `data` (con listener, los trozos llegan en el siguiente tick).
+
+### Verificación
+
+- `npx tsc --noEmit`: limpio.
+- `npm run test:unit`: **167/167** (nuevos: consolidado, repositorio del reporte y PDF — `%PDF-`, período, filas, total general, vacío, paginación y «histórico»).
+- PDF de ejemplo generado con `armarPdf` y revisado visualmente.
+- **e2e (`test/reportes.e2e-spec.ts`) escrito pero NO corrido**, ver pendientes.
+
+### Commits
+
+- **feat(m5): reporte de ingresos consolidado (APROBADO por dia local, sede y concepto)** → [commit 127550a](https://github.com/GonzaloVila/FitZone-Sports/commit/127550a)
+- **feat(reportes): GET /reportes/pagos en PDF (solo GERENTE)** → [commit 1b14afc](https://github.com/GonzaloVila/FitZone-Sports/commit/1b14afc)
+- `docs: registra en el LOG el reporte de pagos por periodo (Unidad IV)` (este mismo commit)
+
+### Pendientes que siguen abiertos
+
+1. **e2e sin correr:** este equipo no tiene el Postgres local levantado (Docker Desktop apagado). Hay que correr `npm run test:e2e` (incluye `reportes.e2e-spec.ts`: 200 PDF para GERENTE, 403 SOCIO/RECEPCION, 401, 422), en local y contra Supabase.
+2. **Contrato OpenAPI sin exportar ni comparar:** `backend/contrato/` (gitignored) no existe en este checkout. Hay que exportar al vault la operación `GET /reportes/pagos` (tag `reportes`) y correr el comparador (esperado 0 diferencias).
+3. **Flujo real vía API** con una reserva cobrada (generar el PDF desde el endpoint y abrirlo) pendiente hasta tener la base disponible.

@@ -54,10 +54,6 @@ npx tsc --noEmit            # typecheck
 
 Los e2e también corren contra Supabase con `DATABASE_URL` apuntando a esa base + `FITZONE_E2E_ALLOW_REMOTE=1`.
 
-## Contrato
-
-El contrato OpenAPI canónico vive en `backend/contrato/openapi.yaml` (gitignored) y se exporta al vault con `contrato/exportar.ts`. El comparador verifica que el backend publique lo que el contrato declara.
-
 ## Eventos de dominio y oyentes
 
 El bus interno (`@nestjs/event-emitter`) desacopla al emisor del cobro: quien emite no importa a quien escucha (ADR-09). Los nombres viven en `backend/src/commons/eventos.ts`.

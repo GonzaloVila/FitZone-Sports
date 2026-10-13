@@ -57,3 +57,15 @@ Los e2e también corren contra Supabase con `DATABASE_URL` apuntando a esa base 
 ## Contrato
 
 El contrato OpenAPI canónico vive en `backend/contrato/openapi.yaml` (gitignored) y se exporta al vault con `contrato/exportar.ts`. El comparador verifica que el backend publique lo que el contrato declara.
+
+## Eventos de dominio y oyentes
+
+El bus interno (`@nestjs/event-emitter`) desacopla al emisor del cobro: quien emite no importa a quien escucha (ADR-09). Los nombres viven en `backend/src/commons/eventos.ts`.
+
+| Evento | Emisor | Oyente | Regla |
+|---|---|---|---|
+| `socio.dadoDeAlta` | M1 (`SociosService.crear`) | `RenovacionesListener` (M5) → `RenovacionesService.cobrarMembresia` | RF-02: cobra la membresía inicial del alta |
+| `membresia.planCambiado` | M1 (`MembresiasService.modificar`) | `RenovacionesListener` (M5) | RF-02: cobra el plan nuevo al cambiar de plan sobre una membresía no vigente |
+| `reservaClase.canceladaTardia` | M3 (`ReservasClasesService.cancelarReservaClase`) | `PenalidadReservaClaseListener` (M5) | RF-07: cobra la penalidad del 50% al cancelar con menos de 2 h |
+
+Cadena GoF de Observer (patrón explícito, no el bus): `CupoLiberadoSubject` (M3) → `NotificarSociosEsperaObserver` (estado) + `EmailCupoLiberadoObserver` (email), para RF-08.

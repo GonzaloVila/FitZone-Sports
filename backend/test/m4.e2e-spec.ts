@@ -998,8 +998,9 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
   });
 
 // RF-11: el recargo de horario pico (19:00-21:00, hora de la sede) se aplica a la
-// reserva que EMPIEZA dentro de la franja, y el socio tiene 15% de descuento sobre
-// el precio estándar del externo. Las dos reglas se acumulan (0.85 x 1.20).
+// reserva que EMPIEZA dentro de la franja, y también a la que CUBRE toda la franja
+// (arranca <=19:00 y termina >=21:00). El socio tiene 15% de descuento sobre el
+// precio estándar del externo. Las dos reglas se acumulan (0.85 x 1.20).
   it('RF-11: recargo pico por inicio de la reserva + descuento del socio (15%)', async () => {
     const picoDia = '2026-11-20';
 
@@ -1055,6 +1056,14 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     // Arranca antes de la franja y termina dentro: NO es pico (cuenta el inicio).
     const terminaEnPico = await reservar(await nuevaCancha(), externo.id, '18:30:00', '19:30:00');
     expect(terminaEnPico.body.precioAplicado).toBe(10000);
+
+    // CUBRE toda la franja pico (18:00-22:00): lleva el plus aunque no empiece dentro.
+    const cubreFranja = await reservar(await nuevaCancha(), externo.id, '18:00:00', '22:00:00');
+    expect(cubreFranja.body.precioAplicado).toBe(12000);
+
+    // NO la cubre entera (18:00-20:00): sigue sin recargo (el inicio no cae en la franja).
+    const parcial = await reservar(await nuevaCancha(), externo.id, '18:00:00', '20:00:00');
+    expect(parcial.body.precioAplicado).toBe(10000);
   });
 
   // RN-02: la garantía atómica es la constraint de exclusión en la base. Dos

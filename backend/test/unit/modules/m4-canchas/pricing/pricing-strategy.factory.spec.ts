@@ -81,4 +81,48 @@ describe('PricingStrategyFactory', () => {
     );
     expect(precio).toBeCloseTo(4250, 5);
   });
+
+  it('cubre TODA la franja pico (18:00-22:00): recargo aunque no empiece dentro', () => {
+    const precio = factory.cotizar(
+      ctx({
+        socioVigente: false,
+        inicio: new Date('2026-10-01T18:00:00-03:00'),
+        fin: new Date('2026-10-01T22:00:00-03:00'),
+      }),
+    );
+    expect(precio).toBeCloseTo(6000, 5);
+  });
+
+  it('cubre toda la franja pico con socio: recargo y descuento acumulados', () => {
+    const precio = factory.cotizar(
+      ctx({
+        socioVigente: true,
+        inicio: new Date('2026-10-01T18:00:00-03:00'),
+        fin: new Date('2026-10-01T22:00:00-03:00'),
+      }),
+    );
+    expect(precio).toBeCloseTo(5100, 5);
+  });
+
+  it('franja exacta (19:00-21:00): recargo', () => {
+    const precio = factory.cotizar(
+      ctx({
+        socioVigente: false,
+        inicio: new Date('2026-10-01T19:00:00-03:00'),
+        fin: new Date('2026-10-01T21:00:00-03:00'),
+      }),
+    );
+    expect(precio).toBeCloseTo(6000, 5);
+  });
+
+  it('NO cubre la franja entera (18:00-20:00): sin recargo', () => {
+    const precio = factory.cotizar(
+      ctx({
+        socioVigente: false,
+        inicio: new Date('2026-10-01T18:00:00-03:00'),
+        fin: new Date('2026-10-01T20:00:00-03:00'),
+      }),
+    );
+    expect(precio).toBeCloseTo(5000, 5);
+  });
 });

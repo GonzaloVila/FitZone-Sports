@@ -5,6 +5,7 @@ import { SociosService } from '../../m1-usuarios/services/socios.service';
 import { EsperaClaseRepository } from '../repositories/espera-clase.repository';
 import type { CupoLiberadoEvent } from './cupo-liberado.event';
 import type { CupoLiberadoObserver } from './cupo-liberado.observer';
+import { asuntoCupoLiberado, cuerpoHtml, cuerpoTexto } from './email-cupo-liberado.template';
 
 // Canal de aviso del cupo liberado (ADR-05, cadena de observers). Es un observer
 // mas: no conoce el dominio de la espera, solo lee la cola viva de la clase, pide
@@ -44,12 +45,11 @@ export class EmailCupoLiberadoObserver implements CupoLiberadoObserver {
 
     await this.resolverTransporte();
 
-    const asunto = `Se liberó un cupo en tu clase${evento.horarioClase ? ` (${formatearHorario(evento.horarioClase)})` : ''}`;
-    const cuerpo =
-      `Hola,\n\nSe liberó un cupo en la clase ${evento.claseId} y quedó disponible ` +
-      `por Confirmación (modalidad first-come, gana el primero que confirme).\n` +
-      `Ingresá al sistema para confirmar tu anotación de la lista de espera.\n\n` +
-      `Si no confirmás a tiempo, el cupo pasa al siguiente socio en espera.`;
+    // Asunto y cuerpo salen de la plantilla con branding (texto + HTML) para que el
+    // aviso se vea como del gimnasio; el `text` queda de respaldo para clientes sin HTML.
+    const asunto = asuntoCupoLiberado(evento);
+    const cuerpo = cuerpoTexto(evento);
+    const html = cuerpoHtml(evento);
 
     let enviados = 0;
     let sinDestinatario = 0;
@@ -68,6 +68,7 @@ export class EmailCupoLiberadoObserver implements CupoLiberadoObserver {
         to: email,
         subject: asunto,
         text: cuerpo,
+        html,
       });
       enviados += 1;
       if (this.ethereal) {
@@ -130,12 +131,4 @@ export class EmailCupoLiberadoObserver implements CupoLiberadoObserver {
       'Sin SMTP_* ni ETHEREAL=true: se omiten los avisos por email y solo se loguea el evento.',
     );
   }
-}
-
-function formatearHorario(horarioClase: string): string {
-  const fecha = new Date(horarioClase);
-  if (isNaN(fecha.getTime())) {
-    return horarioClase;
-  }
-  return fecha.toISOString();
 }

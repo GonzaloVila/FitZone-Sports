@@ -391,6 +391,52 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .expect(200);
       expect(resConsulta.body.estado).toBe('CANCELADA');
     });
+
+    it('cancelación tardía rechazada por la pasarela: 402 y la reserva sigue CONFIRMADA (RF-07)', async () => {
+      const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+
+      // Clase en 1 hora (< 2 hs): la cancelación dispara el cobro de la penalidad.
+      const fechaClase = new Date(Date.now() + 1 * 3600 * 1000).toISOString();
+      const resClase = await request(app.getHttpServer())
+        .post('/api/v1/clases')
+        .send({
+          sedeId: sedeId,
+          tipo: 'Spinning Exprés',
+          instructor: 'Lucas',
+          horario: fechaClase,
+          capacidad: 5,
+        })
+        .expect(201);
+      const claseId: number = resClase.body.id;
+      clasesCreadas.push(claseId);
+
+      const resReserva = await request(app.getHttpServer())
+        .post('/api/v1/reservas-clases')
+        .send({ claseId: claseId, socioId: socioId })
+        .expect(201);
+      const reservaId: number = resReserva.body.id;
+
+      // M3 emite el evento ANTES de marcar CANCELADA; si M5 rechaza (402), el error
+      // se propaga y la cancelación no se aplica.
+      process.env.PASARELA_MOCK = 'RECHAZADO';
+      try {
+        await request(app.getHttpServer())
+          .post(`/api/v1/reservas-clases/${reservaId}/cancelaciones`)
+          .expect(402);
+      } finally {
+        delete process.env.PASARELA_MOCK;
+      }
+
+      const resConsulta = await request(app.getHttpServer())
+        .get(`/api/v1/reservas-clases/${reservaId}`)
+        .expect(200);
+      expect(resConsulta.body.estado).toBe('CONFIRMADA');
+
+      const pago = await prisma.pago.findFirst({
+        where: { pago_reserva_clase: { reserva_clase_id: reservaId } },
+      });
+      expect(pago).toBeNull();
+    });
   });
 
   describe('RF-08: Lista de Espera, Patrón Observer y First-Come', () => {
@@ -454,6 +500,10 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
         .expect(204);
 
       expect(spyEmail).toHaveBeenCalledTimes(1);
+      // El evento lleva el nombre de la clase (tipo) para que el aviso lo muestre.
+      expect(spyEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ claseId, nombreClase: 'TRX Intensivo' }),
+      );
 
       // Verificamos que el Observer actualizó a Socio B a estado NOTIFICADO
       const resEsperaActualizada = await request(app.getHttpServer())

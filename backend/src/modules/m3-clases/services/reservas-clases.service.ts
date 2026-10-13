@@ -160,6 +160,7 @@ export class ReservasClasesService {
     // Disparo del Patrón Observer (RF-08): libera lugar y notifica a lista de espera
     await this.cupoSubject.notificar({
       claseId: reserva.claseId,
+      nombreClase: clase.tipo,
       horarioClase: clase.horario,
       socioIdCancelador: reserva.socioId,
       fechaLiberacion: new Date(),

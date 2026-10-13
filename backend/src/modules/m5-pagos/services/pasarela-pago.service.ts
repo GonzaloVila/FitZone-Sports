@@ -42,6 +42,25 @@ export interface SolicitudPasarela {
 const PREFIJO_APROBADO = 'tok_aprobado';
 const PREFIJO_PENDIENTE = 'tok_pendiente';
 
+const MOTIVO_RECHAZO =
+  'La pasarela rechazó el token (fondos insuficientes o token inválido).';
+
+type EstadoForzable = 'APROBADO' | 'PENDIENTE' | 'RECHAZADO';
+
+/**
+ * Override de test/QA: `PASARELA_MOCK` fuerza el resultado de `cobrar` sin mirar
+ * el token. Existe para poder ejercitar los caminos RECHAZADO y PENDIENTE en los
+ * cobros INTERNOS (alta de socio, cambio de plan, renovación, penalidad de clase),
+ * que arman su token en el código y por eso nunca rechazan solos. Se lee en cada
+ * llamada; si la variable no está, manda la lógica por token de siempre.
+ */
+function resultadoForzado(): EstadoForzable | null {
+  const valor = (process.env.PASARELA_MOCK ?? '').toUpperCase();
+  return valor === 'APROBADO' || valor === 'PENDIENTE' || valor === 'RECHAZADO'
+    ? valor
+    : null;
+}
+
 /**
  * FRONTERA (decisión 9 del plan). `PagosService` llama a `cobrar()` y no sabe con
  * qué frontera está trabajando: cambiar la implementación interna de esta clase
@@ -61,7 +80,15 @@ const PREFIJO_PENDIENTE = 'tok_pendiente';
 @Injectable()
 export class PasarelaPagoService {
   async cobrar(solicitud: SolicitudPasarela): Promise<ResultadoPasarela> {
-    const { token, idempotenciaKey } = solicitud;
+    const { token } = solicitud;
+
+    const forzado = resultadoForzado();
+    if (forzado === 'RECHAZADO') {
+      return { estado: 'RECHAZADO', motivo: MOTIVO_RECHAZO };
+    }
+    if (forzado) {
+      return { estado: forzado, pasarelaToken: token };
+    }
 
     if (token.startsWith(PREFIJO_APROBADO)) {
       // El token que se persiste es el de la pasarela, no el que mandó el cliente.
@@ -76,7 +103,7 @@ export class PasarelaPagoService {
 
     return {
       estado: 'RECHAZADO',
-      motivo: 'La pasarela rechazó el token (fondos insuficientes o token inválido).',
+      motivo: MOTIVO_RECHAZO,
     };
   }
 

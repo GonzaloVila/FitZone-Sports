@@ -816,5 +816,31 @@ describe('M5 - Pagos: cobro por HTTP (RF-13)', () => {
         expect(m.fecha_fin.getTime()).toBe(vencida.getTime());
       }
     });
+
+    it('RF-02: renovación rechazada por la pasarela no renueva (queda vencida, sin pago)', async () => {
+      const vencida = new Date(Date.now() - 5 * 86400000);
+      const { usuarioId, membresiaId } = await crearSocioConMembresia({
+        renuevaAutomatica: true,
+        estado: 'ACTIVA',
+        fechaFin: vencida,
+      });
+
+      // El cron COBRA antes de renovar: si la pasarela rechaza, no extiende la fecha
+      // (y no aborta el resto del job: cuenta la membresía como rechazada).
+      process.env.PASARELA_MOCK = 'RECHAZADO';
+      try {
+        await app.get(RenovacionesCron).renovar();
+      } finally {
+        delete process.env.PASARELA_MOCK;
+      }
+
+      const pago = await prisma.pago.findFirst({
+        where: { usuario_id: usuarioId, idempotencia_key: { startsWith: 'renov-' } },
+      });
+      expect(pago).toBeNull();
+
+      const membresia = await prisma.membresia.findUniqueOrThrow({ where: { id: membresiaId } });
+      expect(membresia.fecha_fin.getTime()).toBe(vencida.getTime());
+    });
   });
 });

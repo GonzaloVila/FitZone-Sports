@@ -20,7 +20,10 @@ export interface EventoCancelacionTardia {
 export class PenalidadReservaClaseListener {
   constructor(private readonly penalidades: PenalidadReservaClaseService) {}
 
-  @OnEvent(EVENTO_RESERVA_CLASE_CANCELADA_TARDIA)
+  // `suppressErrors: false`: el default de @nestjs/event-emitter es tragar el error
+  // del listener, con lo que un cobro rechazado (402) no llegaría a M3 y la
+  // cancelación se aplicaría igual. Con `false` el rechazo propaga y no cancela.
+  @OnEvent(EVENTO_RESERVA_CLASE_CANCELADA_TARDIA, { suppressErrors: false })
   async onCancelacionTardia(datos: EventoCancelacionTardia): Promise<void> {
     // La clave es determinista: reintentar el mismo evento no cobra dos veces.
     await this.penalidades.cobrarPenalidad(

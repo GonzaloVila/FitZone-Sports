@@ -24,12 +24,16 @@ export interface EventoDatosPlan extends DatosCobroMembresia {
 export class RenovacionesListener {
   constructor(private readonly renovaciones: RenovacionesService) {}
 
-  @OnEvent(EVENTO_SOCIO_ALTA)
+  // `suppressErrors: false` es obligatorio: en @nestjs/event-emitter el default es
+  // `true` (traga el error del listener), y sin esto `emitAsync` resolvería como si
+  // el cobro hubiera salido bien. Con `false`, un cobro rechazado (402) se propaga a
+  // M1 y revierte el alta / el cambio de plan.
+  @OnEvent(EVENTO_SOCIO_ALTA, { suppressErrors: false })
   async onSocioAlta(datos: EventoDatosAlta): Promise<void> {
     await this.renovaciones.cobrarMembresia(datos, `alta-${datos.socioId}`);
   }
 
-  @OnEvent(EVENTO_MEMBRESIA_PLAN)
+  @OnEvent(EVENTO_MEMBRESIA_PLAN, { suppressErrors: false })
   async onMembresiaPlan(datos: EventoDatosPlan): Promise<void> {
     await this.renovaciones.cobrarMembresia(datos, `plan-${datos.membresiaId}-${Date.now()}`);
   }

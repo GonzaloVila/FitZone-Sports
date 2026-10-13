@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { PasarelaPagoService } from 'src/modules/m5-pagos/services/pasarela-pago.service';
 
 // Fijan el resultado del mock de la pasarela. Lo que importa acá es que la
@@ -60,5 +60,38 @@ describe('PasarelaPagoService (mock)', () => {
 
   it('reembolsa sin tirar excepción', async () => {
     await expect(pasarela.reembolsar(solicitud)).resolves.toEqual({ ok: true });
+  });
+
+  // Override de test/QA: `PASARELA_MOCK` fuerza el resultado sin mirar el token, para
+  // poder ejercitar RECHAZADO/PENDIENTE en los cobros INTERNOS (que arman su token en
+  // el código). Se limpia después de cada test para no filtrarse.
+  describe('override por PASARELA_MOCK', () => {
+    afterEach(() => {
+      delete process.env.PASARELA_MOCK;
+    });
+
+    it('fuerza RECHAZADO aunque el token sería aprobado', async () => {
+      process.env.PASARELA_MOCK = 'RECHAZADO';
+
+      const resultado = await pasarela.cobrar(solicitud);
+
+      expect(resultado.estado).toBe('RECHAZADO');
+    });
+
+    it('fuerza PENDIENTE aunque el token sería aprobado', async () => {
+      process.env.PASARELA_MOCK = 'PENDIENTE';
+
+      const resultado = await pasarela.cobrar(solicitud);
+
+      expect(resultado).toEqual({ estado: 'PENDIENTE', pasarelaToken: 'tok_aprobado_1' });
+    });
+
+    it('acepta minúsculas y, sin la variable, vuelve a la lógica por token', async () => {
+      process.env.PASARELA_MOCK = 'rechazado';
+      expect((await pasarela.cobrar(solicitud)).estado).toBe('RECHAZADO');
+
+      delete process.env.PASARELA_MOCK;
+      expect((await pasarela.cobrar(solicitud)).estado).toBe('APROBADO');
+    });
   });
 });

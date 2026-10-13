@@ -882,4 +882,120 @@ describe('M1 - Usuarios / Socios / Membresias (e2e)', () => {
     });
     expect(membresia?.plan).toBe('TRIMESTRAL');
   });
+
+  // El mock de la pasarela acepta un override por `PASARELA_MOCK` (ver
+  // pasarela-pago.service.ts): fuerza el resultado sin mirar el token, para poder
+  // ejercitar los caminos RECHAZADO y PENDIENTE en los cobros INTERNOS (alta,
+  // cambio de plan), que arman su token en el código y por eso nunca rechazan solos.
+  // Se setea por test y se restaura; el e2e corre secuencial (fileParallelism=false).
+  describe('Cobro interno de membresía desaprobado (PASARELA_MOCK)', () => {
+    afterEach(() => {
+      delete process.env.PASARELA_MOCK;
+    });
+
+    it('RF-02: alta de socio rechazada -> 402, sin socio activo ni pago', async () => {
+      const usuarioRes = await request(app.getHttpServer())
+        .post('/api/v1/usuarios')
+        .send({
+          rol: 'EXTERNO',
+          dni: dniUnico(),
+          nombre: 'Alta Rechazada E2E',
+          email: emailUnico(),
+          contrasenia: 'clave12345',
+        })
+        .expect(201);
+      const usuarioId = usuarioRes.body.id;
+
+      process.env.PASARELA_MOCK = 'RECHAZADO';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/socios')
+        .send({ usuarioId, sedeOrigenId: sedeId, plan: 'MENSUAL' })
+        .expect(402);
+
+      const pago = await prisma.pago.findFirst({
+        where: { usuario_id: usuarioId, idempotencia_key: { startsWith: 'alta-' } },
+      });
+      expect(pago).toBeNull();
+
+      // La compensación es baja lógica: la fila queda inactiva, no se borra.
+      const activo = await prisma.socio.findFirst({
+        where: { usuario_id: usuarioId, activo: true },
+      });
+      expect(activo).toBeNull();
+      const fila = await prisma.socio.findFirst({ where: { usuario_id: usuarioId } });
+      expect(fila?.activo).toBe(false);
+    });
+
+    it('RF-02: alta de socio con cobro PENDIENTE -> 402 y sin socio activo', async () => {
+      const usuarioRes = await request(app.getHttpServer())
+        .post('/api/v1/usuarios')
+        .send({
+          rol: 'EXTERNO',
+          dni: dniUnico(),
+          nombre: 'Alta Pendiente E2E',
+          email: emailUnico(),
+          contrasenia: 'clave12345',
+        })
+        .expect(201);
+      const usuarioId = usuarioRes.body.id;
+
+      // El flujo interno es síncrono: un PENDIENTE tampoco deja fila (se mapea a 402).
+      process.env.PASARELA_MOCK = 'PENDIENTE';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/socios')
+        .send({ usuarioId, sedeOrigenId: sedeId, plan: 'MENSUAL' })
+        .expect(402);
+
+      const pago = await prisma.pago.findFirst({ where: { usuario_id: usuarioId } });
+      expect(pago).toBeNull();
+      const activo = await prisma.socio.findFirst({
+        where: { usuario_id: usuarioId, activo: true },
+      });
+      expect(activo).toBeNull();
+    });
+
+    it('RF-02: cambio de plan rechazado -> 402 y la membresía no cambia', async () => {
+      const usuarioRes = await request(app.getHttpServer())
+        .post('/api/v1/usuarios')
+        .send({
+          rol: 'EXTERNO',
+          dni: dniUnico(),
+          nombre: 'Plan Rechazado E2E',
+          email: emailUnico(),
+          contrasenia: 'clave12345',
+        })
+        .expect(201);
+
+      const socioRes = await request(app.getHttpServer())
+        .post('/api/v1/socios')
+        .send({ usuarioId: usuarioRes.body.id, sedeOrigenId: sedeId, plan: 'MENSUAL' })
+        .expect(201);
+      const socioId = socioRes.body.id;
+
+      // No vigente: una SUSPENSIÓN dispara el cobro del plan nuevo en el PATCH.
+      await request(app.getHttpServer())
+        .patch(`/api/v1/socios/${socioId}/membresias`)
+        .send({ estado: 'SUSPENDIDA' })
+        .expect(200);
+
+      process.env.PASARELA_MOCK = 'RECHAZADO';
+
+      await request(app.getHttpServer())
+        .patch(`/api/v1/socios/${socioId}/membresias`)
+        .send({ plan: 'TRIMESTRAL' })
+        .expect(402);
+
+      const membresia = await prisma.membresia.findFirst({ where: { socio_id: socioId } });
+      expect(membresia?.plan).toBe('MENSUAL');
+      const pago = await prisma.pago.findFirst({
+        where: {
+          usuario_id: usuarioRes.body.id,
+          idempotencia_key: { startsWith: 'plan-' },
+        },
+      });
+      expect(pago).toBeNull();
+    });
+  });
 });

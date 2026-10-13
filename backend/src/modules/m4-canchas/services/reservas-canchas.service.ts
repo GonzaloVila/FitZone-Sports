@@ -6,15 +6,11 @@ import { MembresiasService } from '../../m1-usuarios/services/membresias.service
 import { ReservaCanchaIn } from '../dtos/reserva-cancha-in.dto';
 import { ReservaCanchaOut } from '../dtos/reserva-cancha-out.dto';
 import { Reserva } from '../entities/reserva.entity';
-import {
-  canchaEnMantenimiento,
-  rangoHorarioInvalido,
-  reservaYaCancelada,
-  turnoOcupado,
-} from '../errors/reserva.errors';
+import { reservaYaCancelada, turnoOcupado } from '../errors/reserva.errors';
 import { PricingStrategyFactory } from '../pricing/pricing-strategy.factory';
 import { CanchaRepository } from '../repositories/cancha.repository';
 import { ReservaRepository } from '../domain/reserva.port';
+import { ValidadorDeReservasCancha } from '../validaciones/validador-de-reservas-cancha';
 
 export interface FiltrosListarReservasCanchas {
   canchaId?: number;
@@ -35,44 +31,35 @@ export class ReservasCanchasService {
     // siempre de la vigencia real de la membresía (RN-03, ADR-09).
     private readonly membresias: MembresiasService,
     private readonly precios: PricingStrategyFactory,
+    // Cadena de validaciones previas a la reserva (Chain of Responsibility).
+    private readonly validador: ValidadorDeReservasCancha,
   ) {}
 
   async crear(dto: ReservaCanchaIn): Promise<ReservaCanchaOut> {
     const cancha = await this.canchas.buscarPorId(dto.canchaId);
-    if (!cancha) {
-      throw recursoNoEncontrado('No existe la cancha indicada.');
-    }
-
-    // RF-12: una cancha en mantenimiento no admite turnos nuevos. Es un 409 con
-    // su propio `type`, no el de concurrencia: el turno no esta tomado por otro
-    // usuario, la cancha esta inhabilitada, y el detail de TurnoOcupado
-    // ("Otro usuario reservo el turno... antes que vos") seria falso.
-    if (cancha.estado === 'EN_MANTENIMIENTO') {
-      throw canchaEnMantenimiento(cancha.id);
-    }
-
     const inicio = new Date(dto.fechaHoraInicio);
     const fin = new Date(dto.fechaHoraFin);
-    // No se valida contra un horario de apertura/cierre de la sede: ese dato no
-    // existe en el modelo (decisión 11 del plan M4, deuda asumida a propósito).
-    if (inicio.getTime() >= fin.getTime()) {
-      throw rangoHorarioInvalido();
-    }
+
+    // Validaciones previas (Chain of Responsibility): cancha existe, cancha
+    // operativa (RF-12) y rango horario válido. El solape (RN-02) no es un eslabón:
+    // lo arbitra la constraint de exclusión en la base.
+    this.validador.validar({ cancha, inicio, fin });
 
     // RN-03: un socio con cuota vencida paga como externo; consultarVigencia
     // también devuelve vigente=false para quien no es socio.
     const vigencia = await this.membresias.consultarVigencia(dto.usuarioId);
     const socioVigente = vigencia.vigente;
 
+    // `cancha` está garantizada no-null por el validador CanchaExiste.
     const precioAplicado = this.precios.cotizar({
-      costoBase: cancha.costoPorHora,
+      costoBase: cancha!.costoPorHora,
       socioVigente,
       inicio,
       fin,
     });
 
     const resultado = await this.reservas.crear({
-      canchaId: cancha.id,
+      canchaId: cancha!.id,
       usuarioId: dto.usuarioId,
       fechaHoraInicio: inicio,
       fechaHoraFin: fin,

@@ -9,15 +9,10 @@ import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query
 import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
 import { CupoLiberadoSubject } from '../observers/cupo-liberado.subject';
-import {
-  claseNoDisponibleParaReserva,
-  cupoAgotado,
-  reservaAnticipadaNoPermitida,
-  reservaDuplicada,
-  socioEnMoraParaReserva,
-} from '../errors/reservas-clases.errors';
+import { cupoAgotado, reservaDuplicada } from '../errors/reservas-clases.errors';
 import { ClaseRepository } from '../repositories/clase.repository';
 import { ReservaClaseRepository } from '../repositories/reserva-clase.repository';
+import { ValidadorDeReservas } from '../validaciones/validador-de-reservas';
 
 @Injectable()
 export class ReservasClasesService {
@@ -33,6 +28,9 @@ export class ReservasClasesService {
     // escucha el evento). M3 no puede importar M5 (el grafo es M5 -> M3), así que
     // lo avisa por el bus global, como M1 hace con el cobro de membresía.
     private readonly eventos: EventEmitter2,
+    // Cadena de validaciones previas a la reserva (Chain of Responsibility). El
+    // service arma el contexto y delega el orden de los chequeos en el validador.
+    private readonly validador: ValidadorDeReservas,
   ) {}
 
   async listarReservasDeClase(
@@ -72,37 +70,21 @@ export class ReservasClasesService {
     dto: ReservaClaseIn,
   ): Promise<ReservaClaseOut> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
-    if (!clase) {
-      throw recursoNoEncontrado('No existe la clase indicada.');
-    }
 
-    // Regla de Mora y Membresía: el socio con cuota vencida no puede reservar con descuento
-    const estado = await this.membresias.consultarVigenciaPorSocio(dto.socioId);
-    if (!estado.esSocio) {
-      throw recursoNoEncontrado('El socio indicado no existe.');
-    }
-    if (estado.enMora || !estado.vigente) {
-      throw socioEnMoraParaReserva(dto.socioId);
-    }
+    // RN-03: la vigencia del socio la lee M1; el validador decide con ese dato.
+    const estadoSocio = await this.membresias.consultarVigenciaPorSocio(dto.socioId);
 
-    // Regla de Ventana Temporal (RF-07): reserva habilitada hasta 48 hs antes
-    const ahora = Date.now();
-    const inicioClase = new Date(clase.horario).getTime();
-    const aperturaReserva = inicioClase - 48 * 60 * 60 * 1000;
-
-    if (ahora < aperturaReserva) {
-      throw reservaAnticipadaNoPermitida();
-    }
-
-    if (ahora >= inicioClase) {
-      throw claseNoDisponibleParaReserva();
-    }
+    // Validaciones previas a la reserva (Chain of Responsibility): clase existe,
+    // socio al día, ventana de 48 h y clase no comenzada. Corre en orden y corta en
+    // la primera violación, con los mismos códigos que antes.
+    this.validador.validar({ claseId, socioId: dto.socioId, clase, estadoSocio });
 
     const resultado = await this.reservasRepo.crearConLock(claseId, dto.socioId);
 
     if (!resultado.ok) {
       if (resultado.motivo === 'CUPO_AGOTADO') {
-        throw cupoAgotado(claseId, clase.capacidad);
+        // `clase` está garantizada no-null por el validador ClaseExiste.
+        throw cupoAgotado(claseId, clase!.capacidad);
       }
 
       if (resultado.motivo === 'RESERVA_DUPLICADA') {

@@ -15,6 +15,12 @@ import { ClasesService } from './services/clases.service';
 import { EsperasClasesService } from './services/esperas-clases.service';
 import { ReservaClasePrecioService } from './services/reserva-clase-precio.service';
 import { ReservasClasesService } from './services/reservas-clases.service';
+import { ClaseExiste } from './validaciones/clase-existe.validacion';
+import { ClaseNoComenzada } from './validaciones/clase-no-comenzada.validacion';
+import { ReservaAnticipada } from './validaciones/reserva-anticipada.validacion';
+import { SocioAlDia } from './validaciones/socio-al-dia.validacion';
+import { VALIDACIONES_RESERVA } from './validaciones/validacion-de-reserva';
+import { ValidadorDeReservas } from './validaciones/validador-de-reservas';
 
 // M3 depende de M1 (RN-03 en reservas y esperas, y el email del observer de cupo
 // liberado) y de M2 (la sede de una clase nueva debe existir). Exporta UNA sola
@@ -39,6 +45,24 @@ import { ReservasClasesService } from './services/reservas-clases.service';
     CupoLiberadoSubject,
     NotificarSociosEsperaObserver,
     EmailCupoLiberadoObserver,
+    // Cadena de validaciones de la reserva de clase (ADR-10, Chain of Responsibility).
+    // El orden lo fija el contenedor vía `useFactory`: [clase existe, socio al día,
+    // no anticipada, no comenzada].
+    ClaseExiste,
+    SocioAlDia,
+    ReservaAnticipada,
+    ClaseNoComenzada,
+    {
+      provide: VALIDACIONES_RESERVA,
+      useFactory: (
+        claseExiste: ClaseExiste,
+        socioAlDia: SocioAlDia,
+        anticipada: ReservaAnticipada,
+        noComenzada: ClaseNoComenzada,
+      ) => [claseExiste, socioAlDia, anticipada, noComenzada],
+      inject: [ClaseExiste, SocioAlDia, ReservaAnticipada, ClaseNoComenzada],
+    },
+    ValidadorDeReservas,
   ],
   exports: [ReservaClasePrecioService],
 })

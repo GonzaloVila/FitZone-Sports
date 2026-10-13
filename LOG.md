@@ -2116,3 +2116,38 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 1. **e2e sin correr:** este equipo no tiene el Postgres local levantado (Docker Desktop apagado). Hay que correr `npm run test:e2e` (incluye `reportes.e2e-spec.ts`: 200 PDF para GERENTE, 403 SOCIO/RECEPCION, 401, 422), en local y contra Supabase.
 2. **Contrato OpenAPI sin exportar ni comparar:** `backend/contrato/` (gitignored) no existe en este checkout. Hay que exportar al vault la operación `GET /reportes/pagos` (tag `reportes`) y correr el comparador (esperado 0 diferencias).
 3. **Flujo real vía API** con una reserva cobrada (generar el PDF desde el endpoint y abrirlo) pendiente hasta tener la base disponible.
+
+---
+
+## 2026-10-13 — Unidad III (Patrones de diseño): Chain en validaciones de reserva
+
+**Fecha:** 13/10/2026 · **Rama:** `m5-pagos`
+
+### Actividades
+
+1. **Chain of Responsibility en las validaciones previas a la reserva (M3 + M4)**
+   - `m3-clases/validaciones/`: interfaz `ValidacionDeReserva` + `ContextoReserva` (contexto ya leído por el service) y los eslabones `ClaseExiste`, `SocioAlDia`, `ReservaAnticipada`, `ClaseNoComenzada`; `ValidadorDeReservas` recorre la cadena. Refactor de `reservas-clases.service.ts:crearReservaClase()`.
+   - `m4-canchas/validaciones/`: `CanchaExiste`, `CanchaOperativa`, `RangoHorarioValido` + `ValidadorDeReservasCancha`; refactor de `reservas-canchas.service.ts:crear()`.
+   - El orden lo arma el contenedor con un token de colección (`useFactory` en cada módulo). El solape RN-02 sigue en la constraint de la base, no en la cadena.
+   - Comportamiento preservado: un error por vez, con los mismos códigos (404/403/409/422).
+   - [commit a2438e5](https://github.com/GonzaloVila/FitZone-Sports/commit/a2438e5)
+
+2. **Test de dominio con repositorio en memoria (sin Prisma)**
+   - `test/unit/modules/m4-canchas/domain/reservas-canchas-en-memoria.spec.ts`: un `ReservaRepository` en memoria que modela la exclusión RN-02; corre el caso de uso `ReservasCanchasService.crear` sin base ni contenedor (crea y cotiza, RN-02 → 409, cancelar libera el turno).
+
+### Planilla de olores (Unidad III)
+
+| # | Archivo · línea | Olor | Evidencia | Decisión |
+|---|---|---|---|---|
+| 1 | `m3-clases/services/reservas-clases.service.ts` (`crearReservaClase`) y `m4-canchas/services/reservas-canchas.service.ts` (`crear`) | Condicionales encadenados / validaciones inline | 5 `if` seguidos en M3; 3 en M4 | **Corregido** — Chain of Responsibility (esta unidad) |
+| 2 | `commons/filters/problem.filter.ts:188-230` | Sentencia switch / condicional sobre el mismo campo | Ramas `if (code === 'P2002'/'P2025'/'P2003')` | **No** — es la frontera única de traducción Prisma→Problem; los códigos P2xxx son finitos y estables, polimorfismo sería ceremonia |
+| 3 | `m5-pagos/services/comprobantes.service.ts` | Clase grande / métodos de layout | `armarPdf`, `cabeza`, `detalle`, `pie`, `linea`, `fechaLegible`, `pesos` | **No** — el layout de un PDF es cohesivo; extraer clases daría piezas sin otro uso |
+| 4 | `*/repositories/*.repository.ts` (uno por entidad) | Posible repositorio vacío / abstracción especulativa | ¿delegan 1-a-1? | **No** — traducen fila→entidad (Data Mapper), no son pass-through; ver ADR-07 y ADR-10 |
+| 5 | DTOs de `m1-usuarios` (email `ana.gomez@fitzone.com.ar`, `fotoUrl`) | Código duplicado (datos de documentación) | el mismo `example` en varios DTOs | **No** — es documentación de Swagger; extraer constantes acoplaría DTOs entre sí |
+| 6 | cada service tiene su `aOut` / `plainToInstance` | Código duplicado con variaciones | método homónimo por service | **No** — cada uno mapea su entidad; unificar crearía un mapper genérico acoplado a todas |
+
+### Verificación
+
+- `npx tsc --noEmit`: limpio.
+- `npm run test:unit`: **194/194** (nuevos: validaciones de M3 y M4 y el caso de uso con repositorio en memoria).
+- `npm run test:e2e`: **172/172**, M3/M4 sin cambios de comportamiento.

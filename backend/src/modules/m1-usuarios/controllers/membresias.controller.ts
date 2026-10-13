@@ -13,6 +13,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiPaymentRequiredResponse,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
@@ -64,6 +65,12 @@ export class MembresiasController {
   @ApiOkResponse({ description: 'Membresía actualizada', type: MembresiaOut })
   @ApiBadRequestResponse({ description: 'socio_id no numérico o JSON inválido', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
+  // Cambiar el plan de una membresía NO vigente cobra el plan nuevo (RF-02): si la
+  // pasarela rechaza, el cambio no se aplica y responde 402.
+  @ApiPaymentRequiredResponse({
+    description: 'El cobro del plan nuevo fue rechazado por la pasarela (RF-02)',
+    content: PROBLEM_JSON,
+  })
   @ApiUnprocessableEntityResponse({
     description: 'Datos inválidos (ValidationPipe)',
     content: PROBLEM_JSON,

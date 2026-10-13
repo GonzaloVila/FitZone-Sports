@@ -22,6 +22,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiPaymentRequiredResponse,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
@@ -53,6 +54,13 @@ export class SociosController {
   @ApiNotFoundResponse({ description: 'Usuario a convertir no existe (404)', content: PROBLEM_JSON })
   @ApiConflictResponse({
     description: 'El usuario ya es socio (conflicto de unicidad)',
+    content: PROBLEM_JSON,
+  })
+  // El alta cobra la membresía inicial (RF-02): si la pasarela rechaza, la
+  // operación se revierte y responde 402. Sin declararlo, el contrato prometería
+  // un alta que nunca puede fallar así.
+  @ApiPaymentRequiredResponse({
+    description: 'El cobro de la membresía inicial fue rechazado por la pasarela (RF-02)',
     content: PROBLEM_JSON,
   })
   @ApiUnprocessableEntityResponse({

@@ -20,6 +20,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiPaymentRequiredResponse,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
@@ -105,6 +106,12 @@ export class ReservasClasesController {
       'anticipación se cobró la penalidad (RF-07) antes de liberar el cupo.',
   })
   @ApiNotFoundResponse({ description: 'Reserva no encontrada', content: PROBLEM_JSON })
+  // Con menos de 2 hs se cobra la penalidad (RF-07): si la pasarela la rechaza, la
+  // cancelación no se aplica (la reserva sigue CONFIRMADA) y responde 402.
+  @ApiPaymentRequiredResponse({
+    description: 'La pasarela rechazó la penalidad por cancelación tardía (RF-07)',
+    content: PROBLEM_JSON,
+  })
   cancelar(@Param('reservaClaseId', ParseIntPipe) reservaClaseId: number): Promise<void> {
     return this.reservasService.cancelarReservaClase(reservaClaseId);
   }

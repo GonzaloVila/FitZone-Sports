@@ -31,7 +31,7 @@ const DATOS_CLASE = {
   socioId: 42,
   usuarioId: 7,
   claseId: 9,
-  horario: '2026-10-10T14:00:00.000Z',
+  horarioInicio: '2026-10-10T14:00:00.000Z',
   penalidad: penalidadCancelacionTardia(),
 };
 

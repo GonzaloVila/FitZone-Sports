@@ -24,11 +24,20 @@ export class ClaseIn {
   @ApiProperty({
     type: 'string',
     format: 'date-time',
-    description: 'Fecha y hora de inicio de la clase (formato ISO-8601 UTC)',
-    example: '2026-10-15T18:00:00Z',
+    description: 'Fecha y hora de inicio de la clase (ISO-8601 con zona horaria)',
+    example: '2026-10-15T18:00:00-03:00',
   })
   @IsISO8601()
-  horario!: string;
+  horarioInicio!: string;
+
+  @ApiProperty({
+    type: 'string',
+    format: 'date-time',
+    description: 'Fecha y hora de fin de la clase (ISO-8601 con zona horaria). Debe ser posterior al inicio.',
+    example: '2026-10-15T19:00:00-03:00',
+  })
+  @IsISO8601()
+  horarioFin!: string;
 
   @ApiProperty({
     type: 'integer',

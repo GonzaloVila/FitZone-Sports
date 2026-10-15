@@ -44,7 +44,7 @@ export class ReservaClasePrecioService {
       socioId: reserva.socioId,
       usuarioId: usuarioId,
       claseId: reserva.claseId,
-      horario: clase.horario,
+      horarioInicio: clase.horarioInicio.toISOString(),
       // La penalidad es dato del dominio (valor nominal * porcentaje): no depende
       // de la fila. Igual se devuelve por el tipo para que M5 no conozca la regla.
       penalidad: penalidadCancelacionTardia(),

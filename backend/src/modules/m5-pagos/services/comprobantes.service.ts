@@ -218,7 +218,7 @@ export class ComprobantesService {
 
       this.linea(doc, 'Concepto', 'Reserva de clase');
       this.linea(doc, 'Clase', `N° ${clase.claseId}`);
-      this.linea(doc, 'Horario', this.fechaLegible(clase.horario));
+      this.linea(doc, 'Horario', this.fechaLegible(clase.horarioInicio));
       this.linea(doc, 'Reserva', `#${clase.reservaClaseId}`);
       this.linea(doc, 'Nota', 'Penalidad por cancelación tardía (RF-07).');
       return;

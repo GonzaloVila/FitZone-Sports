@@ -2230,3 +2230,31 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 ### Commits
 
 - `feat(m4): State en la reserva de cancha con CUMPLIDA derivada (RF-10)` (pendiente de commit).
+
+---
+
+## 2026-10-15 - Unidad III: rango horario en Clase y State en la reserva de clase (RF-06/RF-07)
+
+**Fecha:** 15/10/2026 · **Rama:** `m5-pagos`
+
+### Actividades
+
+1. **Rango horario en la clase (RF-06).**
+   - `Clase.horario` (String, solo inicio) -> `horario_inicio` + `horario_fin` (timestamptz(3), como Reserva). Migracion raw con backfill (`inicio = horario`, `fin = horario + 1 h`).
+   - Entidad/DTOs (`ClaseIn`/`ClaseOut`) + repo + service (valida `horarioFin > horarioInicio` -> 422 `rango-horario-invalido`). Consumidores (validadores M3, evento cupo liberado, precio M3->M5, comprobante) actualizados. Contrato (canonico + vault).
+
+2. **State derivado en la reserva de clase (RF-07).**
+   - `m3-clases/domain/reserva-clase-estado.ts`: `estadoDeReservaClase` deriva `CUMPLIDA` de `horario_fin` (no persistida). `puedeCancelar` = CONFIRMADA con `ahora < horario_inicio`.
+   - `cancelarReservaClase`: bloquea cancelar una clase ya empezada -> 409 `reserva-clase-pasada`.
+   - `ReservaClaseOut.estado` expone `CUMPLIDA` (el repo hace join con la clase). Contrato: `EstadoReservaClase` +CUMPLIDA, 409 `ReservaClasePasada`.
+
+### Verificacion
+
+- `npx tsc --noEmit`: limpio. `npm run build`: OK.
+- `npm run test:unit`: **209/209** (nuevo `reserva-clase-estado.spec.ts`).
+- `npm run test:e2e`: **176/176** (nuevo: reserva de clase pasada -> CUMPLIDA + cancelar -> 409).
+- Comparador de contrato: **0 diferencias**.
+
+### Commits
+
+- `feat(m3): rango horario en Clase (horario_inicio/fin) y State en la reserva de clase` (pendiente de commit).

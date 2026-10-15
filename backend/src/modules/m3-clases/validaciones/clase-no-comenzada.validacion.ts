@@ -9,7 +9,7 @@ export class ClaseNoComenzada implements ValidacionDeReserva {
     if (!ctx.clase) {
       return; // la garantiza ClaseExiste, que corre antes
     }
-    const inicio = new Date(ctx.clase.horario).getTime();
+    const inicio = ctx.clase.horarioInicio.getTime();
     if (Date.now() >= inicio) {
       throw claseNoDisponibleParaReserva();
     }

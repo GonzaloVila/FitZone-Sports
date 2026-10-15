@@ -8,7 +8,9 @@ import { ReservaClaseIn } from '../dtos/reserva-clase-in.dto';
 import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query.dto';
 import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
-import { cupoAgotado, reservaDuplicada } from '../errors/reservas-clases.errors';
+import { estadoDeReservaClase } from '../domain/reserva-clase-estado';
+import type { ReservaClase } from '../entities/reserva-clase.entity';
+import { cupoAgotado, reservaClasePasada, reservaDuplicada } from '../errors/reservas-clases.errors';
 import { ClaseRepository } from '../repositories/clase.repository';
 import { ReservaClaseRepository } from '../repositories/reserva-clase.repository';
 import { ValidadorDeReservas } from '../validaciones/validador-de-reservas';
@@ -46,7 +48,7 @@ export class ReservasClasesService {
       { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
 
-    return plainToInstance(ReservaClaseOut, reservas);
+    return reservas.map((reserva) => this.aOut(reserva));
   }
 
   async listarReservasClase(
@@ -61,7 +63,7 @@ export class ReservasClasesService {
       { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
 
-    return plainToInstance(ReservaClaseOut, reservas);
+    return reservas.map((reserva) => this.aOut(reserva));
   }
 
   async crearReservaClase(
@@ -93,7 +95,7 @@ export class ReservasClasesService {
       throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
-    return plainToInstance(ReservaClaseOut, resultado.reserva);
+    return this.aOut(resultado.reserva);
   }
 
   async obtenerReservaClase(reservaClaseId: number): Promise<ReservaClaseOut> {
@@ -101,7 +103,7 @@ export class ReservasClasesService {
     if (!reserva) {
       throw recursoNoEncontrado('No existe el recurso solicitado para el id indicado.');
     }
-    return plainToInstance(ReservaClaseOut, reserva);
+    return this.aOut(reserva);
   }
 
   async cancelarReservaClase(reservaClaseId: number): Promise<void> {
@@ -114,6 +116,12 @@ export class ReservasClasesService {
       return;
     }
 
+    // No se cancela una reserva cuya clase ya empezó (estado efectivo CUMPLIDA):
+    // ver domain/reserva-clase-estado.ts. `puedeCancelar` mira el inicio del turno.
+    if (!estadoDeReservaClase(reserva).puedeCancelar(reserva)) {
+      throw reservaClasePasada(reservaClaseId);
+    }
+
     const clase = await this.clasesRepo.buscarPorId(reserva.claseId);
     if (!clase) {
       throw recursoNoEncontrado('No existe la clase vinculada a la reserva.');
@@ -123,7 +131,7 @@ export class ReservasClasesService {
     // 2 hs la cancelación se PERMITE, pero el puesto del socio pierde un porcentaje
     // del valor nominal de la clase, cobrado por M5 antes de liberar el cupo.
     const ahora = Date.now();
-    const inicioClase = new Date(clase.horario).getTime();
+    const inicioClase = clase.horarioInicio.getTime();
     const limiteCancelacion = inicioClase - 2 * 60 * 60 * 1000;
 
     if (ahora > limiteCancelacion) {
@@ -144,9 +152,17 @@ export class ReservasClasesService {
     await this.eventos.emitAsync(EVENTO_CUPO_LIBERADO, {
       claseId: reserva.claseId,
       nombreClase: clase.tipo,
-      horarioClase: clase.horario,
+      horarioClase: clase.horarioInicio.toISOString(),
       socioIdCancelador: reserva.socioId,
       fechaLiberacion: new Date(),
     });
+  }
+
+  private aOut(reserva: ReservaClase): ReservaClaseOut {
+    const out = plainToInstance(ReservaClaseOut, reserva);
+    // La API muestra el estado EFECTIVO (derivado): una reserva de una clase
+    // pasada sale como CUMPLIDA aunque la columna siga diciendo CONFIRMADA.
+    out.estado = estadoDeReservaClase(reserva).nombre;
+    return out;
   }
 }

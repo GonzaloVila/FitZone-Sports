@@ -91,7 +91,7 @@ describe('ComprobantesService', () => {
               socioId: 42,
               usuarioId: 42,
               claseId: 9,
-              horario: '2026-10-10T14:00:00.000Z',
+              horarioInicio: '2026-10-10T14:00:00.000Z',
               penalidad: 5000,
             }
           : over.reservaClase,

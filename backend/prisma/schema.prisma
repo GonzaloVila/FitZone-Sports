@@ -165,15 +165,18 @@ model Cancha {
 }
 
 model Clase {
-  id         Int            @id @default(autoincrement())
-  sede_id    Int
-  tipo       String
-  instructor String
-  horario    String
-  capacidad  Int
-  sede       Sede           @relation(fields: [sede_id], references: [id])
-  reservas   ReservaClase[]
-  espera     EsperaClase[]
+  id             Int            @id @default(autoincrement())
+  sede_id        Int
+  tipo           String
+  instructor     String
+  // Rango horario de la clase (RF-06): inicio y fin, en hora local de la sede.
+  // Antes era un unico `horario` (String ISO) sin fin; se normalizo a timestamptz.
+  horario_inicio DateTime       @db.Timestamptz(3)
+  horario_fin    DateTime       @db.Timestamptz(3)
+  capacidad      Int
+  sede           Sede           @relation(fields: [sede_id], references: [id])
+  reservas       ReservaClase[]
+  espera         EsperaClase[]
 }
 
 // RN-02 / RF-10 (dos reservas solapadas a la vez): el unique parcial original

@@ -19,8 +19,12 @@ export class ClaseOut {
   instructor!: string;
 
   @Expose()
-  @ApiProperty({ type: 'string', format: 'date-time', example: '2026-10-15T18:00:00Z' })
-  horario!: string;
+  @ApiProperty({ type: 'string', format: 'date-time', example: '2026-10-15T18:00:00-03:00' })
+  horarioInicio!: Date;
+
+  @Expose()
+  @ApiProperty({ type: 'string', format: 'date-time', example: '2026-10-15T19:00:00-03:00' })
+  horarioFin!: Date;
 
   @Expose()
   @ApiProperty({ type: 'integer', example: 20 })

@@ -20,7 +20,7 @@ describe('ReservaClasePrecioService (RF-07)', () => {
     const clases = {
       buscarPorId: vi
         .fn()
-        .mockResolvedValue(over.clase ?? { id: 9, horario: '2026-10-10T14:00:00.000Z' }),
+        .mockResolvedValue(over.clase ?? { id: 9, horarioInicio: new Date('2026-10-10T14:00:00.000Z') }),
     };
     const socios = {
       obtenerUsuarioIdPorSocio: vi.fn().mockResolvedValue(over.usuario ?? 7),
@@ -44,7 +44,7 @@ describe('ReservaClasePrecioService (RF-07)', () => {
       socioId: 42,
       usuarioId: 7,
       claseId: 9,
-      horario: '2026-10-10T14:00:00.000Z',
+      horarioInicio: '2026-10-10T14:00:00.000Z',
       penalidad: penalidadCancelacionTardia(),
     });
   });

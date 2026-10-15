@@ -264,6 +264,7 @@ export class EsperaClaseRepository {
             socio_id: espera.socio_id,
             estado: 'CONFIRMADA',
           },
+          include: { clase: { select: { horario_inicio: true, horario_fin: true } } },
         });
 
         return {
@@ -273,6 +274,8 @@ export class EsperaClaseRepository {
             claseId: reservaFila.clase_id,
             socioId: reservaFila.socio_id,
             estado: reservaFila.estado as 'CONFIRMADA' | 'CANCELADA',
+            horarioInicio: reservaFila.clase.horario_inicio,
+            horarioFin: reservaFila.clase.horario_fin,
           },
         };
       });

@@ -55,11 +55,14 @@ export class ClasesController {
       },
     },
   })
-  @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
+  @ApiUnprocessableEntityResponse({
+    description: 'Datos inválidos (ValidationPipe) o rango horario inválido (horarioInicio no anterior a horarioFin)',
+    content: PROBLEM_JSON,
+  })
   @ApiNotFoundResponse({ description: 'La sede referenciada no existe', content: PROBLEM_JSON })
   @ApiConflictResponse({
     description:
-      'El horario enviado no es una fecha-hora ISO-8601 válida, o la clase quedaría ' +
+      'El horario de inicio no es una fecha-hora ISO-8601 válida, o la clase quedaría ' +
       'programada en un momento ya pasado.',
     content: PROBLEM_JSON,
   })

@@ -1,5 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose } from 'class-transformer';
+import type { EstadoReservaClaseDerivado } from '../domain/reserva-clase-estado';
+
+const ESTADOS: EstadoReservaClaseDerivado[] = ['CONFIRMADA', 'CANCELADA', 'CUMPLIDA'];
 
 export class ReservaClaseOut {
   @Expose()
@@ -15,6 +18,10 @@ export class ReservaClaseOut {
   socioId!: number;
 
   @Expose()
-  @ApiProperty({ example: 'CONFIRMADA', enum: ['CONFIRMADA', 'CANCELADA'] })
-  estado!: string;
+  @ApiProperty({
+    enum: ESTADOS,
+    example: 'CONFIRMADA',
+    description: 'Estado efectivo. CUMPLIDA se deriva de la fecha de fin de la clase.',
+  })
+  estado!: EstadoReservaClaseDerivado;
 }

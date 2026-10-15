@@ -18,3 +18,14 @@ export function claseEnHorarioPasado(): ProblemException {
     detail: 'No se puede programar una clase en una fecha u hora pasada.',
   });
 }
+
+// 422: la forma es válida (ambas son fechas ISO) pero el rango no: el fin no es
+// posterior al inicio. Mismo tipo que el rango inválido de la reserva de cancha.
+export function rangoHorarioInvalido(): ProblemException {
+  return new ProblemException({
+    type: 'https://fitzone.app/errores/rango-horario-invalido',
+    title: 'Rango horario inválido',
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    detail: 'horarioInicio debe ser anterior a horarioFin.',
+  });
+}

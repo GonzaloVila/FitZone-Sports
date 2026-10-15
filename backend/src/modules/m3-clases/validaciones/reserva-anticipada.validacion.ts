@@ -12,7 +12,7 @@ export class ReservaAnticipada implements ValidacionDeReserva {
     if (!ctx.clase) {
       return; // la garantiza ClaseExiste, que corre antes
     }
-    const inicio = new Date(ctx.clase.horario).getTime();
+    const inicio = ctx.clase.horarioInicio.getTime();
     if (Date.now() < inicio - VENTANA_RESERVA_MS) {
       throw reservaAnticipadaNoPermitida();
     }

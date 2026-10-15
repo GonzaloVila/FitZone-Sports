@@ -116,7 +116,7 @@ describe('PagosService', () => {
               socioId: 3,
               usuarioId: 3,
               claseId: 4,
-              horario: '2026-10-02T18:00:00Z',
+              horarioInicio: '2026-10-02T18:00:00Z',
               penalidad: 5000,
             }
           : over.reservaClase,

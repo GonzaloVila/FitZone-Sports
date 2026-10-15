@@ -112,6 +112,10 @@ export class ReservasClasesController {
     description: 'La pasarela rechazó la penalidad por cancelación tardía (RF-07)',
     content: PROBLEM_JSON,
   })
+  @ApiConflictResponse({
+    description: 'La clase ya comenzó (estado efectivo CUMPLIDA): la reserva no puede cancelarse',
+    content: PROBLEM_JSON,
+  })
   cancelar(@Param('reservaClaseId', ParseIntPipe) reservaClaseId: number): Promise<void> {
     return this.reservasService.cancelarReservaClase(reservaClaseId);
   }

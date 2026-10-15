@@ -20,7 +20,8 @@ export class ClaseRepository {
         sede_id: clase.sedeId,
         tipo: clase.tipo,
         instructor: clase.instructor,
-        horario: clase.horario,
+        horario_inicio: clase.horarioInicio,
+        horario_fin: clase.horarioFin,
         capacidad: clase.capacidad,
       },
     });
@@ -70,7 +71,7 @@ export class ClaseRepository {
           },
         },
       },
-      orderBy: { horario: 'asc' },
+      orderBy: { horario_inicio: 'asc' },
       skip: (page - 1) * perPage,
       take: perPage,
     });
@@ -91,7 +92,8 @@ export class ClaseRepository {
       sedeId: fila.sede_id,
       tipo: fila.tipo,
       instructor: fila.instructor,
-      horario: fila.horario,
+      horarioInicio: fila.horario_inicio,
+      horarioFin: fila.horario_fin,
       capacidad: fila.capacidad,
     };
   }

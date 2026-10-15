@@ -3,7 +3,8 @@ export interface Clase {
   sedeId: number;
   tipo: string;
   instructor: string;
-  horario: string;
+  horarioInicio: Date;
+  horarioFin: Date;
   capacidad: number;
 }
 

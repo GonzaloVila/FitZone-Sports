@@ -20,6 +20,12 @@ export type ResultadoCrearReserva =
   | { ok: true; reserva: ReservaClase }
   | { ok: false; motivo: MotivoFalloReserva };
 
+// La reserva se lee con el rango horario de su clase: el estado efectivo
+// (CUMPLIDA) se deriva de `horario_fin` sin una consulta extra por reserva.
+type ReservaClaseRow = Prisma.ReservaClaseGetPayload<{
+  include: { clase: { select: { horario_inicio: true; horario_fin: true } } };
+}>;
+
 // Capa de acceso a datos de la reserva de clase. Es la unica pieza de M3 que
 // conoce Prisma, y la unica que puede decidir el cupo con el lock de la clase.
 @Injectable()
@@ -38,6 +44,7 @@ export class ReservaClaseRepository {
 
     const filas = await this.prisma.reservaClase.findMany({
       where,
+      include: { clase: { select: { horario_inicio: true, horario_fin: true } } },
       skip: (page - 1) * perPage,
       take: perPage,
       orderBy: { id: 'asc' },
@@ -82,6 +89,7 @@ export class ReservaClaseRepository {
             socio_id: socioId,
             estado: 'CONFIRMADA',
           },
+          include: { clase: { select: { horario_inicio: true, horario_fin: true } } },
         });
 
         return {
@@ -99,13 +107,17 @@ export class ReservaClaseRepository {
   }
 
   async buscarPorId(id: number): Promise<ReservaClase | null> {
-    const fila = await this.prisma.reservaClase.findUnique({ where: { id } });
+    const fila = await this.prisma.reservaClase.findUnique({
+      where: { id },
+      include: { clase: { select: { horario_inicio: true, horario_fin: true } } },
+    });
     return fila ? this.aDominio(fila) : null;
   }
 
   async buscarActivaPorClaseYSocio(claseId: number, socioId: number): Promise<ReservaClase | null> {
     const fila = await this.prisma.reservaClase.findFirst({
       where: { clase_id: claseId, socio_id: socioId, estado: 'CONFIRMADA' },
+      include: { clase: { select: { horario_inicio: true, horario_fin: true } } },
     });
     return fila ? this.aDominio(fila) : null;
   }
@@ -115,6 +127,7 @@ export class ReservaClaseRepository {
       const fila = await this.prisma.reservaClase.update({
         where: { id },
         data: { estado: 'CANCELADA' },
+        include: { clase: { select: { horario_inicio: true, horario_fin: true } } },
       });
       return this.aDominio(fila);
     } catch (error) {
@@ -131,12 +144,14 @@ export class ReservaClaseRepository {
     });
   }
 
-  private aDominio(fila: Prisma.ReservaClaseGetPayload<Record<string, never>>): ReservaClase {
+  private aDominio(fila: ReservaClaseRow): ReservaClase {
     return {
       id: fila.id,
       claseId: fila.clase_id,
       socioId: fila.socio_id,
       estado: fila.estado as 'CONFIRMADA' | 'CANCELADA',
+      horarioInicio: fila.clase.horario_inicio,
+      horarioFin: fila.clase.horario_fin,
     };
   }
 }

@@ -54,3 +54,14 @@ export function cancelacionFueraDeTermino(): ProblemException {
     detail: 'No es posible cancelar la reserva sin penalidad con menos de 2 horas de anticipación.',
   });
 }
+
+// 409: la reserva existe y esta CONFIRMADA, pero la clase ya empezo (estado
+// efectivo CUMPLIDA). No se cancela lo que ya ocurrio (ver domain/reserva-clase-estado.ts).
+export function reservaClasePasada(reservaClaseId: number): ProblemException {
+  return new ProblemException({
+    type: 'https://fitzone.app/errores/reserva-clase-pasada',
+    title: 'Reserva de clase pasada',
+    status: HttpStatus.CONFLICT,
+    detail: `La reserva ${reservaClaseId} corresponde a una clase que ya comenzó y no puede cancelarse.`,
+  });
+}

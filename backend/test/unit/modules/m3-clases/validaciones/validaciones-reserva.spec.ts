@@ -19,7 +19,7 @@ function claseEnHoras(horas: number) {
     sedeId: 1,
     tipo: 'Spinning',
     instructor: 'Luca',
-    horario: new Date(Date.now() + horas * 3_600_000).toISOString(),
+    horarioInicio: new Date(Date.now() + horas * 3_600_000),
     capacidad: 10,
   };
 }

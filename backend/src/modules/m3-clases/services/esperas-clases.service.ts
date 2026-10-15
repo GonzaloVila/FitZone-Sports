@@ -70,7 +70,7 @@ export class EsperasClasesService {
       throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
-    if (new Date(clase.horario).getTime() <= Date.now()) {
+    if (clase.horarioInicio.getTime() <= Date.now()) {
       throw claseNoDisponibleParaEspera();
     }
 

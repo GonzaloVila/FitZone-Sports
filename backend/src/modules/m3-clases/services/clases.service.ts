@@ -5,7 +5,7 @@ import { SedesService } from '../../m2-gimnasio/services/sedes.service';
 import { ClaseOut } from '../dtos/clase-out.dto';
 import { ClaseIn } from '../dtos/clase-in.dto';
 import { ListarClasesQueryDto } from '../dtos/listar-clases-query.dto';
-import { claseEnHorarioPasado, horarioInvalido } from '../errors/clases.errors';
+import { claseEnHorarioPasado, horarioInvalido, rangoHorarioInvalido } from '../errors/clases.errors';
 import { ClaseRepository } from '../repositories/clase.repository';
 
 @Injectable()
@@ -23,12 +23,17 @@ export class ClasesService {
       throw recursoNoEncontrado('No existe la sede indicada.');
     }
 
-    const fechaInicio = new Date(dto.horario);
-    if (isNaN(fechaInicio.getTime())) {
+    const inicio = new Date(dto.horarioInicio);
+    const fin = new Date(dto.horarioFin);
+    if (isNaN(inicio.getTime()) || isNaN(fin.getTime())) {
       throw horarioInvalido();
     }
 
-    if (fechaInicio.getTime() <= Date.now()) {
+    if (fin.getTime() <= inicio.getTime()) {
+      throw rangoHorarioInvalido();
+    }
+
+    if (inicio.getTime() <= Date.now()) {
       throw claseEnHorarioPasado();
     }
 
@@ -36,7 +41,8 @@ export class ClasesService {
       sedeId: dto.sedeId,
       tipo: dto.tipo,
       instructor: dto.instructor,
-      horario: dto.horario,
+      horarioInicio: inicio,
+      horarioFin: fin,
       capacidad: dto.capacidad,
     });
 

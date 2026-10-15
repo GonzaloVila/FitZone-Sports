@@ -5,6 +5,10 @@ export interface ReservaClase {
   claseId: number;
   socioId: number;
   estado: EstadoReservaClase;
+  // Datos de la clase (join), para derivar el estado efectivo (CUMPLIDA) sin una
+  // consulta extra por reserva.
+  horarioInicio: Date;
+  horarioFin: Date;
 }
 
 export type ReservaClaseNueva = Omit<ReservaClase, 'id'>;
@@ -30,6 +34,6 @@ export interface ReservaClaseParaCobro {
   socioId: number;
   usuarioId: number;
   claseId: number;
-  horario: string;
+  horarioInicio: string;
   penalidad: number;
 }

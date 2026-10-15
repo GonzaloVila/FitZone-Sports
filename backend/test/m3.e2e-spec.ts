@@ -30,6 +30,9 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
   const emailUnico = () => `m3.${Date.now()}.${Math.floor(Math.random() * 100000)}@e2e.fitzone.test`;
   const dniUnico = () => String(10000000 + Math.floor(Math.random() * 89999999));
 
+  // RF-06: la clase tiene rango horario. Fin = inicio + 1 h para los cuerpos de POST /clases.
+  const finDe = (iso: string) => new Date(new Date(iso).getTime() + 3600 * 1000).toISOString();
+
   async function crearSocioConMembresia(opts: { vigente: boolean; sedeOrigenId: number }) {
     const usuario = await prisma.usuario.create({
       data: {
@@ -128,7 +131,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Spinning',
           instructor: 'Martín Palermo',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 20,
         })
         .expect(201);
@@ -159,7 +162,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: 999999,
           tipo: 'Yoga',
           instructor: 'Buda',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 10,
         })
         .expect(404);
@@ -174,7 +177,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Pilates',
           instructor: 'Laura',
-          horario: fechaPasada,
+          horarioInicio: fechaPasada, horarioFin: finDe(fechaPasada),
           capacidad: 15,
         })
         .expect(409);
@@ -193,7 +196,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'CrossFit',
           instructor: 'Franco Colapinto',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 10,
         })
         .expect(201);
@@ -229,7 +232,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Funcional',
           instructor: 'Esteban',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 10,
         })
         .expect(201);
@@ -253,7 +256,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Zumba',
           instructor: 'Mariana',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 10,
         })
         .expect(201);
@@ -277,7 +280,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'GAP',
           instructor: 'Carla',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 10,
         })
         .expect(201);
@@ -309,7 +312,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Boxeo',
           instructor: 'Sergio Maravilla',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 5,
         })
         .expect(201);
@@ -348,7 +351,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Spinning Exprés',
           instructor: 'Lucas',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 5,
         })
         .expect(201);
@@ -403,7 +406,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Spinning Exprés',
           instructor: 'Lucas',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 5,
         })
         .expect(201);
@@ -452,7 +455,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'TRX Intensivo',
           instructor: 'Javier',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 1,
         })
         .expect(201);
@@ -552,7 +555,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Calistenia',
           instructor: 'Nico',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 1,
         })
         .expect(201);
@@ -597,7 +600,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Listado Reservas',
           instructor: 'Profe Listado',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 3,
         })
         .expect(201);
@@ -664,7 +667,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Listado Global Reservas',
           instructor: 'Profe Global',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 5,
         })
         .expect(201);
@@ -723,7 +726,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Listado Espera',
           instructor: 'Profe Espera',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 1,
         })
         .expect(201);
@@ -798,7 +801,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Listado Espera Empate',
           instructor: 'Profe Empate',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 1,
         })
         .expect(201);
@@ -881,7 +884,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Listado Global Espera',
           instructor: 'Profe Global Espera',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 1,
         })
         .expect(201);
@@ -937,7 +940,8 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
             sedeId: sedeId,
             tipo: 'Demo Paginacion',
             instructor: 'Profe Paginacion',
-            horario: new Date(Date.now() + horas * 3600 * 1000).toISOString(),
+            horarioInicio: new Date(Date.now() + horas * 3600 * 1000).toISOString(),
+            horarioFin: finDe(new Date(Date.now() + horas * 3600 * 1000).toISOString()),
             capacidad: 5,
           })
           .expect(201);
@@ -988,7 +992,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Spinning VIP',
           instructor: 'Profe Concurrencia',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 1,
         })
         .expect(201);
@@ -1045,7 +1049,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Espera Simultanea',
           instructor: 'Profe Espera Simultanea',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 1,
         })
         .expect(201);
@@ -1102,7 +1106,7 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
           sedeId: sedeId,
           tipo: 'Reinscripcion Espera',
           instructor: 'Profe Reinscripcion',
-          horario: fechaClase,
+          horarioInicio: fechaClase, horarioFin: finDe(fechaClase),
           capacidad: 1,
         })
         .expect(201);
@@ -1133,6 +1137,49 @@ describe('M3 - Clases Grupales / Reservas / Lista de Espera (e2e)', () => {
 
       expect(resReinscripcion.body.id).not.toBe(esperaId);
       expect(resReinscripcion.body.estado).toBe('EN_ESPERA');
+    });
+  });
+
+  describe('State derivado - reserva de clase CUMPLIDA (RF-06/RF-07)', () => {
+    it('una reserva de una clase pasada se muestra CUMPLIDA y no se puede cancelar (409)', async () => {
+      const { socioId } = await crearSocioConMembresia({ vigente: true, sedeOrigenId: sedeId });
+
+      // Clase en el pasado, insertada directo: la API no deja programar clases pasadas.
+      const inicio = new Date(Date.now() - 3 * 3600 * 1000);
+      const fin = new Date(inicio.getTime() + 3600 * 1000);
+      const clase = await prisma.clase.create({
+        data: {
+          sede_id: sedeId,
+          tipo: 'Pasada E2E M3',
+          instructor: 'Profe Pasado',
+          horario_inicio: inicio,
+          horario_fin: fin,
+          capacidad: 10,
+        },
+      });
+      clasesCreadas.push(clase.id);
+
+      const reserva = await prisma.reservaClase.create({
+        data: { clase_id: clase.id, socio_id: socioId, estado: 'CONFIRMADA' },
+      });
+
+      // La API muestra el estado efectivo CUMPLIDA aunque la columna siga CONFIRMADA.
+      const detalle = await request(app.getHttpServer())
+        .get(`/api/v1/reservas-clases/${reserva.id}`)
+        .expect(200);
+      expect(detalle.body.estado).toBe('CUMPLIDA');
+
+      const fila = await prisma.reservaClase.findUnique({ where: { id: reserva.id } });
+      expect(fila?.estado).toBe('CONFIRMADA'); // CUMPLIDA no se persiste
+
+      // Cancelarla responde 409 reserva-clase-pasada y NO la cancela.
+      const res = await request(app.getHttpServer())
+        .post(`/api/v1/reservas-clases/${reserva.id}/cancelaciones`)
+        .expect(409);
+      expect(res.body.type).toBe('https://fitzone.app/errores/reserva-clase-pasada');
+
+      const fila2 = await prisma.reservaClase.findUnique({ where: { id: reserva.id } });
+      expect(fila2?.estado).toBe('CONFIRMADA'); // la cancelación no se aplicó
     });
   });
 });

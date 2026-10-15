@@ -71,3 +71,22 @@ export class PagoOut {
   })
   comprobantePdfUrl!: string | null;
 }
+
+/**
+ * Traduce la entidad de dominio `Pago` a `PagoOut`. Vive al lado del DTO porque es el
+ * único punto donde se decide qué campos salen (y, sobre todo, qué campos NO: `token` e
+ * `idempotenciaKey`). Antes cada service que devolvía un pago (HTTP, cobro interno de
+ * membresía y penalidad de clase) tenía su propia copia; ahora hay una sola.
+ */
+export function aPagoOut(pago: Pago): PagoOut {
+  return {
+    id: pago.id,
+    usuarioId: pago.usuarioId,
+    concepto: pago.concepto,
+    monto: pago.monto,
+    moneda: pago.moneda,
+    estado: pago.estado,
+    fechaPago: pago.fechaPago,
+    comprobantePdfUrl: pago.comprobantePdfUrl,
+  };
+}

@@ -5,7 +5,7 @@ import { MembresiaPrecioService } from '../../m1-usuarios/services/membresia-pre
 import { ReservaClasePrecioService } from '../../m3-clases/services/reserva-clase-precio.service';
 import { ReservaPrecioService } from '../../m4-canchas/services/reserva-precio.service';
 import { conceptoDePago, PagoIn } from '../dtos/pago-in.dto';
-import { PagoOut } from '../dtos/pago-out.dto';
+import { aPagoOut, PagoOut } from '../dtos/pago-out.dto';
 import { ConceptoPago, Pago } from '../entities/pago.entity';
 import {
   idempotenciaRepetida,
@@ -140,7 +140,7 @@ export class PagosService {
       throw pagoRechazado(resultado.motivo);
     }
 
-    return this.aOut(await this.emitirComprobante(pago, resuelto.concepto));
+    return aPagoOut(await this.emitirComprobante(pago, resuelto.concepto));
   }
 
   /**
@@ -173,13 +173,13 @@ export class PagosService {
       { page, perPage },
     );
 
-    return filas.map((pago) => this.aOut(pago));
+    return filas.map((pago) => aPagoOut(pago));
   }
 
   /**
    * `GET /pagos/{pago_id}`: el pago por id, o 404.
    *
-   * Reusa `buscarPorId()` del repositorio tal cual: el `aOut()` de acá ya omite `token` e
+   * Reusa `buscarPorId()` del repositorio tal cual: el `aPagoOut()` de acá ya omite `token` e
    * `idempotencia_key`, así que no hay nada que filtrar antes de devolver. Que un GET
    * por id y el comprobante compartan la búsqueda es a propósito: el endpoint del PDF
    * necesita el mismo dato y con el mismo criterio de "no existe".
@@ -190,7 +190,7 @@ export class PagosService {
       throw recursoNoEncontrado(`No existe el pago ${pagoId}.`);
     }
 
-    return this.aOut(pago);
+    return aPagoOut(pago);
   }
 
   /**
@@ -395,16 +395,4 @@ export class PagosService {
     };
   }
 
-  private aOut(pago: Pago): PagoOut {
-    return {
-      id: pago.id,
-      usuarioId: pago.usuarioId,
-      concepto: pago.concepto,
-      monto: pago.monto,
-      moneda: pago.moneda,
-      estado: pago.estado,
-      fechaPago: pago.fechaPago,
-      comprobantePdfUrl: pago.comprobantePdfUrl,
-    };
-  }
 }

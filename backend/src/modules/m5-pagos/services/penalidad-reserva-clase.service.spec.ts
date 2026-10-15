@@ -1,30 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { penalidadCancelacionTardia } from 'src/modules/m3-clases/entities/reserva-clase.entity';
 import type { ReservaClasePrecioService } from 'src/modules/m3-clases/services/reserva-clase-precio.service';
-import type { PagoRepository } from 'src/modules/m5-pagos/repositories/pago.repository';
-import type { ComprobantesService } from 'src/modules/m5-pagos/services/comprobantes.service';
-import type { PasarelaPagoService } from 'src/modules/m5-pagos/services/pasarela-pago.service';
+import type { CobroInternoService } from 'src/modules/m5-pagos/services/cobro-interno.service';
 import { PenalidadReservaClaseService } from 'src/modules/m5-pagos/services/penalidad-reserva-clase.service';
 
-// RF-07: cobro interno de la penalidad por cancelacion tardia de clase. Mismo
-// criterio que RenovacionesService (RF-02): se cobra PRIMERO con la pasarela y
-// solo se inserta el Pago si aprobó, porque la cancelacion es consecuencia del
-// pago — un rechazo tiene que dejar la reserva confirmada.
-
-function pago(estado: 'PENDIENTE' | 'APROBADO' = 'PENDIENTE') {
-  return {
-    id: 1,
-    usuarioId: 7,
-    concepto: { tipo: 'RESERVA_CLASE' as const, reservaClaseId: 3 },
-    monto: penalidadCancelacionTardia(),
-    moneda: 'ARS',
-    estado,
-    fechaPago: new Date('2026-10-10T14:05:00.000Z'),
-    comprobantePdfUrl: null as string | null,
-    token: 'tok_aprobado_1',
-    idempotenciaKey: 'penalidad-clase-3',
-  };
-}
+// RF-07: el wrapper de la penalidad de clase resuelve el concepto y el importe (dato de
+// M3) y delega el flujo en CobroInternoService. El flujo en sí (cobrar primero,
+// idempotencia, comprobante) se prueba en cobro-interno.service.spec.ts.
 
 const DATOS_CLASE = {
   reservaClaseId: 3,
@@ -37,72 +19,37 @@ const DATOS_CLASE = {
 
 function armar(over: Record<string, unknown> = {}) {
   const reservaClases = {
-    obtenerParaCobro: vi.fn().mockResolvedValue(over.datosClase ?? DATOS_CLASE),
+    obtenerParaCobro: vi.fn().mockResolvedValue(over.datosClase === undefined ? DATOS_CLASE : over.datosClase),
   };
-  const pasarela = {
-    cobrar:
-      over.cobrar ??
-      vi.fn().mockResolvedValue({ estado: 'APROBADO', pasarelaToken: 'tok_aprobado_1' }),
-  };
-  const pagos = {
-    crear:
-      over.crear ?? vi.fn().mockResolvedValue({ ok: true, pago: pago() }),
-    transicionar:
-      over.transicionar ?? vi.fn().mockResolvedValue(pago('APROBADO')),
-    registrarComprobante: vi.fn().mockResolvedValue(pago('APROBADO')),
-    buscarPorIdempotenciaKey:
-      over.buscarPorIdempotenciaKey ?? vi.fn().mockResolvedValue(null),
-  };
-  const comprobantes = {
-    generar: over.generar ?? vi.fn().mockResolvedValue('/storage/comprobantes/1.pdf'),
+  const cobroInterno = {
+    cobrar: over.cobrar ?? vi.fn().mockResolvedValue({ id: 1, estado: 'APROBADO' }),
   };
 
   const service = new PenalidadReservaClaseService(
-    pagos as unknown as PagoRepository,
-    pasarela as unknown as PasarelaPagoService,
-    comprobantes as unknown as ComprobantesService,
+    cobroInterno as unknown as CobroInternoService,
     reservaClases as unknown as ReservaClasePrecioService,
   );
-  return { service, pagos, pasarela, comprobantes, reservaClases };
+  return { service, cobroInterno, reservaClases };
 }
 
 describe('PenalidadReservaClaseService (RF-07)', () => {
-  it('cobra primero y solo inserta el Pago si la pasarela aprobó', async () => {
-    const { service, pasarela, pagos } = armar();
+  it('resuelve el concepto/importe vía M3 y delega en CobroInternoService', async () => {
+    const { service, cobroInterno } = armar();
 
     const resultado = await service.cobrarPenalidad({ reservaClaseId: 3 }, 'penalidad-clase-3');
 
-    expect(pasarela.cobrar).toHaveBeenCalledTimes(1);
-    expect(pagos.crear).toHaveBeenCalledWith(
-      expect.objectContaining({
-        usuarioId: 7,
-        concepto: { tipo: 'RESERVA_CLASE', reservaClaseId: 3 },
-        monto: penalidadCancelacionTardia(),
-        idempotenciaKey: 'penalidad-clase-3',
-      }),
+    expect(cobroInterno.cobrar).toHaveBeenCalledWith(
+      { tipo: 'RESERVA_CLASE', reservaClaseId: 3 },
+      { usuarioId: 7, monto: penalidadCancelacionTardia(), token: 'tok_aprobado_penalidad' },
+      'penalidad-clase-3',
     );
-    expect(resultado.estado).toBe('APROBADO');
+    expect(resultado).toEqual({ id: 1, estado: 'APROBADO' });
   });
 
-  it('un rechazo de la pasarela propaga el error sin crear ningún pago', async () => {
-    const { service, pagos } = armar({
-      cobrar: vi.fn().mockResolvedValue({ estado: 'RECHAZADO', motivo: 'Fondos insuficientes' }),
-    });
+  it('404 si la reserva de clase no existe, sin llamar al cobro', async () => {
+    const { service, cobroInterno } = armar({ datosClase: null });
 
     await expect(service.cobrarPenalidad({ reservaClaseId: 3 }, 'k')).rejects.toThrow();
-    expect(pagos.crear).not.toHaveBeenCalled();
-  });
-
-  it('reintentando con la misma clave devuelve el pago existente (no cobra dos veces)', async () => {
-    const existente = pago('APROBADO');
-    const { service, pagos } = armar({
-      crear: vi.fn().mockResolvedValue({ ok: false, motivo: 'IDEMPOTENCIA_REPETIDA' }),
-      buscarPorIdempotenciaKey: vi.fn().mockResolvedValue(existente),
-    });
-
-    const resultado = await service.cobrarPenalidad({ reservaClaseId: 3 }, 'penalidad-clase-3');
-
-    expect(pagos.crear).toHaveBeenCalledTimes(1);
-    expect(resultado.id).toBe(1);
+    expect(cobroInterno.cobrar).not.toHaveBeenCalled();
   });
 });

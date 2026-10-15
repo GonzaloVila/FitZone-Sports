@@ -58,6 +58,7 @@ import { UsuariosModule } from '../m1-usuarios/usuarios.module';
 import { RenovacionesCron } from './crons/renovaciones.cron';
 import { PagosController } from './controllers/pagos.controller';
 import { PagoRepository } from './repositories/pago.repository';
+import { CobroInternoService } from './services/cobro-interno.service';
 import { ComprobantesService } from './services/comprobantes.service';
 import { PagosService } from './services/pagos.service';
 import { PasarelaPagoService } from './services/pasarela-pago.service';
@@ -84,6 +85,9 @@ import { RenovacionesService } from './services/renovaciones.service';
     PasarelaPagoService,
     ComprobantesService,
     PagosService,
+    // Flujo interno común (RF-02 y RF-07): lo usan RenovacionesService y
+    // PenalidadReservaClaseService, que solo resuelven el concepto y delegan.
+    CobroInternoService,
     RenovacionesService,
     RenovacionesListener,
     RenovacionesCron,

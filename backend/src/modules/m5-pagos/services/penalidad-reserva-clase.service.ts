@@ -2,109 +2,44 @@ import { Injectable } from '@nestjs/common';
 import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { ReservaClasePrecioService } from '../../m3-clases/services/reserva-clase-precio.service';
 import { PagoOut } from '../dtos/pago-out.dto';
-import { ConceptoPago, Pago } from '../entities/pago.entity';
-import {
-  cobroRechazado,
-  cobroRechazadoPendiente,
-  idempotenciaRepetidaEnCobroInterno,
-} from '../errors/renovaciones.errors';
-import { PagoRepository } from '../repositories/pago.repository';
-import { ComprobantesService } from './comprobantes.service';
-import { PasarelaPagoService } from './pasarela-pago.service';
-
-// RF-07: cobro interno de la penalidad por cancelacion tardia de una clase.
-//
-// M3 emite el evento `reservaClase.canceladaTardia` cuando el socio cancela una
-// clase a menos de 2 hs del inicio, y M5 cobra. Mismo criterio que
-// `RenovacionesService` (RF-02): se cobra PRIMERO con la pasarela y solo se
-// inserta el Pago si aprobó, porque la cancelacion es consecuencia del pago — un
-// RECHAZADO tiene que dejar todo como estaba (la reserva sigue CONFIRMADA).
-//
-// La pasarela es idempotente por `idempotencia_key`: la clave es determinista
-// (`penalidad-clase-{id}`), así que reintentar el mismo evento devuelve el pago
-// original sin cobrar dos veces.
+import { ConceptoPago } from '../entities/pago.entity';
+import { CobroInternoService } from './cobro-interno.service';
 
 export interface DatosPenalidadReservaClase {
   reservaClaseId: number;
 }
 
+// RF-07: cobro interno de la penalidad por cancelación tardía de una clase. M3 emite
+// `reservaClase.canceladaTardia` cuando el socio cancela con menos de 2 hs de
+// anticipación, y M5 cobra. El flujo —cobrar primero, insertar el Pago solo si aprobó,
+// emitir el comprobante— vive en `CobroInternoService`; acá se resuelve el concepto y el
+// importe de la reserva de clase (que es dato de M3).
 @Injectable()
 export class PenalidadReservaClaseService {
   constructor(
-    private readonly pagos: PagoRepository,
-    private readonly pasarela: PasarelaPagoService,
-    private readonly comprobantes: ComprobantesService,
+    private readonly cobroInterno: CobroInternoService,
     // El importe (50% del valor nominal) y el usuario del socio los resuelve M3,
     // dueño de la reserva y la clase.
     private readonly reservaClases: ReservaClasePrecioService,
   ) {}
 
-  async cobrarPenalidad(datos: DatosPenalidadReservaClase, idempotenciaKey: string): Promise<PagoOut> {
+  async cobrarPenalidad(
+    datos: DatosPenalidadReservaClase,
+    idempotenciaKey: string,
+  ): Promise<PagoOut> {
     const clase = await this.reservaClases.obtenerParaCobro(datos.reservaClaseId);
     if (!clase) {
       throw recursoNoEncontrado(`No existe la reserva de clase ${datos.reservaClaseId}.`);
     }
 
-    const resultado = await this.pasarela.cobrar({
-      token: 'tok_aprobado_penalidad',
-      monto: clase.penalidad,
-      moneda: 'ARS',
-      idempotenciaKey: idempotenciaKey,
-    });
-
-    if (resultado.estado === 'RECHAZADO') {
-      throw cobroRechazado(resultado.motivo);
-    }
-    if (resultado.estado !== 'APROBADO') {
-      throw cobroRechazadoPendiente();
-    }
-
-    const creado = await this.pagos.crear({
-      usuarioId: clase.usuarioId,
-      concepto: this.conceptoClase(clase.reservaClaseId),
-      monto: clase.penalidad,
-      moneda: 'ARS',
-      token: resultado.pasarelaToken,
-      idempotenciaKey: idempotenciaKey,
-    });
-
-    if (!creado.ok) {
-      // El @unique de idempotenciaKey saltó: este cobro ya se hizo con esta clave.
-      // Se devuelve el pago existente (reintento del mismo evento), no un error.
-      const existente = await this.pagos.buscarPorIdempotenciaKey(idempotenciaKey);
-      if (existente) {
-        return this.aOut(existente);
-      }
-      throw idempotenciaRepetidaEnCobroInterno();
-    }
-
-    const pagoAprobado = await this.pagos.transicionar(creado.pago.id, 'APROBADO');
-    const pago = await this.emitirComprobante(pagoAprobado, clase.reservaClaseId);
-    return this.aOut(pago);
-  }
-
-  private async emitirComprobante(pago: Pago, reservaClaseId: number): Promise<Pago> {
-    if (pago.estado !== 'APROBADO') {
-      return pago;
-    }
-    const ruta = await this.comprobantes.generar(pago, this.conceptoClase(reservaClaseId));
-    return this.pagos.registrarComprobante(pago.id, ruta);
+    return this.cobroInterno.cobrar(
+      this.conceptoClase(clase.reservaClaseId),
+      { usuarioId: clase.usuarioId, monto: clase.penalidad, token: 'tok_aprobado_penalidad' },
+      idempotenciaKey,
+    );
   }
 
   private conceptoClase(reservaClaseId: number): ConceptoPago {
     return { tipo: 'RESERVA_CLASE', reservaClaseId: reservaClaseId };
-  }
-
-  private aOut(pago: Pago): PagoOut {
-    return {
-      id: pago.id,
-      usuarioId: pago.usuarioId,
-      concepto: pago.concepto,
-      monto: pago.monto,
-      moneda: pago.moneda,
-      estado: pago.estado,
-      fechaPago: pago.fechaPago,
-      comprobantePdfUrl: pago.comprobantePdfUrl,
-    };
   }
 }

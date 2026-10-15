@@ -1,11 +1,10 @@
-import { Module, OnModuleInit } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { CommonsModule } from '../../commons/commons.module';
 import { UsuariosModule } from '../m1-usuarios/usuarios.module';
 import { GimnasioModule } from '../m2-gimnasio/gimnasio.module';
 import { ClasesController } from './controllers/clases.controller';
 import { EsperasClasesController } from './controllers/esperas-clases.controller';
 import { ReservasClasesController } from './controllers/reservas-clases.controller';
-import { CupoLiberadoSubject } from './observers/cupo-liberado.subject';
 import { EmailCupoLiberadoObserver } from './observers/email-cupo-liberado.observer';
 import { NotificarSociosEsperaObserver } from './observers/notificar-socios-espera.observer';
 import { ClaseRepository } from './repositories/clase.repository';
@@ -42,7 +41,8 @@ import { ValidadorDeReservas } from './validaciones/validador-de-reservas';
     ReservasClasesService,
     EsperasClasesService,
     ReservaClasePrecioService,
-    CupoLiberadoSubject,
+    // Observers de cupo liberado (RF-08): son oyentes del bus (`@OnEvent`), no se
+    // registran a mano en ningun Subject.
     NotificarSociosEsperaObserver,
     EmailCupoLiberadoObserver,
     // Cadena de validaciones de la reserva de clase (ADR-10, Chain of Responsibility).
@@ -66,20 +66,4 @@ import { ValidadorDeReservas } from './validaciones/validador-de-reservas';
   ],
   exports: [ReservaClasePrecioService],
 })
-export class ClasesModule implements OnModuleInit {
-  constructor(
-    private readonly cupoSubject: CupoLiberadoSubject,
-    private readonly notificarEsperaObserver: NotificarSociosEsperaObserver,
-    private readonly emailObserver: EmailCupoLiberadoObserver,
-  ) {}
-
-  onModuleInit(): void {
-    // Registro de observadores en el Subject GoF al inicializar el módulo.
-    // La cadena es [estado, email]: el primero lleva EN_ESPERA -> NOTIFICADO y el
-    // segundo avisa por correo. El observer de email usa listarSociosEnEsperaPorClase
-    // (cola viva, sin CANCELADO) y no buscarEnEsperaPorClase, asi que le da igual
-    // correr antes o despues del cambio de estado.
-    this.cupoSubject.registrarObserver(this.notificarEsperaObserver);
-    this.cupoSubject.registrarObserver(this.emailObserver);
-  }
-}
+export class ClasesModule {}

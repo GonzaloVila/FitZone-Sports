@@ -84,7 +84,7 @@ export class ReservasCanchasController {
   @ApiParam({ name: 'reservaCanchaId', type: 'integer', description: 'ID numérico de la reserva', example: 7 })
   @ApiNoContentResponse({ description: 'Reserva cancelada (sin cuerpo)' })
   @ApiNotFoundResponse({ description: 'Reserva inexistente', content: PROBLEM_JSON })
-  @ApiConflictResponse({ description: 'La reserva ya estaba cancelada', content: PROBLEM_JSON })
+  @ApiConflictResponse({ description: 'La reserva ya estaba cancelada o su turno ya pasó', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos', content: PROBLEM_JSON })
   cancelar(@Param('reservaCanchaId', ParseIntPipe) reservaCanchaId: number): Promise<void> {
     return this.reservasCanchasService.cancelar(reservaCanchaId);

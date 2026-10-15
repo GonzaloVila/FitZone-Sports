@@ -7,7 +7,10 @@ import { GimnasioModule } from '../m2-gimnasio/gimnasio.module';
 import { CanchasController } from './controllers/canchas.controller';
 import { ReservasCanchasController } from './controllers/reservas-canchas.controller';
 import { ReservaRepository } from './domain/reserva.port';
-import { PricingStrategyFactory } from './pricing/pricing-strategy.factory';
+import { DescuentoSocio } from './pricing/descuento-socio.regla';
+import { RecargoHorarioPico } from './pricing/recargo-horario-pico.regla';
+import { REGLAS_DE_PRECIO } from './pricing/regla-de-precio';
+import { TarifadorDePrecios } from './pricing/tarifador-de-precios';
 import { CanchaRepository } from './repositories/cancha.repository';
 import { PrismaReservaRepository } from './repositories/reserva.repository';
 import { CanchasService } from './services/canchas.service';
@@ -38,9 +41,17 @@ import { ValidadorDeReservasCancha } from './validaciones/validador-de-reservas-
     DisponibilidadService,
     ReservasCanchasService,
     ReservaPrecioService,
-    // Una sola clase: la cadena Standard -> MemberDiscount -> PeakHour se arma
-    // adentro de la factory (pricing/ es dominio puro), no hay providers por estrategia.
-    PricingStrategyFactory,
+    // Precio dinamico (RF-11, ADR-06): las reglas se registran como providers y el
+    // `useFactory` arma la coleccion ORDENADA (el @Order de Spring). El Tarifador la
+    // recibe por DI y no conoce ninguna regla concreta. Orden: [descuentoSocio, pico].
+    DescuentoSocio,
+    RecargoHorarioPico,
+    {
+      provide: REGLAS_DE_PRECIO,
+      useFactory: (descuento: DescuentoSocio, pico: RecargoHorarioPico) => [descuento, pico],
+      inject: [DescuentoSocio, RecargoHorarioPico],
+    },
+    TarifadorDePrecios,
     // Cadena de validaciones de la reserva de cancha (ADR-10, Chain of Responsibility).
     // Orden: [cancha existe, cancha operativa, rango horario válido].
     CanchaExiste,

@@ -2151,3 +2151,82 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 - `npx tsc --noEmit`: limpio.
 - `npm run test:unit`: **194/194** (nuevos: validaciones de M3 y M4 y el caso de uso con repositorio en memoria).
 - `npm run test:e2e`: **172/172**, M3/M4 sin cambios de comportamiento.
+
+---
+
+## 2026-10-14 - Unidad III: precio dinamico como pipeline de reglas (RF-11)
+
+**Fecha:** 14/10/2026 · **Rama:** `m5-pagos`
+
+### Actividades
+
+1. **Refactor del precio dinamico al codigo de la catedra (RF-11, ADR-06)**
+   - Se reemplazo `PricingStrategy` + `PricingStrategyFactory` (con `new` interno, sin token y con nombre de patron creacional) por la forma que da la catedra (Unidad III Clase 1 §6.2): interfaz `ReglaDePrecio { aplica(ctx); aplicar(precio, ctx) }`, una clase por regla y un `TarifadorDePrecios` que recibe la lista por DI y hace `filter(aplica).reduce(aplicar, costoBase)`.
+   - `pricing/`: `contexto-de-precio.ts` (`ContextoDePrecio`), `regla-de-precio.ts` (`ReglaDePrecio` + token `REGLAS_DE_PRECIO`), `descuento-socio.regla.ts` (`DescuentoSocio`, RN-03), `recargo-horario-pico.regla.ts` (`RecargoHorarioPico`), `tarifador-de-precios.ts`, `constantes-de-precio.ts`.
+   - Se elimino la regla `StandardPricing` (no-op): el precio base es la semilla del `reduce`.
+   - `canchas.module.ts`: las reglas son providers y el `useFactory` arma la coleccion ORDENADA (el `@Order` de Spring); `TarifadorDePrecios` la consume. `ReservasCanchasService` inyecta `TarifadorDePrecios` y no conoce ninguna regla concreta.
+   - Se borro la clase `...Factory`: elimina la lectura creacional (es Strategy con intencion de Decorator, no Factory).
+   - Comportamiento identico: mismas reglas, mismo orden, mismos importes.
+
+### Verificacion
+
+- `npx tsc --noEmit`: limpio.
+- `npm run test:unit`: **201/201** (nuevos: `reglas-de-precio.spec.ts` con `aplica` + `aplicar` por regla, y `tarifador-de-precios.spec.ts`).
+- Diagramas regenerados: `pricing-pipeline` (dataflow) y `uml-strategy-classes` (clases).
+
+### Commits
+
+- `refactor(m4): precio dinamico como pipeline de reglas (ReglaDePrecio + TarifadorDePrecios)` (pendiente de commit).
+
+---
+
+## 2026-10-14 - Unidad III: cupo liberado como Observer por el bus (RF-08)
+
+**Fecha:** 14/10/2026 · **Rama:** `m5-pagos`
+
+### Actividades
+
+1. **RF-08 pasa del Subject a mano al bus (codigo de la catedra, Unidad III Clase 1 §6.4)**
+   - Se elimino `CupoLiberadoSubject` + la interfaz `CupoLiberadoObserver` + el registro manual en `ClasesModule.onModuleInit`. El ejemplo de Observer de la catedra es el event publisher (`publishEvent` / `@EventListener`); en Nest es `@nestjs/event-emitter` + `@OnEvent`.
+   - `commons/eventos.ts`: nuevo `EVENTO_CUPO_LIBERADO = 'reservaClase.cupoLiberado'` (nombrado en pasado).
+   - Los dos observers pasan a `@OnEvent(EVENTO_CUPO_LIBERADO)`: `NotificarSociosEsperaObserver` (estado) y `EmailCupoLiberadoObserver` (email). `cancelarReservaClase()` hace `await eventos.emitAsync(EVENTO_CUPO_LIBERADO, evento)`.
+   - Las 3 decisiones del §6.5: (1) se emite despues de `marcarCancelada` (efecto externo -> post-commit); (2) sincrono con `emitAsync` (el request espera los mails); (3) cada oyente aisla y loguea su error (un mail que falla NO rompe la cancelacion). La penalidad RF-07 sigue aparte: `emitAsync` ANTES del update y `suppressErrors: false` para que el 402 revierta.
+   - Es **Observer** (1 hecho -> N oyentes), no Mediator: el bus seria Mediator si coordinara un dialogo entre colegas (M1/M3 <-> M5).
+
+### Verificacion
+
+- `npx tsc --noEmit`: limpio.
+- `npm run test:unit`: **201/201**.
+- `npm run test:e2e`: **172/172** (incluye el RF-08 con el spy sobre `notificarCupoDisponible`).
+- Diagramas regenerados: `observer-cupo` (sequence) y `uml-observer-classes`.
+
+### Commits
+
+- `refactor(m3): cupo liberado por el bus (@OnEvent) en vez del Subject a mano (RF-08)` (pendiente de commit).
+
+---
+
+## 2026-10-15 - Unidad III: State en la reserva de cancha (CUMPLIDA derivada, RF-10)
+
+**Fecha:** 15/10/2026 · **Rama:** `m5-pagos`
+
+### Actividades
+
+1. **Bug cerrado + State en la reserva de cancha (RF-10).**
+   - Bug: `ReservasCanchasService.cancelar()` no miraba la fecha -> se podia cancelar una reserva cuyo turno ya habia pasado.
+   - Se agrego `m4-canchas/domain/reserva-estado.ts` (patron State): `EstadoDeReserva { nombre; puedeCancelar }` + `estadoDeReserva(r)`. `CUMPLIDA` se **DERIVA** de la fecha (no se persiste; sin migracion ni cron): `ahora >= fechaHoraFin`. `puedeCancelar` = `CONFIRMADA && ahora < fechaHoraInicio` (no se cancela lo que ya empezo).
+   - `cancelar()`: rechaza con 409 `reserva-pasada` (nuevo en `errors/reserva.errors.ts`) si el turno ya empezo.
+   - `aOut()` expone el estado efectivo -> la API muestra `CUMPLIDA` aunque la columna siga `CONFIRMADA`.
+   - `listar()` traduce el filtro: default/CONFIRMADA = activas (fin futuro); CUMPLIDA = fin pasado; CANCELADA. `ReservaRepository.listar` suma `finDesde`/`finHasta` (sobre `fecha_hora_fin`).
+   - Contrato: `EstadoReserva` + `CUMPLIDA`; respuesta 409 `ConflictoCancelacionReserva` (dos causas); exportado al vault.
+   - Alcance: solo cancha (M4). La clase (M3) queda igual.
+
+### Verificacion
+
+- `npx tsc --noEmit`: limpio.
+- `npm run test:unit`: **205/205** (nuevo `reserva-estado.spec.ts`).
+- `npm run test:e2e`: **175/175** (nuevos: reserva pasada -> CUMPLIDA derivada, cancelar -> 409 reserva-pasada, filtro ?estado=CUMPLIDA).
+
+### Commits
+
+- `feat(m4): State en la reserva de cancha con CUMPLIDA derivada (RF-10)` (pendiente de commit).

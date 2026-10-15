@@ -876,6 +876,76 @@ describe('M4 - Canchas / Reservas de turno / Disponibilidad (e2e)', () => {
     });
   });
 
+  describe('State derivado - CUMPLIDA (RF-10)', () => {
+    // Turno lejano en el pasado: el alta no lo impide; lo que se bloquea es
+    // cancelarlo. La columna sigue CONFIRMADA; CUMPLIDA se deriva de la fecha.
+    const PASADO = '2020-03-03';
+
+    async function crearReservaPasada(desde: string, hasta: string): Promise<number> {
+      const usuario = await prisma.usuario.create({
+        data: {
+          rol: 'EXTERNO',
+          dni: dniUnico(),
+          nombre: 'Pasada E2E M4',
+          email: emailUnico(),
+          contrasenia: 'hash-no-relevante',
+        },
+      });
+      usuariosCreados.push(usuario.id);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/reservas-canchas')
+        .send({
+          canchaId,
+          usuarioId: usuario.id,
+          fechaHoraInicio: `${PASADO}T${desde}:00-03:00`,
+          fechaHoraFin: `${PASADO}T${hasta}:00-03:00`,
+        })
+        .expect(201);
+      return res.body.id;
+    }
+
+    it('una reserva pasada se muestra como CUMPLIDA (derivada) aunque la columna diga CONFIRMADA', async () => {
+      const id = await crearReservaPasada('10:00', '11:00');
+
+      const detalle = await request(app.getHttpServer())
+        .get(`/api/v1/reservas-canchas/${id}`)
+        .expect(200);
+      expect(detalle.body.estado).toBe('CUMPLIDA');
+
+      const fila = await prisma.reserva.findUnique({ where: { id } });
+      expect(fila?.estado).toBe('CONFIRMADA'); // CUMPLIDA no se persiste
+    });
+
+    it('cancelar una reserva cuyo turno ya pasó responde 409 reserva-pasada y NO la cancela', async () => {
+      const id = await crearReservaPasada('12:00', '13:00');
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/v1/reservas-canchas/${id}/cancelaciones`)
+        .expect(409);
+      expect(res.body.type).toBe('https://fitzone.app/errores/reserva-pasada');
+      expect(res.body.title).toBe('Reserva ya pasada');
+
+      const fila = await prisma.reserva.findUnique({ where: { id } });
+      expect(fila?.estado).toBe('CONFIRMADA'); // la cancelación no se aplicó
+    });
+
+    it('?estado=CUMPLIDA lista las pasadas; el default (activas) las excluye', async () => {
+      const id = await crearReservaPasada('14:00', '15:00');
+
+      const cumplidas = await request(app.getHttpServer())
+        .get(`/api/v1/reservas-canchas?canchaId=${canchaId}&estado=CUMPLIDA`)
+        .expect(200);
+      expect(cumplidas.body.some((r: { id: number }) => r.id === id)).toBe(true);
+      expect(cumplidas.body.every((r: { estado: string }) => r.estado === 'CUMPLIDA')).toBe(true);
+
+      const porDefecto = await request(app.getHttpServer())
+        .get(`/api/v1/reservas-canchas?canchaId=${canchaId}`)
+        .expect(200);
+      expect(porDefecto.body.some((r: { id: number }) => r.id === id)).toBe(false);
+    });
+  });
+
   describe('RF-12 / RNF-03 - disponibilidad', () => {
     it('marca libre el tramo de una reserva cancelada y ocupado el de una vigente', async () => {
       const usuario = await prisma.usuario.create({

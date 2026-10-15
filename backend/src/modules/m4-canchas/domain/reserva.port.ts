@@ -24,6 +24,10 @@ export interface FiltrosListarReservas {
   estado?: 'CONFIRMADA' | 'CANCELADA';
   desde?: Date;
   hasta?: Date;
+  // Rango sobre fecha_hora_fin: lo usa el service para separar las CONFIRMADA
+  // "activas" (fin >= ahora) de las CUMPLIDA (fin < ahora), que no se persiste.
+  finDesde?: Date;
+  finHasta?: Date;
   page: number;
   perPage: number;
 }

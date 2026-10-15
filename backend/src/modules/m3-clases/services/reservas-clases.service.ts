@@ -2,13 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { plainToInstance } from 'class-transformer';
 import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
-import { EVENTO_RESERVA_CLASE_CANCELADA_TARDIA } from '../../../commons/eventos';
+import { EVENTO_CUPO_LIBERADO, EVENTO_RESERVA_CLASE_CANCELADA_TARDIA } from '../../../commons/eventos';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
 import { ReservaClaseIn } from '../dtos/reserva-clase-in.dto';
 import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query.dto';
 import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
-import { CupoLiberadoSubject } from '../observers/cupo-liberado.subject';
 import { cupoAgotado, reservaDuplicada } from '../errors/reservas-clases.errors';
 import { ClaseRepository } from '../repositories/clase.repository';
 import { ReservaClaseRepository } from '../repositories/reserva-clase.repository';
@@ -23,10 +22,10 @@ export class ReservasClasesService {
     // por `if (this.membresias)`, o sea que sin M1 registrado la reserva de
     // clase bonificada pasaba sin comprobar RN-03.
     private readonly membresias: MembresiasService,
-    private readonly cupoSubject: CupoLiberadoSubject,
     // RF-07: el cobro de la penalidad por cancelación tardía vive en M5 (quien
     // escucha el evento). M3 no puede importar M5 (el grafo es M5 -> M3), así que
-    // lo avisa por el bus global, como M1 hace con el cobro de membresía.
+    // lo avisa por el bus global, como M1 hace con el cobro de membresía. El mismo
+    // bus despacha el cupo liberado (RF-08) a sus oyentes.
     private readonly eventos: EventEmitter2,
     // Cadena de validaciones previas a la reserva (Chain of Responsibility). El
     // service arma el contexto y delega el orden de los chequeos en el validador.
@@ -139,8 +138,10 @@ export class ReservasClasesService {
 
     await this.reservasRepo.marcarCancelada(reservaClaseId);
 
-    // Disparo del Patrón Observer (RF-08): libera lugar y notifica a lista de espera
-    await this.cupoSubject.notificar({
+    // Disparo del Patrón Observer (RF-08): publica el hecho "se libero un cupo" en
+    // el bus y termina. Los oyentes (@OnEvent) reaccionan; este service no los
+    // conoce. `emitAsync` (con await) mantiene el aviso dentro del request actual.
+    await this.eventos.emitAsync(EVENTO_CUPO_LIBERADO, {
       claseId: reserva.claseId,
       nombreClase: clase.tipo,
       horarioClase: clase.horario,

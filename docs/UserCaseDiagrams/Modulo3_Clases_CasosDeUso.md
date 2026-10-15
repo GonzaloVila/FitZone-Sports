@@ -127,7 +127,7 @@ flowchart LR
   1. El socio solicita la cancelación de su reserva.
   2. El sistema verifica la fecha y hora de la clase: comprueba que falten al menos 2 horas para su inicio (`now <= horario - 2h`).
   3. El sistema actualiza el estado de la reserva a `CANCELADA`.
-  4. El sistema dispara el evento de dominio `CupoLiberadoEvent` hacia el `CupoLiberadoSubject` (Patrón Observer).
+  4. El sistema publica el evento de dominio `reservaClase.cupoLiberado` en el bus (Patrón Observer).
   5. El sistema responde `204 No Content`.
 - **Flujos Alternativos:**
   - **2a. Cancelación Fuera de Término:** Si faltan menos de 2 horas para el inicio de la clase, el sistema rechaza la cancelación sin penalidad respondiendo `409 Conflict` (`cancelacion-fuera-de-termino`).
@@ -138,7 +138,7 @@ flowchart LR
 - **Actor:** Sistema de Notificaciones (Observer).
 - **Disparador:** Ocurrencia del evento `CupoLiberadoEvent` al completarse exitosamente UC-04.
 - **Flujo Principal:**
-  1. El `CupoLiberadoSubject` recibe el evento con el identificador de la clase y la hora.
+  1. El bus despacha el evento `reservaClase.cupoLiberado` a los oyentes `@OnEvent`, con el identificador de la clase y la hora.
   2. El observador concreto `NotificarSociosEsperaObserver` consulta en la base de datos todos los socios con solicitudes en estado `EN_ESPERA` para dicha clase.
   3. Si existen socios en espera, el observador actualiza sus registros a `NOTIFICADO` y asigna `fecha_notificacion = now()`.
   4. El observador envía las alertas correspondientes (email/push/SMS stub) indicando que hay una vacante disponible bajo modalidad *first-come*.

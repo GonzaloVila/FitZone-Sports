@@ -8,7 +8,9 @@ import {
   type ResultadoCrearReserva,
 } from 'src/modules/m4-canchas/domain/reserva.port';
 import type { Reserva } from 'src/modules/m4-canchas/entities/reserva.entity';
-import { PricingStrategyFactory } from 'src/modules/m4-canchas/pricing/pricing-strategy.factory';
+import { DescuentoSocio } from 'src/modules/m4-canchas/pricing/descuento-socio.regla';
+import { RecargoHorarioPico } from 'src/modules/m4-canchas/pricing/recargo-horario-pico.regla';
+import { TarifadorDePrecios } from 'src/modules/m4-canchas/pricing/tarifador-de-precios';
 import type { CanchaRepository } from 'src/modules/m4-canchas/repositories/cancha.repository';
 import { ReservasCanchasService } from 'src/modules/m4-canchas/services/reservas-canchas.service';
 import { CanchaExiste } from 'src/modules/m4-canchas/validaciones/cancha-existe.validacion';
@@ -93,7 +95,7 @@ function armar() {
     repo,
     canchas,
     membresias,
-    new PricingStrategyFactory(),
+    new TarifadorDePrecios([new DescuentoSocio(), new RecargoHorarioPico()]),
     validador,
   );
   return { service, repo };

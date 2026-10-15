@@ -4,7 +4,7 @@ import { ProblemDetails, ProblemException } from '../../../commons/filters/probl
 /**
  * RN-02: el turno ya estaba tomado. El `type` y el `detail` son los que declara
  * el contrato en el ejemplo `turno-ocupado` de `ConflictoReservaCancha`. Vive
- * como factory y no inline en el service para que la otra causa de 409 del
+ * como funcion y no inline en el service para que la otra causa de 409 del
  * mismo endpoint (`cancha-en-mantenimiento`) no acabe reusando este texto, que
  * seria falso para ella: en mantenimiento no hubo concurrencia.
  */
@@ -41,6 +41,18 @@ export function reservaYaCancelada(id: number): ProblemException {
     title: 'Reserva ya cancelada',
     status: HttpStatus.CONFLICT,
     detail: `La reserva ${id} ya estaba cancelada y no puede cancelarse de nuevo.`,
+  });
+}
+
+// 409: la reserva existe y esta CONFIRMADA, pero su turno ya empezo. No es 404
+// (existe) ni 422 (la forma es valida): choca la transicion contra el estado
+// EFECTIVO (CUMPLIDA), que se deriva de la fecha (ver domain/reserva-estado.ts).
+export function reservaPasada(id: number): ProblemException {
+  return new ProblemException({
+    type: 'https://fitzone.app/errores/reserva-pasada',
+    title: 'Reserva ya pasada',
+    status: HttpStatus.CONFLICT,
+    detail: `La reserva ${id} corresponde a un turno que ya comenzó y no puede cancelarse.`,
   });
 }
 

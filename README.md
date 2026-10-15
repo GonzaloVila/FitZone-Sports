@@ -56,12 +56,13 @@ Los e2e también corren contra Supabase con `DATABASE_URL` apuntando a esa base 
 
 ## Eventos de dominio y oyentes
 
-El bus interno (`@nestjs/event-emitter`) desacopla al emisor del cobro: quien emite no importa a quien escucha (ADR-09). Los nombres viven en `backend/src/commons/eventos.ts`.
+El bus interno (`@nestjs/event-emitter`) desacopla al emisor de quien escucha (ADR-09). Los nombres viven en `backend/src/commons/eventos.ts`.
 
 | Evento | Emisor | Oyente | Regla |
 |---|---|---|---|
 | `socio.dadoDeAlta` | M1 (`SociosService.crear`) | `RenovacionesListener` (M5) → `RenovacionesService.cobrarMembresia` | RF-02: cobra la membresía inicial del alta |
 | `membresia.planCambiado` | M1 (`MembresiasService.modificar`) | `RenovacionesListener` (M5) | RF-02: cobra el plan nuevo al cambiar de plan sobre una membresía no vigente |
 | `reservaClase.canceladaTardia` | M3 (`ReservasClasesService.cancelarReservaClase`) | `PenalidadReservaClaseListener` (M5) | RF-07: cobra la penalidad del 50% al cancelar con menos de 2 h |
+| `reservaClase.cupoLiberado` | M3 (`ReservasClasesService.cancelarReservaClase`) | `NotificarSociosEsperaObserver` (estado) + `EmailCupoLiberadoObserver` (email), ambos M3 | RF-08: al liberarse un cupo, avisa a la lista de espera (Observer 1:N) |
 
-Cadena GoF de Observer (patrón explícito, no el bus): `CupoLiberadoSubject` (M3) → `NotificarSociosEsperaObserver` (estado) + `EmailCupoLiberadoObserver` (email), para RF-08.
+RF-08 es **Observer** (un hecho → N interesados) implementado con el bus: `cancelarReservaClase` hace `emitAsync('reservaClase.cupoLiberado')` y los oyentes `@OnEvent` reaccionan. El bus es solo el transporte (igual que `publishEvent` en Spring); sería **Mediator** si coordinara un diálogo entre colegas (M1/M3 ↔ M5).

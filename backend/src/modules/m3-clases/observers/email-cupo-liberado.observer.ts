@@ -1,16 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
+import { EVENTO_CUPO_LIBERADO } from '../../../commons/eventos';
 import { SociosService } from '../../m1-usuarios/services/socios.service';
 import { EsperaClaseRepository } from '../repositories/espera-clase.repository';
 import type { CupoLiberadoEvent } from './cupo-liberado.event';
-import type { CupoLiberadoObserver } from './cupo-liberado.observer';
 import { asuntoCupoLiberado, cuerpoHtml, cuerpoTexto } from './email-cupo-liberado.template';
 
-// Canal de aviso del cupo liberado (ADR-05, cadena de observers). Es un observer
-// mas: no conoce el dominio de la espera, solo lee la cola viva de la clase, pide
-// el email de cada socio a M1 y manda el aviso. Agregar WhatsApp o push es
-// agregar otra impl de CupoLiberadoObserver y registrarla en el subject.
+// Canal de aviso del cupo liberado (RF-08, Observer). Es un oyente del bus
+// (EventEmitter2), igual que la catedra usa @EventListener en Spring: no conoce
+// el dominio de la espera, solo lee la cola viva de la clase, pide el email de
+// cada socio a M1 y manda el aviso. Agregar WhatsApp o push es otro @OnEvent del
+// mismo evento, sin tocar al emisor.
 //
 // Modo de envio, en este orden:
 //   1. SMTP_* en env  -> transporte real.
@@ -18,7 +20,7 @@ import { asuntoCupoLiberado, cuerpoHtml, cuerpoTexto } from './email-cupo-libera
 //                        por proceso) y se loguea la URL de vista previa.
 //   3. sin configurar -> solo loguea, sin red. Asi el e2e no sale a internet.
 @Injectable()
-export class EmailCupoLiberadoObserver implements CupoLiberadoObserver {
+export class EmailCupoLiberadoObserver {
   private readonly logger = new Logger(EmailCupoLiberadoObserver.name);
   private transporte: Transporter | null = null;
   private remitente = '';
@@ -34,57 +36,65 @@ export class EmailCupoLiberadoObserver implements CupoLiberadoObserver {
     private readonly socios: SociosService,
   ) {}
 
+  // Aisla y loguea: un fallo de mail NO debe romper la cancelacion que disparo el evento.
+  @OnEvent(EVENTO_CUPO_LIBERADO)
   async notificarCupoDisponible(evento: CupoLiberadoEvent): Promise<void> {
-    const socioIds = await this.esperasRepo.listarSociosEnEsperaPorClase(evento.claseId);
-    if (socioIds.length === 0) {
-      this.logger.log(
-        `Sin socios en la cola viva de la clase ${evento.claseId}: no hay aviso que enviar.`,
-      );
-      return;
-    }
-
-    await this.resolverTransporte();
-
-    // Asunto y cuerpo salen de la plantilla con branding (texto + HTML) para que el
-    // aviso se vea como del gimnasio; el `text` queda de respaldo para clientes sin HTML.
-    const asunto = asuntoCupoLiberado(evento);
-    const cuerpo = cuerpoTexto(evento);
-    const html = cuerpoHtml(evento);
-
-    let enviados = 0;
-    let sinDestinatario = 0;
-    for (const socioId of socioIds) {
-      const email = await this.socios.obtenerEmail(socioId);
-      if (!email) {
-        sinDestinatario += 1;
-        this.logger.warn(`El socio ${socioId} no tiene email cargado: se omite su aviso.`);
-        continue;
+    try {
+      const socioIds = await this.esperasRepo.listarSociosEnEsperaPorClase(evento.claseId);
+      if (socioIds.length === 0) {
+        this.logger.log(
+          `Sin socios en la cola viva de la clase ${evento.claseId}: no hay aviso que enviar.`,
+        );
+        return;
       }
-      if (!this.transporte) {
-        continue;
-      }
-      const info = await this.transporte.sendMail({
-        from: this.remitente,
-        to: email,
-        subject: asunto,
-        text: cuerpo,
-        html,
-      });
-      enviados += 1;
-      if (this.ethereal) {
-        const preview = nodemailer.getTestMessageUrl(info);
-        if (preview) {
-          this.logger.log(`Vista previa del aviso para el socio ${socioId}: ${preview}`);
+
+      await this.resolverTransporte();
+
+      // Asunto y cuerpo salen de la plantilla con branding (texto + HTML) para que el
+      // aviso se vea como del gimnasio; el `text` queda de respaldo para clientes sin HTML.
+      const asunto = asuntoCupoLiberado(evento);
+      const cuerpo = cuerpoTexto(evento);
+      const html = cuerpoHtml(evento);
+
+      let enviados = 0;
+      let sinDestinatario = 0;
+      for (const socioId of socioIds) {
+        const email = await this.socios.obtenerEmail(socioId);
+        if (!email) {
+          sinDestinatario += 1;
+          this.logger.warn(`El socio ${socioId} no tiene email cargado: se omite su aviso.`);
+          continue;
+        }
+        if (!this.transporte) {
+          continue;
+        }
+        const info = await this.transporte.sendMail({
+          from: this.remitente,
+          to: email,
+          subject: asunto,
+          text: cuerpo,
+          html,
+        });
+        enviados += 1;
+        if (this.ethereal) {
+          const preview = nodemailer.getTestMessageUrl(info);
+          if (preview) {
+            this.logger.log(`Vista previa del aviso para el socio ${socioId}: ${preview}`);
+          }
         }
       }
-    }
 
-    this.logger.log(
-      `Avisos de la clase ${evento.claseId}: ${enviados} enviados de ${socioIds.length} ` +
-        `${socioIds.length === 1 ? 'socio' : 'socios'} en cola` +
-        (sinDestinatario > 0 ? `, ${sinDestinatario} sin email` : '') +
-        '.',
-    );
+      this.logger.log(
+        `Avisos de la clase ${evento.claseId}: ${enviados} enviados de ${socioIds.length} ` +
+          `${socioIds.length === 1 ? 'socio' : 'socios'} en cola` +
+          (sinDestinatario > 0 ? `, ${sinDestinatario} sin email` : '') +
+          '.',
+      );
+    } catch (err) {
+      this.logger.error(
+        `Error enviando los avisos de la clase ${evento.claseId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   // El transporte se resuelve una vez por proceso y se reutiliza en todos los avisos.

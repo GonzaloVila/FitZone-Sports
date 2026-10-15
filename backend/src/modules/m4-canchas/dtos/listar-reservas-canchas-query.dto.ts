@@ -1,9 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsISO8601, IsOptional, Matches, Max, Min } from 'class-validator';
-import { Reserva } from '../entities/reserva.entity';
+import type { EstadoReservaDerivado } from '../domain/reserva-estado';
 
-const ESTADOS: Reserva['estado'][] = ['CONFIRMADA', 'CANCELADA'];
+const ESTADOS: EstadoReservaDerivado[] = ['CONFIRMADA', 'CANCELADA', 'CUMPLIDA'];
 
 export class ListarReservasCanchasQueryDto {
   @ApiPropertyOptional({ type: 'integer', description: 'ID numérico de la cancha', example: 1 })
@@ -26,11 +26,12 @@ export class ListarReservasCanchasQueryDto {
   // Mismo criterio que ListarReservasClaseQueryDto.
   @ApiPropertyOptional({
     enum: ESTADOS,
-    description: 'Si se omite, solo se listan las CONFIRMADA; las canceladas se piden con estado=CANCELADA.',
+    description:
+      'Estado efectivo. Si se omite, solo se listan las CONFIRMADA activas (fecha_hora_fin futura). CUMPLIDA se deriva de la fecha; las canceladas se piden con estado=CANCELADA.',
   })
   @IsOptional()
   @IsIn(ESTADOS)
-  estado?: Reserva['estado'];
+  estado?: EstadoReservaDerivado;
 
   @ApiPropertyOptional({
     type: 'string',

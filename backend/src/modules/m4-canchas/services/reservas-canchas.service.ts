@@ -6,8 +6,9 @@ import { MembresiasService } from '../../m1-usuarios/services/membresias.service
 import { ReservaCanchaIn } from '../dtos/reserva-cancha-in.dto';
 import { ReservaCanchaOut } from '../dtos/reserva-cancha-out.dto';
 import { Reserva } from '../entities/reserva.entity';
-import { reservaYaCancelada, turnoOcupado } from '../errors/reserva.errors';
-import { PricingStrategyFactory } from '../pricing/pricing-strategy.factory';
+import { estadoDeReserva, type EstadoReservaDerivado } from '../domain/reserva-estado';
+import { reservaPasada, reservaYaCancelada, turnoOcupado } from '../errors/reserva.errors';
+import { TarifadorDePrecios } from '../pricing/tarifador-de-precios';
 import { CanchaRepository } from '../repositories/cancha.repository';
 import { ReservaRepository } from '../domain/reserva.port';
 import { ValidadorDeReservasCancha } from '../validaciones/validador-de-reservas-cancha';
@@ -15,10 +16,26 @@ import { ValidadorDeReservasCancha } from '../validaciones/validador-de-reservas
 export interface FiltrosListarReservasCanchas {
   canchaId?: number;
   usuarioId?: number;
-  estado?: Reserva['estado'];
+  estado?: EstadoReservaDerivado;
   fecha?: string;
   page: number;
   perPage: number;
+}
+
+// Traduce el estado EFECTIVO pedido (que puede ser CUMPLIDA, valor que no vive en
+// la columna) al filtro persistido + el rango de `fecha_hora_fin` que lo distingue.
+function traducirFiltroDeEstado(
+  estado: EstadoReservaDerivado | undefined,
+  ahora: Date,
+): { estado: Reserva['estado']; finDesde?: Date; finHasta?: Date } {
+  if (estado === 'CANCELADA') {
+    return { estado: 'CANCELADA' };
+  }
+  if (estado === 'CUMPLIDA') {
+    return { estado: 'CONFIRMADA', finHasta: ahora }; // fin < ahora
+  }
+  // CONFIRMADA (o default): solo las activas (fin >= ahora).
+  return { estado: 'CONFIRMADA', finDesde: ahora };
 }
 
 @Injectable()
@@ -30,7 +47,7 @@ export class ReservasCanchasService {
     // sin descuento. Con la dependencia obligatoria el precio bonificado depende
     // siempre de la vigencia real de la membresía (RN-03, ADR-09).
     private readonly membresias: MembresiasService,
-    private readonly precios: PricingStrategyFactory,
+    private readonly precios: TarifadorDePrecios,
     // Cadena de validaciones previas a la reserva (Chain of Responsibility).
     private readonly validador: ValidadorDeReservasCancha,
   ) {}
@@ -77,14 +94,21 @@ export class ReservasCanchasService {
   }
 
   async listar({ fecha, estado, ...resto }: FiltrosListarReservasCanchas): Promise<ReservaCanchaOut[]> {
-    // RF-12: las canceladas no aparecen salvo que se pidan explícitas. El
-    // default es regla de negocio y vive acá, no en el repositorio.
-    // `fecha` se traduce a [desde, hasta) en hora local de la sede (como el
-    // filtro de M2) y acota el inicio del turno.
+    // RF-12: las canceladas no aparecen salvo que se pidan explícitas. El default
+    // es regla de negocio y vive acá, no en el repositorio. `fecha` se traduce a
+    // [desde, hasta) en hora local de la sede y acota el inicio del turno.
+    //
+    // El estado pedido es el EFECTIVO (derivado): CUMPLIDA no está en la columna,
+    // así que se traduce a `CONFIRMADA` con `fecha_hora_fin` pasada; y el default
+    // (o CONFIRMADA) es `CONFIRMADA` con `fecha_hora_fin` futura (las "activas").
+    const ahora = new Date();
+    const { estado: estadoPersistido, finDesde, finHasta } = traducirFiltroDeEstado(estado, ahora);
     const rango = fecha !== undefined ? rangoDelDia(fecha) : {};
     const filas = await this.reservas.listar({
       ...resto,
-      estado: estado ?? 'CONFIRMADA',
+      estado: estadoPersistido,
+      finDesde,
+      finHasta,
       ...rango,
     });
     return filas.map((reserva) => this.aOut(reserva));
@@ -107,6 +131,12 @@ export class ReservasCanchasService {
       throw reservaYaCancelada(id);
     }
 
+    // El turno ya empezó (o pasó): la reserva es, efectivamente, CUMPLIDA. No se
+    // cancela lo que ya ocurrió (ver domain/reserva-estado.ts).
+    if (!estadoDeReserva(reserva).puedeCancelar(reserva)) {
+      throw reservaPasada(id);
+    }
+
     // Baja lógica: la constraint de exclusion excluye las CANCELADA, así que el horario
     // queda libre solo. null acá significa que otra cancelación ganó entre el
     // buscarPorId y este UPDATE: mismo 409.
@@ -117,6 +147,10 @@ export class ReservasCanchasService {
   }
 
   private aOut(reserva: Reserva): ReservaCanchaOut {
-    return plainToInstance(ReservaCanchaOut, reserva);
+    const out = plainToInstance(ReservaCanchaOut, reserva);
+    // La API muestra el estado EFECTIVO (derivado): una reserva pasada sale
+    // como CUMPLIDA aunque la columna siga diciendo CONFIRMADA.
+    out.estado = estadoDeReserva(reserva).nombre;
+    return out;
   }
 }

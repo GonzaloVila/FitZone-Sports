@@ -85,7 +85,7 @@ export class PrismaReservaRepository extends ReservaRepository {
     return filas.map((fila) => this.aDominio(fila));
   }
 
-  async listar({ canchaId, usuarioId, estado, desde, hasta, page, perPage }: FiltrosListarReservas): Promise<Reserva[]> {
+  async listar({ canchaId, usuarioId, estado, desde, hasta, finDesde, finHasta, page, perPage }: FiltrosListarReservas): Promise<Reserva[]> {
     // Solo filtra por lo que viene; no aplica defaults (el del estado es del service).
     const filas = await this.prisma.reserva.findMany({
       where: {
@@ -96,6 +96,12 @@ export class PrismaReservaRepository extends ReservaRepository {
           fecha_hora_inicio: {
             ...(desde !== undefined && { gte: desde }),
             ...(hasta !== undefined && { lt: hasta }),
+          },
+        }),
+        ...((finDesde !== undefined || finHasta !== undefined) && {
+          fecha_hora_fin: {
+            ...(finDesde !== undefined && { gte: finDesde }),
+            ...(finHasta !== undefined && { lt: finHasta }),
           },
         }),
       },

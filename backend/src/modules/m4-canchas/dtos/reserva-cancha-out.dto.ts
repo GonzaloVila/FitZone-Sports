@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose } from 'class-transformer';
-import { Reserva } from '../entities/reserva.entity';
+import type { EstadoReservaDerivado } from '../domain/reserva-estado';
 
-const ESTADOS: Reserva['estado'][] = ['CONFIRMADA', 'CANCELADA'];
+const ESTADOS: EstadoReservaDerivado[] = ['CONFIRMADA', 'CANCELADA', 'CUMPLIDA'];
 
 @Exclude()
 export class ReservaCanchaOut {
@@ -27,8 +27,12 @@ export class ReservaCanchaOut {
   fechaHoraFin!: Date;
 
   @Expose()
-  @ApiProperty({ enum: ESTADOS, example: 'CONFIRMADA' })
-  estado!: Reserva['estado'];
+  @ApiProperty({
+    enum: ESTADOS,
+    example: 'CONFIRMADA',
+    description: 'Estado efectivo de la reserva. CUMPLIDA se deriva de la fecha (el turno ya pasó).',
+  })
+  estado!: EstadoReservaDerivado;
 
   @Expose()
   @ApiProperty({

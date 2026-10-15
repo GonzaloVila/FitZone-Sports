@@ -20,7 +20,7 @@ backend/
 │       ├── m3-clases/       # Clases, reservas, lista de espera (Observer)
 │       ├── m4-canchas/      # Canchas, reservas, precio dinámico (Strategy)
 │       └── m5-pagos/        # Pagos, comprobante PDF, renovación automática (RF-02)
-└── test/                    # e2e (M1–M5, errores) + smokes locales (untracked)
+└── test/                    # e2e (supertest) + helpers compartidos; unit e integración van junto al source
 ```
 
 ## Stack
@@ -46,9 +46,14 @@ npm run start:dev           # http://localhost:3000/api/v1 · Swagger en /docs
 
 ## Tests
 
+La suite sigue la pirámide y **no** vive en una carpeta aparte: unitarios e integración están
+co-locados con el source (`src/**/*.spec.ts` y `src/**/*.integration-spec.ts`); `test/` queda
+para los e2e (`test/e2e/**/*.e2e-spec.ts`) y los helpers compartidos (`test/helpers/`, alias `@test/*`).
+
 ```bash
-npm run test:unit           # unitarios (Vitest)
-npm run test:e2e            # e2e contra base local (docker-compose.test.yml)
+npm run test:unit           # unitarios co-locados (Vitest, sin BD)
+npm run test:integration    # integración: services directo contra la BD real
+npm run test:e2e            # e2e HTTP contra base local (docker-compose.test.yml)
 npx tsc --noEmit            # typecheck
 ```
 

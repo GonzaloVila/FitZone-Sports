@@ -14,11 +14,11 @@
     "forceConsistentCasingInFileNames": true,
     // Los specs viven junto al source (test/ es solo para E2E). Estos paths los
     // resuelve tsc al type-checkear los *.spec.ts co-locados; en runtime de vitest
-    // se declaran los mismos alias en cada vitest.*.config.ts.
-    "baseUrl": "./",
+    // se declaran los mismos alias en cada vitest.*.config.ts. Los valores van con
+    // "./" porque sin `baseUrl` los paths deben ser relativos (TS5090).
     "paths": {
-      "src/*": ["src/*"],
-      "@test/*": ["test/*"]
+      "src/*": ["./src/*"],
+      "@test/*": ["./test/*"]
     }
   },
   "include": ["src"]

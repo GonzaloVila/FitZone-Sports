@@ -4,21 +4,26 @@ Backend de FitZone Sports (NestJS). Estructura base, espejo de la Fase A del doc
 «TFI FitZone - Unidad II - Backend» (`TFI FitZone - Unidad II - Backend.md`).
 
 Los cinco módulos están **en capas**: `controllers → services → repositories → Prisma`.
-No hay puertos, adapters ni tokens: los repositorios son clases concretas que
-`PrismaService` inyecta por constructor, y los services toman de otro módulo lo que
-necesitan importando su módulo explícitamente en el `imports`. La dependencia entre
-módulos queda a la vista en el `imports` en vez de esconderse detrás de un token
-opcional.
+Los repositorios son, salvo dos excepciones, clases concretas que `PrismaService` inyecta
+por constructor, y los services toman de otro módulo lo que necesitan importando su módulo
+explícitamente en el `imports`. La dependencia entre módulos queda a la vista en el `imports`
+en vez de esconderse detrás de un token opcional.
+
+Las dos excepciones a "repositorio = clase concreta" son los puertos de dominio de M1 y M4
+(`MembresiaRepository`, `ReservaRepository`, provistos como **clase abstracta** + `useClass`).
+Los únicos tokens no-clase son tres `Symbol` para los multi-providers (arrays): las cadenas
+de validación de M3/M4 y las reglas de precio de M4. No hay tokens `string`.
 
 ## Grafo de módulos
 
 ```
-M2 → M1        M3 → M1, M2        M4 → M1, M2        M5 → (nada todavía)
+M2 → M1        M3 → M1, M2        M4 → M1, M2        M5 → M1, M3, M4
 ```
 
-M1 no depende de ningún otro módulo de negocio. M5 todavía no cablea imports porque
-sus cinco operaciones del contrato (RF-13 / RF-14) no están implementadas; cuando
-existan, la dependencia va de M1/M4 hacia `PagosModule`.
+M1 no depende de ningún otro módulo de negocio. M5 lee el precio de M1/M3/M4 por sus
+services públicos (`MembresiaPrecioService`, `ReservaPrecioService`,
+`ReservaClasePrecioService`) sin consultar tablas ajenas (ADR-07); el cobro interno
+(alta, cambio de plan, penalidad, renovación) llega por el bus de eventos, no por import.
 
 ## Árbol
 
@@ -60,11 +65,17 @@ backend/
 ├── prisma/
 │   ├── schema.prisma                → modelo versionado (14 tablas)
 │   └── migrations/                  → migraciones versionadas
-├── test/                            → e2e con supertest
+├── test/                            → e2e (supertest) + helpers compartidos; los unit
+│                                       e integración viven junto al source (src/**)
 ├── Dockerfile
 ├── .env.example                     → variables documentadas (sin secretos)
 └── .gitignore
 ```
+
+Los tests **no** viven en una carpeta aparte: los unitarios (`src/**/*.spec.ts`) y los de
+integración (`src/**/*.integration-spec.ts`) están al lado del archivo que prueban, y
+`test/` queda solo para los e2e (`test/e2e/**/*.e2e-spec.ts`) más los helpers compartidos
+(`test/helpers/`, alias `@test/*`). Cada suite tiene su config de Vitest (`vitest.*.config.ts`).
 
 ## Comandos
 
@@ -72,8 +83,9 @@ backend/
 | ------------------------- | ----------------------------------------------- |
 | `npm run build`           | compilación con `nest build`                    |
 | `npm run start:dev`       | servidor en watch                               |
-| `npm run test:unit`       | unitarios sin base de datos (`vitest.unit.config.ts`) |
-| `npm run test:e2e`        | e2e contra la base de test (requiere Docker)    |
+| `npm run test:unit`       | unitarios co-locados, sin base de datos (`vitest.unit.config.ts`) |
+| `npm run test:integration`| integración: services directo contra la BD real (`vitest.integration.config.ts`) |
+| `npm run test:e2e`        | e2e HTTP contra la base de test (requiere Docker) |
 
 El documento OpenAPI lo publica el propio backend en `/docs` y `/docs-json`, y el
 YAML que se entrega sale de ahí. No hay comparador en el repo: la carpeta
@@ -86,5 +98,7 @@ según su propio README.
 - [x] Migración de M1-M5 a capas, sin puertos ni adapters (rama `capas-en-todo-el-backend`)
 - [x] Prisma + Supabase conectado y migraciones aplicadas (SCRUM-11b)
 - [x] Endpoints REST + Swagger de M1-M4 (SCRUM-11c)
-- [ ] M5: `PagosService`, `PagoRepository` y las cinco operaciones del contrato (RF-13 / RF-14)
-- [ ] Autenticación y roles (Unidad III)
+- [x] M5: `PagosService`, `PagoRepository` y las operaciones del contrato (RF-13 / RF-14)
+- [x] Autenticación y roles (Unidad III): JWT + guards, TOTP, bloqueados, sync offline
+- [x] Patrones de Unidad III (ADR-10): State, Observer, Chain, reglas de precio
+- [x] Suite en pirámide: unitarios + integración (co-locados) + e2e (`test:unit` / `test:integration` / `test:e2e`)

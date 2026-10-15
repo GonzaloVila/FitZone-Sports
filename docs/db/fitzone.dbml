@@ -1,5 +1,5 @@
 // FitZone - Modelo de datos (dbdiagram.io) — VERSIÓN ACTUALIZADA
-// Estado: Post-Unidad III (Auth JWT + TOTP + sincronización offline).
+// Estado: Post-Unidad III (Auth JWT + TOTP + sincronización offline + patrones: State y rango de Clase).
 // Nombres alineados con prisma/schema.prisma: PK = "id", FK = "<tabla>_id". La unica
 // excepcion es id_pago en PagoReserva / PagoMembresia, que es PK y FK a la vez (parte-todo).
 // Herencia parte-todo: Pago (super) con subtipos PagoReserva / PagoMembresia (PK = FK 1:1).
@@ -44,6 +44,14 @@
 //     GET /bloqueados pasan a identificarse por socio_id (indice parcial unicidad_abierto sobre socio_id).
 //   - PagoMembresia.membresia_id vuelve a NOT NULL (migracion 20261004050000): con la baja
 //     logica la membresia ya no se borra, asi que el enlace del cobro nunca queda colgando.
+//
+// CAMBIOS UNIDAD III - patrones (State + rango de Clase):
+//   - Clase.horario_inicio / Clase.horario_fin (migracion 20261015120000_clase_horario_rango): el
+//     rango horario de la clase se normalizo a timestamptz (antes un unico String ISO `horario` sin
+//     fin). RF-06; la validacion fin > inicio vive en el service (422), no en la base.
+//   - Reserva.estado / ReservaClase.estado: el enum de la base NO cambia (sigue CONFIRMADA |
+//     CANCELADA). CUMPLIDA es un estado DERIVADO (se calcula al leer: ahora >= fin del turno) que se
+//     expone en la API pero NUNCA se persiste. Por eso no figura en el enum de Postgres.
 //
 // TIPOS: las columnas de texto son "text" (sin limite), no varchar(n). Es el mapeo que Prisma
 // genera para String sobre Postgres; en la base real no hay ni una sola columna varchar. NO se
@@ -145,7 +153,8 @@ Table Clase {
   sede_id int [not null]
   tipo text [not null]          // texto libre (a diferencia de Cancha.tipo, que si es enum)
   instructor text [not null]
-  horario text [not null]
+  horario_inicio timestamptz [not null] // RF-06: rango horario normalizado (antes un unico "horario" String ISO sin fin)
+  horario_fin timestamptz [not null]    // fin del rango; la validacion fin > inicio vive en el service (422), no en la base
   capacidad int [not null]
 }
 
@@ -155,7 +164,7 @@ Table Reserva {
   usuario_id int [not null]
   fecha_hora_inicio timestamptz [not null]
   fecha_hora_fin timestamptz [not null]
-  estado varchar(20) [not null] // enum EstadoReserva: CONFIRMADA | CANCELADA
+  estado varchar(20) [not null] // enum EstadoReserva: CONFIRMADA | CANCELADA (CUMPLIDA es derivado en lectura, no se persiste)
   precio_aplicado decimal(10,2) [not null]
   // exq_reserva_turno: EXCLUDE gist (cancha_id, tsrange(inicio, fin)) WHERE estado <> CANCELADA.
   // Impide turnos solapados en la misma cancha (Prisma 6 no modela EXCLUDE; se crea en SQL).
@@ -165,7 +174,7 @@ Table ReservaClase {
   id int [pk, increment]
   clase_id int [not null]
   socio_id int [not null]
-  estado varchar(20) [not null] // enum EstadoReservaClase: CONFIRMADA | CANCELADA
+  estado varchar(20) [not null] // enum EstadoReservaClase: CONFIRMADA | CANCELADA (CUMPLIDA es derivado en lectura, no se persiste)
 }
 
 Table EsperaClase {
@@ -201,8 +210,8 @@ Table PagoMembresia {
 }
 
 Table PagoReservaClase {
-  id_pago Int [pk, not null]
-  reserva_clase_id Int [unique, not null]  // RF-07: un solo cobro de penalidad por reserva de clase
+  id_pago int [pk, not null]
+  reserva_clase_id int [unique, not null]  // RF-07: un solo cobro de penalidad por reserva de clase
 }
 
 Table Ingreso {

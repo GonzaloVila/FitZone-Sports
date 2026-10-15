@@ -2258,3 +2258,44 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 ### Commits
 
 - `feat(m3): rango horario en Clase (horario_inicio/fin) y State en la reserva de clase` (pendiente de commit).
+
+---
+
+## 2026-10-15 - Suite de tests: co-locacion junto al source y piramide (unit / integracion / e2e)
+
+**Fecha:** 15/10/2026 · **Rama:** `m5-pagos`
+
+### Actividades
+
+1. **Los specs se co-locan con el source.**
+   - `test/` queda **solo** para E2E (`test/e2e/**/*.e2e-spec.ts`) y los helpers compartidos. Los unitarios pasan a `src/**/*.spec.ts` y los de integracion a `src/**/*.integration-spec.ts`, al lado del archivo que prueban (32 unit + 7 de integracion, movidos con `git mv`). `test/unit/` deja de existir.
+   - Los specs ya usaban el alias `src/...`; se agrego `@test/*` para los helpers. `tsconfig.json` suma `paths` (`src/*`, `@test/*`, relativos) para que `tsc --noEmit` resuelva los specs co-locados, y `declaration` se movio a `tsconfig.build.json`. Cada suite tiene su config (`vitest.unit.config.ts`, `vitest.integration.config.ts`, `vitest.e2e.config.ts`).
+   - Helpers en `test/helpers/`: `base-de-datos.ts` (ex `e2e.ts`), `modulo-de-integracion.ts`, `validar-dto.ts`, `pagos.fixtures.ts`.
+
+2. **Capa de integracion (nueva).** `vitest.integration.config.ts` + `npm run test:integration`. El helper `crearModuloDeIntegracion` bootea el **modulo de feature** (no el `AppModule`) con `Config`/`Database`/`EventEmitter` —con `validate: validateEnv`, que aporta los defaults de JWT— y los specs llaman al **service directo** contra la BD real, sin HTTP. Cubren M1 (socios, membresias), M2 (ingresos, sedes), M3 (clases, reservas, esperas —partido en 3), M4 (canchas, reservas RN-02/pricing/State) y M5 (pagos). **53 tests en 10 archivos.**
+
+3. **Specs de DTO.** Validacion de los DTOs de entrada con `class-validator.validate()` (helper `validar-dto.ts`): canchas/reservas (M4), clases/reservas/espera (M3) y usuarios/socios/membresias (M1). Es el 422 por input que antes vivia en e2e.
+
+4. **Recorte de E2E.** De **177 a 59**: se saca lo que ahora cubre la integracion (CRUD, listados, pricing, State derivado, validacion de input) y queda lo HTTP/contrato (201+Location, 204, problem+json, cabecera `Idempotency-Key`), los cruces entre modulos (RF-02/RF-07/RF-08 por el bus), la concurrencia por HTTP y auth/errores/reportes. El test cross-modulo del cambio de plan en mora (RF-02) se pliega en `cobro-interno.e2e-spec.ts`.
+
+### Decisiones tomadas
+
+1. **`test/` es solo para E2E** (convencion del CLI de NestJS). Unit e integracion viven junto al source: encontrar/refactorizar el test de un archivo es 1 click, el editor mueve el test junto al renombrar, y el `git blame` queda con contexto. La unica excepcion son los helpers compartidos, que van a `test/helpers/`.
+2. **Los nombres distinguen la suite:** `.spec.ts` (unit), `.integration-spec.ts` (integracion), `.e2e-spec.ts` (e2e). Clave: `*.integration-spec.ts` **no** matchea el glob `*.spec.ts`, asi que cada config filtra su capa sin pisarse.
+3. **La integracion llama al service directo, no por HTTP.** El objetivo es la capa de negocio contra la BD real (repositorios + constraints); el transporte ya lo cubre el e2e.
+4. **El recorte saca solo lo duplicado.** auth/errores/reportes (sin equivalente en integracion) se conservan casi enteros.
+
+### Verificacion
+
+- `npx tsc --noEmit`: limpio. Ahora **tambien chequea los specs co-locados** (antes `test/` quedaba fuera del `include`): destapo un `Clase` sin `horarioFin` en un spec, corregido.
+- `npm run build`: OK (`dist/main.js`).
+- `npm run test:unit`: **240/240** (32 archivos).
+- `npm run test:integration`: **53/53** (10 archivos).
+- `npm run test:e2e`: **59/59** (19 archivos).
+- Piramide final: **240 / 53 / 59** (~68% / 15% / 17%).
+
+### Commits
+
+- `test: co-locar specs junto al source y rebalancear la piramide` (este mismo commit).
+- `fix(tsconfig): paths relativos sin baseUrl (TS5090 del editor)` (este mismo commit).
+

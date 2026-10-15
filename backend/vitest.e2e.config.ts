@@ -19,7 +19,7 @@ export default defineConfig({
       reporter: ['text', 'html'],
       reportsDirectory: './coverage-e2e',
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.spec.ts', 'src/**/*.module.ts', 'src/main.ts'],
+      exclude: ['src/**/*.spec.ts', 'src/**/*.integration-spec.ts', 'src/**/*.module.ts', 'src/main.ts'],
     },
     // Las tres suites comparten UNA sola base (la de DATABASE_URL), asi que no pueden
     // correr en paralelo: se pisan los datos de fixtures y los afterAll de una borran lo
@@ -38,6 +38,7 @@ export default defineConfig({
   resolve: {
     alias: {
       src: resolve(import.meta.dirname, './src'),
+      '@test': resolve(import.meta.dirname, './test'),
     },
   },
 });

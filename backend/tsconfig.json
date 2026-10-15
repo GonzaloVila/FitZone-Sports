@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "declaration": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
@@ -9,11 +8,18 @@
     "target": "ES2023",
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    // Los specs viven junto al source (test/ es solo para E2E). Estos paths los
+    // resuelve tsc al type-checkear los *.spec.ts co-locados; en runtime de vitest
+    // se declaran los mismos alias en cada vitest.*.config.ts.
+    "baseUrl": "./",
+    "paths": {
+      "src/*": ["src/*"],
+      "@test/*": ["test/*"]
+    }
   },
   "include": ["src"]
 }

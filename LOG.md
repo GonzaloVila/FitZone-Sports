@@ -2191,7 +2191,7 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
    - `commons/eventos.ts`: nuevo `EVENTO_CUPO_LIBERADO = 'reservaClase.cupoLiberado'` (nombrado en pasado).
    - Los dos observers pasan a `@OnEvent(EVENTO_CUPO_LIBERADO)`: `NotificarSociosEsperaObserver` (estado) y `EmailCupoLiberadoObserver` (email). `cancelarReservaClase()` hace `await eventos.emitAsync(EVENTO_CUPO_LIBERADO, evento)`.
    - Las 3 decisiones del §6.5: (1) se emite despues de `marcarCancelada` (efecto externo -> post-commit); (2) sincrono con `emitAsync` (el request espera los mails); (3) cada oyente aisla y loguea su error (un mail que falla NO rompe la cancelacion). La penalidad RF-07 sigue aparte: `emitAsync` ANTES del update y `suppressErrors: false` para que el 402 revierta.
-   - Es **Observer** (1 hecho -> N oyentes), no Mediator: el bus seria Mediator si coordinara un dialogo entre colegas (M1/M3 <-> M5).
+   - El bus juega **dos roles**: **Observer** en RF-08 (1 hecho -> N oyentes) y **Mediator** en el cobro interno (RF-02/RF-07), donde desacopla a M1/M3 de M5 (evita el ciclo M1->M5). La catedra define Mediator como "un bus de eventos en memoria".
 
 ### Verificacion
 

@@ -2299,3 +2299,44 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 - `test: co-locar specs junto al source y rebalancear la piramide` (este mismo commit).
 - `fix(tsconfig): paths relativos sin baseUrl (TS5090 del editor)` (este mismo commit).
 
+---
+
+## 2026-10-17 - Contrato OpenAPI: envoltorio { items, total } en listados y limpieza de contrato
+
+**Fecha:** 17/10/2026 · **Rama:** `main`
+
+### Actividades
+
+1. **Alineación del Contrato OpenAPI (Puntos 5 y 6 del TL):**
+   - En `TFI FitZone - OpenAPI.yaml` (vault), se crearon los esquemas envoltorios: `ListaUsuarios`, `ListaSocios`, `ListaSedes`, `ListaIngresos`, `ListaCanchas`, `ListaDisponibilidad`, `ListaClases`, `ListaReservasClase`, `ListaReservasCancha`, `ListaEsperas` y `ListaPagos`.
+   - Se actualizaron las 13 operaciones GET de listado (`listarUsuarios`, `listarSocios`, `listarSedes`, `listarIngresos`, `listarCanchas`, `consultarDisponibilidad`, `listarClases`, `listarReservasDeClase`, `listarReservasCancha`, `listarReservasClase`, `listarEsperaDeClase`, `listarEsperasClase` y `listarPagos`) para responder con el schema `$ref: '#/components/schemas/ListaXxx'` conteniendo `{ items, total }`.
+   - Se eliminó la respuesta huérfana `VentanaCancelacionCerrada` en `components.responses`.
+   - Corrección de erratas de redacción en las descripciones del contrato (`occupants` -> `ocupantes` en `listarIngresos`, y `(Gerente Central, A4)` -> `(Gerente Central, A3)` en `listarSedes`).
+
+2. **Implementación de DTOs y lógica backend (NestJS):**
+   - Se incorporó la interfaz genérica `PaginatedResult<T>` en `src/commons/paginacion.ts`.
+   - Se crearon los 11 DTOs de Swagger con decoradores `@ApiProperty`:
+     - `ListaUsuariosDto`, `ListaSociosDto` (M1)
+     - `ListaSedesDto`, `ListaIngresosDto` (M2)
+     - `ListaClasesDto`, `ListaReservasClaseDto`, `ListaEsperasDto` (M3)
+     - `ListaCanchasDto`, `ListaDisponibilidadDto`, `ListaReservasCanchaDto` (M4)
+     - `ListaPagosDto` (M5)
+   - Se actualizaron los repositorios de Prisma para ejecutar conteos de registros (`prisma.<entidad>.count({ where })`) y retornar `{ items, total }`.
+   - Se ajustaron los services y controllers de los 5 módulos (M1, M2, M3, M4, M5) decorando las respuestas con `@ApiOkResponse({ type: ListaXxxDto })`.
+
+3. **Ajuste de suites de pruebas:**
+   - E2E: actualizadas las aserciones en `test/e2e/m1-usuarios/usuarios.e2e-spec.ts`, `test/e2e/m2-gimnasio/sedes-ingresos.e2e-spec.ts`, `test/e2e/m3-clases/clases.e2e-spec.ts`, `test/e2e/m3-clases/listados.e2e-spec.ts` y `test/e2e/m4-canchas/disponibilidad.e2e-spec.ts` para verificar `res.body.items` y `res.body.total`.
+   - Integración: adaptados los specs en M1, M2, M3, M4 y M5 (`socios`, `sedes`, `esperas-clases`, `reservas-clases`, `canchas`, `reservas-canchas`, `pagos`) para validar el objeto paginado devuelto por los servicios.
+
+### Verificación
+
+- `npx tsc --noEmit`: limpio.
+- `npm run build`: OK.
+- `npm run test:unit`: **244/244** pasaron (33 archivos).
+- `npm run test:integration`: **53/53** pasaron (10 archivos).
+- `npm run test:e2e`: **59/59** pasaron (19 archivos).
+
+### Commits
+
+- `feat(api): envoltorio { items, total } en listados y alineacion de contrato OpenAPI`
+

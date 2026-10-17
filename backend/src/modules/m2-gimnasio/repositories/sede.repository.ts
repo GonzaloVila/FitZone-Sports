@@ -12,13 +12,19 @@ type SedeRow = Prisma.SedeGetPayload<Record<string, never>>;
 export class SedeRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listar({ page, perPage }: OpcionesPaginacion): Promise<Sede[]> {
-    const filas = await this.prisma.sede.findMany({
-      skip: (page - 1) * perPage,
-      take: perPage,
-      orderBy: { id: 'asc' },
-    });
-    return filas.map((fila) => this.aDominio(fila));
+  async listar({ page, perPage }: OpcionesPaginacion): Promise<{ items: Sede[]; total: number }> {
+    const [filas, total] = await Promise.all([
+      this.prisma.sede.findMany({
+        skip: (page - 1) * perPage,
+        take: perPage,
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.sede.count(),
+    ]);
+    return {
+      items: filas.map((fila) => this.aDominio(fila)),
+      total,
+    };
   }
 
   async crear(sede: SedeNueva): Promise<Sede> {

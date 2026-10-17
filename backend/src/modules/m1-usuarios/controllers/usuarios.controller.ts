@@ -28,6 +28,7 @@ import { UsuarioIn } from '../dtos/usuario-in.dto';
 import { ListarUsuariosQueryDto } from '../dtos/listar-usuarios-query.dto';
 import { UsuarioPatch } from '../dtos/usuario-patch.dto';
 import { UsuarioOut } from '../dtos/usuario-out.dto';
+import { ListaUsuariosDto } from '../dtos/lista-usuarios.dto';
 import { UsuariosService } from '../services/usuarios.service';
 
 @ApiTags('usuarios')
@@ -67,9 +68,9 @@ export class UsuariosController {
   // deja explicito que /usuarios no cae en la ruta con parametro.
   @Get()
   @ApiOperation({ operationId: 'listarUsuarios', summary: 'Listado de usuarios con filtros' })
-  @ApiOkResponse({ description: 'Listado de usuarios', type: [UsuarioOut] })
+  @ApiOkResponse({ description: 'Listado de usuarios', type: ListaUsuariosDto })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  listar(@Query() dto: ListarUsuariosQueryDto): Promise<UsuarioOut[]> {
+  listar(@Query() dto: ListarUsuariosQueryDto): Promise<ListaUsuariosDto> {
     return this.usuariosService.listar(dto);
   }
 

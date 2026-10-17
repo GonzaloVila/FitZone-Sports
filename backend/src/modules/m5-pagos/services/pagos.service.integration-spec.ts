@@ -95,12 +95,12 @@ describe('M5 PagosService (integration, BD real)', () => {
     );
 
     const porDefecto = await pagos.listarPagos({ usuarioId, page: 1, perPage: 100 });
-    expect(porDefecto.every((p) => p.estado === 'APROBADO')).toBe(true);
-    expect(porDefecto.map((p) => p.id)).toContain(aprobado.id);
+    expect(porDefecto.items.every((p) => p.estado === 'APROBADO')).toBe(true);
+    expect(porDefecto.items.map((p) => p.id)).toContain(aprobado.id);
 
     const rechazados = await pagos.listarPagos({ usuarioId, estado: 'RECHAZADO', page: 1, perPage: 100 });
-    expect(rechazados.every((p) => p.estado === 'RECHAZADO')).toBe(true);
-    expect(rechazados.length).toBeGreaterThan(0);
+    expect(rechazados.items.every((p) => p.estado === 'RECHAZADO')).toBe(true);
+    expect(rechazados.items.length).toBeGreaterThan(0);
   });
 
   it('anular: APROBADO → ANULADO con reembolso; reanular es no-op (204)', async () => {

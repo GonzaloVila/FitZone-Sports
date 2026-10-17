@@ -16,6 +16,7 @@ import { AforoOut } from '../dtos/aforo-out.dto';
 import { ListarSedesQueryDto } from '../dtos/listar-sedes-query.dto';
 import { SedeIn } from '../dtos/sede-in.dto';
 import { SedeOut } from '../dtos/sede-out.dto';
+import { ListaSedesDto } from '../dtos/lista-sedes.dto';
 import { IngresosService } from '../services/ingresos.service';
 import { SedesService } from '../services/sedes.service';
 
@@ -30,9 +31,9 @@ export class SedesController {
 
   @Get()
   @ApiOperation({ operationId: 'listarSedes', summary: 'Listado de sedes' })
-  @ApiOkResponse({ description: 'Listado de sedes', type: [SedeOut] })
+  @ApiOkResponse({ description: 'Listado de sedes', type: ListaSedesDto })
   @ApiUnprocessableEntityResponse({ description: 'Parámetros de paginación inválidos', content: PROBLEM_JSON })
-  listar(@Query() query: ListarSedesQueryDto): Promise<SedeOut[]> {
+  listar(@Query() query: ListarSedesQueryDto): Promise<ListaSedesDto> {
     return this.sedesService.listar(query.page ?? 1, query.perPage ?? 20);
   }
 

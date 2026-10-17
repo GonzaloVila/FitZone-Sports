@@ -33,6 +33,7 @@ import { SocioIn } from '../dtos/socio-in.dto';
 import { ListarSociosQueryDto } from '../dtos/listar-socios-query.dto';
 import { SocioPatch } from '../dtos/socio-patch.dto';
 import { SocioOut } from '../dtos/socio-out.dto';
+import { ListaSociosDto } from '../dtos/lista-socios.dto';
 import { SociosService } from '../services/socios.service';
 
 @ApiTags('socios')
@@ -79,9 +80,9 @@ export class SociosController {
   // Antes que @Get(':socioId') por el mismo motivo que en UsuariosController.
   @Get()
   @ApiOperation({ operationId: 'listarSocios', summary: 'Listado de socios con filtros' })
-  @ApiOkResponse({ description: 'Listado de socios', type: [SocioOut] })
+  @ApiOkResponse({ description: 'Listado de socios', type: ListaSociosDto })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  listar(@Query() dto: ListarSociosQueryDto): Promise<SocioOut[]> {
+  listar(@Query() dto: ListarSociosQueryDto): Promise<ListaSociosDto> {
     return this.sociosService.listar(dto);
   }
 

@@ -31,6 +31,7 @@ import { EsperaIn } from '../dtos/espera-in.dto';
 import { EsperaOut } from '../dtos/espera-out.dto';
 import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
+import { ListaEsperasDto } from '../dtos/lista-esperas.dto';
 import { EsperasClasesService } from '../services/esperas-clases.service';
 
 @ApiTags('esperas-clases')
@@ -140,10 +141,10 @@ export class EsperasClasesController {
   })
   @ApiOkResponse({
     description: 'Listado de solicitudes en lista de espera',
-    type: [EsperaOut],
+    type: ListaEsperasDto,
   })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  listar(@Query() query: ListarEsperasClaseQueryDto): Promise<EsperaOut[]> {
+  listar(@Query() query: ListarEsperasClaseQueryDto): Promise<ListaEsperasDto> {
     return this.esperasService.listarEsperasClase(query);
   }
 }

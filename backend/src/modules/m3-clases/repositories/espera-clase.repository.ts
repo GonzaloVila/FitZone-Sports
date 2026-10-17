@@ -41,25 +41,31 @@ export class EsperaClaseRepository {
   async listar(
     { claseId, socioId, estado }: FiltrosEsperasClase,
     { page, perPage }: OpcionesPaginacion,
-  ): Promise<EsperaClase[]> {
+  ): Promise<{ items: EsperaClase[]; total: number }> {
     const where: Prisma.EsperaClaseWhereInput = {
       ...(claseId !== undefined && { clase_id: claseId }),
       ...(socioId !== undefined && { socio_id: socioId }),
       ...(estado !== undefined && { estado }),
     };
 
-    const filas = await this.prisma.esperaClase.findMany({
-      where,
-      skip: (page - 1) * perPage,
-      take: perPage,
-      // El id desempata: fechaAnotacion es TIMESTAMP(3) y la genera la app con
-      // new Date(), así que dos socios que se anotan en el mismo milisegundo
-      // empatan. Sin un orden total, skip/take puede repetir o saltear filas
-      // entre páginas. Mismo criterio que Ingreso.listar.
-      orderBy: [{ fecha_anotacion: 'asc' }, { id: 'asc' }],
-    });
+    const [filas, total] = await Promise.all([
+      this.prisma.esperaClase.findMany({
+        where,
+        skip: (page - 1) * perPage,
+        take: perPage,
+        // El id desempata: fechaAnotacion es TIMESTAMP(3) y la genera la app con
+        // new Date(), así que dos socios que se anotan en el mismo milisegundo
+        // empatan. Sin un orden total, skip/take puede repetir o saltear filas
+        // entre páginas. Mismo criterio que Ingreso.listar.
+        orderBy: [{ fecha_anotacion: 'asc' }, { id: 'asc' }],
+      }),
+      this.prisma.esperaClase.count({ where }),
+    ]);
 
-    return filas.map((fila) => this.aDominio(fila));
+    return {
+      items: filas.map((fila) => this.aDominio(fila)),
+      total,
+    };
   }
 
   async crear(espera: EsperaClaseNueva): Promise<ResultadoCrearEspera> {

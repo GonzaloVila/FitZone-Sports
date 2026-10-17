@@ -18,6 +18,8 @@ import { CanchaPatch } from '../dtos/cancha-patch.dto';
 import { ConsultarDisponibilidadQueryDto } from '../dtos/consultar-disponibilidad-query.dto';
 import { DisponibilidadEntrada } from '../dtos/disponibilidad-entrada.dto';
 import { ListarCanchasQueryDto } from '../dtos/listar-canchas-query.dto';
+import { ListaCanchasDto } from '../dtos/lista-canchas.dto';
+import { ListaDisponibilidadDto } from '../dtos/lista-disponibilidad.dto';
 import { CanchasService } from '../services/canchas.service';
 import { DisponibilidadService } from '../services/disponibilidad.service';
 
@@ -44,7 +46,7 @@ export class CanchasController {
       'todas, incluidas las EN_MANTENIMIENTO.',
   })
   @ApiParam({ name: 'sedeId', type: 'integer', description: 'ID numerico de la sede', example: 3 })
-  @ApiOkResponse({ description: 'Listado de canchas', type: [CanchaOut] })
+  @ApiOkResponse({ description: 'Listado de canchas', type: ListaCanchasDto })
   @ApiNotFoundResponse({ description: 'La sede no existe', content: PROBLEM_JSON })
   // 422 por query params invalidos: la ValidationPipe global valida el DTO de
   // listado igual que valida los bodies, asi que ?estado=INVALIDA, ?page=0 o
@@ -55,7 +57,7 @@ export class CanchasController {
   listar(
     @Param('sedeId', ParseIntPipe) sedeId: number,
     @Query() query: ListarCanchasQueryDto,
-  ): Promise<CanchaOut[]> {
+  ): Promise<ListaCanchasDto> {
     return this.canchasService.listar(sedeId, {
       estado: query.estado,
       page: query.page ?? 1,
@@ -133,13 +135,13 @@ export class CanchasController {
   @Get('canchas/:canchaId/disponibilidad')
   @ApiOperation({ operationId: 'consultarDisponibilidad', summary: 'Disponibilidad de turnos de una cancha' })
   @ApiParam({ name: 'canchaId', type: 'integer', description: 'ID numérico de la cancha', example: 1 })
-  @ApiOkResponse({ description: 'Tramos horarios del día con su disponibilidad', type: [DisponibilidadEntrada] })
+  @ApiOkResponse({ description: 'Tramos horarios del día con su disponibilidad', type: ListaDisponibilidadDto })
   @ApiNotFoundResponse({ description: 'Cancha inexistente', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Fecha o paginación inválidas', content: PROBLEM_JSON })
   consultarDisponibilidad(
     @Param('canchaId', ParseIntPipe) canchaId: number,
     @Query() query: ConsultarDisponibilidadQueryDto,
-  ): Promise<DisponibilidadEntrada[]> {
+  ): Promise<ListaDisponibilidadDto> {
     return this.disponibilidadService.consultar(canchaId, query.fecha, {
       page: query.page ?? 1,
       perPage: query.perPage ?? 20,

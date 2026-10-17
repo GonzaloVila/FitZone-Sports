@@ -37,24 +37,27 @@ export class ReservasClasesService {
   async listarReservasDeClase(
     claseId: number,
     filtros: ListarReservasDeClaseQueryDto,
-  ): Promise<ReservaClaseOut[]> {
+  ): Promise<{ items: ReservaClaseOut[]; total: number }> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
       throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
-    const reservas = await this.reservasRepo.listar(
+    const { items, total } = await this.reservasRepo.listar(
       { claseId: claseId, estado: filtros.estado },
       { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
 
-    return reservas.map((reserva) => this.aOut(reserva));
+    return {
+      items: items.map((reserva) => this.aOut(reserva)),
+      total,
+    };
   }
 
   async listarReservasClase(
     filtros: ListarReservasClaseQueryDto,
-  ): Promise<ReservaClaseOut[]> {
-    const reservas = await this.reservasRepo.listar(
+  ): Promise<{ items: ReservaClaseOut[]; total: number }> {
+    const { items, total } = await this.reservasRepo.listar(
       {
         claseId: filtros.claseId,
         socioId: filtros.socioId,
@@ -63,7 +66,10 @@ export class ReservasClasesService {
       { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
 
-    return reservas.map((reserva) => this.aOut(reserva));
+    return {
+      items: items.map((reserva) => this.aOut(reserva)),
+      total,
+    };
   }
 
   async crearReservaClase(

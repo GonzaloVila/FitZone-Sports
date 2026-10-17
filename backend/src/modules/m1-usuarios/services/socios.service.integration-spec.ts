@@ -82,14 +82,14 @@ describe('M1 SociosService (integration, BD real)', () => {
     const zoe = await alta(usuarioZoe, 'ANUAL');
 
     const porSede = await socios.listar({ sedeOrigenId: sedeId, page: 1, perPage: 100 } as never);
-    expect(porSede.map((s) => s.id)).toContain(carlos.id);
+    expect(porSede.items.map((s) => s.id)).toContain(carlos.id);
 
     const porPlan = await socios.listar({ plan: 'MENSUAL', page: 1, perPage: 100 } as never);
-    expect(porPlan.map((s) => s.id)).toContain(carlos.id);
-    expect(porPlan.map((s) => s.id)).not.toContain(zoe.id);
+    expect(porPlan.items.map((s) => s.id)).toContain(carlos.id);
+    expect(porPlan.items.map((s) => s.id)).not.toContain(zoe.id);
 
     const combinado = await socios.listar({ estadoMembresia: 'ACTIVA', plan: 'ANUAL', page: 1, perPage: 100 } as never);
-    expect(combinado.map((s) => s.id)).toContain(zoe.id);
+    expect(combinado.items.map((s) => s.id)).toContain(zoe.id);
   });
 
   it('obtenerPorId devuelve nombre/email y 404 si no existe', async () => {

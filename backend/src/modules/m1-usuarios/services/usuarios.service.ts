@@ -69,14 +69,17 @@ export class UsuariosService {
     return this.aOut(usuario);
   }
 
-  async listar(dto: ListarUsuariosQueryDto): Promise<UsuarioOut[]> {
-    const usuarios = await this.usuarios.listar(
+  async listar(dto: ListarUsuariosQueryDto): Promise<{ items: UsuarioOut[]; total: number }> {
+    const { items, total } = await this.usuarios.listar(
       { rol: dto.rol, nombre: dto.nombre, email: dto.email },
       // Los defaults del DTO ya cubren el caso sin query params; estos `??`
       // son la red de seguridad para cuando el service se llame sin el pipe.
       { page: dto.page ?? 1, perPage: dto.perPage ?? 20 },
     );
-    return usuarios.map((usuario) => this.aOut(usuario));
+    return {
+      items: items.map((usuario) => this.aOut(usuario)),
+      total,
+    };
   }
 
   async obtenerPorId(id: number): Promise<UsuarioOut> {

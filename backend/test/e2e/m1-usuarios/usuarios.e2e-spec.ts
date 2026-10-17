@@ -30,15 +30,16 @@ describe('M1 - Usuarios', () => {
       .expect(201);
 
     const todos = await request(app.getHttpServer()).get('/api/v1/usuarios').query({ perPage: 100 }).expect(200);
-    const ana = todos.body.find((u: { email: string }) => u.email === emailAna);
+    const ana = todos.body.items.find((u: { email: string }) => u.email === emailAna);
     expect(ana).toBeDefined();
     expect(ana.contrasenia).toBeUndefined();
 
     const porNombre = await request(app.getHttpServer()).get('/api/v1/usuarios').query({ nombre: 'ana' }).expect(200);
-    expect(porNombre.body.map((u: { email: string }) => u.email)).toContain(emailAna);
+    expect(porNombre.body.items.map((u: { email: string }) => u.email)).toContain(emailAna);
 
     const porEmail = await request(app.getHttpServer()).get('/api/v1/usuarios').query({ email: emailAna }).expect(200);
-    expect(porEmail.body).toHaveLength(1);
+    expect(porEmail.body.items).toHaveLength(1);
+    expect(porEmail.body.total).toBe(1);
   });
 
   it('PATCH /usuarios/{id} acepta null para limpiar telefono y foto_url', async () => {

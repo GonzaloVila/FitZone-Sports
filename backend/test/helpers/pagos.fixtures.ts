@@ -77,7 +77,7 @@ export function armar(
         pagoPersistido({ estado: 'APROBADO', comprobantePdfUrl: '/storage/comprobantes/12.pdf' }),
       ),
     buscarPorId: over.buscarPorId ?? vi.fn().mockResolvedValue(pagoPersistido({ estado: 'APROBADO' })),
-    listar: over.listar ?? vi.fn().mockResolvedValue([]),
+    listar: over.listar ?? vi.fn().mockResolvedValue({ items: [], total: 0 }),
     anular: over.anular ?? vi.fn().mockResolvedValue(pagoPersistido({ estado: 'ANULADO' })),
   };
   const pasarela = {

@@ -85,33 +85,42 @@ export class PrismaReservaRepository extends ReservaRepository {
     return filas.map((fila) => this.aDominio(fila));
   }
 
-  async listar({ canchaId, usuarioId, estado, desde, hasta, finDesde, finHasta, page, perPage }: FiltrosListarReservas): Promise<Reserva[]> {
+  async listar({ canchaId, usuarioId, estado, desde, hasta, finDesde, finHasta, page, perPage }: FiltrosListarReservas): Promise<{ items: Reserva[]; total: number }> {
     // Solo filtra por lo que viene; no aplica defaults (el del estado es del service).
-    const filas = await this.prisma.reserva.findMany({
-      where: {
-        ...(canchaId !== undefined && { cancha_id: canchaId }),
-        ...(usuarioId !== undefined && { usuario_id: usuarioId }),
-        ...(estado !== undefined && { estado }),
-        ...((desde !== undefined || hasta !== undefined) && {
-          fecha_hora_inicio: {
-            ...(desde !== undefined && { gte: desde }),
-            ...(hasta !== undefined && { lt: hasta }),
-          },
-        }),
-        ...((finDesde !== undefined || finHasta !== undefined) && {
-          fecha_hora_fin: {
-            ...(finDesde !== undefined && { gte: finDesde }),
-            ...(finHasta !== undefined && { lt: finHasta }),
-          },
-        }),
-      },
-      skip: (page - 1) * perPage,
-      take: perPage,
-      // El id desempata para que la paginación no repita ni pierda filas entre
-      // reservas con el mismo inicio (distintas canchas).
-      orderBy: [{ fecha_hora_inicio: 'desc' }, { id: 'desc' }],
-    });
-    return filas.map((fila) => this.aDominio(fila));
+    const where = {
+      ...(canchaId !== undefined && { cancha_id: canchaId }),
+      ...(usuarioId !== undefined && { usuario_id: usuarioId }),
+      ...(estado !== undefined && { estado }),
+      ...((desde !== undefined || hasta !== undefined) && {
+        fecha_hora_inicio: {
+          ...(desde !== undefined && { gte: desde }),
+          ...(hasta !== undefined && { lt: hasta }),
+        },
+      }),
+      ...((finDesde !== undefined || finHasta !== undefined) && {
+        fecha_hora_fin: {
+          ...(finDesde !== undefined && { gte: finDesde }),
+          ...(finHasta !== undefined && { lt: finHasta }),
+        },
+      }),
+    };
+
+    const [filas, total] = await Promise.all([
+      this.prisma.reserva.findMany({
+        where,
+        skip: (page - 1) * perPage,
+        take: perPage,
+        // El id desempata para que la paginación no repita ni pierda filas entre
+        // reservas con el mismo inicio (distintas canchas).
+        orderBy: [{ fecha_hora_inicio: 'desc' }, { id: 'desc' }],
+      }),
+      this.prisma.reserva.count({ where }),
+    ]);
+
+    return {
+      items: filas.map((fila) => this.aDominio(fila)),
+      total,
+    };
   }
 
   private aDominio(fila: ReservaRow): Reserva {

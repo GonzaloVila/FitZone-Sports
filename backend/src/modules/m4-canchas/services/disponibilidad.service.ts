@@ -30,7 +30,7 @@ export class DisponibilidadService {
     canchaId: number,
     fecha: string,
     { page, perPage }: { page: number; perPage: number },
-  ): Promise<DisponibilidadEntrada[]> {
+  ): Promise<{ items: DisponibilidadEntrada[]; total: number }> {
     const cancha = await this.canchas.buscarPorId(canchaId);
     if (!cancha) {
       throw recursoNoEncontrado('No existe la cancha indicada.');
@@ -61,7 +61,10 @@ export class DisponibilidadService {
     }));
 
     const pagina = entradas.slice((page - 1) * perPage, page * perPage);
-    return pagina.map((entrada) => plainToInstance(DisponibilidadEntrada, entrada));
+    return {
+      items: pagina.map((entrada) => plainToInstance(DisponibilidadEntrada, entrada)),
+      total: entradas.length,
+    };
   }
 
   // La grilla se ancla en la medianoche local de la sede que devuelve

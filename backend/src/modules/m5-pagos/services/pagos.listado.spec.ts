@@ -72,17 +72,21 @@ describe('PagosService - listado y consulta', () => {
 
     it('mapea a PagoOut sin filtrar token ni idempotencia', async () => {
       const { service } = armar({
-        listar: vi.fn().mockResolvedValue([
-          pagoPersistido({ estado: 'APROBADO', comprobantePdfUrl: '/storage/comprobantes/12.pdf' }),
-        ]),
+        listar: vi.fn().mockResolvedValue({
+          items: [
+            pagoPersistido({ estado: 'APROBADO', comprobantePdfUrl: '/storage/comprobantes/12.pdf' }),
+          ],
+          total: 1,
+        }),
       });
 
       const salida = await service.listarPagos({ page: 1, perPage: 20 });
 
-      expect(salida).toHaveLength(1);
-      expect(salida[0].id).toBe(12);
-      expect(salida[0]).not.toHaveProperty('token');
-      expect(salida[0]).not.toHaveProperty('idempotenciaKey');
+      expect(salida.items).toHaveLength(1);
+      expect(salida.total).toBe(1);
+      expect(salida.items[0].id).toBe(12);
+      expect(salida.items[0]).not.toHaveProperty('token');
+      expect(salida.items[0]).not.toHaveProperty('idempotenciaKey');
     });
   });
 

@@ -103,7 +103,7 @@ export class IngresoRepository {
     }
   }
 
-  async listar(filtros: IngresoFiltros, { page, perPage }: OpcionesPaginacion): Promise<Ingreso[]> {
+  async listar(filtros: IngresoFiltros, { page, perPage }: OpcionesPaginacion): Promise<{ items: Ingreso[]; total: number }> {
     const where: Prisma.IngresoWhereInput = {
       ...(filtros.sedeId !== undefined && { sede_id: filtros.sedeId }),
       ...(filtros.socioId !== undefined && { socio_id: filtros.socioId }),
@@ -123,17 +123,23 @@ export class IngresoRepository {
       })()),
     };
 
-    const filas = await this.prisma.ingreso.findMany({
-      where,
-      skip: (page - 1) * perPage,
-      take: perPage,
-      // El id desempata: con la sincronización offline (RNF-01) dos ingresos
-      // pueden compartir fechaHoraIngreso al segundo, y sin un orden total la
-      // paginación repite filas entre páginas.
-      orderBy: [{ fecha_hora_ingreso: 'desc' }, { id: 'desc' }],
-      include: SOCIO_SELECCION,
-    });
-    return filas.map((fila) => this.aDominio(fila));
+    const [filas, total] = await Promise.all([
+      this.prisma.ingreso.findMany({
+        where,
+        skip: (page - 1) * perPage,
+        take: perPage,
+        // El id desempata: con la sincronización offline (RNF-01) dos ingresos
+        // pueden compartir fechaHoraIngreso al segundo, y sin un orden total la
+        // paginación repite filas entre páginas.
+        orderBy: [{ fecha_hora_ingreso: 'desc' }, { id: 'desc' }],
+        include: SOCIO_SELECCION,
+      }),
+      this.prisma.ingreso.count({ where }),
+    ]);
+    return {
+      items: filas.map((fila) => this.aDominio(fila)),
+      total,
+    };
   }
 
   async buscarPorId(id: number): Promise<Ingreso | null> {

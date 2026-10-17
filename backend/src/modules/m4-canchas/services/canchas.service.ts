@@ -36,12 +36,15 @@ export class CanchasService {
   async listar(
     sedeId: number,
     filtros: { estado?: Cancha['estado']; page: number; perPage: number },
-  ): Promise<CanchaOut[]> {
+  ): Promise<{ items: CanchaOut[]; total: number }> {
     // El contrato declara 404 tambien en el listado, no solo en el alta.
     await this.exigirSede(sedeId);
 
-    const filas = await this.canchas.listarPorSede(sedeId, filtros);
-    return filas.map((cancha) => this.aOut(cancha));
+    const { items, total } = await this.canchas.listarPorSede(sedeId, filtros);
+    return {
+      items: items.map((cancha) => this.aOut(cancha)),
+      total,
+    };
   }
 
   async obtener(id: number): Promise<CanchaOut> {

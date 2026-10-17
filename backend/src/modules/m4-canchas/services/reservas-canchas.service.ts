@@ -93,7 +93,7 @@ export class ReservasCanchasService {
     return this.aOut(resultado.reserva);
   }
 
-  async listar({ fecha, estado, ...resto }: FiltrosListarReservasCanchas): Promise<ReservaCanchaOut[]> {
+  async listar({ fecha, estado, ...resto }: FiltrosListarReservasCanchas): Promise<{ items: ReservaCanchaOut[]; total: number }> {
     // RF-12: las canceladas no aparecen salvo que se pidan explícitas. El default
     // es regla de negocio y vive acá, no en el repositorio. `fecha` se traduce a
     // [desde, hasta) en hora local de la sede y acota el inicio del turno.
@@ -104,14 +104,17 @@ export class ReservasCanchasService {
     const ahora = new Date();
     const { estado: estadoPersistido, finDesde, finHasta } = traducirFiltroDeEstado(estado, ahora);
     const rango = fecha !== undefined ? rangoDelDia(fecha) : {};
-    const filas = await this.reservas.listar({
+    const { items, total } = await this.reservas.listar({
       ...resto,
       estado: estadoPersistido,
       finDesde,
       finHasta,
       ...rango,
     });
-    return filas.map((reserva) => this.aOut(reserva));
+    return {
+      items: items.map((reserva) => this.aOut(reserva)),
+      total,
+    };
   }
 
   async obtener(id: number): Promise<ReservaCanchaOut> {

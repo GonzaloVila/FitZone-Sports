@@ -65,8 +65,9 @@ class ReservaEnMemoria extends ReservaRepository {
     );
   }
 
-  async listar(_filtros: FiltrosListarReservas): Promise<Reserva[]> {
-    return [...this.filas.values()];
+  async listar(_filtros: FiltrosListarReservas): Promise<{ items: Reserva[]; total: number }> {
+    const items = [...this.filas.values()];
+    return { items, total: items.length };
   }
 }
 

@@ -43,5 +43,5 @@ export abstract class ReservaRepository {
   // null: la reserva no existe o ya estaba cancelada (otra cancelacion gano).
   abstract cancelar(id: number): Promise<Reserva | null>;
   abstract listarOcupadasEnRango(canchaId: number, desde: Date, hasta: Date): Promise<Reserva[]>;
-  abstract listar(filtros: FiltrosListarReservas): Promise<Reserva[]>;
+  abstract listar(filtros: FiltrosListarReservas): Promise<{ items: Reserva[]; total: number }>;
 }

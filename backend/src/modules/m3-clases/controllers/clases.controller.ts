@@ -29,6 +29,9 @@ import { ListarClasesQueryDto } from '../dtos/listar-clases-query.dto';
 import { ListarEsperaDeClaseQueryDto } from '../dtos/listar-espera-de-clase-query.dto';
 import { ListarReservasDeClaseQueryDto } from '../dtos/listar-reservas-de-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
+import { ListaClasesDto } from '../dtos/lista-clases.dto';
+import { ListaReservasClaseDto } from '../dtos/lista-reservas-clase.dto';
+import { ListaEsperasDto } from '../dtos/lista-esperas.dto';
 import { ClasesService } from '../services/clases.service';
 import { EsperasClasesService } from '../services/esperas-clases.service';
 import { ReservasClasesService } from '../services/reservas-clases.service';
@@ -82,10 +85,10 @@ export class ClasesController {
   })
   @ApiOkResponse({
     description: 'Listado de clases con cupos en tiempo real',
-    type: [ClaseOut],
+    type: ListaClasesDto,
   })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  listar(@Query() query: ListarClasesQueryDto): Promise<ClaseOut[]> {
+  listar(@Query() query: ListarClasesQueryDto): Promise<ListaClasesDto> {
     return this.clasesService.listarClases(query);
   }
 
@@ -110,14 +113,14 @@ export class ClasesController {
   @ApiParam({ name: 'claseId', type: 'integer', description: 'ID de la clase', example: 1 })
   @ApiOkResponse({
     description: 'Listado de reservas de la clase',
-    type: [ReservaClaseOut],
+    type: ListaReservasClaseDto,
   })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Clase no encontrada', content: PROBLEM_JSON })
   listarReservasDeClase(
     @Param('claseId', ParseIntPipe) claseId: number,
     @Query() query: ListarReservasDeClaseQueryDto,
-  ): Promise<ReservaClaseOut[]> {
+  ): Promise<ListaReservasClaseDto> {
     return this.reservasService.listarReservasDeClase(claseId, query);
   }
 
@@ -129,14 +132,14 @@ export class ClasesController {
   @ApiParam({ name: 'claseId', type: 'integer', description: 'ID de la clase', example: 1 })
   @ApiOkResponse({
     description: 'Listado de solicitudes en lista de espera de la clase',
-    type: [EsperaOut],
+    type: ListaEsperasDto,
   })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Clase no encontrada', content: PROBLEM_JSON })
   listarEsperaDeClase(
     @Param('claseId', ParseIntPipe) claseId: number,
     @Query() query: ListarEsperaDeClaseQueryDto,
-  ): Promise<EsperaOut[]> {
+  ): Promise<ListaEsperasDto> {
     return this.esperasService.listarEsperaDeClase(claseId, query);
   }
 }

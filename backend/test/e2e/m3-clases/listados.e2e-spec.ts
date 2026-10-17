@@ -79,10 +79,12 @@ describe('M3 - Listados: desempate de paginación', () => {
       .get(`/api/v1/clases/${claseId}/espera?perPage=2&page=2`)
       .expect(200);
 
-    expect(pagina1.body).toHaveLength(2);
-    expect(pagina2.body).toHaveLength(2);
+    expect(pagina1.body.items).toHaveLength(2);
+    expect(pagina2.body.items).toHaveLength(2);
+    expect(pagina1.body.total).toBe(CANTIDAD);
+    expect(pagina2.body.total).toBe(CANTIDAD);
 
-    const ids = [...pagina1.body, ...pagina2.body].map((e: { id: number }) => e.id);
+    const ids = [...pagina1.body.items, ...pagina2.body.items].map((e: { id: number }) => e.id);
     expect(new Set(ids).size).toBe(CANTIDAD);
     expect(ids).toEqual([...ids].sort((a: number, b: number) => a - b));
   });

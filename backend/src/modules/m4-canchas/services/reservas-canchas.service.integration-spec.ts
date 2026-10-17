@@ -129,15 +129,15 @@ describe('M4 ReservasCanchasService (integration, BD real)', () => {
     });
 
     const porDefecto = await reservas.listar({ canchaId, page: 1, perPage: 100 });
-    const idsDefecto = porDefecto.map((r) => r.id);
+    const idsDefecto = porDefecto.items.map((r) => r.id);
     expect(idsDefecto).toContain(activa.id);
     expect(idsDefecto).not.toContain(pasada.id);
 
     const cumplidas = await reservas.listar({ canchaId, estado: 'CUMPLIDA', page: 1, perPage: 100 });
-    const idsCumplidas = cumplidas.map((r) => r.id);
+    const idsCumplidas = cumplidas.items.map((r) => r.id);
     expect(idsCumplidas).toContain(pasada.id);
     expect(idsCumplidas).not.toContain(activa.id);
-    expect(cumplidas.find((r) => r.id === pasada.id)?.estado).toBe('CUMPLIDA');
+    expect(cumplidas.items.find((r) => r.id === pasada.id)?.estado).toBe('CUMPLIDA');
   });
 
   it('cancelar: pasa a CANCELADA, libera el horario y no vuelve a aparecer por defecto', async () => {
@@ -150,7 +150,7 @@ describe('M4 ReservasCanchasService (integration, BD real)', () => {
     expect(fila?.estado).toBe('CANCELADA');
 
     const activas = await reservas.listar({ canchaId, page: 1, perPage: 100 });
-    expect(activas.map((r) => r.id)).not.toContain(reserva.id);
+    expect(activas.items.map((r) => r.id)).not.toContain(reserva.id);
 
     // El horario quedó libre: se puede reservar el mismo turno de nuevo.
     const reuso = await reservar(canchaId, usuarioExterno, NO_PICO_INICIO, NO_PICO_FIN);

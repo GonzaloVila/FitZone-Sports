@@ -35,22 +35,28 @@ export class ReservaClaseRepository {
   async listar(
     { claseId, socioId, estado }: FiltrosReservasClase,
     { page, perPage }: OpcionesPaginacion,
-  ): Promise<ReservaClase[]> {
+  ): Promise<{ items: ReservaClase[]; total: number }> {
     const where: Prisma.ReservaClaseWhereInput = {
       ...(claseId !== undefined && { clase_id: claseId }),
       ...(socioId !== undefined && { socio_id: socioId }),
       ...(estado !== undefined && { estado }),
     };
 
-    const filas = await this.prisma.reservaClase.findMany({
-      where,
-      include: { clase: { select: { horario_inicio: true, horario_fin: true } } },
-      skip: (page - 1) * perPage,
-      take: perPage,
-      orderBy: { id: 'asc' },
-    });
+    const [filas, total] = await Promise.all([
+      this.prisma.reservaClase.findMany({
+        where,
+        include: { clase: { select: { horario_inicio: true, horario_fin: true } } },
+        skip: (page - 1) * perPage,
+        take: perPage,
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.reservaClase.count({ where }),
+    ]);
 
-    return filas.map((fila) => this.aDominio(fila));
+    return {
+      items: filas.map((fila) => this.aDominio(fila)),
+      total,
+    };
   }
 
   async crearConLock(claseId: number, socioId: number): Promise<ResultadoCrearReserva> {

@@ -30,6 +30,7 @@ import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { ReservaClaseIn } from '../dtos/reserva-clase-in.dto';
 import { ListarReservasClaseQueryDto } from '../dtos/listar-reservas-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
+import { ListaReservasClaseDto } from '../dtos/lista-reservas-clase.dto';
 import { ReservasClasesService } from '../services/reservas-clases.service';
 
 @ApiTags('reservas-clases')
@@ -127,10 +128,10 @@ export class ReservasClasesController {
   })
   @ApiOkResponse({
     description: 'Listado de reservas de clases',
-    type: [ReservaClaseOut],
+    type: ListaReservasClaseDto,
   })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  listar(@Query() query: ListarReservasClaseQueryDto): Promise<ReservaClaseOut[]> {
+  listar(@Query() query: ListarReservasClaseQueryDto): Promise<ListaReservasClaseDto> {
     return this.reservasService.listarReservasClase(query);
   }
 }

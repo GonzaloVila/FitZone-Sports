@@ -55,11 +55,12 @@ describe('M4 CanchasService (integration, BD real)', () => {
     await crear({ tipo: 'PADDLE', costoPorHora: 5000, estado: 'EN_MANTENIMIENTO' });
 
     const todas = await canchas.listar(sedeId, { page: 1, perPage: 100 });
-    expect(todas.length).toBeGreaterThanOrEqual(2);
-    expect(todas.filter((c) => c.estado === 'EN_MANTENIMIENTO').length).toBeGreaterThan(0);
+    expect(todas.items.length).toBeGreaterThanOrEqual(2);
+    expect(todas.items.filter((c) => c.estado === 'EN_MANTENIMIENTO').length).toBeGreaterThan(0);
+    expect(todas.total).toBeGreaterThanOrEqual(2);
 
     const operativas = await canchas.listar(sedeId, { estado: 'OPERATIVA', page: 1, perPage: 100 });
-    expect(operativas.every((c) => c.estado === 'OPERATIVA')).toBe(true);
+    expect(operativas.items.every((c) => c.estado === 'OPERATIVA')).toBe(true);
   });
 
   it('404 si la sede no existe', async () => {

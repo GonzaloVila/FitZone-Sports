@@ -106,8 +106,8 @@ export class SociosService {
     return this.aOut(socio);
   }
 
-  async listar(dto: ListarSociosQueryDto): Promise<SocioOut[]> {
-    const socios = await this.socios.listar(
+  async listar(dto: ListarSociosQueryDto): Promise<{ items: SocioOut[]; total: number }> {
+    const { items, total } = await this.socios.listar(
       {
         sedeOrigenId: dto.sedeOrigenId,
         estadoMembresia: dto.estadoMembresia,
@@ -116,7 +116,10 @@ export class SociosService {
       },
       { page: dto.page ?? 1, perPage: dto.perPage ?? 20 },
     );
-    return socios.map((socio) => this.aOut(socio));
+    return {
+      items: items.map((socio) => this.aOut(socio)),
+      total,
+    };
   }
 
   async obtenerPorId(id: number): Promise<SocioOut> {

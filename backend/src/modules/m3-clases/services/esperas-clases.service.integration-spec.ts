@@ -84,7 +84,8 @@ describe('M3 EsperasClasesService (integration, BD real)', () => {
     expect(espera.estado).toBe('EN_ESPERA');
 
     const deClase = await esperas.listarEsperaDeClase(llena.id, { page: 1, perPage: 100 } as never);
-    expect(deClase.map((e) => e.id)).toContain(espera.id);
+    expect(deClase.items.map((e) => e.id)).toContain(espera.id);
+    expect(deClase.total).toBeGreaterThanOrEqual(1);
 
     await expect(esperas.anotarseEnEspera(llena.id, { socioId: socioB } as never)).rejects.toBeInstanceOf(
       ProblemException,

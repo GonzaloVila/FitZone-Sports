@@ -196,7 +196,8 @@ describe('PagoRepository', () => {
       // Tipar el arg con Prisma.PagoFindManyArgs hace que mock.calls[0]![0] sea el
       // tipo real y no `unknown`, asi el spec puede asertar sobre .where sin casts.
       const findMany = vi.fn(async (_args: Prisma.PagoFindManyArgs) => [fila()]);
-      const prisma = { pago: { findMany } };
+      const count = vi.fn(async (_args: Prisma.PagoCountArgs) => 1);
+      const prisma = { pago: { findMany, count } };
       return { prisma, repository: new PagoRepository(prisma as never) };
     }
 
@@ -283,9 +284,9 @@ describe('PagoRepository', () => {
     it('traduce cada fila a ConceptoPago, sin inventar el que falta', async () => {
       const { repository } = listado();
 
-      const pagos = await repository.listar({}, { page: 1, perPage: 20 });
+      const { items } = await repository.listar({}, { page: 1, perPage: 20 });
 
-      expect(pagos[0]?.concepto).toEqual({ tipo: 'RESERVA_CANCHA', reservaCanchaId: 7 });
+      expect(items[0]?.concepto).toEqual({ tipo: 'RESERVA_CANCHA', reservaCanchaId: 7 });
     });
   });
 

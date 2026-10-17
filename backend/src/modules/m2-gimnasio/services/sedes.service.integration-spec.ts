@@ -30,7 +30,8 @@ describe('M2 SedesService (integration, BD real)', () => {
     expect(creada).toMatchObject({ nombre: 'Sede int M2', aforoMaximo: 42 });
 
     const listado = await sedes.listar(1, 100);
-    expect(listado.map((s) => s.id)).toContain(creada.id);
+    expect(listado.items.map((s) => s.id)).toContain(creada.id);
+    expect(listado.total).toBeGreaterThanOrEqual(1);
   });
 
   it('existe() distingue una sede real de un id inexistente', async () => {

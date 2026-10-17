@@ -17,6 +17,7 @@ import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { ListarReservasCanchasQueryDto } from '../dtos/listar-reservas-canchas-query.dto';
 import { ReservaCanchaIn } from '../dtos/reserva-cancha-in.dto';
 import { ReservaCanchaOut } from '../dtos/reserva-cancha-out.dto';
+import { ListaReservasCanchaDto } from '../dtos/lista-reservas-cancha.dto';
 import { ReservasCanchasService } from '../services/reservas-canchas.service';
 
 @ApiTags('reservas-canchas')
@@ -29,9 +30,9 @@ export class ReservasCanchasController {
   // la ruta con parámetro.
   @Get()
   @ApiOperation({ operationId: 'listarReservasCancha', summary: 'Listado de reservas de cancha con filtros' })
-  @ApiOkResponse({ description: 'Listado de reservas de cancha', type: [ReservaCanchaOut] })
+  @ApiOkResponse({ description: 'Listado de reservas de cancha', type: ListaReservasCanchaDto })
   @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
-  listar(@Query() query: ListarReservasCanchasQueryDto): Promise<ReservaCanchaOut[]> {
+  listar(@Query() query: ListarReservasCanchasQueryDto): Promise<ListaReservasCanchaDto> {
     return this.reservasCanchasService.listar({
       canchaId: query.canchaId,
       usuarioId: query.usuarioId,

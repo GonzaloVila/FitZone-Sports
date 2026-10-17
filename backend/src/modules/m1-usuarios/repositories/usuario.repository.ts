@@ -22,21 +22,30 @@ export class UsuarioRepository {
   async listar(
     { rol, nombre, email }: FiltrosUsuarios,
     { page, perPage }: OpcionesPaginacion,
-  ): Promise<Usuario[]> {
-    const filas = await this.prisma.usuario.findMany({
-      where: {
-        ...(rol !== undefined && { rol }),
-        // `insensitive` porque el contrato pide coincidencia parcial y el
-        // usuario que busca "ana" espera encontrar "Ana".
-        ...(nombre !== undefined && { nombre: { contains: nombre, mode: 'insensitive' } }),
-        // El email es unico en el esquema, asi que va por igualdad.
-        ...(email !== undefined && { email }),
-      },
-      skip: (page - 1) * perPage,
-      take: perPage,
-      orderBy: { id: 'asc' },
-    });
-    return filas.map((fila) => this.aDominio(fila));
+  ): Promise<{ items: Usuario[]; total: number }> {
+    const where = {
+      ...(rol !== undefined && { rol }),
+      // `insensitive` porque el contrato pide coincidencia parcial y el
+      // usuario que busca "ana" espera encontrar "Ana".
+      ...(nombre !== undefined && { nombre: { contains: nombre, mode: 'insensitive' as const } }),
+      // El email es unico en el esquema, asi que va por igualdad.
+      ...(email !== undefined && { email }),
+    };
+
+    const [filas, total] = await Promise.all([
+      this.prisma.usuario.findMany({
+        where,
+        skip: (page - 1) * perPage,
+        take: perPage,
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.usuario.count({ where }),
+    ]);
+
+    return {
+      items: filas.map((fila) => this.aDominio(fila)),
+      total,
+    };
   }
 
   async crear(usuario: UsuarioNuevo): Promise<Usuario> {

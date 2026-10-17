@@ -75,7 +75,8 @@ describe('M3 ReservasClasesService (integration, BD real)', () => {
     expect(reserva.estado).toBe('CONFIRMADA');
 
     const deClase = await reservas.listarReservasDeClase(clase.id, { page: 1, perPage: 100 } as never);
-    expect(deClase.map((r) => r.id)).toContain(reserva.id);
+    expect(deClase.items.map((r) => r.id)).toContain(reserva.id);
+    expect(deClase.total).toBe(1);
 
     const releida = await clases.obtenerClase(clase.id);
     expect(releida.reservasConfirmadas).toBe(1);

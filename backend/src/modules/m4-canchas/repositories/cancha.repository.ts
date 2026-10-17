@@ -28,17 +28,24 @@ type CanchaRow = Prisma.CanchaGetPayload<Record<string, never>>;
 export class CanchaRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listarPorSede(sedeId: number, { estado, page, perPage }: OpcionesListadoCanchas): Promise<Cancha[]> {
-    const filas = await this.prisma.cancha.findMany({
-      where: {
-        sede_id: sedeId,
-        ...(estado && { estado }),
-      },
-      skip: (page - 1) * perPage,
-      take: perPage,
-      orderBy: { id: 'asc' },
-    });
-    return filas.map((fila) => this.aDominio(fila));
+  async listarPorSede(sedeId: number, { estado, page, perPage }: OpcionesListadoCanchas): Promise<{ items: Cancha[]; total: number }> {
+    const where = {
+      sede_id: sedeId,
+      ...(estado && { estado }),
+    };
+    const [filas, total] = await Promise.all([
+      this.prisma.cancha.findMany({
+        where,
+        skip: (page - 1) * perPage,
+        take: perPage,
+        orderBy: { id: 'asc' },
+      }),
+      this.prisma.cancha.count({ where }),
+    ]);
+    return {
+      items: filas.map((fila) => this.aDominio(fila)),
+      total,
+    };
   }
 
   async crear(cancha: CanchaNueva): Promise<Cancha> {

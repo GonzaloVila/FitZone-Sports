@@ -56,27 +56,30 @@ export class ClaseRepository {
   async listar(
     { sedeId, tipo }: ClaseFiltros,
     { page, perPage }: OpcionesPaginacion,
-  ): Promise<ClaseConCupo[]> {
+  ): Promise<{ items: ClaseConCupo[]; total: number }> {
     const where: Prisma.ClaseWhereInput = {
       ...(sedeId !== undefined && { sede_id: sedeId }),
       ...(tipo !== undefined && { tipo: { contains: tipo, mode: 'insensitive' } }),
     };
 
-    const filas = await this.prisma.clase.findMany({
-      where,
-      include: {
-        _count: {
-          select: {
-            reservas: { where: { estado: 'CONFIRMADA' } },
+    const [filas, total] = await Promise.all([
+      this.prisma.clase.findMany({
+        where,
+        include: {
+          _count: {
+            select: {
+              reservas: { where: { estado: 'CONFIRMADA' } },
+            },
           },
         },
-      },
-      orderBy: { horario_inicio: 'asc' },
-      skip: (page - 1) * perPage,
-      take: perPage,
-    });
+        orderBy: { horario_inicio: 'asc' },
+        skip: (page - 1) * perPage,
+        take: perPage,
+      }),
+      this.prisma.clase.count({ where }),
+    ]);
 
-    return filas.map((fila) => {
+    const items = filas.map((fila) => {
       const reservasConfirmadas = fila._count.reservas;
       return {
         ...this.aDominio(fila),
@@ -84,6 +87,8 @@ export class ClaseRepository {
         cupoDisponible: Math.max(0, fila.capacidad - reservasConfirmadas),
       };
     });
+
+    return { items, total };
   }
 
   private aDominio(fila: Prisma.ClaseGetPayload<Record<string, never>>): Clase {

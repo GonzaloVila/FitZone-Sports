@@ -159,11 +159,11 @@ export class PagosService {
    * al que se pidió: el último día entra completo y el día siguiente no. Por eso el
    * filtro no puede ser un `gte`/`lte` con las fechas tal cual.
    */
-  async listarPagos({ page, perPage, ...filtros }: ListarPagos): Promise<PagoOut[]> {
+  async listarPagos({ page, perPage, ...filtros }: ListarPagos): Promise<{ items: PagoOut[]; total: number }> {
     const desde = filtros.desde !== undefined ? rangoDelDia(filtros.desde).desde : undefined;
     const hasta = filtros.hasta !== undefined ? rangoDelDia(filtros.hasta).hasta : undefined;
 
-    const filas = await this.pagos.listar(
+    const { items, total } = await this.pagos.listar(
       {
         ...filtros,
         estado: filtros.estado ?? 'APROBADO',
@@ -173,7 +173,10 @@ export class PagosService {
       { page, perPage },
     );
 
-    return filas.map((pago) => aPagoOut(pago));
+    return {
+      items: items.map((pago) => aPagoOut(pago)),
+      total,
+    };
   }
 
   /**

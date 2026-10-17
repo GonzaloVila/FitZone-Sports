@@ -43,7 +43,7 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
     const conOcupada = await request(app.getHttpServer())
       .get(`/api/v1/canchas/${ctx.canchaId}/disponibilidad?fecha=${ctx.DIA}&perPage=100`)
       .expect(200);
-    expect(tramo(conOcupada.body)?.disponible).toBe(false);
+    expect(tramo(conOcupada.body.items)?.disponible).toBe(false);
 
     await request(app.getHttpServer())
       .post(`/api/v1/reservas-canchas/${creada.body.id}/cancelaciones`)
@@ -52,7 +52,7 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
     const conLibre = await request(app.getHttpServer())
       .get(`/api/v1/canchas/${ctx.canchaId}/disponibilidad?fecha=${ctx.DIA}&perPage=100`)
       .expect(200);
-    expect(tramo(conLibre.body)?.disponible).toBe(true);
+    expect(tramo(conLibre.body.items)?.disponible).toBe(true);
   });
 
   it('una cancha en mantenimiento devuelve todos los tramos ocupados sin tocar sus reservas (RF-12)', async () => {
@@ -81,7 +81,7 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
     const grilla = await request(app.getHttpServer())
       .get(`/api/v1/canchas/${conReserva.id}/disponibilidad?fecha=${ctx.DIA}&perPage=100`)
       .expect(200);
-    expect(grilla.body.every((e: { disponible: boolean }) => e.disponible === false)).toBe(true);
+    expect(grilla.body.items.every((e: { disponible: boolean }) => e.disponible === false)).toBe(true);
 
     // Ponerla en mantenimiento no borra lo ya reservado (RF-12).
     const sigue = await request(app.getHttpServer())

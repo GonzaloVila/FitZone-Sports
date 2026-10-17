@@ -46,7 +46,8 @@ describe('M3 - Clases: gestión de agenda (RF-06)', () => {
     const resListar = await request(app.getHttpServer())
       .get(`/api/v1/clases?sedeId=${ctx.sedeId}&tipo=Spinning`)
       .expect(200);
-    const claseEncontrada = resListar.body.find((c: { id: number }) => c.id === claseId);
+    const claseEncontrada = resListar.body.items.find((c: { id: number }) => c.id === claseId);
     expect(claseEncontrada?.instructor).toBe('Martín Palermo');
+    expect(resListar.body.total).toBeGreaterThanOrEqual(1);
   });
 });

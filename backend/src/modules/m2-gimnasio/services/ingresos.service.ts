@@ -102,15 +102,18 @@ export class IngresosService {
     filtros: IngresoFiltros,
     opciones: OpcionesPaginacion,
     scope: ScopeIngreso,
-  ): Promise<IngresoOut[]> {
+  ): Promise<{ items: IngresoOut[]; total: number }> {
     // RECEPCION solo ve su sede: se FUERZA el sedeId del JWT y se ignora el que
     // venga en el query (si viniera otro). GERENTE usa el filtro tal cual.
     const filtrosEfectivos =
       scope.rol === 'RECEPCION' && scope.sedeId !== undefined
         ? { ...filtros, sedeId: scope.sedeId }
         : filtros;
-    const filas = await this.ingresos.listar(filtrosEfectivos, opciones);
-    return filas.map((ingreso) => this.aOut(ingreso));
+    const { items, total } = await this.ingresos.listar(filtrosEfectivos, opciones);
+    return {
+      items: items.map((ingreso) => this.aOut(ingreso)),
+      total,
+    };
   }
 
   async obtenerIngreso(ingresoId: number): Promise<IngresoOut> {

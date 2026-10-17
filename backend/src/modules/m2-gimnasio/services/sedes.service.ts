@@ -17,9 +17,12 @@ export class SedesService {
     return sede !== null;
   }
 
-  async listar(page: number, perPage: number): Promise<SedeOut[]> {
-    const filas = await this.sedes.listar({ page, perPage });
-    return filas.map((sede) => this.aOut(sede));
+  async listar(page: number, perPage: number): Promise<{ items: SedeOut[]; total: number }> {
+    const { items, total } = await this.sedes.listar({ page, perPage });
+    return {
+      items: items.map((sede) => this.aOut(sede)),
+      total,
+    };
   }
 
   async crear(dto: SedeIn): Promise<SedeOut> {

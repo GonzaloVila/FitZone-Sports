@@ -34,6 +34,7 @@ import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { ListarPagosQueryDto } from '../dtos/listar-pagos-query.dto';
 import { PagoIn } from '../dtos/pago-in.dto';
 import { PagoOut } from '../dtos/pago-out.dto';
+import { ListaPagosDto } from '../dtos/lista-pagos.dto';
 import { PagosService } from '../services/pagos.service';
 
 @ApiTags('pagos')
@@ -128,9 +129,9 @@ export class PagosController {
       'PagoMembresia). `desde` y `hasta` son días (YYYY-MM-DD) en hora local y forman un ' +
       'intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo.',
   })
-  @ApiOkResponse({ description: 'Listado de pagos', type: [PagoOut] })
+  @ApiOkResponse({ description: 'Listado de pagos', type: ListaPagosDto })
   @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
-  listar(@Query() query: ListarPagosQueryDto): Promise<PagoOut[]> {
+  listar(@Query() query: ListarPagosQueryDto): Promise<ListaPagosDto> {
     return this.pagosService.listarPagos({
       usuarioId: query.usuarioId,
       estado: query.estado,

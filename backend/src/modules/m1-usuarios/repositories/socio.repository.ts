@@ -42,7 +42,7 @@ export class SocioRepository {
   async listar(
     { sedeOrigenId, estadoMembresia, plan, nombre }: FiltrosSocios,
     { page, perPage }: OpcionesPaginacion,
-  ): Promise<Socio[]> {
+  ): Promise<{ items: Socio[]; total: number }> {
     const where: Prisma.SocioWhereInput = {
       // Baja logica: el listado y las lecturas de vigencia solo ven socios activos.
       activo: true,
@@ -63,14 +63,21 @@ export class SocioRepository {
       };
     }
 
-    const filas = await this.prisma.socio.findMany({
-      where,
-      skip: (page - 1) * perPage,
-      take: perPage,
-      orderBy: { id: 'asc' },
-      include: USUARIO_SELECCION,
-    });
-    return filas.map((fila) => this.aDominio(fila));
+    const [filas, total] = await Promise.all([
+      this.prisma.socio.findMany({
+        where,
+        skip: (page - 1) * perPage,
+        take: perPage,
+        orderBy: { id: 'asc' },
+        include: USUARIO_SELECCION,
+      }),
+      this.prisma.socio.count({ where }),
+    ]);
+
+    return {
+      items: filas.map((fila) => this.aDominio(fila)),
+      total,
+    };
   }
 
   async crear(socio: SocioNuevo): Promise<Socio> {

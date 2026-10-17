@@ -139,7 +139,7 @@ export class PagoRepository {
   async listar(
     filtros: FiltrosListarPagos,
     { page, perPage }: OpcionesPaginacion,
-  ): Promise<Pago[]> {
+  ): Promise<{ items: Pago[]; total: number }> {
     const where: Prisma.PagoWhereInput = {
       ...(filtros.usuarioId !== undefined && { usuario_id: filtros.usuarioId }),
       ...(filtros.estado !== undefined && { estado: filtros.estado }),
@@ -187,15 +187,21 @@ export class PagoRepository {
               };
     }
 
-    const filas = await this.prisma.pago.findMany({
-      where,
-      skip: (page - 1) * perPage,
-      take: perPage,
-      orderBy: [{ fecha_pago: 'desc' }, { id: 'desc' }],
-      include: { pago_reserva: true, pago_membresia: true, pago_reserva_clase: true },
-    });
+    const [filas, total] = await Promise.all([
+      this.prisma.pago.findMany({
+        where,
+        skip: (page - 1) * perPage,
+        take: perPage,
+        orderBy: [{ fecha_pago: 'desc' }, { id: 'desc' }],
+        include: { pago_reserva: true, pago_membresia: true, pago_reserva_clase: true },
+      }),
+      this.prisma.pago.count({ where }),
+    ]);
 
-    return filas.map((fila) => this.aDominio(fila));
+    return {
+      items: filas.map((fila) => this.aDominio(fila)),
+      total,
+    };
   }
 
   /**

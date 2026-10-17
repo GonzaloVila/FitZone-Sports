@@ -53,15 +53,18 @@ export class ClasesService {
     });
   }
 
-  async listarClases(filtros: ListarClasesQueryDto): Promise<ClaseOut[]> {
-    const clases = await this.clasesRepo.listar(
+  async listarClases(filtros: ListarClasesQueryDto): Promise<{ items: ClaseOut[]; total: number }> {
+    const { items, total } = await this.clasesRepo.listar(
       {
         sedeId: filtros.sedeId,
         tipo: filtros.tipo,
       },
       { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
-    return plainToInstance(ClaseOut, clases);
+    return {
+      items: plainToInstance(ClaseOut, items),
+      total,
+    };
   }
 
   async obtenerClase(claseId: number): Promise<ClaseOut> {

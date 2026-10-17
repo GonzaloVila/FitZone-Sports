@@ -124,8 +124,9 @@ describe('M2 - Ingresos / Aforo: contrato HTTP y scope por sede', () => {
       .get(`/api/v1/ingresos?sedeId=${sedeB}`)
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].id).toBe(ingresoA);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].id).toBe(ingresoA);
+    expect(res.body.total).toBe(1);
 
     await request(app.getHttpServer())
       .post(`/api/v1/ingresos/${ingresoB}/egreso`)

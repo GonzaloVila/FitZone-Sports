@@ -23,6 +23,7 @@ import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
 import { IngresoIn } from '../dtos/ingreso-in.dto';
 import { IngresoOut } from '../dtos/ingreso-out.dto';
+import { ListaIngresosDto } from '../dtos/lista-ingresos.dto';
 import { ListarIngresosQueryDto } from '../dtos/listar-ingresos-query.dto';
 import { IngresosService } from '../services/ingresos.service';
 import type { ScopeIngreso } from '../services/ingresos.service';
@@ -44,14 +45,14 @@ export class IngresosController {
   @Roles('RECEPCION', 'GERENTE')
   @ApiBearerAuth()
   @ApiOperation({ operationId: 'listarIngresos', summary: 'Listado de ingresos a sede con filtros' })
-  @ApiOkResponse({ description: 'Listado de ingresos', type: [IngresoOut] })
+  @ApiOkResponse({ description: 'Listado de ingresos', type: ListaIngresosDto })
   @ApiUnauthorizedResponse({ description: 'Token inválido, expirado o ausente', content: PROBLEM_JSON })
   @ApiForbiddenResponse({ description: 'Rol sin permiso (solo RECEPCION/GERENTE)', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
   listar(
     @Query() query: ListarIngresosQueryDto,
     @Req() req: RequestConUsuario,
-  ): Promise<IngresoOut[]> {
+  ): Promise<ListaIngresosDto> {
     const { page, perPage: perPage, ...filtros } = query;
     return this.ingresosService.listar(
       filtros,

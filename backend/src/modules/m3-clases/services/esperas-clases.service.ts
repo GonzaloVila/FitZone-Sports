@@ -35,24 +35,27 @@ export class EsperasClasesService {
   async listarEsperaDeClase(
     claseId: number,
     filtros: ListarEsperaDeClaseQueryDto,
-  ): Promise<EsperaOut[]> {
+  ): Promise<{ items: EsperaOut[]; total: number }> {
     const clase = await this.clasesRepo.buscarPorId(claseId);
     if (!clase) {
       throw recursoNoEncontrado('No existe la clase indicada.');
     }
 
-    const esperas = await this.esperasRepo.listar(
+    const { items, total } = await this.esperasRepo.listar(
       { claseId: claseId, estado: filtros.estado },
       { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
 
-    return plainToInstance(EsperaOut, esperas);
+    return {
+      items: plainToInstance(EsperaOut, items),
+      total,
+    };
   }
 
   async listarEsperasClase(
     filtros: ListarEsperasClaseQueryDto,
-  ): Promise<EsperaOut[]> {
-    const esperas = await this.esperasRepo.listar(
+  ): Promise<{ items: EsperaOut[]; total: number }> {
+    const { items, total } = await this.esperasRepo.listar(
       {
         claseId: filtros.claseId,
         socioId: filtros.socioId,
@@ -61,7 +64,10 @@ export class EsperasClasesService {
       { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );
 
-    return plainToInstance(EsperaOut, esperas);
+    return {
+      items: plainToInstance(EsperaOut, items),
+      total,
+    };
   }
 
   async anotarseEnEspera(claseId: number, dto: EsperaIn): Promise<EsperaOut> {

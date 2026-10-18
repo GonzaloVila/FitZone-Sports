@@ -2075,6 +2075,95 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 
 ---
 
+## 2026-10-08 — Camel case en todo el código y penalidad por cancelación tardía de clase (RF-07) — Exequiel Ansaldi (P2 - Backend Developer)
+
+**Fecha:** 08/10/2026 · **Rama:** `m5-pagos`
+
+> Entrada reconstruida el 18/10/2026 a partir de los mensajes y del diff de los commits. No se volvió a correr ninguna verificación: los números son los que declaran los commits.
+
+### Actividades
+
+1. **Refactor global de `snake_case` a `camelCase`** ([commit de06788](https://github.com/GonzaloVila/FitZone-Sports/commit/de06788), 133 archivos)
+   - Identificadores de dominio, DTOs, queries, paths y claims del JWT pasan a camelCase.
+   - Los query params y path params de la API y del contrato también quedan en camelCase.
+   - La base de datos, Prisma y las migraciones se quedan en snake_case: los repositorios traducen fila (snake) a entidad (camel).
+   - Contrato OpenAPI actualizado a camelCase y exportado al vault; comparador con 0 diferencias.
+
+2. **RF-07: penalidad por cancelación tardía de una clase** ([commit 6418cf9](https://github.com/GonzaloVila/FitZone-Sports/commit/6418cf9))
+   - Cancelar una clase con menos de 2 horas de anticipación se permite y cobra el 50% del valor nominal (5000 ARS) como un Pago con concepto nuevo `RESERVA_CLASE` (subtipo `PagoReservaClase`, migración `20261008001219_pago_reserva_clase`).
+   - M3 emite el evento por el bus **antes** de cancelar, así que un 402 de la pasarela deja la reserva confirmada. M5 cobra desde un listener, con idempotencia `penalidad-clase-{id}`. `PagosModule` importa `ClasesModule` (arista M5 → M3).
+   - Contrato: la respuesta de `POST /pagos` pasa a `oneOf` de 3 ramas, `GET /pagos` suma el tipo `RESERVA_CLASE` y se quita el 409 de las cancelaciones.
+
+3. **Comprobantes de pago rediseñados**: fechas y horarios en formato `YYYY-MM-DD HH:MM` en hora local de la sede (ART), badge de estado centrado y barra de acento bajo "Detalle" que ya no tapa el texto.
+
+4. **Máquina de estados de la membresía** (patrón State, en el mismo commit 6418cf9): `m1-usuarios/entities/membresia-estado.ts` modela ACTIVA, VENCIDA y SUSPENDIDA con las transiciones `alVencer` (cron diario), `alSuspender` y `alReactivar` (PATCH del admin) y `alRenovar` (RF-02). `MembresiasService` consulta la vigencia y decide las transiciones por ahí. Tiene su spec (`membresia-estado.spec.ts`).
+
+5. **Specs movidos a `test/unit`**: 14 specs de `src/` pasan a `test/unit` (espejo del árbol) con el alias `src` en `vitest.unit.config.ts`.
+
+### Decisiones tomadas
+
+1. **camelCase solo en el código.** La base, Prisma y las migraciones siguen en snake_case para no migrar columnas; la traducción vive en los repositorios.
+2. **La penalidad se cobra antes de cancelar.** Si la pasarela rechaza (402), la reserva sigue confirmada: no hay nada que revertir.
+3. **Un solo cobro de penalidad por reserva:** `reserva_clase_id` es único en `PagoReservaClase`, igual que `PagoReserva` en canchas.
+4. **State convive con Strategy.** State decide qué se puede hacer con la membresía; Strategy (precios de M4) decide cómo se cobra. La persistencia (enum en la base) y el contrato (`MembresiaOut.estado`) no cambian: el adaptador de Prisma guarda el `.nombre` del estado resultante.
+5. **Vigencia real = fecha.** Entre la `fechaFin` y la corrida del cron el registro sigue ACTIVA; la única causa inmediata e irrevocable de no vigencia es SUSPENDIDA y el vencimiento se deriva de la fecha.
+6. **Mudanza de specs a `test/unit`.** Se revirtió el 15/10 con la co-locación de los tests junto al código (ver la entrada de esa fecha).
+
+### Verificación
+
+Según los mensajes de los commits:
+- camelCase: `tsc` 0 errores, unit 152, e2e 143.
+- RF-07 y comprobantes: migración aplicada en local y en Supabase, e2e 143/143 en local y en remoto.
+
+### Commits
+
+- [`de06788`](https://github.com/GonzaloVila/FitZone-Sports/commit/de06788) refactor(global): snake_case a camelCase en todo el código (excepto base de datos)
+- [`6418cf9`](https://github.com/GonzaloVila/FitZone-Sports/commit/6418cf9) feat(rf07/m5): penalidad por cancelación tardía de clase cobrada como Pago RESERVA_CLASE; comprobantes con hora local y rediseño; specs a test/unit
+
+---
+
+## 2026-10-09 — Suite de tests: flujos faltantes, concurrencia y cobertura — Exequiel Ansaldi (P2 - Backend Developer)
+
+**Fecha:** 09/10/2026 · **Rama:** `m5-pagos`
+
+> Entrada reconstruida el 18/10/2026 a partir de los mensajes y del diff de los commits. No se volvió a correr ninguna verificación: los números son los que declaran los commits.
+
+### Actividades
+
+1. **Suite e2e nueva de auth** (`auth.e2e-spec.ts`, [commit 2e49d7a](https://github.com/GonzaloVila/FitZone-Sports/commit/2e49d7a)): login (200 y 401), registro de QR, ingreso con TOTP válido e inválido, `GET /bloqueados` (200, 401 y 403) y `POST /sincronizacion/ingresos` (lote, bloqueado y duplicado).
+
+2. **Flujos faltantes por módulo** (mismo commit):
+   - M1: cambio de plan sobre una membresía no vigente (cobro por evento).
+   - M2: RF-03 acceso multisede y RF-04 socio sin QR (compatibilidad hacia atrás).
+   - M5: RF-02 renovación automática (el cron cobra y extiende; no renueva sin el flag ni si está suspendida).
+   - M4 y unit de precios: el recargo de hora pico se decide por el **inicio** de la reserva, no por el solape, y el socio con 15% de descuento sobre el precio estándar. Se ajusta `PeakHourPricing` en consecuencia.
+
+3. **Más cobertura** ([commit 76d7983](https://github.com/GonzaloVila/FitZone-Sports/commit/76d7983)):
+   - Auth: sincronización con egresos del mismo lote (`ingresoLocalId`) e ingreso ausente (`INGRESO_NO_ENCONTRADO`); `GET /bloqueados` incremental (`?actualizadoDesde=`) y con rol GERENTE.
+   - M3: se espía el observer de email (canal de notificación) al liberar un cupo (RF-08).
+   - M4: concurrencia real de RN-02, con dos reservas del mismo turno en paralelo (una responde 201 y la otra 409).
+
+4. **Herramientas de test** (commits 2e49d7a y [07fdb3d](https://github.com/GonzaloVila/FitZone-Sports/commit/07fdb3d)): reporters verbose en vitest (imprime cada test), cobertura v8 (`test:e2e:cov`) y `.gitignore` para `coverage-e2e/` y `.vitest/`.
+
+### Decisiones tomadas
+
+1. **El recargo pico seguía la regla "por inicio"** en esta fecha; se cambió el 12/10 (la reserva que cubre toda la franja también paga el recargo) y el 14/10 pasó a reglas del pipeline de precios (RF-11).
+2. **La concurrencia de RN-02 se prueba contra la base real**, no con mocks: el solape lo resuelve la constraint de la base.
+
+### Verificación
+
+Según los mensajes de los commits:
+- Primer commit: `tsc` 0 errores, unit 153, e2e 158.
+- Segundo commit: `tsc` 0 errores, unit 153, e2e 162.
+
+### Commits
+
+- [`07fdb3d`](https://github.com/GonzaloVila/FitZone-Sports/commit/07fdb3d) chore: ignora `.vitest/` (output temporal de vitest)
+- [`2e49d7a`](https://github.com/GonzaloVila/FitZone-Sports/commit/2e49d7a) test: cubre flujos faltantes (auth/TOTP/bloqueados/sync, RF-02, RF-03, RF-04, RF-11) + cobertura y verbose
+- [`76d7983`](https://github.com/GonzaloVila/FitZone-Sports/commit/76d7983) test: cubre egresos offline, concurrencia RN-02 y bloqueados incremental/GERENTE
+
+---
+
 ## 2026-10-12 — Unidad IV (CQRS): reporte de pagos por período en PDF — Gonzalo Vila + Santiago Rayn
 
 **Fecha:** 12/10/2026 — **Rama:** `m5-pagos`
@@ -2118,6 +2207,53 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 1. **e2e sin correr:** este equipo no tiene el Postgres local levantado (Docker Desktop apagado). Hay que correr `npm run test:e2e` (incluye `reportes.e2e-spec.ts`: 200 PDF para GERENTE, 403 SOCIO/RECEPCION, 401, 422), en local y contra Supabase.
 2. **Contrato OpenAPI sin exportar ni comparar:** `backend/contrato/` (gitignored) no existe en este checkout. Hay que exportar al vault la operación `GET /reportes/pagos` (tag `reportes`) y correr el comparador (esperado 0 diferencias).
 3. **Flujo real vía API** con una reserva cobrada (generar el PDF desde el endpoint y abrirlo) pendiente hasta tener la base disponible.
+
+---
+
+## 2026-10-12 — Rechazos de cobros internos, recargo pico, aviso de cupo liberado y contrato 402 — Exequiel Ansaldi (P2 - Backend Developer)
+
+**Fecha:** 12/10/2026 · **Rama:** `m5-pagos`
+
+> Entrada reconstruida el 18/10/2026 a partir de los mensajes y del diff de los commits. No se volvió a correr ninguna verificación.
+
+### Actividades
+
+1. **Los rechazos de los cobros internos ahora se propagan** ([commit d9b5f9c](https://github.com/GonzaloVila/FitZone-Sports/commit/d9b5f9c))
+   - Problema: los listeners internos usaban el valor por defecto `suppressErrors=true` de `@nestjs/event-emitter`, que se tragaba el 402 del cobro. El alta, el cambio de plan, la penalidad de clase y la renovación no revertían cuando la pasarela rechazaba.
+   - Arreglo: se pasa `suppressErrors: false` en esos listeners para que el rechazo propague y haga rollback.
+   - Mock de pasarela configurable: la variable `PASARELA_MOCK` fuerza el resultado de `cobrar()` por llamada (APROBADO, RECHAZADO o PENDIENTE) para ejercitar los caminos internos. Sin la variable, la lógica por token queda igual.
+   - Tests: e2e de alta y cambio de plan rechazados y PENDIENTE, penalidad rechazada, y unit del override.
+
+2. **El recargo de hora pico también aplica si la reserva cubre toda la franja** ([commit 19689a4](https://github.com/GonzaloVila/FitZone-Sports/commit/19689a4))
+   - Antes el plus solo se cobraba si la reserva empezaba dentro de [19:00, 21:00). Ahora también cuando cubre la franja entera (arranca a las 19:00 o antes y termina a las 21:00 o después), porque la abarca completa.
+   - Se agregan casos unit y un caso al e2e de RF-11.
+
+3. **Aviso de cupo liberado con la marca de FitZone** ([commit 75b4088](https://github.com/GonzaloVila/FitZone-Sports/commit/75b4088))
+   - El asunto y el cuerpo salen de una plantilla con texto y HTML (con texto de respaldo para clientes sin HTML).
+   - El horario se muestra legible en hora de la sede (es-AR, `ZONA_SEDE`) y el aviso lleva el nombre de la clase: se agrega `nombreClase` al evento `CupoLiberado` y el emisor lo completa con `clase.tipo`. Se quita el "first-come" del texto.
+   - `.env.example` documenta `MAIL_FROM` con nombre de marca y la App Password de Gmail.
+   - Tests: unit de la plantilla y una aserción e2e de que el evento lleva `nombreClase`.
+
+4. **El contrato declara el 402 de los cobros internos** ([commit 7a9f9b0](https://github.com/GonzaloVila/FitZone-Sports/commit/7a9f9b0))
+   - `POST /socios`, `PATCH /socios/{socioId}/membresias` y `POST /reservas-clases/{reservaClaseId}/cancelaciones` pueden responder 402 cuando la pasarela rechaza el cobro interno (RF-02 y RF-07). Se agrega `@ApiPaymentRequiredResponse` para que el contrato publicado (`/docs-json`) lo declare; antes prometía operaciones que nunca podían fallar así.
+   - Se actualiza la copia canónica local y se exporta al vault. Comparador: 51 operaciones, 0 diferencias.
+
+### Decisiones tomadas
+
+1. **El rechazo de la pasarela revierte la operación que disparó el cobro** (alta, cambio de plan, penalidad, renovación). Para eso el bus no puede tragarse el error en esos listeners.
+2. **La pasarela de mock se controla por variable de entorno**, no por código de test: así los e2e ejercitan RECHAZADO y PENDIENTE sin cambiar la lógica de producción.
+3. **El contrato debe declarar lo que el código puede responder**: el 402 de los tres endpoints pasa a estar documentado.
+
+### Verificación
+
+Los mensajes de los commits no informan totales de tests. Se agregaron e2e (alta y plan rechazados y PENDIENTE, penalidad rechazada, recargo pico, evento con `nombreClase`) y unit (override de la pasarela, plantilla del aviso, recargo pico). Comparador del contrato: 51 operaciones, 0 diferencias.
+
+### Commits
+
+- [`d9b5f9c`](https://github.com/GonzaloVila/FitZone-Sports/commit/d9b5f9c) fix(m5): propaga rechazos de cobros internos y agrega mock de pasarela configurable
+- [`19689a4`](https://github.com/GonzaloVila/FitZone-Sports/commit/19689a4) feat(m4): el recargo de hora pico aplica también cuando la reserva cubre toda la franja
+- [`75b4088`](https://github.com/GonzaloVila/FitZone-Sports/commit/75b4088) feat(m3): aviso de cupo liberado con branding HTML, nombre de clase y horario legible
+- [`7a9f9b0`](https://github.com/GonzaloVila/FitZone-Sports/commit/7a9f9b0) docs(contrato): declara 402 en los cobros internos (alta, cambio de plan y penalidad)
 
 ---
 

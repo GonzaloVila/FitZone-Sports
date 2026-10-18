@@ -2040,6 +2040,7 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
    - `usuarios.module.ts`: `{ provide: MembresiaRepository, useClass: PrismaMembresiaRepository }`. `MembresiasService`, `MembresiaPrecioService` y `MembresiasCron` inyectan el puerto. La firma pública de los services no cambió; `estaVigente` y `EstadoMembresia` tampoco.
 5. **Mapper aplicado a los repositorios de M1, M2 y M3 — Santino y Exequiel**
    - Las capturas manuales de P2002 y P2025 pasaron a `mapearErrorPrisma`: M1 (`socio.repository`, `usuario.repository`: `NO_ENCONTRADO` → `null`), M2 (`ingreso.repository`: `UNIQUE` → `ACCESO_DUPLICADO`, `NO_ENCONTRADO` → `null`) y M3 (`espera-clase.repository`: `UNIQUE` → `ESPERA_EXISTENTE` / `RESERVA_DUPLICADA`, `NO_ENCONTRADO` → `null`; `reserva-clase.repository`: `UNIQUE` → `RESERVA_DUPLICADA`, `NO_ENCONTRADO` → `null`). 9 puntos en 5 archivos; la equivalencia es exacta (mismos códigos, mismos resultados), sin cambios de comportamiento.
+
 ### Decisiones tomadas
  
 1. **El puerto con `abstract class` es una reversión acotada, solo para Reserva y Membresía.** Cierra, para esos dos repositorios, la decisión de la entrada «Migración de M1-M5 a arquitectura en capas» («no hay interfaz por repositorio ni token de inyección»). Se reintroduce porque la cátedra pidió un repositorio de dominio tipo Fowler (el equivalente al puerto JPA de Spring) para esas dos entidades. El resto de los repositorios sigue como clase concreta `@Injectable()`. Una `abstract class` sirve de contrato y de token de inyección a la vez, sin tokens string.
@@ -2049,6 +2050,7 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 5. **Los 422 de «al menos un campo para modificar»** (usuarios, socios, membresías, canchas) se construyen con `datosInvalidos()` desde el `errors/` de cada módulo: la respuesta es idéntica a la del `ProblemException` inline que había.
 6. **`MembresiaParaCobro`** ya existía con la misma forma en `membresia-precio.service.ts` (nadie más lo importaba). Se movió al puerto y el service dejó de mapear: devuelve lo que entrega el repositorio. La mecánica del mapeo (Decimal → number, `usuario_id` del socio) pasó a testearse en el adaptador (`membresia.repository.spec.ts`).
 7. **Fuera de alcance, sin tocar:** `prisma/schema.prisma` y migraciones, Strategy (`PricingStrategyFactory`), Observer (`CupoLiberadoSubject`), el event bus, la máquina de estados de la membresía y los repositorios de M4 (cancha) y M5.
+
 ### Verificación
  
 - `npx tsc --noEmit`, `npm run build` y `npx prisma validate`: en verde. Se corrieron tras cada paso.
@@ -2301,6 +2303,13 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 
 ---
 
+## 2026-10-16 — Migración clase_horario_rango aplicada en Supabase
+- Aplicada `20261015120000_clase_horario_rango` con `prisma migrate deploy` en la base compartida.
+- Backfill verificado: las 4 filas de Clase quedaron con horario_fin = horario_inicio + 1 h.
+- `migrate status`: base al día. Pendientes 1–2 de la entrada del 07/10 cerradas (e2e corrido, comparador sin diferencias).
+
+---
+
 ## 2026-10-17 - Contrato OpenAPI: envoltorio { items, total } en listados y limpieza de contrato
 
 **Fecha:** 17/10/2026 · **Rama:** `main`
@@ -2339,4 +2348,3 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 ### Commits
 
 - `feat(api): envoltorio { items, total } en listados y alineacion de contrato OpenAPI`
-

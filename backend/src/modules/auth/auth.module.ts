@@ -5,6 +5,7 @@ import { CommonsModule } from '../../commons/commons.module';
 import { UsuariosModule } from '../m1-usuarios/usuarios.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { RefreshTokenRepository } from './repositories/refresh-token.repository';
 import { TotpService } from './services/totp.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
@@ -31,7 +32,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, TotpService, JwtStrategy],
+  providers: [AuthService, RefreshTokenRepository, TotpService, JwtStrategy],
   exports: [TotpService],
 })
 export class AuthModule {}

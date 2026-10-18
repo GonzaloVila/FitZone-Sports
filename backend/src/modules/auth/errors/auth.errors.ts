@@ -27,3 +27,23 @@ export function claveTotpNoConfigurada(): ProblemException {
     detail: 'Falta configurar TOTP_ENCRYPTION_KEY.',
   });
 }
+
+// Un unico 401 para cualquier falla del refresh token (inexistente, vencido,
+// revocado o reusado): la respuesta no tiene que decirle al cliente cual fue.
+export function sesionInvalida(): ProblemException {
+  return new ProblemException({
+    type: GENERIC_TYPE,
+    title: TITLES[HttpStatus.UNAUTHORIZED],
+    status: HttpStatus.UNAUTHORIZED,
+    detail: 'La sesión no es válida o expiró. Iniciá sesión de nuevo.',
+  });
+}
+
+export function origenNoPermitido(): ProblemException {
+  return new ProblemException({
+    type: 'https://fitzone.app/errores/origen-no-permitido',
+    title: 'Origen no permitido',
+    status: HttpStatus.FORBIDDEN,
+    detail: 'El header Origin falta o no está entre los orígenes permitidos para renovar o cerrar la sesión por cookie.',
+  });
+}

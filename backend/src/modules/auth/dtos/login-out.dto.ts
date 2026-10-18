@@ -13,7 +13,7 @@ export class LoginOut {
   tokenType!: string;
 
   @Expose()
-  @ApiProperty({ example: 3600, description: 'Segundos hasta el vencimiento del token.' })
+  @ApiProperty({ example: 900, description: 'Segundos hasta el vencimiento del token.' })
   expiresIn!: number;
 
   @Expose()
@@ -33,4 +33,13 @@ export class LoginOut {
     description: 'ID de socio. Solo presente para rol SOCIO (se usa en POST /ingresos).',
   })
   socioId?: number;
+
+  @Expose()
+  @ApiPropertyOptional({
+    example: 'k3J9x0Qm1c8eT5vWbN2yHq7LpR4sUaZdFgXo6iJwEtM',
+    description:
+      'Refresh token. Solo se incluye para clientes moviles (header X-Cliente: movil); ' +
+      'los clientes web lo reciben en la cookie HttpOnly refresh_token y no en el body.',
+  })
+  refreshToken?: string;
 }

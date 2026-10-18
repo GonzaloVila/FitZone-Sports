@@ -44,7 +44,7 @@
 //
 // Lo que este diseño resigna, y es una decisión consciente: como M5 importa M1, M3
 // y M4, ningún módulo de negocio puede importar `PagosModule` sin cerrar un ciclo.
-// Por eso todo el cobro interno entra por el event bus (Mediator): M1 emite
+// Por eso todo el cobro interno entra por el event bus: M1 emite
 // `socio.dadoDeAlta` / `membresia.planCambiado` y M3 emite
 // `reservaClase.canceladaTardia`, y los listeners de M5 escuchan. La RF-02 y la
 // RF-07 se cierran igual; lo que no se hace todavía es que el alta de un socio o

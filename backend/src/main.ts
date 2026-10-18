@@ -41,6 +41,7 @@ async function bootstrap() {
     .addTag('canchas')
     .addTag('reservas-canchas')
     .addTag('pagos')
+    .addTag('reportes')
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   markRequestSchemasClosed(swaggerDocument);

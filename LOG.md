@@ -2463,7 +2463,7 @@ Mensajes sugeridos (sin hash):
 
 ### Pendientes que siguen abiertos
 
-1. **Aplicar la migración en Supabase** con `prisma migrate deploy` (`20261018120000_refresh_token`). Avisar a Exequiel y al grupo para que corran `npx prisma generate`.
+1. **Aplicar la migración en Supabase** con `prisma migrate deploy` (`20261018120000_refresh_token`).
 2. **Limpieza de tokens vencidos o revocados:** no hay cron; la tabla `RefreshToken` solo crece (la cascada la vacía únicamente al borrar el usuario).
 3. **Confirmar las vidas de los tokens** (15 min y 7 días) con el equipo.
 4. **Front:** serializar la renovación (sin período de gracia) y guardar el access token solo en memoria.
@@ -2472,3 +2472,77 @@ Mensajes sugeridos (sin hash):
 7. **`docker-compose.test.yml` y `.env.test.example`** no coinciden en el puerto (5432 vs 55432).
 8. **Comparador de contrato sin restaurar** (el de `backend/contrato/`): sigue la comparación de schemas, parámetros, respuestas y `required` sin correr.
 9. **Orden de tags distinto** entre el código y el YAML (el conjunto coincide).
+
+---
+
+## 2026-10-18 - Correcciones menores de código, casos de uso de M3 y verificaciones de cierre
+
+**Fecha:** 18/10/2026 · **Rama:** `main`
+
+### Actividades
+
+1. **Comentario "Plan M2, D5".** En `m2-gimnasio/repositories/ingreso.repository.ts` los dos comentarios que decían "ADR-08 D5" (lock pesimista de la fila Sede) pasan a "Plan M2, D5": es la decisión 5 del Plan de M2 y no tiene que chocar con el ADR-08 de Capas. Un grep de "ADR-08 D5" en el repo (sin `node_modules` ni `dist`) no encontró otras apariciones; sí hay una "ADR-08 D3" en `prisma/schema.prisma` (comentario de `Ingreso.validado_offline`), que no se tocó.
+
+2. **Errores de Prisma por el mapper.** `CanchaRepository.actualizar` y `PagoRepository.anular` capturaban el `P2025` a mano (`instanceof PrismaClientKnownRequestError` y `error.code`); ahora preguntan `mapearErrorPrisma(error) === 'NO_ENCONTRADO'`, como el resto de los repositorios. Siguen devolviendo `null` y el service sigue traduciendo a 404: la respuesta HTTP no cambia. `anular` ya tenía su test; `CanchaRepository.actualizar` no tenía cobertura del camino de "no existe", así que se agregó `cancha.repository.spec.ts` (3 tests: P2025 → `null`, otro código de Prisma y error ajeno se relanzan).
+
+3. **`turnoOcupadoBody` fuera de M4.** El cuerpo del 409 `turno-ocupado` se movió de `m4-canchas/errors/reserva.errors.ts` a `commons/errors/turno-ocupado.ts`. El `ProblemFilter` ahora lo importa de ahí y `reserva.errors.ts` lo importa de commons para armar `turnoOcupado()`. Mismo `type`, `title`, `detail` y `status`.
+
+4. **El bus de eventos como Observer.** `README.md` (sección de eventos) ya no presenta el bus como Mediator: es el Observer del proyecto (RF-08) y el cobro interno (RF-02/RF-07) lo aprovecha para que M1 y M3 no importen a M5. `m5-pagos/pagos.module.ts`: "por el event bus (Mediator)" pasa a "por el event bus".
+
+5. **Casos de uso de M3** (`docs/UserCaseDiagrams/Modulo3_Clases_CasosDeUso.md`). UC-03: la vigencia la consulta `MembresiasService` (M1, ADR-09) y las validaciones previas corren en cadena (ADR-10); la precondición usa `ahora >= horarioInicio - 48h`; la reserva anticipada responde 409 (no 422) y se agrega el flujo 3e (`clase-pasada`). UC-04: el paso 2 describe "la clase no comenzó" y la penalidad del 50% como `Pago` con concepto `RESERVA_CLASE`; el paso 4 habla del evento `EVENTO_CUPO_LIBERADO` con `emitAsync`; el flujo 2a "Fuera de término" se reemplaza por 2a (cancelación tardía con penalidad, 402 si la pasarela rechaza) y 2b (clase ya comenzada, `reserva-clase-pasada`); la fila de trazabilidad y la etiqueta del diagrama se ajustan. UC-07: el disparador usa `EVENTO_CUPO_LIBERADO`. El actor "Mediador de Pagos (M5)" pasa a "Pagos (M5)" (nodo `PagosM5`).
+
+### Decisiones tomadas
+
+1. **`pago.repository.ts` `crear` (P2002) no pasó por el mapper.** Para elegir el motivo (`IDEMPOTENCIA_REPETIDA` o `RESERVA_YA_COBRADA`) hace falta `meta.target` del error, y `mapearErrorPrisma` solo devuelve la causa (`UNIQUE`). Cambiarlo sin tocar la respuesta exigiría ampliar el mapper (por ejemplo una función que devuelva el objetivo de la constraint) y eso es una decisión de diseño; se dejó como estaba y queda en Pendientes.
+2. **`commons` todavía importa tipos de módulos.** El pedido era sacar `turnoOcupadoBody`, y eso está hecho (el filtro ya no importa de M4). Pero `commons/guards/roles.guard.ts` y `roles.decorator.ts` importan `RolUsuario` (M1) y `UsuarioAutenticado` (auth) como `import type`, y `commons/fechas.spec.ts` importa `TIMEZONE_SEDE` de M4. Moverlos implica tocar auth o M1; no se hizo.
+3. **Casos de uso: lo que el código decía distinto del texto pedido.** (a) B5 y B7: el documento ya no decía `CupoLiberadoSubject` (el paso 4 de UC-04 decía "publica el evento de dominio `reservaClase.cupoLiberado` en el bus" y el paso 1 de UC-07 "El bus despacha el evento ... a los oyentes `@OnEvent`"), así que el paso 1 de UC-07 se dejó como estaba, porque ya es correcto, y solo se cambió el disparador. (b) 2a: la cancelación con la pasarela rechazando el cobro no "se revierte": la penalidad se cobra antes y, si falla, la reserva nunca deja de estar `CONFIRMADA`; el texto dice "no se aplica". (c) 2b: el código rechaza con `reserva-clase-pasada` desde `ahora >= horarioInicio` (`puedeCancelar` del estado CONFIRMADA), no desde que la reserva figura como `CUMPLIDA` (`ahora >= horarioFin`); el texto dice las dos cosas por separado. (d) B8: además de las tres apariciones listadas había una cuarta, en la 3a de UC-03 ("vía el Mediador M5"); pasó a "vía Pagos (M5)" para que el archivo no tenga ninguna mención. (e) En la 3a de UC-03 el `type` del socio en mora sigue siendo `socio-en-mora` (verificado). Verificados contra el código: slugs `reserva-anticipada-no-permitida`, `clase-pasada` y `reserva-clase-pasada` (los tres 409), concepto `RESERVA_CLASE`, penalidad 50% (`PORCENTAJE_PENALIDAD_CANCELACION_TARDIA = 0.5`), 402 del cobro rechazado, `EVENTO_CUPO_LIBERADO`, orden de la cadena (ClaseExiste, SocioAlDia, ReservaAnticipada, ClaseNoComenzada).
+4. **ADR-05 y ADR-09 para el Observer.** El texto de UC-04 cita ADR-05 (como se pidió); en el código ADR-05 aparece en el aviso por email de cupo liberado (RF-08) y el README atribuye el desacople por bus a ADR-09. No se resolvió cuál corresponde.
+5. **Sin cambios de contrato.** `docs/openapi.yaml` y `prisma/schema.prisma` no se tocaron en este paso.
+
+### Verificación
+
+Contra `fitzone_test` (`localhost:5432`), con `DATABASE_URL` leída de `backend/.env.test` y el destino comprobado antes de correr (host, puerto y nombre de base, sin credenciales):
+
+- `npx tsc --noEmit`: limpio. `npm run build`: OK (exit 0). `npx prisma validate`: schema válido.
+- `npm run test:unit`: **285/285** (40 archivos; antes 282/39: +3 tests en `cancha.repository.spec.ts`).
+- `npm run test:integration`: **53/53** (10 archivos, sin cambios).
+- `npm run test:e2e`: **75/75** (20 archivos, sin cambios).
+- `npx --yes @redocly/cli lint docs/openapi.yaml`: válido, **0 errores, 1 warning** (`no-server-example.com`, preexistente).
+- Chequeo descartable contra `/docs-json` (`node dist/main` en el puerto 3055 contra `fitzone_test`, apagado al terminar; mismo script del paso anterior, fuera del repo): **53 operaciones en el código y 53 en el YAML, 14 tags declarados en cada uno, 0 diferencias** (método, path, `operationId`, tags por operación, tags declarados y `security` por operación). No compara schemas, parámetros ni respuestas.
+- El diagrama Mermaid de M3 no se renderizó (no hay un validador en el entorno): el cambio es solo el renombre del nodo (`MediadorPagos` → `PagosM5`) en sus tres apariciones y las etiquetas de texto.
+- **No se corrió nada contra Supabase.**
+
+### Commits
+
+Mensajes sugeridos (sin hash):
+
+- `docs(m2): referencia "Plan M2, D5" en los comentarios del lock de ingresos`
+- `refactor(m4,m5): P2025 de cancha y de anulación de pago por el mapper de errores de Prisma`
+- `test(m4): cobertura del P2025 de CanchaRepository.actualizar`
+- `refactor(commons): mueve turnoOcupadoBody de m4-canchas a commons/errors`
+- `docs: el bus de eventos es el Observer, no un Mediator (README y pagos.module)`
+- `docs(m3): alinea los casos de uso de M3 con el código (cancelación con penalidad, cadena de validaciones y bus de eventos)`
+- `docs(log): registra correcciones de código, casos de uso de M3 y verificaciones (18/10)`
+
+### Pendientes que siguen abiertos
+
+De este paso:
+
+1. **`PagoRepository.crear` (P2002)** sigue traduciendo a mano porque necesita `meta.target`: decidir si el mapper expone el objetivo de la constraint.
+2. **`commons` importa tipos de módulos:** `RolUsuario` (M1) y `UsuarioAutenticado` (auth) en los guards, y `TIMEZONE_SEDE` (M4) en `fechas.spec.ts`.
+3. **Menciones que quedan de Mediator/Mediador** (sin cambiar): `docs/Reparto_Modulo1_FitZone.md` línea 70 ("vía Mediador M5"), `m5-pagos/pagos.module.ts` línea 16 ("puerto del Mediador"), `m5-pagos/entities/solicitud-cobro.entity.ts` línea 3 y `m5-pagos/entities/pago.entity.ts` línea 6 (rutas históricas `commons/mediador/`).
+4. **"ADR-08 D3"** en `prisma/schema.prisma` (comentario de `Ingreso.validado_offline`): mismo patrón que el D5 corregido, probablemente también sea una decisión del Plan de M2.
+5. **`cancelacionFueraDeTermino()`** (`m3-clases/errors/reservas-clases.errors.ts`) ya no la usa nadie ni figura en el contrato: la cancelación tardía ahora cobra penalidad. Código muerto a borrar.
+6. **ADR del Observer:** definir si el texto de UC-04 cita ADR-05 o ADR-09.
+7. **Diagrama Mermaid de M3** sin renderizar.
+
+Arrastrados de entradas anteriores:
+
+8. **Tabla `RefreshToken` sin limpieza** de vencidos o revocados (no hay cron).
+9. **Vidas de los tokens** (15 min y 7 días) sin confirmar con el equipo.
+10. **CORS y cookie para el deploy:** definir `CORS_ORIGINS` y revisar `REFRESH_COOKIE_SAMESITE`/`REFRESH_COOKIE_SECURE` según el dominio.
+11. **Front:** serializar la renovación (sin período de gracia) y guardar el access token solo en memoria.
+12. **Smoke de la sesión contra Supabase:** sin hacer.
+13. **Orden de tags distinto** entre el código y el YAML (el conjunto coincide).
+14. **Comparador de schemas, parámetros, respuestas y `required` sin restaurar** (el de `backend/contrato/`).
+15. **`docker-compose.test.yml` y `.env.test.example`** no coinciden en el puerto (5432 vs 55432).

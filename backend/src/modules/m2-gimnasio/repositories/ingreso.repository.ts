@@ -24,7 +24,7 @@ export interface IngresoFiltros {
 // por fuera y reabra la ventana de carrera.
 //
 // - AFORO_LLENO: se decide acá adentro con el lock pesimista sobre Sede + count
-//   + insert en una sola transacción (ADR-08 D5).
+//   + insert en una sola transacción (Plan M2, D5).
 // - ACCESO_DUPLICADO: llega desde la base. El índice parcial único
 //   ingreso_socio_abierto_unq (ver migración 20261004040000) rechaza el
 //   segundo INSERT abierto del mismo socio, así que el P2002 que Prisma
@@ -57,7 +57,7 @@ export class IngresoRepository {
   async crear(ingreso: IngresoNuevo): Promise<ResultadoCrearIngreso> {
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // Lock pesimista de la fila Sede (ADR-08 D5): serializa los ingresos
+        // Lock pesimista de la fila Sede (Plan M2, D5): serializa los ingresos
         // concurrentes de la misma sede sin agregar una columna contador ni un
         // retry-loop optimista. El aforo sigue siendo un COUNT derivado.
         const filasSede = await tx.$queryRaw<{ aforo_maximo: number }[]>`

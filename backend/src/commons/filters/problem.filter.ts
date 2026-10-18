@@ -8,8 +8,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Request, Response } from 'express';
-import { turnoOcupadoBody } from '../../modules/m4-canchas/errors/reserva.errors';
 import { mapearErrorPrisma } from '../errors/prisma.mapper';
+import { turnoOcupadoBody } from '../errors/turno-ocupado';
 import {
   GENERIC_TYPE,
   ProblemException,

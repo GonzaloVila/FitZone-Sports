@@ -1,23 +1,9 @@
 import { HttpStatus } from '@nestjs/common';
-import { ProblemDetails, ProblemException } from '../../../commons/filters/problem.exception';
+import { turnoOcupadoBody } from '../../../commons/errors/turno-ocupado';
+import { ProblemException } from '../../../commons/filters/problem.exception';
 
-/**
- * RN-02: el turno ya estaba tomado. El `type` y el `detail` son los que declara
- * el contrato en el ejemplo `turno-ocupado` de `ConflictoReservaCancha`. Vive
- * como funcion y no inline en el service para que la otra causa de 409 del
- * mismo endpoint (`cancha-en-mantenimiento`) no acabe reusando este texto, que
- * seria falso para ella: en mantenimiento no hubo concurrencia.
- */
-export function turnoOcupadoBody(instance: string): ProblemDetails {
-  return {
-    type: 'https://fitzone.app/errores/turno-ocupado',
-    title: 'El turno seleccionado ya fue reservado',
-    status: HttpStatus.CONFLICT,
-    detail: 'Otro usuario reservó el turno para esa fecha y hora antes que vos.',
-    instance,
-  };
-}
-
+// RN-02: el turno ya estaba tomado. El cuerpo (type, title, detail) vive en
+// commons/errors/turno-ocupado porque el ProblemFilter global tambien lo usa.
 export function turnoOcupado(): ProblemException {
   // `instance` lo completa el ProblemFilter si falta.
   return new ProblemException({ ...turnoOcupadoBody(''), instance: undefined });

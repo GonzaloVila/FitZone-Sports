@@ -13,6 +13,18 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
+  const configService = app.get(ConfigService);
+
+  // Con credentials: true el navegador rechaza origin '*', por eso es una lista
+  // explicita (CORS_ORIGINS). Los headers propios del contrato van declarados.
+  app.enableCors({
+    origin: configService.get<string[]>('CORS_ORIGINS'),
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Cliente', 'Idempotency-Key'],
+    exposedHeaders: ['Location'],
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -48,7 +60,6 @@ async function bootstrap() {
   marcarSchemasDePagos(swaggerDocument);
   SwaggerModule.setup('docs', app, swaggerDocument);
 
-  const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
   console.log(`FitZone API escuchando en http://localhost:${port}`);

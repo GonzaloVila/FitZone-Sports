@@ -80,18 +80,19 @@ model Sede {
 }
 
 model Usuario {
-  id          Int           @id @default(autoincrement())
-  rol         Rol
-  dni         String        @unique
-  nombre      String
-  email       String        @unique
-  contrasenia String // hash (bcrypt/argon2); nunca en texto plano
-  telefono    String?
-  foto_url    String?
-  socio       Socio?
-  empleado    EmpleadoSede?
-  reservas    Reserva[]
-  pagos       Pago[]
+  id             Int            @id @default(autoincrement())
+  rol            Rol
+  dni            String         @unique
+  nombre         String
+  email          String         @unique
+  contrasenia    String // hash (bcrypt/argon2); nunca en texto plano
+  telefono       String?
+  foto_url       String?
+  socio          Socio?
+  empleado       EmpleadoSede?
+  reservas       Reserva[]
+  pagos          Pago[]
+  refresh_tokens RefreshToken[]
 }
 
 // Staff de sucursal (rol RECEPCION, A3): subtable 1:1 con Usuario y con Sede.
@@ -314,4 +315,26 @@ model Ingreso {
   validado_offline   Boolean   @default(false)
   sede               Sede      @relation(fields: [sede_id], references: [id])
   socio              Socio     @relation(fields: [socio_id], references: [id])
+}
+
+// Refresh token de la sesion (auth). Se guarda SOLO el SHA-256 (hex) del token
+// opaco, nunca el token: el token ya es aleatorio de alta entropia, asi que no
+// hace falta un hash lento. `familia` es una sesion de un dispositivo y se
+// mantiene a traves de las rotaciones; `usado_en` marca cuando se roto (un token
+// usado que vuelve a presentarse es un reuso) y `revocado_en` cuando se cerro la
+// sesion o se revocaron todas las del usuario. El unique de `token_hash` ya crea
+// el indice de busqueda.
+model RefreshToken {
+  id          Int       @id @default(autoincrement())
+  usuario_id  Int
+  token_hash  String    @unique
+  familia     String    @db.Uuid
+  expira_en   DateTime  @db.Timestamptz(3)
+  usado_en    DateTime? @db.Timestamptz(3)
+  revocado_en DateTime? @db.Timestamptz(3)
+  creado_en   DateTime  @default(now()) @db.Timestamptz(3)
+  usuario     Usuario   @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([usuario_id])
+  @@index([familia])
 }

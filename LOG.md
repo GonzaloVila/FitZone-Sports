@@ -2397,3 +2397,78 @@ Mensajes sugeridos (sin hash):
 2. **Comparador de contrato sin restaurar:** el de `backend/contrato/` sigue sin estar en el checkout. Lo verificado en esta entrada es solo el lint mas el chequeo de operaciones, tags y security; la comparacion de schemas, parametros, respuestas y `required` contra `/docs-json` queda sin correr.
 3. **Warnings preexistentes del lint (5):** los `example` de `listarUsuarios` y `listarSocios` (siguen siendo array) y el de `IngresoOut` (faltan `nombre` y `dni`) no se corrigieron: quedaban fuera del alcance de este paso.
 4. **Orden de tags distinto** entre el codigo y el YAML (el conjunto coincide). Alinearlo si importa el orden en Swagger UI.
+
+---
+
+## 2026-10-18 - Sesión con refresh token y logout (decisión A del equipo)
+
+**Fecha:** 18/10/2026 · **Rama:** `main`
+
+### Actividades
+
+1. **Modelo y migración.** Modelo `RefreshToken` en `prisma/schema.prisma` (id, `usuario_id` con `onDelete: Cascade`, `token_hash` único, `familia` uuid, `expira_en`, `usado_en` y `revocado_en` nullables, `creado_en`), con índices en `usuario_id` y `familia` (el unique de `token_hash` ya crea el índice de búsqueda) y la relación inversa en `Usuario`. Migración `20261018120000_refresh_token` generada **sin conectarse a ninguna base** con `prisma migrate diff --from-schema-datamodel <schema de HEAD> --to-schema-datamodel <schema nuevo> --script`. El SQL solo hace `CREATE TABLE "RefreshToken"`, sus 3 índices y la FK: no toca nada existente.
+
+2. **Variables de entorno** (`config/env.config.ts` y `.env.example`): `JWT_EXPIRES_IN` pasa de 3600 a **900**; `REFRESH_EXPIRES_IN` (604800), `CORS_ORIGINS` (lista separada por coma, `http://localhost:5173`), `REFRESH_COOKIE_SAMESITE` (`strict|lax|none`, `lax`) y `REFRESH_COOKIE_SECURE` (booleano; sin valor es `true` solo con `NODE_ENV=production`). Con `SAMESITE=none` y Secure en false, el arranque falla con `REFRESH_COOKIE_SAMESITE='none' exige REFRESH_COOKIE_SECURE=true`. Nada dependía del 3600 salvo el `example` de `LoginOut` (ajustado a 900).
+
+3. **`AuthService`.** El payload y la firma del access token salieron de `login()` a un método privado que usan `login` y `refrescar`, así emiten el mismo payload y el mismo `LoginOut`. Refresh token opaco (`randomBytes(32)` en base64url); en la base solo su SHA-256 en hex. Cada login abre una familia nueva. `refrescar(token)`: inexistente, vencido o revocado → 401; ya usado, o `marcarUsado` (UPDATE condicionado a `usado_en IS NULL`) que afecta cero filas → reuso: revoca **todas** las sesiones del usuario y 401; válido → marca usado, relee el usuario (rol y sede actualizados; si no existe, 401) y emite refresh nuevo en la misma familia más access nuevo. `cerrarSesion(token)` revoca la familia y siempre termina bien. Todos los errores de refresh son el mismo 401 (`sesionInvalida()`).
+
+4. **Repositorio.** `RefreshTokenRepository`, clase concreta `@Injectable()` en `auth/repositories`, registrada en `AuthModule`. Sin puerto ni clase abstracta.
+
+5. **Controller, cookie, CORS y CSRF.** `POST /auth/refresh` (`refrescarToken`) y `POST /auth/logout` (`cerrarSesion`, 204), públicos. El token llega por body (`RefreshIn`) o por la cookie `refresh_token` (si vienen los dos, manda el body) y la respuesta de refresh vuelve por el mismo canal. En login, con `X-Cliente: movil` el refresh va en `LoginOut.refreshToken` y no hay cookie; sin ese header, solo cookie. Cookie: HttpOnly, `Path=/api/v1/auth`, `Max-Age=REFRESH_EXPIRES_IN`, SameSite y Secure por variables. Con el token por cookie, refresh y logout exigen `Origin` dentro de `CORS_ORIGINS`; si no, 403 `https://fitzone.app/errores/origen-no-permitido`. `main.ts`: `enableCors` con lista explícita de orígenes, `credentials: true`, headers `Content-Type`, `Authorization`, `X-Cliente`, `Idempotency-Key` y `Location` expuesto. Helper `commons/cookies.ts` para leer la cookie de `req.headers.cookie` (sin `cookie-parser`, sin dependencias nuevas).
+
+6. **Contrato `docs/openapi.yaml`.** Paths `/auth/refresh` y `/auth/logout` (antes de `/auth/registro-qr`; logout sin `security`), schema `RefreshIn`, `LoginOut.refreshToken`, header `X-Cliente` en login, `Set-Cookie` en los 200 de login y refresh y en el 204 de logout, 403 en refresh y logout. De paso, corregidos los 3 warnings de ejemplos del lint anterior: los `example` de 200 de `listarUsuarios` y `listarSocios` ahora son `{ items, total }` e `IngresoOut` incluye `nombre` y `dni`.
+
+7. **Tests.** Unit: `AuthService` con repositorio en memoria, controller (borrado de cookie), helper de cookie y Origin, `leerCookie`, validación de entorno y `UsuariosService.buscarParaAutenticarPorId`. E2E nuevo `test/e2e/auth/sesion.e2e-spec.ts` (16 tests); `auth.e2e-spec.ts` no se tocó.
+
+### Decisiones tomadas
+
+1. **Cookie con `Path=/api/v1/auth`**, no `/auth`: el prefijo global `api/v1` hace que `/auth` no coincida con ninguna ruta real y el navegador nunca mandaría la cookie. Así solo viaja a las rutas de auth.
+2. **Logout sin bearer.** Se autentica por el refresh token, igual que refresh. Un access token vencido no debe impedir cerrar la sesión. Es idempotente (204 con token desconocido, ya revocado o ausente).
+3. **Canal por header `X-Cliente: movil`**, no por User-Agent: es explícito y no se puede inferir mal. Sin el header el refresh token nunca sale en el body.
+4. **Vidas de 15 min (access) y 7 días (refresh) como valores por defecto, sin confirmar** con el equipo ni con la cátedra.
+5. **SHA-256 y no bcrypt para el hash.** El refresh token ya es aleatorio de 256 bits (alta entropía): no hay diccionario que frenar, y el lookup indexado por hash es directo.
+6. **Sin período de gracia en la rotación.** Dos refresh simultáneos con el mismo token cuentan como reuso (el test e2e de concurrencia lo fija: uno da 200, el otro 401, y queda todo revocado). **El front tiene que serializar la renovación** (una sola en vuelo, con las demás esperando su resultado).
+7. **Excepción autorizada a "no tocar otros módulos": `UsuariosService.buscarParaAutenticarPorId(id)` en M1.** Refresh tiene que releer el usuario por id con rol y `sedeId`, y M1 solo exponía `buscarParaAutenticar(email)`; `obtenerPorId` devuelve `UsuarioOut` sin `sedeId`. La alternativa era que auth consultara `usuario`/`empleadoSede` por Prisma, contra ADR-07. El método comparte con `buscarParaAutenticar` el helper privado que resuelve `sedeId` (solo para RECEPCION), así que la forma de retorno es la misma; lleva su unit test. Es el único cambio fuera de auth y de los archivos de infraestructura (`env.config.ts`, `.env.example`, `main.ts`, `commons/cookies.ts`).
+8. **La cookie se borra solo ante el 401 de sesión inválida.** En refresh por cookie, ante cualquier otro error (p. ej. un 5xx por la base) la cookie queda como está y el error se relanza: el token puede seguir siendo válido y borrarlo cerraría la sesión por una falla transitoria. En logout por cookie se borra siempre. El borrado usa `res.cookie` con `maxAge: 0` y no `clearCookie`, porque `clearCookie` de Express 5 descarta `maxAge` y no emite `Max-Age=0`.
+9. **Sin token en body ni en cookie no se exige Origin:** refresh responde 401 y logout 204. Sin cookie no hay nada que proteger de CSRF, y exigir Origin ahí dejaba a logout sin ser idempotente.
+10. **Reuso revoca todas las familias del usuario**, no solo la del token reusado: no se puede saber cuál de las dos copias es la legítima.
+11. **Nombres del modelo:** `RefreshToken` con campos en snake_case (`token_hash`, `expira_en`, `usado_en`, `revocado_en`, `creado_en`), sin `@@map`, como el resto; se mantiene el término técnico en inglés porque así lo usan el contrato, la cookie y el DTO.
+12. **El contrato no declara 422** para refresh y logout (se pidieron 200/204/401/403), igual que login, aunque un body inválido responde 422 por el `ValidationPipe`.
+13. **Base de tests.** No hay Docker en esta máquina; se usó la base local vacía `fitzone_test` de `localhost:5432` que apunta `backend/.env.test`. Como estaba vacía, `prisma migrate deploy` aplicó las 19 migraciones (incluida la nueva) ahí. **Supabase no se tocó.** Observación: `docker-compose.test.yml` (en la raíz del repo) publica el puerto 5432 y `.env.test.example` apunta al 55432; no coinciden.
+14. **`backend/README.md` no tiene sección de variables de entorno**, así que no se tocó; las variables nuevas quedaron documentadas en `.env.example`.
+
+### Verificación
+
+- `npx tsc --noEmit`: limpio. `npm run build`: OK. `npx prisma validate`: schema válido.
+- `npm run test:unit`: **282/282** (39 archivos; antes 244).
+- `npm run test:integration`: **53/53** (10 archivos; sin cambios), contra `fitzone_test` local.
+- `npm run test:e2e`: **75/75** (20 archivos; antes 59, +16 de `sesion.e2e-spec.ts`), contra `fitzone_test` local.
+- `npx --yes @redocly/cli lint docs/openapi.yaml`: válido, **0 errores, 1 warning** (`no-server-example.com`, servidor `localhost`, preexistente). Los tres warnings de ejemplos desaparecieron.
+- Chequeo descartable contra `/docs-json` (servidor `node dist/main` en el puerto 3055 contra `fitzone_test` local, apagado al terminar): **53 operaciones en el código y 53 en el YAML, 14 tags declarados en cada uno, 0 diferencias** en (método, path, `operationId`), tags por operación, tags declarados (por conjunto) y `security` por operación. Mismas limitaciones que el del 17/10: no compara schemas, parámetros, respuestas ni `required`. El script no quedó en el repo.
+- Smoke manual con `curl` contra ese servidor: login web (cookie `refresh_token` con `Path=/api/v1/auth`, HttpOnly, `Max-Age=604800`, `SameSite=Lax`); refresh por cookie sin Origin → 403; con Origin → 200 y cookie rotada; reuso de la cookie vieja → 401 con la cookie borrada (`Max-Age=0`); la cookie nueva tras el reuso → 401; logout → 204 con la cookie borrada; refresh tras el logout → 401; preflight CORS con el origen permitido devuelve los headers esperados y con un origen ajeno no devuelve `Access-Control-Allow-Origin`. El usuario del smoke se borró de la base local.
+- **No se corrió nada contra Supabase** (ni migración, ni tests, ni smoke).
+
+### Commits
+
+Mensajes sugeridos (sin hash):
+
+- `feat(auth): modelo y migración de refresh tokens`
+- `feat(config): variables de sesión con refresh token y validación de SameSite none`
+- `feat(m1): buscarParaAutenticarPorId en UsuariosService`
+- `feat(auth): refresh con rotación, logout y cookie HttpOnly`
+- `feat(api): CORS con credenciales y orígenes configurables`
+- `test(auth): unit y e2e de la sesión con refresh token`
+- `docs(api): refresh y logout en openapi.yaml y corrección de ejemplos`
+- `docs(log): registra la sesión con refresh token y logout (18/10)`
+
+### Pendientes que siguen abiertos
+
+1. **Aplicar la migración en Supabase** con `prisma migrate deploy` (`20261018120000_refresh_token`). Avisar a Exequiel y al grupo para que corran `npx prisma generate`.
+2. **Limpieza de tokens vencidos o revocados:** no hay cron; la tabla `RefreshToken` solo crece (la cascada la vacía únicamente al borrar el usuario).
+3. **Confirmar las vidas de los tokens** (15 min y 7 días) con el equipo.
+4. **Front:** serializar la renovación (sin período de gracia) y guardar el access token solo en memoria.
+5. **Cookie en producción:** definir `CORS_ORIGINS` y revisar `REFRESH_COOKIE_SAMESITE`/`REFRESH_COOKIE_SECURE` según el dominio del deploy (si el front y la API quedan en sitios distintos hace falta `none` + Secure).
+6. **Smoke contra Supabase:** no se hizo; se hará cuando se aplique la migración.
+7. **`docker-compose.test.yml` y `.env.test.example`** no coinciden en el puerto (5432 vs 55432).
+8. **Comparador de contrato sin restaurar** (el de `backend/contrato/`): sigue la comparación de schemas, parámetros, respuestas y `required` sin correr.
+9. **Orden de tags distinto** entre el código y el YAML (el conjunto coincide).

@@ -7,7 +7,7 @@ info:
     (ReservaCancha y ReservaClase): los turnos de cancha en /reservas-canchas (RF-10/RF-12/RN-02) y el cupo de clase en /reservas-clases (RF-06, con cancelación por RF-07). Convenciones: prefijo
     /api/v1, nivel 2 de Richardson, errores como application/problem+json (RFC 9457), Location en 201 e Idempotency-Key en pagos. Sin DELETE de usuarios/sedes/canchas/clases (el caso no lo pide): la
     "baja" de una reserva es su cancelación (sub-recurso) y dejar de ser socio es DELETE /socios (vuelve a EXTERNO). Pago no tiene PATCH/DELETE: un cobro mal hecho se ANULA y se repaga con nueva
-    Idempotency-Key (nunca se edita el comprobante). La autenticación (JWT) se incorpora en la Unidad III: /auth/login es público, y los endpoints protegidos se marcan con security: [{ bearer: [] }].
+    Idempotency-Key (nunca se edita el comprobante). La autenticación (JWT) se incorpora en la Unidad III: /auth/login, /auth/refresh y /auth/logout son públicos (los dos últimos se autentican por el refresh token), y los endpoints protegidos se marcan con security: [{ bearer: [] }].
     El QR dinámico (RF-04) usa TOTP (RFC 6238): el puesto lee el código de 6 dígitos de la app del socio (IngresoIn.codigo_totp) y lo valida contra el secreto cifrado; /bloqueados y
     /sincronizacion/ingresos dan soporte al puesto de control offline (RNF-01). Los cambios de estado no van por PATCH: el path nombra la transición permitida, así las ilegales son inalcanzables. Las
     transiciones de estado usan sustantivo plural — /cancelaciones, /anulaciones, /confirmaciones. El egreso es la única excepción, en verbo (/ingresos/{ingresoId}/egreso), porque es la segunda fase
@@ -58,7 +58,19 @@ paths:
       summary: Login con email y contraseña
       description: >
         Autentica un usuario y devuelve un JWT. Público (no requiere token). El payload del token lleva `sub`, `rol` y, solo para RECEPCION, `sede_id` (la sucursal de trabajo sale de EmpleadoSede).
-        Credenciales inválidas responden 401.
+        Credenciales inválidas responden 401. Además del access token (corto, el front lo guarda en memoria) abre una sesión con un refresh token rotativo: los clientes web lo reciben en la cookie
+        HttpOnly `refresh_token` (Path=/api/v1/auth) y no en el body; los clientes móviles, que mandan el header `X-Cliente: movil`, lo reciben en `LoginOut.refreshToken` y no se les setea cookie.
+        Cada login abre una sesión (familia de refresh tokens) nueva.
+      parameters:
+        - name: X-Cliente
+          in: header
+          required: false
+          description: >
+            Con el valor `movil` el refresh token viaja en el body (campo `refreshToken`) y no se setea cookie. Sin este header el refresh token va solo en la cookie HttpOnly `refresh_token`.
+          schema:
+            type: string
+            enum:
+              - movil
       requestBody:
         required: true
         content:
@@ -68,12 +80,91 @@ paths:
       responses:
         '200':
           description: Login exitoso
+          headers:
+            Set-Cookie:
+              description: >
+                Cookie `refresh_token` (HttpOnly, Path=/api/v1/auth, SameSite y Secure según la configuración). No se envía si el request trae `X-Cliente: movil`.
+              schema:
+                type: string
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginOut'
         '401':
           $ref: '#/components/responses/NoAutorizado'
+  /auth/refresh:
+    post:
+      tags:
+        - auth
+      operationId: refrescarToken
+      summary: Renueva el access token y rota el refresh token
+      description: >
+        Público: se autentica por el refresh token, que llega por body (`RefreshIn`, clientes móviles) o por la cookie `refresh_token`; si vienen los dos, manda el body. La respuesta vuelve por el
+        mismo canal: body → `LoginOut.refreshToken`; cookie → nueva cookie `refresh_token` y body sin refresh token. Cuando el token llega por cookie se exige el header `Origin` y que esté entre los
+        orígenes permitidos (defensa CSRF, además de SameSite); si falta o no está permitido responde 403. Cada refresh token sirve una sola vez: se rota, y presentar uno ya usado (robado o de un
+        cliente duplicado) revoca todas las sesiones del usuario. No hay período de gracia: dos refresh simultáneos con el mismo token cuentan como reuso, así que el cliente tiene que serializar la
+        renovación. Inexistente, vencido, revocado o reusado responden el mismo 401; un refresh fallido por cookie borra la cookie. El access token nuevo sale con el rol y la sede actuales del usuario.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshIn'
+      responses:
+        '200':
+          description: Sesión renovada
+          headers:
+            Set-Cookie:
+              description: >
+                Cookie `refresh_token` rotada (HttpOnly, Path=/api/v1/auth, SameSite y Secure según la configuración). Solo cuando el refresh token llegó por cookie.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginOut'
+        '401':
+          description: Refresh token ausente, inexistente, vencido, revocado o reusado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: El token llegó por cookie y el header Origin falta o no está permitido
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /auth/logout:
+    post:
+      tags:
+        - auth
+      operationId: cerrarSesion
+      summary: Cierra la sesión del dispositivo (revoca la familia del refresh token)
+      description: >
+        Público y sin bearer: se autentica por el refresh token (body `RefreshIn` o cookie `refresh_token`, igual que `/auth/refresh`; si vienen los dos, manda el body). Revoca todos los refresh
+        tokens de la familia del presentado, es decir la sesión de ese dispositivo; las de otros dispositivos siguen vivas. Idempotente: un token desconocido, ya revocado o ausente también responde
+        204. Cuando el token llega por cookie se exige el header `Origin` permitido (403 si falta o no lo está) y la respuesta borra la cookie (Max-Age=0).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshIn'
+      responses:
+        '204':
+          description: Sesión cerrada
+          headers:
+            Set-Cookie:
+              description: Cookie `refresh_token` vacía con Max-Age=0 (solo cuando el refresh token llegó por cookie).
+              schema:
+                type: string
+        '403':
+          description: El token llegó por cookie y el header Origin falta o no está permitido
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
   /auth/registro-qr:
     post:
       tags:
@@ -180,13 +271,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaUsuarios'
               example:
-                - id: 1
-                  rol: EXTERNO
-                  dni: '35123456'
-                  nombre: Ana Gómez
-                  email: ana.gomez@fitzone.com.ar
-                  telefono: +54 351 555-1234
-                  fotoUrl: https://cdn.fitzone.com.ar/fotos/ana.jpg
+                items:
+                  - id: 1
+                    rol: EXTERNO
+                    dni: '35123456'
+                    nombre: Ana Gómez
+                    email: ana.gomez@fitzone.com.ar
+                    telefono: +54 351 555-1234
+                    fotoUrl: https://cdn.fitzone.com.ar/fotos/ana.jpg
+                total: 1
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -338,12 +431,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaSocios'
               example:
-                - id: 2
-                  usuarioId: 1
-                  sedeOrigenId: 3
-                  fechaAlta: '2026-09-15T00:00:00-03:00'
-                  nombre: Ana Gómez
-                  email: ana.gomez@fitzone.com.ar
+                items:
+                  - id: 2
+                    usuarioId: 1
+                    sedeOrigenId: 3
+                    fechaAlta: '2026-09-15T00:00:00-03:00'
+                    nombre: Ana Gómez
+                    email: ana.gomez@fitzone.com.ar
+                total: 1
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -1968,7 +2063,7 @@ components:
         expiresIn:
           type: number
           description: Segundos hasta el vencimiento del token.
-          example: 3600
+          example: 900
         rol:
           type: string
           example: RECEPCION
@@ -1980,6 +2075,21 @@ components:
           type: number
           description: ID del socio. Solo presente para rol SOCIO (se usa en POST /ingresos).
           example: 12
+        refreshToken:
+          type: string
+          description: >
+            Refresh token. Solo se incluye para clientes móviles (header `X-Cliente: movil`); los clientes web lo reciben en la cookie HttpOnly `refresh_token` y no en el body.
+          example: k3J9x0Qm1c8eT5vWbN2yHq7LpR4sUaZdFgXo6iJwEtM
+    RefreshIn:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          minLength: 1
+          description: >
+            Refresh token. Lo manda el cliente móvil, que lo recibió en el body del login. Si se omite, se lee de la cookie `refresh_token`; si vienen los dos, manda el body.
+          example: k3J9x0Qm1c8eT5vWbN2yHq7LpR4sUaZdFgXo6iJwEtM
+      additionalProperties: false
     RegistroQrOut:
       type: object
       required:
@@ -2710,6 +2820,8 @@ components:
         id: 9
         sedeId: 3
         socioId: 2
+        nombre: Juan Pérez
+        dni: '30123456'
         fechaHoraIngreso: '2026-09-16T18:02:11-03:00'
         fechaHoraEgreso: null
         validadoOffline: false

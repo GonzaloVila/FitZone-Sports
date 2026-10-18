@@ -2348,3 +2348,54 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
 ### Commits
 
 - `feat(api): envoltorio { items, total } en listados y alineacion de contrato OpenAPI`
+
+---
+
+## 2026-10-17 - Contrato OpenAPI: cierre de docs/openapi.yaml contra el codigo
+
+**Fecha:** 17/10/2026 · **Rama:** `main`
+
+### Actividades
+
+1. **`$ref` rotos en los esquemas de listado (`docs/openapi.yaml`).**
+   - Eran **24** con una barra invertida delante (`$ref: \'#/components/schemas/...'`), no solo los de los listados: 13 en las respuestas 200 de las operaciones de listado (`ListaUsuarios`, `ListaSocios`, `ListaSedes`, `ListaIngresos`, `ListaCanchas`, `ListaDisponibilidad`, `ListaClases`, `ListaReservasClase` x2, `ListaReservasCancha`, `ListaEsperas` x2, `ListaPagos`) y 11 en los `items` de cada `ListaXxx` dentro de `components.schemas` (`UsuarioOut`, `SocioOut`, `SedeOut`, `IngresoOut`, `CanchaOut`, `DisponibilidadEntrada`, `ClaseOut`, `ReservaClaseOut`, `ReservaCanchaOut`, `EsperaOut`, `PagoOut`). Corregidos los 24; quedan 0.
+   - Con js-yaml se recorrieron todos los `$ref` del archivo: **279, 0 sin resolver**.
+
+2. **Esquema de seguridad.** `components.securitySchemes.bearer` (`http` / `bearer` / `JWT`), antes de `parameters`. Es lo que genera `.addBearerAuth()` con el nombre por defecto. Las 6 operaciones con `security: - bearer: []` ya tienen contra que resolver.
+
+3. **Tags.** En el YAML se agregan `ingresos` y `esperas-clases` despues de `bloqueados`. En `backend/src/main.ts` se agrega `.addTag('reportes')` (despues de `pagos`), que el YAML ya declaraba.
+
+4. **Rol en `listarSedes`.** «(Gerente Central, A3)» pasa a «(Gerente Central, A4)»; A3 es Recepcionista / Admin. de Sede (`empleado-sede.repository.ts` lo dice: «RECEPCION, A3»). Era la unica aparicion en el YAML.
+
+### Decisiones tomadas
+
+1. **El comparador de `backend/contrato/` no esta en este checkout** (esta en `.gitignore` y no existe en el disco; ver entradas del 07/10 y 12/10). No se restauro desde el historial (5091bb9 / f3e3ee7). Se lo reemplazo por (a) lint del YAML con `@redocly/cli` via `npx` y validacion de `$ref`, y (b) un script descartable que baja `/docs-json` y lo compara contra `docs/openapi.yaml`. **Ese script no quedo en el repo** (vive en el directorio temporal de la sesion).
+2. **El chequeo (b) cubre menos que el comparador historico:** conjunto de (metodo, path sin el prefijo `/api/v1`, `operationId`), tags por operacion, lista de tags declarados y `security` por operacion. **No compara schemas, parametros, respuestas ni `required`.** Un «0 diferencias» de esta entrada no equivale al «0 diferencias» de las entradas anteriores.
+3. **El orden de la lista de tags no se alinea:** el codigo declara `auth, usuarios, socios, membresias, bloqueados, sedes, ingresos, clases, reservas-clases, esperas-clases, canchas, reservas-canchas, pagos, reportes` y el YAML otro orden. El conjunto coincide; el orden solo cambia la presentacion en Swagger UI y no se toco.
+4. **`/auth/refresh` y `/auth/logout` no se agregan al YAML** hasta que se implementen.
+5. **Fuera de alcance, sin tocar:** `prisma/schema.prisma`, migraciones, logica de negocio y `package.json` (el lint se corrio con `npx --yes`, sin instalar nada). Sin cambios de comportamiento: lo unico fuera del YAML es una linea de `main.ts`.
+
+### Verificacion
+
+- `npx tsc --noEmit`: limpio. `npm run build`: OK. `npm run test:unit`: **244/244** (33 archivos).
+- `npx --yes @redocly/cli lint docs/openapi.yaml`: **valido (OpenAPI 3.0.3), 0 errores, 5 warnings, todos preexistentes**: `no-server-example.com` (servidor `localhost`, linea 21); `no-invalid-media-type-examples` en `listarUsuarios` y `listarSocios` (el `example` de la respuesta 200 sigue siendo un array y el schema ahora es `{ items, total }`); y `no-invalid-schema-examples` x2 en `IngresoOut` (el `example` no trae `nombre` ni `dni`, que son `required`).
+- Servidor levantado con `node dist/main` (puerto del `.env`, base de Supabase) y `GET /docs-json`: **51 operaciones en el codigo y 51 en el YAML, 14 tags declarados en cada uno, 0 diferencias** en (metodo, path, `operationId`), tags por operacion, tags declarados (por conjunto) y `security` por operacion. Contra el YAML de `HEAD` el mismo script marca 2 diferencias (`ingresos` y `esperas-clases`), asi que el chequeo detecta lo que se corrigio. El servidor se apago al terminar (antes de la medianoche, para que no corrieran los crons de renovacion y de membresias sobre la base compartida).
+- **No se corrieron** `npm run test:integration` ni `npm run test:e2e`: no hay cambios de comportamiento en este paso.
+- **Comparador historico de `backend/contrato/`: no se corrio**, ver pendientes.
+
+### Commits
+
+Mensajes sugeridos (sin hash):
+
+- `docs(api): corrige los $ref rotos de los listados y agrega securitySchemes y tags faltantes en openapi.yaml`
+- `fix(api): declara el tag reportes en el DocumentBuilder`
+- `docs(log): registra el cierre del contrato OpenAPI contra el codigo (17/10)`
+
+### Pendientes que siguen abiertos
+
+1. **`/auth/refresh` y `/auth/logout`:** se agregan al YAML junto con la implementacion de la sesion (paso siguiente), no antes.
+2. **Comparador de contrato sin restaurar:** el de `backend/contrato/` sigue sin estar en el checkout. Lo verificado en esta entrada es solo el lint mas el chequeo de operaciones, tags y security; la comparacion de schemas, parametros, respuestas y `required` contra `/docs-json` queda sin correr.
+3. **Warnings preexistentes del lint (5):** los `example` de `listarUsuarios` y `listarSocios` (siguen siendo array) y el de `IngresoOut` (faltan `nombre` y `dni`) no se corrigieron: quedaban fuera del alcance de este paso.
+4. **Orden de tags distinto** entre el codigo y el YAML (el conjunto coincide). Alinearlo si importa el orden en Swagger UI.
+5. **Errata del 17/10 en el LOG:** la entrada «envoltorio { items, total }» dice que se cambio «(Gerente Central, A4)» por «A3» en `listarSedes`; el cambio correcto era el inverso y es el que se hizo aca. Esa entrada no se modifica.
+6. **Commit local sin push:** `d21c689` (LOG del 16/10) sigue sin subirse; los cambios de esta entrada quedan sin commitear.

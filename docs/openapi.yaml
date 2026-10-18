@@ -33,6 +33,10 @@ tags:
     description: Autenticación JWT y registro de QR TOTP (Unidad III)
   - name: bloqueados
     description: Lista de no vigentes para sincronizar offline (Unidad III)
+  - name: ingresos
+    description: Ingresos y egresos de sede y sincronización offline (M2)
+  - name: esperas-clases
+    description: Lista de espera de clases (M3)
   - name: canchas
     description: Canchas y disponibilidad (M4)
   - name: clases
@@ -174,7 +178,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaUsuarios'
+                $ref: '#/components/schemas/ListaUsuarios'
               example:
                 - id: 1
                   rol: EXTERNO
@@ -332,7 +336,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaSocios'
+                $ref: '#/components/schemas/ListaSocios'
               example:
                 - id: 2
                   usuarioId: 1
@@ -531,7 +535,7 @@ paths:
         - sedes
       operationId: listarSedes
       summary: Listado de sedes
-      description: Listado paginado de todas las sedes de la cadena (Gerente Central, A3). Solo admite paginación (lista blanca de parámetros).
+      description: Listado paginado de todas las sedes de la cadena (Gerente Central, A4). Solo admite paginación (lista blanca de parámetros).
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PerPage'
@@ -541,7 +545,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaSedes'
+                $ref: '#/components/schemas/ListaSedes'
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -629,7 +633,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaIngresos'
+                $ref: '#/components/schemas/ListaIngresos'
         '401':
           $ref: '#/components/responses/NoAutorizado'
         '403':
@@ -803,7 +807,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaCanchas'
+                $ref: '#/components/schemas/ListaCanchas'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -907,7 +911,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaDisponibilidad'
+                $ref: '#/components/schemas/ListaDisponibilidad'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -941,7 +945,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaClases'
+                $ref: '#/components/schemas/ListaClases'
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -1022,7 +1026,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaReservasClase'
+                $ref: '#/components/schemas/ListaReservasClase'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -1073,7 +1077,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaReservasCancha'
+                $ref: '#/components/schemas/ListaReservasCancha'
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -1189,7 +1193,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaReservasClase'
+                $ref: '#/components/schemas/ListaReservasClase'
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -1292,7 +1296,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaEsperas'
+                $ref: '#/components/schemas/ListaEsperas'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -1371,7 +1375,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaEsperas'
+                $ref: '#/components/schemas/ListaEsperas'
         '422':
           $ref: '#/components/responses/ValidationError'
   /esperas-clases/{esperaId}:
@@ -1517,7 +1521,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: \'#/components/schemas/ListaPagos'
+                $ref: '#/components/schemas/ListaPagos'
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -1665,6 +1669,11 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   parameters:
     UsuarioId:
       name: id
@@ -1781,7 +1790,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/UsuarioOut'
+            $ref: '#/components/schemas/UsuarioOut'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.
@@ -1795,7 +1804,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/SocioOut'
+            $ref: '#/components/schemas/SocioOut'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.
@@ -1809,7 +1818,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/SedeOut'
+            $ref: '#/components/schemas/SedeOut'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.
@@ -1823,7 +1832,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/IngresoOut'
+            $ref: '#/components/schemas/IngresoOut'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.
@@ -1837,7 +1846,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/CanchaOut'
+            $ref: '#/components/schemas/CanchaOut'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.
@@ -1851,7 +1860,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/DisponibilidadEntrada'
+            $ref: '#/components/schemas/DisponibilidadEntrada'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.
@@ -1865,7 +1874,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/ClaseOut'
+            $ref: '#/components/schemas/ClaseOut'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.
@@ -1879,7 +1888,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/ReservaClaseOut'
+            $ref: '#/components/schemas/ReservaClaseOut'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.
@@ -1893,7 +1902,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/ReservaCanchaOut'
+            $ref: '#/components/schemas/ReservaCanchaOut'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.
@@ -1907,7 +1916,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/EsperaOut'
+            $ref: '#/components/schemas/EsperaOut'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.
@@ -1921,7 +1930,7 @@ components:
         items:
           type: array
           items:
-            $ref: \'#/components/schemas/PagoOut'
+            $ref: '#/components/schemas/PagoOut'
         total:
           type: integer
           description: Cantidad total que cumple el filtro, sin paginar.

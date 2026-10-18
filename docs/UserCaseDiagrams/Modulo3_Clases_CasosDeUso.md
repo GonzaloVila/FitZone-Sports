@@ -15,7 +15,7 @@ flowchart LR
     Admin["fa:fa-user-tie Administrador / Recepción"]
     Socio["fa:fa-user Socio"]
     Observer["fa:fa-bell Sistema de Notificaciones (Observer)"]
-    MediadorPagos["fa:fa-credit-card Mediador de Pagos (M5)"]
+    PagosM5["fa:fa-credit-card Pagos (M5)"]
 
     %% Sistema Módulo 3
     subgraph SistemaM3["Sistema FitZone Sports — Módulo 3: Clases Grupales"]
@@ -36,7 +36,7 @@ flowchart LR
             UC03_ValVentana(["Validar Ventana 48 hs"]):::secondary
             UC03_Lock(["Control Concurrente FOR UPDATE"]):::secondary
             UC03_PagoExterno(["Pagar Tarifa Externa (Mora)"]):::secondary
-            UC04_ValTiempo(["Validar Límite 2 hs"]):::secondary
+            UC04_ValTiempo(["Validar clase no comenzada y penalidad (2 hs)"]):::secondary
 
             UC03 -.->|"<<include>>"| UC03_ValMembresia
             UC03 -.->|"<<include>>"| UC03_ValVentana
@@ -71,7 +71,7 @@ flowchart LR
     Socio --> UC08
 
     Observer --> UC07
-    UC03_PagoExterno --> MediadorPagos
+    UC03_PagoExterno --> PagosM5
 
     classDef secondary fill:#f3f4f6,stroke:#9ca3af,stroke-width:1px,stroke-dasharray: 4 4;
     classDef observerUC fill:#fef3c7,stroke:#f59e0b,stroke-width:2px;
@@ -86,12 +86,12 @@ flowchart LR
 | **Administrador / Recepción** | **UC-01: Crear Clase** | RF-06 | Da de alta una clase con instructor, horario, tipo y capacidad máxima. Valida la sede en M2. |
 | **Socio / Visitante** | **UC-02: Consultar Agenda y Cupos** | RF-06 | Lista clases con filtros por sede, fecha y tipo; visualiza cupos disponibles en tiempo real. |
 | **Socio** | **UC-03: Reservar Clase** | RF-07, Consistencia, Mora | Reserva lugar con hasta 48 hs de antelación. Bloquea cupo con lock pesimista. Valida cuota al día. |
-| **Socio** | **UC-04: Cancelar Reserva** | RF-07 (Cancelación 2 hs) | Cancela la reserva sin penalidad hasta 2 hs antes. Libera el cupo y dispara evento Observer. |
+| **Socio** | **UC-04: Cancelar Reserva** | RF-07 (Cancelación 2 hs) | Cancela la reserva; con menos de 2 hs de anticipación se cobra una penalidad del 50%. Libera el cupo y dispara evento Observer. |
 | **Socio** | **UC-05: Inscribirse en Lista de Espera** | RF-08 | Si la clase está completa, el socio se anota en lista de espera (`EN_ESPERA`). |
 | **Socio** | **UC-06: Salir de Lista de Espera** | RF-08 (Baja Lógica) | Se da de baja voluntariamente de la lista de espera pasando su estado a `CANCELADO`. |
 | **Sistema (Observer)** | **UC-07: Notificar Cupo Disponible** | RF-08 (Patrón Observer) | Al liberarse un lugar, el observador actualiza a todos los anotados a `NOTIFICADO` y los alerta. |
 | **Socio** | **UC-08: Confirmar Cupo (First-Come)** | RF-08 (Confirmación) | El primer socio notificado que confirme la reserva toma el cupo con lock pesimista de fila. |
-| **Mediador de Pagos (M5)** | **UC-03 (Extensión): Pago Tarifa Externa** | Regla de Mora | Procesa el cobro de la clase a precio sin descuento si el socio está en mora. |
+| **Pagos (M5)** | **UC-03 (Extensión): Pago Tarifa Externa** | Regla de Mora | Procesa el cobro de la clase a precio sin descuento si el socio está en mora. |
 
 ---
 
@@ -101,21 +101,22 @@ flowchart LR
 - **Actor Principal:** Socio.
 - **Precondiciones:**
   1. El socio debe existir y estar autenticado.
-  2. La clase debe existir y encontrarse programada para dentro de las próximas 48 horas (`now >= horario - 48h`).
+  2. La clase debe existir y encontrarse programada para dentro de las próximas 48 horas (`ahora >= horarioInicio - 48h`).
   3. El socio no debe tener una reserva confirmada previa en la misma clase.
 - **Flujo Principal:**
   1. El socio solicita la reserva de la clase indicando su `socio_id`.
-  2. El sistema consulta a `MEMBERSHIP_VALIDATION_PORT` la vigencia de la membresía del socio.
+  2. El sistema consulta a `MembresiasService` (M1, ADR-09) la vigencia de la membresía del socio. Las validaciones previas (la clase existe, el socio está al día, la anticipación y que la clase no haya comenzado) corren en cadena (ADR-10) y la primera que falla corta con su error.
   3. El sistema valida que la clase comience en un plazo menor o igual a 48 hs.
   4. El sistema inicia una transacción de base de datos y adquiere un lock pesimista sobre la clase (`SELECT ... FOR UPDATE`).
   5. El sistema verifica que la cantidad de reservas confirmadas sea menor a la capacidad de la clase.
   6. El sistema crea el registro `ReservaClase` con estado `CONFIRMADA`.
   7. El sistema confirma la transacción y retorna código `201 Created` con la cabecera `Location`.
 - **Flujos Alternativos:**
-  - **3a. Socio en Mora:** Si la membresía está vencida o suspendida, el sistema rechaza la reserva bonificada con `403 Forbidden` (`socio-en-mora`), invitando a pagar la tarifa externa vía el Mediador M5.
-  - **3b. Reserva Anticipada:** Si faltan más de 48 hs para la clase, el sistema rechaza con `422 Unprocessable Entity` (`reserva-anticipada-no-permitida`).
+  - **3a. Socio en Mora:** Si la membresía está vencida o suspendida, el sistema rechaza la reserva bonificada con `403 Forbidden` (`socio-en-mora`), invitando a pagar la tarifa externa vía Pagos (M5).
+  - **3b. Reserva Anticipada:** Si faltan más de 48 hs para la clase, el sistema rechaza con `409 Conflict` (`reserva-anticipada-no-permitida`).
   - **3c. Cupo Agotado:** Si la clase ya completó su capacidad, el sistema rechaza con `409 Conflict` (`cupo-agotado`), habilitando la inscripción en lista de espera (UC-05).
   - **3d. Reserva Duplicada:** Si el socio ya posee una reserva confirmada para la misma clase, se rechaza con `409 Conflict` (`reserva-duplicada`).
+  - **3e. Clase ya comenzada:** Si la clase ya comenzó, el sistema rechaza con `409 Conflict` (`clase-pasada`).
 
 ---
 
@@ -125,18 +126,19 @@ flowchart LR
   1. Debe existir una reserva confirmada activa para el socio.
 - **Flujo Principal:**
   1. El socio solicita la cancelación de su reserva.
-  2. El sistema verifica la fecha y hora de la clase: comprueba que falten al menos 2 horas para su inicio (`now <= horario - 2h`).
+  2. El sistema verifica que la clase no haya comenzado (`ahora < horarioInicio`). Si faltan 2 horas o más para el inicio, la cancelación es sin penalidad. Si faltan menos de 2 horas, el sistema cobra una penalidad del 50% del valor nominal de la clase (RF-07), registrada como un `Pago` con concepto `RESERVA_CLASE` a nombre del socio, antes de liberar el cupo.
   3. El sistema actualiza el estado de la reserva a `CANCELADA`.
-  4. El sistema publica el evento de dominio `reservaClase.cupoLiberado` en el bus (Patrón Observer).
+  4. El sistema publica en el bus de eventos (`@nestjs/event-emitter`) el evento `EVENTO_CUPO_LIBERADO` con `emitAsync`, y los oyentes lo reciben (Patrón Observer, ADR-05).
   5. El sistema responde `204 No Content`.
 - **Flujos Alternativos:**
-  - **2a. Cancelación Fuera de Término:** Si faltan menos de 2 horas para el inicio de la clase, el sistema rechaza la cancelación sin penalidad respondiendo `409 Conflict` (`cancelacion-fuera-de-termino`).
+  - **2a. Cancelación tardía:** Si faltan menos de 2 horas para el inicio, la cancelación se permite con la penalidad del paso 2. Si la pasarela rechaza el cobro de la penalidad, el sistema responde `402 Payment Required` y la cancelación no se aplica (la reserva sigue `CONFIRMADA`).
+  - **2b. Clase ya comenzada:** Si la clase ya comenzó (`ahora >= horarioInicio`; al terminar la clase la reserva figura como `CUMPLIDA`, ADR-10), el sistema rechaza con `409 Conflict` (`reserva-clase-pasada`).
 
 ---
 
 ### UC-07: Notificar Cupo Disponible (Patrón Observer)
 - **Actor:** Sistema de Notificaciones (Observer).
-- **Disparador:** Ocurrencia del evento `CupoLiberadoEvent` al completarse exitosamente UC-04.
+- **Disparador:** Ocurrencia del evento `EVENTO_CUPO_LIBERADO` al completarse exitosamente UC-04.
 - **Flujo Principal:**
   1. El bus despacha el evento `reservaClase.cupoLiberado` a los oyentes `@OnEvent`, con el identificador de la clase y la hora.
   2. El observador concreto `NotificarSociosEsperaObserver` consulta en la base de datos todos los socios con solicitudes en estado `EN_ESPERA` para dicha clase.

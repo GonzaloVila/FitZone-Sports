@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../commons/database/prisma.service';
+import { mapearErrorPrisma } from '../../../commons/errors/prisma.mapper';
 import type { Cancha } from '../entities/cancha.entity';
 
 export interface OpcionesListadoCanchas {
@@ -76,7 +77,7 @@ export class CanchaRepository {
       });
       return this.aDominio(fila);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (mapearErrorPrisma(error) === 'NO_ENCONTRADO') {
         return null;
       }
       throw error;

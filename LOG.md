@@ -2320,7 +2320,7 @@ El alta ahora genera un `PagoMembresia`, y `DELETE /socios` borra la membresía 
    - En `TFI FitZone - OpenAPI.yaml` (vault), se crearon los esquemas envoltorios: `ListaUsuarios`, `ListaSocios`, `ListaSedes`, `ListaIngresos`, `ListaCanchas`, `ListaDisponibilidad`, `ListaClases`, `ListaReservasClase`, `ListaReservasCancha`, `ListaEsperas` y `ListaPagos`.
    - Se actualizaron las 13 operaciones GET de listado (`listarUsuarios`, `listarSocios`, `listarSedes`, `listarIngresos`, `listarCanchas`, `consultarDisponibilidad`, `listarClases`, `listarReservasDeClase`, `listarReservasCancha`, `listarReservasClase`, `listarEsperaDeClase`, `listarEsperasClase` y `listarPagos`) para responder con el schema `$ref: '#/components/schemas/ListaXxx'` conteniendo `{ items, total }`.
    - Se eliminó la respuesta huérfana `VentanaCancelacionCerrada` en `components.responses`.
-   - Corrección de erratas de redacción en las descripciones del contrato (`occupants` -> `ocupantes` en `listarIngresos`, y `(Gerente Central, A4)` -> `(Gerente Central, A3)` en `listarSedes`).
+   - Corrección de erratas de redacción en las descripciones del contrato (`occupants` -> `ocupantes` en `listarIngresos`). La segunda errata que figuraba acá (`(Gerente Central, A4)` -> `A3` en `listarSedes`) se revirtió: el Gerente Central es A4.
 
 2. **Implementación de DTOs y lógica backend (NestJS):**
    - Se incorporó la interfaz genérica `PaginatedResult<T>` en `src/commons/paginacion.ts`.
@@ -2397,5 +2397,3 @@ Mensajes sugeridos (sin hash):
 2. **Comparador de contrato sin restaurar:** el de `backend/contrato/` sigue sin estar en el checkout. Lo verificado en esta entrada es solo el lint mas el chequeo de operaciones, tags y security; la comparacion de schemas, parametros, respuestas y `required` contra `/docs-json` queda sin correr.
 3. **Warnings preexistentes del lint (5):** los `example` de `listarUsuarios` y `listarSocios` (siguen siendo array) y el de `IngresoOut` (faltan `nombre` y `dni`) no se corrigieron: quedaban fuera del alcance de este paso.
 4. **Orden de tags distinto** entre el codigo y el YAML (el conjunto coincide). Alinearlo si importa el orden en Swagger UI.
-5. **Errata del 17/10 en el LOG:** la entrada «envoltorio { items, total }» dice que se cambio «(Gerente Central, A4)» por «A3» en `listarSedes`; el cambio correcto era el inverso y es el que se hizo aca. Esa entrada no se modifica.
-6. **Commit local sin push:** `d21c689` (LOG del 16/10) sigue sin subirse; los cambios de esta entrada quedan sin commitear.

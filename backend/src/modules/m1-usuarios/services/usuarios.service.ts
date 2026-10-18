@@ -32,10 +32,18 @@ export class UsuariosService {
   // contrasenia ni se expone este metodo como endpoint.
   async buscarParaAutenticar(email: string): Promise<UsuarioParaAutenticar | null> {
     const usuario = await this.usuarios.buscarPorEmail(email);
-    if (!usuario) {
-      return null;
-    }
+    return usuario ? this.conSedeDeTrabajo(usuario) : null;
+  }
 
+  // Para AuthModule (refresh): misma forma que buscarParaAutenticar pero por id,
+  // asi el access token renovado sale con el rol y la sede actuales y no con los
+  // del login. null = el usuario ya no existe.
+  async buscarParaAutenticarPorId(id: number): Promise<UsuarioParaAutenticar | null> {
+    const usuario = await this.usuarios.buscarPorId(id);
+    return usuario ? this.conSedeDeTrabajo(usuario) : null;
+  }
+
+  private async conSedeDeTrabajo(usuario: Usuario): Promise<UsuarioParaAutenticar> {
     let sedeId: number | null = null;
     if (usuario.rol === 'RECEPCION') {
       const empleado = await this.empleadosSede.buscarPorUsuarioId(usuario.id);

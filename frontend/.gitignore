@@ -9,6 +9,10 @@ lerna-debug.log*
 
 node_modules
 .DS_Store
+
+# Variables de entorno locales (se versiona solo .env.example)
+.env
+.env.local
 dist
 dist-ssr
 coverage

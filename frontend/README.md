@@ -1,44 +1,72 @@
-# frontend
+# FitZone — Frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+## Qué es
 
-## Recommended IDE Setup
+Cliente web de FitZone Sports: una SPA hecha con Vue 3, TypeScript, Vite, Vue Router y Pinia que consume la API REST del backend (contrato en `../docs/openapi.yaml`).
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Requisitos
 
-## Recommended Browser Setup
+- Node `^22.18.0` o `>=24.12.0`.
+- El backend tiene que estar levantado (por defecto en `http://localhost:3000`, prefijo `/api/v1`), porque el frontend no funciona sin la API.
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## Primeros pasos
 
 ```sh
 npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
+cp .env.example .env
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+El servidor de desarrollo queda en `http://localhost:5173`.
 
-```sh
-npm run build
+## Scripts
+
+- `npm run dev`: levanta el servidor de desarrollo de Vite con recarga en caliente.
+- `npm run build`: corre el type-check y genera el build de producción en `dist/`.
+- `npm run type-check`: chequea los tipos de los `.ts` y `.vue` con `vue-tsc`.
+- `npm run types:api`: regenera `src/types/api.d.ts` a partir de `../docs/openapi.yaml`.
+
+## Estructura de carpetas
+
+```
+src/
+├── ui/            Kit de componentes, organizado por niveles (diseño atómico)
+│   ├── atomos/
+│   ├── moleculas/
+│   ├── organismos/
+│   ├── plantillas/
+│   ├── tokens/
+│   └── index.ts   API pública del kit
+├── features/      Una carpeta por funcionalidad (sesion, socios)
+│   └── <feature>/
+│       ├── pages/
+│       ├── components/
+│       ├── composables/
+│       ├── services/
+│       └── stores/
+├── compartido/    Utilidades y cosas sin dueño (por ejemplo, config.ts)
+├── types/         Tipos generados desde la API
+└── router/        Rutas de la aplicación
+```
+
+Regla de dependencias: **`ui/` no importa nada de `features/`**.
+
+## Variables de entorno
+
+Se definen en `frontend/.env`, que no se versiona. Se parte de `.env.example`.
+
+| Variable | Descripción |
+| --- | --- |
+| `VITE_API_URL` | URL base de la API, incluido el prefijo `/api/v1` y sin barra final. Por defecto `http://localhost:3000/api/v1`. |
+
+`src/compartido/config.ts` exporta `API_URL` y lanza un error claro si la variable falta. Después de cambiar el `.env` hay que reiniciar `npm run dev`.
+
+## CORS
+
+En desarrollo el origen del frontend es `http://localhost:5173`. El backend solo acepta los orígenes listados en su variable `CORS_ORIGINS` (separados por coma, sin comodín porque el CORS va con credenciales). Si usás otro host o puerto, agregalo ahí en el `.env` del backend:
+
+```
+CORS_ORIGINS=http://localhost:5173
 ```
 
 ## Tipos de la API
@@ -46,3 +74,7 @@ npm run build
 `src/types/api.d.ts` se genera con `npm run types:api` a partir de `../docs/openapi.yaml`. No se edita a mano: se vuelve a generar cada vez que cambia el contrato.
 
 > TypeScript está fijado en 5.9 porque openapi-typescript declara un peer dependency de TypeScript 5. Subir a 6 cuando el generador lo soporte.
+
+## Sesión
+
+Pendiente, SCRUM-16.

@@ -2682,3 +2682,57 @@ Arrastrados de entradas anteriores:
 13. **Orden de tags distinto** entre el código y el YAML (el conjunto coincide).
 14. **Comparador de schemas, parámetros, respuestas y `required` sin restaurar** (el de `backend/contrato/`).
 15. **`docker-compose.test.yml` y `.env.test.example`** no coinciden en el puerto (5432 vs 55432).
+
+---
+
+## 2026-10-21 - Cierre del scaffolding del frontend (SCRUM-15) — Santino Mazzulla (P3 - Frontend Developer)
+
+**Fecha:** 21/10/2026 · **Rama:** `main` · **Autor:** Santino
+
+### Actividades
+
+1. **Proyecto base en `frontend/`.** Vue 3 + Vite + TypeScript + Vue Router + Pinia, creado con `npm create vue@latest` de forma no interactiva (create-vue 3.24.0, flags `--ts --router --pinia`; sin Vitest, JSX, Playwright, ESLint ni Prettier, que se ven más adelante). Se borraron los archivos de ejemplo de la plantilla (componentes demo, store `counter`, `AboutView`, logo, `base.css`) y `App.vue` quedó con un `<RouterView />`. `src/assets/main.css` es un reset mínimo (box-sizing, `margin: 0` en `body`, fuente del sistema), sin layout sobre `#app`.
+
+2. **Estructura de carpetas.** `ui/` con `atomos/`, `moleculas/`, `organismos/`, `plantillas/`, `tokens/` y un `index.ts` que por ahora solo documenta que es la API pública del kit; `features/sesion/` y `features/socios/`, cada una con `pages/`, `components/`, `composables/`, `services/` y `stores/`; más `compartido/` (utilidades y cosas sin dueño), `types/` y `router/`. Las carpetas sin archivos llevan `.gitkeep`.
+
+3. **Páginas de referencia y rutas.** `LoginPage` y `GestionSociosPage` como stubs (un `<h1>`, sin lógica). Rutas con carga diferida (import dinámico): `/` redirige a `/login`, `/login` (`login`) y `/socios` (`socios`). Todavía sin guards: la sesión viene después.
+
+4. **Tipos de la API.** `openapi-typescript` 7.13.0 como devDependency y script `types:api` (`openapi-typescript ../docs/openapi.yaml -o src/types/api.d.ts`). El `src/types/api.d.ts` generado tiene 3.728 líneas, encabezado de archivo autogenerado y exporta `paths`, `components` y `operations`: **53 operaciones y 61 schemas**.
+
+5. **Variables de entorno y README.** `frontend/.env.example` con `VITE_API_URL=http://localhost:3000/api/v1` (puerto y prefijo `api/v1` leídos de `backend/src/main.ts` y `env.config.ts`), `.env` y `.env.local` en el `.gitignore` del front, `ImportMetaEnv` tipado en `env.d.ts` y `src/compartido/config.ts`, que exporta `API_URL` y lanza un error claro si falta la variable. `frontend/README.md` reescrito en español (qué es, requisitos, primeros pasos, scripts, estructura, variables de entorno, CORS con `CORS_ORIGINS`, tipos de la API y sesión pendiente).
+
+### Decisiones tomadas
+
+1. **El frontend vive en `frontend/` del mismo repo** (monorepo, igual que el backend). Queda por confirmar con el profe que cuente como "repositorio frontend documentado" (ver Pendientes).
+2. **Regla de dependencias: `ui/` no importa nada de `features/`.** Queda escrita al inicio de `ui/index.ts` y en el README.
+3. **El archivo de tipos generado se versiona** y se regenera con `npm run types:api` cada vez que cambia el contrato. No se edita a mano; el README lo dice.
+4. **TypeScript fijado en `~5.9`** (instalado 5.9.3, una sola versión en todo el árbol) porque `openapi-typescript` declara un peer dependency de TypeScript 5. El README lo deja anotado: subir a 6 cuando el generador lo soporte.
+
+### Problemas encontrados
+
+1. **ERESOLVE al instalar `openapi-typescript`.** `create-vue` dejó `typescript ~6.0.0` (6.0.3) y `openapi-typescript@7.13.0` declara `peer typescript@"^5.x"`, así que `npm install -D openapi-typescript` falló. No se usó `--force` ni `--legacy-peer-deps`: se presentaron las opciones y se resolvió bajando TypeScript con `npm install -D typescript@~5.9` y luego instalando el generador sin conflicto. `vue-tsc` y los tsconfig generados siguen funcionando con TS 5.9.
+2. **Warnings de engine en `npm install`.** Algunas dependencias transitivas piden Node `^24.15.0` o `^22.22.2` y la máquina de Santino tiene la v24.14.1. Solo son warnings y todo funcionó; queda como pendiente definir la versión de Node del equipo.
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0** con TypeScript 5.9, tras cada paso (proyecto base, estructura, tipos, variables de entorno).
+- Conteo de operaciones: las **53** claves únicas de `operations` en `api.d.ts` coinciden con los **53** `operationId` únicos de `docs/openapi.yaml`.
+- No se usó ningún `.env` real (solo se creó `.env.example`; del backend solo se leyeron `.env.example`, `main.ts` y `env.config.ts`).
+- No se tocó el backend ni `docs/openapi.yaml`, que solo se leyó.
+- El servidor de desarrollo se levantó a mano (`npm run dev`) con el `.env` copiado de `.env.example`: `/` redirige a `/login`, `/socios` carga `GestionSociosPage` y la consola del navegador no muestra errores. `config.ts` todavía no lo importa ningún módulo, así que el build no ejercita el error de variable faltante.
+
+### Commits
+
+- `bff93fd` `feat(front): scaffolding base del frontend con Vue 3, Vite, TypeScript, Router y Pinia`
+- `5021c2b` `feat(front): estructura ui y features, páginas de referencia y rutas base`
+- `53df3c7` `feat(front): tipos de la API generados con openapi-typescript desde el contrato`
+- `ae166ae` `feat(front): variables de entorno, config de la API y README del frontend`
+- (completar) `docs(log): registra el cierre del scaffolding del frontend (21/10)` (este mismo commit)
+
+### Pendientes que siguen abiertos
+
+1. **Sesión y tienda Pinia** (SCRUM-16).
+2. **Cliente de la API tipado** con manejo de errores `problem+json` (SCRUM-17).
+3. **Sistema de diseño y átomos** (SCRUM-15).
+4. **Confirmar con el profe el 22/10** que el frontend dentro del monorepo cuenta como "repositorio frontend documentado".
+5. **Definir la versión de Node del equipo:** el `engines` del front pide `^22.18.0` o `>=24.12.0`.

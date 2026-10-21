@@ -8,7 +8,8 @@
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
-    "type-check": "vue-tsc --build"
+    "type-check": "vue-tsc --build",
+    "types:api": "openapi-typescript ../docs/openapi.yaml -o src/types/api.d.ts"
   },
   "dependencies": {
     "pinia": "^4.0.3",
@@ -21,7 +22,8 @@
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/tsconfig": "^0.9.1",
     "npm-run-all2": "^9.0.3",
-    "typescript": "~6.0.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~5.9",
     "vite": "^8.2.2",
     "vite-plugin-vue-devtools": "^8.2.1",
     "vue-tsc": "^3.3.11"

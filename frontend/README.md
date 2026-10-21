@@ -40,3 +40,9 @@ npm run dev
 ```sh
 npm run build
 ```
+
+## Tipos de la API
+
+`src/types/api.d.ts` se genera con `npm run types:api` a partir de `../docs/openapi.yaml`. No se edita a mano: se vuelve a generar cada vez que cambia el contrato.
+
+> TypeScript está fijado en 5.9 porque openapi-typescript declara un peer dependency de TypeScript 5. Subir a 6 cuando el generador lo soporte.

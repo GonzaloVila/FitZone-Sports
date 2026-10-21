@@ -2727,7 +2727,7 @@ Arrastrados de entradas anteriores:
 - `5021c2b` `feat(front): estructura ui y features, páginas de referencia y rutas base`
 - `53df3c7` `feat(front): tipos de la API generados con openapi-typescript desde el contrato`
 - `ae166ae` `feat(front): variables de entorno, config de la API y README del frontend`
-- (completar) `docs(log): registra el cierre del scaffolding del frontend (21/10)` (este mismo commit)
+- `ccd3637` `docs(log): registra el cierre del scaffolding del frontend (21/10)`
 
 ### Pendientes que siguen abiertos
 

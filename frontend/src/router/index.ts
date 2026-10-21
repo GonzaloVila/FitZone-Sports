@@ -1,13 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      redirect: '/login',
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('../features/sesion/pages/LoginPage.vue'),
+    },
+    {
+      path: '/socios',
+      name: 'socios',
+      component: () => import('../features/socios/pages/GestionSociosPage.vue'),
     },
   ],
 })

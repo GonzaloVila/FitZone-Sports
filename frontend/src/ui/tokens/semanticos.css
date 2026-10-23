@@ -1,0 +1,52 @@
+/*
+ * Tokens semánticos: el significado de cada valor (texto, fondo, peligro, etc.).
+ * Referencian SOLO primitivos. Es la capa que se reasigna para un modo oscuro.
+ */
+:root {
+  /* Colores base */
+  --fz-color-texto: var(--fz-prim-gris-900);
+  --fz-color-texto-suave: var(--fz-prim-gris-500);
+  --fz-color-fondo: var(--fz-prim-gris-0);
+  --fz-color-superficie: var(--fz-prim-gris-50);
+  --fz-color-hover: var(--fz-prim-gris-100);
+  --fz-color-borde: var(--fz-prim-gris-200);
+  --fz-color-primario: var(--fz-prim-azul-500);
+  --fz-color-primario-hover: var(--fz-prim-azul-600);
+  --fz-color-texto-sobre-primario: var(--fz-prim-gris-0);
+  --fz-color-foco: var(--fz-prim-azul-500);
+
+  /* Estados */
+  --fz-color-exito: var(--fz-prim-verde-700);
+  --fz-color-exito-fondo: var(--fz-prim-verde-50);
+  --fz-color-exito-borde: var(--fz-prim-verde-200);
+
+  --fz-color-peligro: var(--fz-prim-rojo-700);
+  --fz-color-peligro-fondo: var(--fz-prim-rojo-50);
+  --fz-color-peligro-borde: var(--fz-prim-rojo-200);
+
+  --fz-color-advertencia: var(--fz-prim-ambar-700);
+  --fz-color-advertencia-fondo: var(--fz-prim-ambar-50);
+  --fz-color-advertencia-borde: var(--fz-prim-ambar-200);
+
+  /* Tipografía */
+  --fz-fuente-base: var(--fz-prim-fuente-sans);
+  --fz-fuente-mono: var(--fz-prim-fuente-mono);
+  --fz-texto-pequeno: var(--fz-prim-texto-sm);
+  --fz-texto-cuerpo: var(--fz-prim-texto-md);
+  --fz-texto-titulo: var(--fz-prim-texto-xl);
+  --fz-peso-normal: var(--fz-prim-peso-400);
+  --fz-peso-enfasis: var(--fz-prim-peso-600);
+
+  /* Formas */
+  --fz-radio-control: var(--fz-prim-radio-sm);
+  --fz-radio-tarjeta: var(--fz-prim-radio-lg);
+  --fz-radio-pildora: var(--fz-prim-radio-completo);
+
+  /* Espaciado */
+  --fz-espaciado-compacto: var(--fz-prim-esp-2);
+  --fz-espaciado-base: var(--fz-prim-esp-4);
+  --fz-espaciado-amplio: var(--fz-prim-esp-6);
+
+  /* Elevación */
+  --fz-sombra-suave: var(--fz-prim-sombra-suave);
+}

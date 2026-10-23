@@ -2895,3 +2895,60 @@ Arrastrados de entradas anteriores:
 4. **Decidir si una falla de red al renovar debe cerrar la sesión.**
 5. **Escribir ADRs del front:** sesión y tokens, capa de servicios y justificación de librerías.
 6. **Los pendientes anteriores siguen abiertos:** borde del botón secundario, repartir pantallas de los demás módulos, Reka UI, consulta al profe por Storybook y tokens DTCG, versión de Node del equipo y Jira.
+
+---
+
+## 2026-10-23 - Sesión, rutas protegidas y login conectado al backend (SCRUM-16)
+
+**Fecha:** 23/10/2026 · **Rama:** `main` · **Autor:** Santino
+
+### Actividades
+
+1. **Store de sesión (`features/sesion/stores/sesionStore.ts`, Pinia).** Guarda el usuario (`rol`, `sedeId`, `socioId`) y si la sesión ya se intentó restaurar. Acciones `iniciarSesion`, `restaurar` (una sola vez, con la cookie de refresh), `cerrarSesion` y `limpiar`. No guarda el token ni usa ningún storage.
+
+2. **Composable `useIniciarSesion`.** Expone `iniciarSesion`, `cargando` y `error`; traduce el 401, la falla de red y el resto de los errores a mensajes en español. Al éxito navega al `?redirect` si es una ruta interna válida y, si no, a la ruta inicial del rol.
+
+3. **Guard global de rutas (`router/index.ts`).** Cada ruta declara su `meta` (`publica` o `roles`). En la primera navegación restaura la sesión; sin sesión manda a `/login?redirect=<ruta>`; con sesión, `/login` y las rutas no permitidas llevan a la ruta inicial del rol (`/socios` para RECEPCION y GERENTE, `/inicio` para el resto).
+
+4. **`InicioPage`** (`features/inicio/pages/`), un stub con `<h1>Inicio</h1>` que solo requiere sesión.
+
+5. **`LoginPage` conectada** al servicio de sesión a través del composable y el store, pasando `cargando` y `error` al formulario. `main.ts` provee los servicios antes de instalar el router y, al expirar la sesión, limpia el store y lleva a `/login`.
+
+6. **`README.md`:** sección "Sesión y rutas protegidas".
+
+### Decisiones tomadas
+
+1. **El rol se deriva del schema `Rol` del contrato**, porque `LoginOut.rol` viene como `string` sin enum. Un rol desconocido queda sin permisos (`rol: null`): no entra a rutas con `roles`, pero sí a `/inicio`, para no quedar atrapado en un bucle.
+2. **`/socios` queda restringida a RECEPCION y GERENTE** por decisión del equipo. Es solo una restricción de navegación: el contrato no dice qué roles operan con socios y el backend hoy no la hace cumplir.
+3. **Las páginas no usan `fetch`**; el servicio de sesión lo conoce solo el store, y `LoginPage` llega a él a través del composable.
+
+### Problemas encontrados
+
+1. **Ruta inexistente con sesión: pantalla en blanco.** Falta una ruta comodín que redirija a la ruta inicial del rol. Se resuelve en el Paso 9.
+2. **Backend: `POST /usuarios` acepta altas sin autenticación.** Los controladores de usuarios, socios y membresías no tienen `@UseGuards` ni `@Roles`. Se suma a lo que falta cerrar en seguridad.
+3. **Usuarios de prueba en la base compartida.** La prueba manual dejó dos usuarios creados por `POST /usuarios`; hay que borrarlos o reconocerlos con el equipo.
+4. **El front pierde la sesión ante una falla de red al renovar**, porque no la distingue de un 401.
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0**.
+- **El guard y el store no se pudieron probar en ejecución con Node** (el bundle de prueba no fue viable). Los bucles de redirección se razonaron a mano: sin sesión solo se redirige a `/login` (pública) y cada rol puede entrar a su ruta inicial.
+- Prueba manual contra el backend real (Supabase), con dos usuarios de prueba creados por `POST /usuarios` (un GERENTE y un EXTERNO):
+  - sin sesión, `/socios` redirige a `/login?redirect=/socios`;
+  - con una contraseña incorrecta aparece el aviso de error (401 en la consola);
+  - el GERENTE entra a `/socios` y la sesión se restaura con F5 (el refresh por cookie funciona y el CORS está bien);
+  - el EXTERNO cae en `/inicio`, `/socios` lo devuelve a `/inicio` y `/login` con sesión también lo manda a `/inicio`.
+- **No probado:** RECEPCION, SOCIO, la expiración de la sesión con la app abierta (`alExpirarSesion`) ni la falla de red al renovar.
+
+### Commits
+
+- `6e96a84` `feat(front): sesión con store de Pinia, guards por rol y login conectado`
+
+### Pendientes que siguen abiertos
+
+1. **Ruta comodín** que redirija a la ruta inicial del rol (Paso 9).
+2. **Probar con RECEPCION y SOCIO**, la expiración de la sesión con la app abierta y la falla de red al renovar.
+3. **Backend:** cerrar `POST /usuarios` sin autenticación y sumar `@Roles` a `/socios` y a las membresías.
+4. **Borrar o reconocer con el equipo los usuarios de prueba** de la base compartida.
+5. **Decidir si una falla de red al renovar debe cerrar la sesión.**
+6. **Los pendientes anteriores siguen abiertos:** ADRs del front, tests del cliente con Vitest (Unidad V), borde del botón secundario, repartir pantallas de los demás módulos, Reka UI, consulta al profe por Storybook y tokens DTCG, versión de Node del equipo y Jira.

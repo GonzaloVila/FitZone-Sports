@@ -3207,3 +3207,92 @@ Arrastrados de entradas anteriores:
 - Integración en caliente con Vite en frontend (`http://localhost:5173/`).
 - Documentación completa generada en `src/features/acceso/README.md`.
 
+
+
+---
+
+## 2026-10-23 - Frontend M3: Clases grupales (RF-06, RF-07, RF-08)
+
+**Fecha:** 23/10/2026 · **Rama:** `main` · **Autor:** Gonzalo Vila
+
+### Actividades
+
+1. **Servicio de clases (`features/clases/services/servicioClases.ts`).** Clases, reservas de clase y esperas, tipado contra `api.d.ts` (`listarClases`, `obtenerClase`, `crearClase`, `listarReservasDeClase`, `crearReservaClase`, `listarReservasClase`, `cancelarReservaClase`, `anotarseEnEspera`, `listarEsperaDeClase`, `listarEsperasClase`, `salirDeEspera`, `confirmarEspera`). Registrado en `compartido/servicios.ts` (`clases`) y creado en `main.ts`; las rutas se suman en `router/index.ts`.
+
+2. **Agenda en `/clases`** (SOCIO, RECEPCION, GERENTE).
+   - `useAgendaClases`: filtros por disciplina (con debounce) y sede, página, cargando y error, descartando respuestas viejas con `AbortController`. RECEPCION arranca con su sede.
+   - `FiltrosClases`, `TablaClases` (cupos libres e insignia de estado: con cupos, sin cupos, comenzada) y `AgendaClasesPage` con paginación, estado vacío y botón "+ Nueva clase" para RECEPCION y GERENTE.
+
+3. **Detalle y reserva en `/clases/:claseId`.**
+   - `useDetalleClase`: la clase, la reserva y la espera del socio, y las acciones reservar, cancelar, anotarse, confirmar cupo y salir. Después de cada acción vuelve a pedir la clase para tener los cupos del servidor.
+   - `AccionesClase`: decide el botón (Reservar, Cancelar reserva, Anotarme en lista de espera, Confirmar cupo, Salir de la espera) o muestra el motivo ("La reserva se abre 48 hs antes", "La clase ya comenzó").
+   - `ModalCancelarClase` (sobre `ModalFz`): con menos de 2 hs avisa "Se cobrará una penalidad del 50 % del valor de la clase".
+   - `ListaInscriptos` y `ListaEsperaClase` para RECEPCION y GERENTE.
+
+4. **Mis clases en `/mis-clases`** (SOCIO).
+   - `useMisClases`: reservas confirmadas y canceladas, esperas con su posición en la cola y actualización cada 5 s.
+   - `TablaMisReservas`, `TablaMisEsperas` y pestañas Próximas / Pasadas con el nuevo `PestanasFz`.
+
+5. **Lista de espera (RF-08).** Anotarse, ver la posición, confirmar el cupo cuando el estado pasa a `NOTIFICADO` y salir. El detalle y "Mis clases" se refrescan con `useActualizacionPeriodica` y el intervalo se corta al salir.
+
+6. **Alta de clase en `/clases/nueva`** (RECEPCION, GERENTE). `useAltaClase` valida que el fin sea posterior al inicio y que la capacidad sea un entero mayor a cero, arma los horarios ISO con offset `-03:00` y muestra el 409 de horario junto a los campos de horario. `FormularioClase` y `AltaClasePage`.
+
+7. **Kit de diseño.** Componente nuevo `PestanasFz` (`ui/moleculas`, exportado en `ui/index.ts`): `role="tablist"`, `tab` y `tabpanel`, flechas, Inicio y Fin. `CampoTextoFz` acepta además `tipo="time"`.
+
+8. **Rutas y menú.** `features/clases/rutas.ts` con `meta.roles`; entrada "Clases" (orden 4) para todos los roles y "Mis clases" (orden 5) para SOCIO.
+
+9. **Documentación.** `features/clases/README.md` con carpetas, rutas y decisiones.
+
+### Decisiones tomadas
+
+1. **El servidor decide.** `reglas.ts` solo anticipa el motivo en pantalla (ventana de 48 hs, clase comenzada, penalidad). Si el servidor responde 409 por ventana se muestra el mismo motivo.
+2. **Errores por el campo `type` del `problem+json`** (`errores.ts`), no por el texto: `reserva-anticipada-no-permitida`, `clase-pasada`, `cupo-agotado`, `reserva-duplicada`, `cupo-disponible`, `espera-existente`, `espera-confirmada`, `espera-no-notificada` y `cupo-tomado`. El 403 es cuota vencida (RN-03) y el 402 es penalidad rechazada.
+3. **`PestanasFz` usa tokens semánticos existentes,** sin tokens nuevos. Queda pendiente la revisión de Santino en el PR y M4 puede reutilizarlo.
+4. **Cambio mínimo en el kit:** `tipo="time"` en `CampoTextoFz`, necesario para las horas del alta.
+5. **La agenda no filtra por fecha:** `GET /clases` no lo permite. Se muestra el listado paginado del servidor y no se recorta "la semana" en el cliente, porque rompería la paginación.
+6. **La disciplina es texto libre:** `tipo` es un string libre en el contrato, así que el filtro es un campo de búsqueda.
+7. **Inscriptos y espera muestran "Socio #id":** `ReservaClaseOut` y `EsperaOut` no traen el nombre.
+8. **"Cumplida" tal cual lo manda el servidor.** "Pasadas" son las reservas que no están `CONFIRMADA` (cumplidas y canceladas).
+9. **Sin tests y sin dependencias nuevas,** a pedido del equipo.
+
+### Problemas encontrados
+
+1. **`PATCH /socios/{id}/membresias` con `estado: VENCIDA` responde 422.** La membresía vencida de la prueba se forzó directo en la base.
+2. **`POST /clases` con un horario ya iniciado responde 409 `clase-pasada`.** No se pudo crear una clase en curso para probar "la clase ya comenzó" desde la API.
+3. **La limpieza de datos de prueba falló dos veces por claves foráneas** (pagos de membresía y de penalidad). Se resolvió borrando los pagos antes que los usuarios.
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0**.
+- Prueba manual del contrato contra el backend real (Supabase), con una sede, un gerente y tres socios de prueba:
+  - reserva correcta: 201;
+  - fuera de la ventana de 48 hs: 409 `reserva-anticipada-no-permitida`;
+  - cupo completo: 409 `cupo-agotado`;
+  - socio con cuotas vencidas: 403 `socio-en-mora`, tanto en reserva como en espera;
+  - cancelación con más de 2 hs: 204;
+  - cancelación con menos de 2 hs: 204 con penalidad;
+  - cancelar una reserva ya cancelada: 204;
+  - espera: anotarse 201, con cupo disponible 409 `cupo-disponible`, ya anotado 409 `espera-existente`;
+  - al liberarse el cupo la espera pasa a `NOTIFICADO`, confirmar sin notificación da 409 `espera-no-notificada` y con notificación da 201;
+  - salir de una espera confirmada: 409 `espera-confirmada`;
+  - alta de clase 201 y clase en el pasado 409 `clase-pasada`;
+  - listados con `perPage=100` en reservas, esperas e inscriptos.
+- Los datos de prueba (sede, usuarios, socios, membresías, clases, reservas, esperas y pagos) se borraron al terminar.
+- **No probado en ejecución:**
+  - el recorrido visual en el navegador de las cuatro pantallas;
+  - el modal de cancelación (foco, Esc);
+  - las pestañas con teclado;
+  - el aviso de 402 (la pasarela de la penalidad no rechazó ningún pago);
+  - la vista de RECEPCION y de GERENTE;
+  - lectores de pantalla y contraste.
+
+### Commits
+
+- `95d4935` `Frontend M3: clases grupales (agenda, reserva, mis clases, espera y alta de clase)`
+
+### Pendientes que siguen abiertos
+
+1. **Revisión de Santino** de `PestanasFz` y del cambio en `CampoTextoFz`.
+2. **Recorrido visual** de las pantallas con un socio, un RECEPCION y un GERENTE.
+3. **Tests de los composables con Vitest,** cuando el proyecto lo configure.
+4. **Nombres de socio en inscriptos y espera,** si el contrato los incorpora.

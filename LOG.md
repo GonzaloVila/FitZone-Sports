@@ -3112,3 +3112,50 @@ Arrastrados de entradas anteriores:
 
 1. **Probar lo anterior con un socio de prueba** creado desde el alta.
 2. **Borrar los usuarios de prueba** al final.
+
+---
+
+## 2026-10-23 - Prueba manual de los Pasos 11-14 y sedeId en la sesión (SCRUM-16)
+
+**Fecha:** 23/10/2026 · **Rama:** `main` · **Autor:** Santino
+
+### Actividades
+
+1. **Prueba manual de los Pasos 11 a 14 contra el backend real.**
+   - Detalle del socio: ficha, carnet y menú resaltado en `/socios`, `/socios/:id` y `/socios/nuevo`.
+   - Suspender y reactivar con un socio real.
+   - Alta de un socio de prueba, con el aviso de éxito mostrado una sola vez, y el intento de alta con el mismo email.
+   - Login como ese socio: lo lleva a `/carnet`, el menú muestra "Inicio" y "Mi carnet", y el `socioId` llega en la sesión.
+   - Generación del QR desde el modal de confirmación.
+   - Teclado: foco visible, foco dentro del modal, y Esc cierra el modal y devuelve el foco.
+   - Vista a 400 px: detalle, carnet, menú y modal.
+
+2. **`sedeId` expuesto en `useUsuarioSesion`.** El login y el refresh ya traían el dato; solo faltaba exponerlo.
+
+### Decisiones tomadas
+
+1. **`sedeId` es `number | null`:** `null` para el GERENTE, que no tiene sede fija.
+
+### Problemas encontrados
+
+1. **Ninguno.**
+
+### Verificación
+
+- `npm run type-check` y `npm run build` tras el cambio de `sedeId`: **exit 0**.
+- Prueba manual: ver Actividades.
+- **Sigue sin probar:**
+  - la vinculación del QR con una app de autenticación real;
+  - los errores 402 y 422 contra el backend real;
+  - lectores de pantalla;
+  - la vista de RECEPCION en el menú;
+  - las acciones de cambiar plan, renovación automática, cambiar sede y dejar de ser socio, ejecutadas de punta a punta.
+
+### Commits
+
+- `944a1d6` (`sedeId` expuesto en `useUsuarioSesion`)
+
+### Pendientes que siguen abiertos
+
+1. **Borrar los usuarios de prueba** al final, incluido "Prueba Alta".
+2. **Los mensajes de validación del backend en inglés.**

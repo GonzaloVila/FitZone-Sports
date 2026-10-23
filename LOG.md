@@ -2736,3 +2736,49 @@ Arrastrados de entradas anteriores:
 3. **Sistema de diseño y átomos** (SCRUM-15).
 4. **Confirmar con el profe el 22/10** que el frontend dentro del monorepo cuenta como "repositorio frontend documentado".
 5. **Definir la versión de Node del equipo:** el `engines` del front pide `^22.18.0` o `>=24.12.0`.
+
+---
+
+## 2026-10-23 - Tokens de diseño y átomos base del frontend (SCRUM-15)
+
+**Fecha:** 23/10/2026 · **Rama:** `main` · **Autor:** Santino
+
+### Actividades
+
+1. **Tokens de diseño en `frontend/src/ui/tokens/`, en tres niveles.** `primitivos.css` (único lugar con colores hexadecimales), `semanticos.css` (referencian solo primitivos; un modo oscuro se hará reasignando esta capa) y `componentes.css` (referencian solo semánticos), más `index.css` que los reúne. `src/assets/main.css` importa `index.css` y su reset usa tokens semánticos. `index.html` carga Inter desde Google Fonts.
+
+2. **Tres átomos en `src/ui/atomos/`.** `BotonFz` (variantes primario, secundario, peligro y fantasma; tamaños sm, md y lg; estado cargando), `CampoTextoFz` (`v-model` con `defineModel`, estado `invalido`) e `InsigniaFz` (neutra, exito, peligro y advertencia). Se exportan desde `ui/index.ts`.
+
+3. **`ui/README.md`.** Guía de contribución del kit: niveles, nombres con sufijo `Fz`, convenciones de API, regla de tokens y cómo agregar un componente.
+
+### Decisiones tomadas
+
+1. **Contraste.** Al verificar con WCAG 2.2 AA, 4 de los 6 pares principales quedaban por debajo de 4.5:1: texto-suave sobre fondo (4.48), el blanco sobre el azul primario `#2383E2` (3.88), éxito sobre su fondo (4.4996, que se redondea a 4.50 pero no llega) y advertencia sobre su fondo (3.54). Se oscurecieron cinco valores respecto de la paleta del prototipo: gris-500 `#787774` -> `#73726e`, azul-500 `#2383e2` -> `#1a6ec1`, azul-600 `#1a6ec1` -> `#165ca0`, ambar-700 `#b57418` -> `#9a610f` y verde-700 `#2a7e4b` -> `#287447`. Los semánticos y los tokens de componente no cambiaron porque referencian por nombre. La accesibilidad prevalece sobre la fidelidad al prototipo.
+2. **Texto deshabilitado sobre el gris de hover** queda en 4.26:1: se acepta porque WCAG exime a los componentes deshabilitados.
+3. **Botón peligro.** No hay token `peligro-hover`, así que se hizo "suave" (fondo y borde del estado, texto rojo) y en hover pasa a rojo sólido con texto blanco (5.19:1).
+4. **Tamaños.** `md` y `lg` comparten tamaño de texto y se diferencian por alto y relleno. El botón `sm` tiene alto mínimo de 32 px (WCAG 2.2 pide 24 px).
+5. **Sin dependencias nuevas:** `package.json` y `package-lock.json` no cambiaron. Reka UI sigue sin instalarse hasta que haya un widget complejo.
+
+### Problemas encontrados
+
+1. **Contraste por debajo de 4.5:1.** El chequeo de contraste detectó el problema descrito arriba antes de commitear; se corrigió ajustando los cinco primitivos.
+2. **Push rechazado (non-fast-forward)** por un commit de Exequiel; se resolvió con `git pull --rebase` y por eso el commit quedó con otro hash.
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0**.
+- Colores literales solo en `primitivos.css`; ningún `var(--fz-prim-...)` fuera de `semanticos.css`; capas de tokens respetadas; todas las variables usadas están definidas.
+- Los átomos todavía no los importa ninguna página: el type-check los revisa pero no se vieron en pantalla. La comprobación visual queda para la `LoginPage`.
+
+### Commits
+
+- `4a719f4` `feat(front): tokens de diseño, átomos base y guía del kit`
+
+### Pendientes que siguen abiertos
+
+1. **Molécula `CampoFormularioFz` y `LoginPage`** armada con estas piezas (primera comprobación visual de tokens y átomos).
+2. **Base compartida:** cliente HTTP, store de sesión, guards del router y raíz de composición con inyección de servicios (a confirmar con el equipo).
+3. **Instalar Reka UI** al construir el primer widget complejo.
+4. **Consultar al profe** si espera Storybook y tokens en formato DTCG.
+5. **Confirmar la versión de Node del equipo.**
+6. **Marcar SCRUM-15 en Jira** cuando cierre el scaffolding.

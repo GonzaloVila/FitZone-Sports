@@ -2,6 +2,7 @@ import type { components } from '@/types/api'
 import { desenvolver, type ClienteApi } from '@/compartido/http/clienteApi'
 
 export type Sede = components['schemas']['SedeOut']
+export type SedeIn = components['schemas']['SedeIn']
 
 // perPage máximo que permite el contrato (listarSedes).
 const POR_PAGINA_MAXIMO = 100
@@ -11,6 +12,8 @@ const MAXIMO_PAGINAS = 50
 export interface ServicioSedes {
   // Todas las sedes (el contrato pagina el listado, así que se piden páginas hasta traerlas todas).
   listar(senal?: AbortSignal): Promise<Sede[]>
+  // Alta de sede (RNF-04)
+  crear(sede: SedeIn): Promise<Sede>
 }
 
 export function crearServicioSedes(cliente: ClienteApi): ServicioSedes {
@@ -28,6 +31,14 @@ export function crearServicioSedes(cliente: ClienteApi): ServicioSedes {
         if (lista.items.length === 0 || sedes.length >= lista.total) break
       }
       return sedes
+    },
+
+    async crear(sede) {
+      return desenvolver(
+        await cliente.POST('/sedes', {
+          body: sede,
+        }),
+      )
     },
   }
 }

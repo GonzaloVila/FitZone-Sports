@@ -4,6 +4,7 @@ import { InsigniaFz } from '@/ui'
 // Presentacional: recibe los datos ya formateados. El QR, si lo hay, entra por el slot `qr`.
 defineProps<{
   nombre: string
+  socioId?: number | null
   dni?: string
   plan?: string
   estado?: { etiqueta: string; variante: 'exito' | 'peligro' | 'advertencia' }
@@ -16,12 +17,19 @@ const NO_DISPONIBLE = 'No disponible'
 
 <template>
   <article class="carnet" aria-label="Carnet del socio">
-    <header class="carnet__encabezado">FitZone Sports</header>
+    <header class="carnet__encabezado">
+      <span>FitZone Sports</span>
+      <span v-if="socioId" class="carnet__id-tag">ID #{{ socioId }}</span>
+    </header>
     <div class="carnet__cuerpo">
       <dl class="carnet__datos">
         <div class="carnet__dato carnet__dato--nombre">
           <dt>Nombre</dt>
           <dd>{{ nombre }}</dd>
+        </div>
+        <div v-if="socioId" class="carnet__dato">
+          <dt>ID Socio</dt>
+          <dd><strong>{{ socioId }}</strong></dd>
         </div>
         <div class="carnet__dato">
           <dt>DNI</dt>
@@ -54,60 +62,72 @@ const NO_DISPONIBLE = 'No disponible'
 
 <style scoped>
 .carnet {
-  max-width: 36rem;
-  overflow: hidden;
+  max-width: 28rem;
   border: 1px solid var(--fz-color-borde);
   border-radius: var(--fz-radio-tarjeta);
-  background: var(--fz-color-fondo);
-  box-shadow: var(--fz-sombra-suave);
+  background: var(--fz-color-superficie);
+  box-shadow: var(--fz-sombra-tarjeta);
+  overflow: hidden;
 }
 
 .carnet__encabezado {
-  padding: var(--fz-espaciado-compacto) var(--fz-espaciado-base);
-  border-bottom: 1px solid var(--fz-color-borde);
-  background: var(--fz-color-superficie);
-  font-weight: var(--fz-peso-enfasis);
-  color: var(--fz-color-texto);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--fz-color-primario);
+  color: var(--fz-color-texto-sobre-primario);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.carnet__id-tag {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--fz-radio-control);
+  font-size: 0.75rem;
 }
 
 .carnet__cuerpo {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--fz-espaciado-amplio);
-  padding: var(--fz-espaciado-base);
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
 }
 
 .carnet__datos {
   display: grid;
-  flex: 1 1 14rem;
-  gap: var(--fz-espaciado-compacto);
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
   margin: 0;
 }
 
 .carnet__dato {
   display: flex;
   flex-direction: column;
-  font-size: var(--fz-texto-pequeno);
+  gap: 0.125rem;
+}
+
+.carnet__dato--nombre {
+  grid-column: 1 / -1;
 }
 
 .carnet__dato dt {
+  font-size: 0.75rem;
   color: var(--fz-color-texto-suave);
 }
 
 .carnet__dato dd {
   margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--fz-color-texto);
-}
-
-.carnet__dato--nombre dd {
-  font-size: var(--fz-texto-cuerpo);
-  font-weight: var(--fz-peso-enfasis);
 }
 
 .carnet__qr {
   display: flex;
-  flex: 0 0 auto;
-  align-items: flex-start;
   justify-content: center;
+  padding: 1rem 0 0.5rem;
+  border-top: 1px dashed var(--fz-color-borde);
 }
 </style>

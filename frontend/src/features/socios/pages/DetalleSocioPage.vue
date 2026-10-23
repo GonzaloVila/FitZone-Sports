@@ -120,6 +120,7 @@ async function alDejarDeSerSocio() {
         <h2 id="detalle-carnet" class="detalle__subtitulo">Carnet</h2>
         <CarnetSocio
           :nombre="socio.nombre"
+          :socio-id="socio.id"
           :dni="carnet.dni"
           :plan="carnet.plan"
           :estado="carnet.estado"

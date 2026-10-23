@@ -9,6 +9,7 @@ import { API_URL } from './compartido/config'
 import { crearAlmacenToken } from './compartido/http/almacenToken'
 import { crearClienteApi } from './compartido/http/clienteApi'
 import { ServiciosKey } from './compartido/servicios'
+import { crearServicioAcceso } from './features/acceso/services/servicioAcceso'
 import { crearServicioSedes } from './features/sedes/services/servicioSedes'
 import { crearServicioSesion } from './features/sesion/services/servicioSesion'
 import { useSesionStore } from './features/sesion/stores/sesionStore'
@@ -32,6 +33,7 @@ const servicios = {
   socios: crearServicioSocios(clienteApi),
   sedes: crearServicioSedes(clienteApi),
   usuarios: crearServicioUsuarios(clienteApi),
+  acceso: crearServicioAcceso(clienteApi),
 }
 
 const app = createApp(App)

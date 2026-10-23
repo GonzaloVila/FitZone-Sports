@@ -3159,3 +3159,51 @@ Arrastrados de entradas anteriores:
 
 1. **Borrar los usuarios de prueba** al final, incluido "Prueba Alta".
 2. **Los mensajes de validación del backend en inglés.**
+
+---
+
+## 2026-10-23 - Frontend M2: Gimnasio y Acceso (RF-04, RF-05, RNF-04, RNF-01)
+
+**Fecha:** 23/10/2026 · **Rama:** `santiago` · **Autor:** Santiago Rayn
+
+### Actividades
+
+1. **Átomo `MedidorFz` en kit UI (`src/ui/atomos/MedidorFz.vue` y `src/ui/index.ts`):**
+   - Implementado con etiqueta nativa `<meter>` y atributos de accesibilidad (`aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-valuetext`).
+   - Muestra siempre el texto legible "X de Y (Z%)" con soporte para rangos óptimo, advertencia y lleno.
+
+2. **Composable compartido `useActualizacionPeriodica` (`src/compartido/composables/useActualizacionPeriodica.ts`):**
+   - Permite ejecución periódica (por defecto cada 10s) con suspensión automática al ocultar la pestaña (`document.visibilityState === 'hidden'`) para evitar tráfico en segundo plano.
+
+3. **Servicio y Composable de Sedes (`features/sedes`):**
+   - Incorporación del método `crear(sede: SedeIn): Promise<SedeOut>` (`POST /sedes`) para RNF-04.
+   - Creación del composable `useAltaSede` con validación de capacidad positiva y refresco automático.
+   - Creación de componentes `FormularioSede.vue` y página `AltaSedePage.vue` en `/sedes/nueva` protegida para el rol GERENTE.
+
+4. **Módulo de Acceso (`features/acceso`):**
+   - **Servicio `servicioAcceso.ts`**: Métodos tipados contra `api.d.ts` para `obtenerAforo`, `registrarIngreso`, `registrarEgreso`, `listarIngresos`, `obtenerIngreso` y `sincronizarIngresos`.
+   - **Composables**:
+     - `useAforo`: Monitoreo en tiempo real con `useActualizacionPeriodica` y estado `estaLleno`.
+     - `useRegistroIngreso`: Procesamiento de ingreso con código TOTP/QR y socio, traducción precisa de errores según `type` en RFC 9457 (membresía inactiva 403, acceso duplicado 409, aforo lleno 409, validación 422), y limpieza inmediata del código TOTP.
+     - `usePersonasDentro`: Consulta de ingresos abiertos (`dentro=true`) y acción de egreso (`POST /ingresos/:id/egreso`), con auto-recarga ante colisiones 409 (egreso duplicado).
+     - `useHistorialAccesos`: Filtros de fecha, sede y búsqueda de socio, paginación con `PaginacionFz`, debounce y cancelación de peticiones desactualizadas vía `AbortController`.
+     - `useSincronizacionOffline`: Manejo de cola local en almacenamiento y envío en lote vía `POST /sincronizacion/ingresos` (RNF-01).
+   - **Componentes y Páginas**:
+     - `TarjetaAforo.vue`, `FormularioIngreso.vue`, `ResultadoIngreso.vue` (con alto contraste, íconos y textos no dependientes de color), `TablaPersonasDentro.vue`, `FiltrosHistorial.vue`, `TablaHistorial.vue`.
+     - Páginas: `AforoPage.vue` (`/acceso/aforo`), `RegistrarIngresoPage.vue` (`/acceso/ingreso`) e `HistorialAccesosPage.vue` (`/acceso/historial`).
+   - **Rutas y Navegación**:
+     - Enrutamiento unificado con entrada en menú "Acceso" (orden 3) accesible para `RECEPCION` y `GERENTE`.
+     - Selector dinámico de sede para `GERENTE` y sede fija del token para `RECEPCION`.
+
+### Decisiones tomadas
+
+1. **Diferenciación de errores RFC 9457**: Se utiliza el campo `type` de la respuesta `application/problem+json` para distinguir 409 de acceso duplicado (`acceso-duplicado`, RN-01) vs. 409 de capacidad colmada (`aforo-lleno`, RF-05).
+2. **Seguridad del código TOTP**: El campo se vacía inmediatamente tras el envío y no se registra en memoria persistente ni logs.
+3. **Pausado eficiente de peticiones**: Se detiene la llamada periódica de aforo al cambiar de vista o minimizar la pestaña de navegación.
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exitoso (código 0)**.
+- Integración en caliente con Vite en frontend (`http://localhost:5173/`).
+- Documentación completa generada en `src/features/acceso/README.md`.
+

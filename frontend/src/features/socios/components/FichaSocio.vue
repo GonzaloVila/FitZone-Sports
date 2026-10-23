@@ -22,8 +22,16 @@ defineProps<{
 <template>
   <div class="ficha">
     <section class="ficha__seccion" aria-labelledby="ficha-datos">
-      <h2 id="ficha-datos" class="ficha__titulo">Datos del socio</h2>
+      <div class="ficha__cabecera-seccion">
+        <h2 id="ficha-datos" class="ficha__titulo">Datos del socio</h2>
+        <span class="ficha__badge-id">ID Socio: #{{ socio.id }}</span>
+      </div>
+
       <dl class="ficha__lista">
+        <div class="ficha__dato ficha__dato--destacado">
+          <dt>ID Socio (para control de acceso)</dt>
+          <dd class="ficha__id-grande">{{ socio.id }}</dd>
+        </div>
         <div class="ficha__dato">
           <dt>Nombre</dt>
           <dd>{{ socio.nombre }}</dd>
@@ -60,14 +68,17 @@ defineProps<{
     </section>
 
     <section class="ficha__seccion" aria-labelledby="ficha-membresia">
-      <h2 id="ficha-membresia" class="ficha__titulo">Membresía</h2>
-      <p v-if="membresia.situacion !== 'disponible'" class="ficha__tenue">
-        {{ membresia.situacion === 'cargando' ? 'Cargando…' : 'No disponible' }}
+      <h2 id="ficha-membresia" class="ficha__titulo">Membresía actual</h2>
+      <p v-if="membresia.situacion === 'cargando'" class="ficha__tenue">Cargando membresía…</p>
+      <p v-else-if="membresia.situacion === 'no-disponible'" class="ficha__tenue">
+        No se pudo obtener la membresía.
       </p>
       <dl v-else class="ficha__lista">
         <div class="ficha__dato">
           <dt>Plan</dt>
-          <dd>{{ ETIQUETAS_PLAN[membresia.valor.plan] }}</dd>
+          <dd>
+            <InsigniaFz>{{ ETIQUETAS_PLAN[membresia.valor.plan] }}</InsigniaFz>
+          </dd>
         </div>
         <div class="ficha__dato">
           <dt>Estado</dt>
@@ -92,49 +103,84 @@ defineProps<{
 
 <style scoped>
 .ficha {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-  gap: var(--fz-espaciado-amplio);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fz-espaciado-base);
 }
 
 .ficha__seccion {
+  padding: 1.25rem;
+  border: 1px solid var(--fz-color-borde);
+  border-radius: var(--fz-radio-tarjeta);
+  background: var(--fz-color-superficie);
+  box-shadow: var(--fz-sombra-tarjeta);
+}
+
+.ficha__cabecera-seccion {
   display: flex;
-  flex-direction: column;
-  gap: var(--fz-espaciado-compacto);
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
 }
 
 .ficha__titulo {
   margin: 0;
-  font-size: var(--fz-texto-cuerpo);
+  font-size: var(--fz-texto-titulo);
   font-weight: var(--fz-peso-enfasis);
+  color: var(--fz-color-texto);
+}
+
+.ficha__badge-id {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.25rem 0.625rem;
+  background: var(--fz-color-hover);
+  border: 1px solid var(--fz-color-borde);
+  border-radius: var(--fz-radio-control);
+  color: var(--fz-color-texto);
 }
 
 .ficha__lista {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fz-espaciado-compacto);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
   margin: 0;
 }
 
 .ficha__dato {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--fz-espaciado-compacto);
-  font-size: var(--fz-texto-pequeno);
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ficha__dato--destacado {
+  grid-column: 1 / -1;
+  background: var(--fz-color-hover);
+  padding: 0.75rem 1rem;
+  border-radius: var(--fz-radio-control);
+  border: 1px solid var(--fz-color-borde);
+}
+
+.ficha__id-grande {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--fz-color-primario);
 }
 
 .ficha__dato dt {
-  min-width: 10rem;
+  font-size: var(--fz-texto-pequeno);
   color: var(--fz-color-texto-suave);
 }
 
 .ficha__dato dd {
   margin: 0;
+  font-size: var(--fz-texto-cuerpo);
+  font-weight: var(--fz-peso-enfasis);
   color: var(--fz-color-texto);
 }
 
 .ficha__tenue {
-  margin: 0;
   color: var(--fz-color-texto-suave);
 }
 </style>

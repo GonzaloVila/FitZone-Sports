@@ -1,15 +1,30 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { useModoOscuro } from '@/compartido/composables/useModoOscuro'
 import { rolPermitido } from '@/features/sesion/acceso'
 import { useSesionStore } from '@/features/sesion/stores/sesionStore'
-import { BotonFz, PlantillaAppFz } from '@/ui'
+import { BotonFz, InsigniaFz, PlantillaAppFz } from '@/ui'
 
 const NOMBRE_APP = 'FitZone Sports'
 
 const router = useRouter()
 const route = useRoute()
 const sesion = useSesionStore()
+
+const { temaOscuro, alternarTema, inicializarTema } = useModoOscuro()
+
+onMounted(() => {
+  inicializarTema()
+})
+
+// Inicial del usuario para el avatar
+const inicialUsuario = computed(() => {
+  const nombre = sesion.usuario?.rol ?? 'U'
+  return nombre.charAt(0).toUpperCase()
+})
+
+const rolEtiqueta = computed(() => sesion.usuario?.rol ?? 'USUARIO')
 
 // Los links salen de las rutas con meta.navegacion, filtradas por el rol de la sesión y ordenadas por `orden`.
 const enlaces = computed(() => {
@@ -24,8 +39,6 @@ const enlaces = computed(() => {
     .sort((a, b) => a.orden - b.orden)
 })
 
-// "page" en la ruta exacta; "true" en las subrutas de la sección (por ejemplo, /socios/5 y /socios/nuevo
-// dejan resaltado "Socios").
 function marcaActual(rutaEnlace: string): 'page' | 'true' | undefined {
   if (route.path === rutaEnlace) return 'page'
   return route.path.startsWith(`${rutaEnlace}/`) ? 'true' : undefined
@@ -48,8 +61,15 @@ async function cerrarSesion() {
 
 <template>
   <PlantillaAppFz>
-    <template #encabezado>{{ NOMBRE_APP }}</template>
+    <!-- Brand / Logo -->
+    <template #encabezado>
+      <div class="armazon-app__marca">
+        <span class="armazon-app__logo-icono">⚡</span>
+        <span class="armazon-app__logo-texto">{{ NOMBRE_APP }}</span>
+      </div>
+    </template>
 
+    <!-- Navegación estilizada -->
     <template #navegacion>
       <ul class="armazon-app__lista">
         <li v-for="enlace in enlaces" :key="enlace.ruta">
@@ -62,10 +82,34 @@ async function cerrarSesion() {
       </ul>
     </template>
 
+    <!-- Acciones, Chip de usuario y Toggle Dark Mode -->
     <template #acciones>
-      <BotonFz variante="fantasma" tamano="sm" :cargando="cerrando" @click="cerrarSesion">
-        Cerrar sesión
-      </BotonFz>
+      <div class="armazon-app__acciones-grupo">
+        <!-- Botón Modo Oscuro -->
+        <button
+          type="button"
+          class="armazon-app__boton-tema"
+          :title="temaOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+          :aria-label="temaOscuro ? 'Modo claro' : 'Modo oscuro'"
+          @click="alternarTema"
+        >
+          {{ temaOscuro ? '☀️' : '🌙' }}
+        </button>
+
+        <!-- Chip de Usuario -->
+        <div class="armazon-app__usuario-chip">
+          <div class="armazon-app__avatar" aria-hidden="true">
+            {{ inicialUsuario }}
+          </div>
+          <div class="armazon-app__usuario-datos">
+            <InsigniaFz variante="neutra">{{ rolEtiqueta }}</InsigniaFz>
+          </div>
+        </div>
+
+        <BotonFz variante="fantasma" tamano="sm" :cargando="cerrando" @click="cerrarSesion">
+          Cerrar sesión
+        </BotonFz>
+      </div>
     </template>
 
     <RouterView />
@@ -73,10 +117,35 @@ async function cerrarSesion() {
 </template>
 
 <style scoped>
+.armazon-app__marca {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.armazon-app__logo-icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: var(--fz-color-primario);
+  color: var(--fz-color-texto-sobre-primario);
+  border-radius: var(--fz-radio-control);
+  font-size: 0.875rem;
+}
+
+.armazon-app__logo-texto {
+  font-size: 1.125rem;
+  color: var(--fz-color-texto);
+}
+
 .armazon-app__lista {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--fz-armazon-enlace-separacion);
+  gap: 0.375rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -85,27 +154,69 @@ async function cerrarSesion() {
 .armazon-app__enlace {
   display: inline-flex;
   align-items: center;
-  min-height: var(--fz-armazon-enlace-alto-min);
-  padding: 0 var(--fz-armazon-enlace-relleno-x);
-  border-bottom: var(--fz-armazon-enlace-indicador-ancho) solid transparent;
-  border-radius: var(--fz-armazon-enlace-radio);
-  font-size: var(--fz-armazon-enlace-texto);
-  color: var(--fz-armazon-enlace-color);
+  padding: 0.375rem 0.875rem;
+  border-radius: var(--fz-radio-control);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--fz-color-texto-suave);
   text-decoration: none;
+  transition: all 0.15s ease;
 }
 
 .armazon-app__enlace:hover {
-  background: var(--fz-armazon-enlace-fondo-hover);
+  background: var(--fz-color-hover);
+  color: var(--fz-color-texto);
 }
 
 .armazon-app__enlace[aria-current] {
-  border-bottom-color: var(--fz-armazon-enlace-indicador-activo);
-  background: var(--fz-armazon-enlace-fondo-hover);
-  font-weight: var(--fz-armazon-enlace-peso-activo);
+  background: var(--fz-color-hover);
+  color: var(--fz-color-primario);
+  font-weight: 600;
 }
 
-.armazon-app__enlace:focus-visible {
-  outline: var(--fz-armazon-foco-ancho) solid var(--fz-armazon-foco-color);
-  outline-offset: var(--fz-armazon-foco-separacion);
+.armazon-app__acciones-grupo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.armazon-app__boton-tema {
+  background: var(--fz-color-hover);
+  border: 1px solid var(--fz-color-borde);
+  border-radius: var(--fz-radio-control);
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.15s;
+}
+
+.armazon-app__boton-tema:hover {
+  background: var(--fz-color-borde);
+}
+
+.armazon-app__usuario-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-right: 0.25rem;
+  border-right: 1px solid var(--fz-color-borde);
+}
+
+.armazon-app__avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--fz-color-hover);
+  border: 1px solid var(--fz-color-borde);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--fz-color-texto);
 }
 </style>

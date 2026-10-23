@@ -75,6 +75,14 @@ CORS_ORIGINS=http://localhost:5173
 
 > TypeScript está fijado en 5.9 porque openapi-typescript declara un peer dependency de TypeScript 5. Subir a 6 cuando el generador lo soporte.
 
+## Capa de servicios y raíz de composición
+
+- **Cliente HTTP** (`src/compartido/http/`): `clienteApi.ts` crea un cliente de `openapi-fetch` tipado con `paths` de `src/types/api.d.ts`. Manda la cookie de refresh (`credentials: 'include'`) y el `Authorization: Bearer`, y ante un 401 renueva el acceso una sola vez y reintenta. `almacenToken.ts` guarda el access token solo en memoria. `errores.ts` define `ErrorApi` (`status` y `problema` del contrato; status 0 si no hay conexión).
+- **Servicios** (`src/features/<feature>/services/`): una función por operación del contrato, sin estado de Vue ni reglas de negocio. Usan `desenvolver()` para obtener los datos o recibir un `ErrorApi`. Hoy existe `servicioSesion.ts`.
+- **Raíz de composición** (`src/main.ts`): es el único que conoce las implementaciones concretas (y el único que importa `API_URL`). Crea el almacén, el cliente y los servicios y los publica con `app.provide(ServiciosKey, ...)`.
+- **Uso desde las features:** `useServicios()` (`src/compartido/servicios.ts`), solo desde `setup` o composables, nunca desde funciones de lógica.
+- **`ui/` nunca usa servicios:** el kit de componentes no sabe que existe una API.
+
 ## Sesión
 
 Pendiente, SCRUM-16.

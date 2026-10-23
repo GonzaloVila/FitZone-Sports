@@ -2782,3 +2782,58 @@ Arrastrados de entradas anteriores:
 4. **Consultar al profe** si espera Storybook y tokens en formato DTCG.
 5. **Confirmar la versión de Node del equipo.**
 6. **Marcar SCRUM-15 en Jira** cuando cierre el scaffolding.
+
+---
+
+## 2026-10-23 - Pantalla de login visual y cadena de componentes del kit (SCRUM-15)
+
+**Fecha:** 23/10/2026 · **Rama:** `main` · **Autor:** Santino
+
+### Actividades
+
+1. **Molécula `CampoFormularioFz` (`ui/moleculas/`).** Etiqueta con `for`, `CampoTextoFz`, ayuda y error opcionales. El `id` se genera con `useId()` si no se pasa. `aria-describedby` apunta a la ayuda y al error, el error lleva `role="alert"` y los atributos no declarados se reenvían al campo.
+
+2. **Plantilla `PlantillaCentradaFz` (`ui/plantillas/`).** Pantalla completa con una tarjeta centrada de ancho máximo 24 rem. El `titulo` se renderiza como `h1` y el `subtitulo` como `p`.
+
+3. **Átomo `AvisoFz` (`ui/atomos/`).** Variantes `peligro`, `exito` y `advertencia`; `role="alert"` para peligro y advertencia y `role="status"` para éxito.
+
+4. **Tokens de componente nuevos** (`--fz-campo-formulario-*`, `--fz-plantilla-centrada-*` y `--fz-aviso-*`) en `componentes.css`, todos referenciando semánticos. Los tres componentes nuevos se exportan desde `ui/index.ts`.
+
+5. **Organismo `FormularioLogin` (`features/sesion/components/`).** Email y contraseña, botón "Ingresar", props `cargando` y `error` y evento `enviar` con `{ email, contrasenia }`. Va en `features/` y no en `ui/` porque conoce conceptos de sesión.
+
+6. **`LoginPage`** reemplaza el stub y compone la plantilla con el organismo. No llama a la API: la conexión es SCRUM-16.
+
+### Decisiones tomadas
+
+1. **Validación de UX solamente:** email obligatorio con formato razonable y contraseña obligatoria, sin largo mínimo. Los errores aparecen tras el primer intento de envío y se limpian al corregir el campo; el formulario usa `novalidate`. Si las credenciales son correctas lo decide el backend (401); el front lo mostrará con la prop `error` del organismo al conectar SCRUM-16.
+2. **Contraste del borde de controles.** El borde en reposo de los campos (`color-borde`, `#e9e9e6`) daba unos 1.2:1, por debajo del 3:1 que pide WCAG 2.2 (1.4.11). Se agregó el primitivo `gris-300` (`#8c8b87`) y el semántico `borde-control`, que el campo usa en reposo (3.41:1 sobre blanco y 3.29:1 sobre la superficie). El semántico `borde` queda para separadores y tarjetas decorativos.
+3. **Borde del botón secundario sin cambios.** El borde del secundario (en reposo y hover) y el de los botones deshabilitados siguen usando `color-borde` (~1.2:1). No se cambió porque ninguna pantalla usa todavía el secundario y el texto del botón lo identifica. A revisar cuando una pantalla lo use.
+4. **La cadena de Atomic Design queda ejercitada de punta a punta:** átomos, molécula, plantilla, organismo y página.
+5. **La molécula importa el átomo por ruta relativa** y no desde `ui/index.ts`, para evitar un ciclo de importación.
+
+### Problemas encontrados
+
+1. **Campos casi indistinguibles de la tarjeta.** La revisión visual en `/login` mostró que los campos casi no se distinguían de la tarjeta, lo que llevó al ajuste del borde descrito arriba.
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0**.
+- Colores literales solo en `primitivos.css`; ningún `var(--fz-prim-...)` fuera de `semanticos.css`; capas de tokens respetadas; todas las variables usadas definidas; `ui/` no importa nada de `features/`.
+- Contraste de los pares nuevos: texto >= 4.5:1 (aviso de peligro 4.52, éxito 5.12, advertencia 4.74) y borde del campo >= 3:1.
+- `package.json` y `package-lock.json` sin cambios.
+- Comprobación manual de Santino en `/login` (escritorio y 375 px): sin scroll horizontal, anillo de foco visible al navegar con Tab, errores de validación al enviar vacío.
+
+### Commits
+
+- `2102431` `feat(front): molécula de formulario, plantilla centrada y LoginPage visual`
+
+### Pendientes que siguen abiertos
+
+1. **Base compartida del frontend:** cliente HTTP, store de sesión, guards del router y raíz de composición con inyección de servicios en `main.ts` (a confirmar con el equipo).
+2. **Conectar `LoginPage` con el servicio de sesión** (SCRUM-16), incluyendo mostrar el error general.
+3. **Revisar el borde del botón secundario** cuando una pantalla lo use.
+4. **Repartir las pantallas de los demás módulos** entre el equipo una vez lista la base (a definir).
+5. **Instalar Reka UI** al construir el primer widget complejo.
+6. **Consultar al profe** si espera Storybook y tokens en formato DTCG.
+7. **Confirmar la versión de Node del equipo.**
+8. **Marcar SCRUM-15 en Jira.**

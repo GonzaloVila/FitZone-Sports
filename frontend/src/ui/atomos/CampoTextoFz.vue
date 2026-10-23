@@ -3,7 +3,7 @@ defineOptions({ inheritAttrs: false })
 
 withDefaults(
   defineProps<{
-    tipo?: 'text' | 'email' | 'password' | 'search' | 'number' | 'date'
+    tipo?: 'text' | 'email' | 'password' | 'search' | 'number' | 'date' | 'time'
     tamano?: 'sm' | 'md' | 'lg'
     invalido?: boolean
   }>(),

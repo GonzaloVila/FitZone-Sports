@@ -3006,3 +3006,58 @@ Arrastrados de entradas anteriores:
 2. **Revisar el borde del botón secundario** (~1.2:1) cuando una pantalla lo use.
 3. **Distinguir una falla de red de una sesión vencida** al renovar.
 4. **Pruebas automáticas con Vitest** (SCRUM-18).
+
+---
+
+## 2026-10-23 - Lista de socios con filtros y paginación (SCRUM-16)
+
+**Fecha:** 23/10/2026 · **Rama:** `main` · **Autor:** Santino
+
+### Actividades
+
+1. **Servicios.** `servicioSocios` (`listar` y `obtenerMembresia`) y `servicioSedes.listar` (pide páginas de 100 hasta traer todas), registrados en el contenedor de servicios y construidos en `main.ts`. Helper `mensajeDeError` en `errores.ts`.
+
+2. **Composable `useListaSocios`.** Debounce de 300 ms en el nombre; cambiar un filtro vuelve a la página 1; cada consulta tiene un número y un `AbortController` para descartar las respuestas viejas; una página fuera de rango vuelve a la última con datos.
+
+3. **Kit (`ui/`).** `SelectFz` (átomo), `TablaFz` (organismo genérico con `caption`, `scope` y región desplazable con foco) y `PaginacionFz` (molécula con `nav`, "Página X de Y" y `v-model`). Tokens de componente solo sobre semánticos.
+
+4. **Features `sedes` y `socios`.** `useSedes` en `sedes`; en `socios`, `FiltrosSocios`, `TablaSocios`, `presentacion.ts` (ACTIVA verde, VENCIDA rojo, SUSPENDIDA ámbar, plan neutro; fecha `es-AR` en zona Buenos Aires) y `GestionSociosPage` con estados cargando, vacío y error, más un `aria-live` con la cantidad de resultados. Sin acciones por fila todavía.
+
+5. **Borde del botón secundario.** Ahora apunta al token semántico del borde de los controles (3.41:1 en reposo, 3.02:1 en hover). Cierra el pendiente anotado en el LOG.
+
+6. **`README.md`:** sección "Lista de socios" y la regla de dependencias entre features (una feature puede importar composables y tipos de otra, nunca sus páginas, componentes ni stores, y sin ciclos).
+
+### Decisiones tomadas
+
+1. **El contrato no trae plan ni estado en el listado de socios** (`SocioOut` y `ListaSocios` solo traen `id`, `usuarioId`, `sedeOrigenId`, `fechaAlta`, `nombre` y `email`), así que se pide la membresía de cada fila de la página (hasta 4 en paralelo, 10 filas por página). Si una falla, solo esa fila muestra "No disponible". Mejora propuesta: que el backend agregue plan y estado al listado.
+2. **`TablaFz` va en `organismos/`** porque el README del kit lista "tabla" en ese nivel.
+3. **`sedes` es una feature propia** porque la van a usar varios módulos.
+
+### Problemas encontrados
+
+1. **Ninguno.**
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0**.
+- Sin `fetch` en `features/`, `router/`, `ui/` ni `app/`; `ui/` sin imports de `features/`, `compartido/` ni `app/`; colores literales solo en `primitivos.css`; sin variables sin definir; sin `localStorage`, `sessionStorage` ni cookies; `package.json` y `package-lock.json` sin cambios.
+- Contraste de 20 pares medido con los tokens reales, sin ninguno por debajo del mínimo (insignias: neutra 10.84, ACTIVA 5.12, VENCIDA 4.52, SUSPENDIDA 4.74).
+- Prueba manual en el navegador contra el backend real, con GERENTE y 3 socios en la base:
+  - la tabla muestra nombre, email, sede por nombre, fecha, plan y estado con sus colores;
+  - en Network salen 1 listado, 1 de sedes y 3 de membresías (más sus preflight);
+  - con el backend apagado aparece el aviso rojo "No se pudo conectar con el servidor" y los filtros se conservan;
+  - a 400 px los filtros se apilan y la tabla se desplaza dentro de su recuadro, sin desborde de la página.
+- **No probado:** la paginación (hay solo 3 socios), el estado vacío, el debounce a ojo, lectores de pantalla, el foco de la paginación y el desplazamiento por teclado de la tabla. Los filtros por estado, plan, sede y nombre contra el backend tampoco se confirmaron con resultados.
+
+### Commits
+
+- `cbec5fb` `Frontend: lista de socios con filtros y paginación`
+
+### Pendientes que siguen abiertos
+
+1. **Detalle del socio y acciones** (suspender, cambiar plan, renovación automática, dejar de ser socio).
+2. **Alta de socio.**
+3. **Carnet del socio con QR.**
+4. **Botón "Reintentar"** en el estado de error.
+5. **Distinguir una falla de red de una sesión vencida** al renovar.
+6. **Pruebas automáticas con Vitest** (SCRUM-18).

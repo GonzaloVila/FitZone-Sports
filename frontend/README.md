@@ -83,6 +83,11 @@ CORS_ORIGINS=http://localhost:5173
 - **Uso desde las features:** `useServicios()` (`src/compartido/servicios.ts`), solo desde `setup` o composables, nunca desde funciones de lógica.
 - **`ui/` nunca usa servicios:** el kit de componentes no sabe que existe una API.
 
-## Sesión
+## Sesión y rutas protegidas
 
-Pendiente, SCRUM-16.
+- **Quién guarda qué:** el access token vive solo en memoria (`compartido/http/almacenToken.ts`) y el refresh token en la cookie HttpOnly que maneja el backend. El store `features/sesion/stores/sesionStore.ts` guarda solo el usuario (`rol`, `sedeId`, `socioId`); nada va a `localStorage` ni a otro storage.
+- **Quién habla con el servicio:** solo `LoginPage`, a través de `useIniciarSesion()` y el store. Las páginas no usan `fetch`.
+- **Rutas:** cada ruta declara su `meta` en `src/router/index.ts`: `publica: true` (login), `roles: [...]` (por ejemplo `/socios` para `RECEPCION` y `GERENTE`) o nada (`/inicio` solo requiere sesión). Un rol desconocido se trata como sin permisos.
+- **Guard global:** en la primera navegación intenta restaurar la sesión con la cookie (F5); sin sesión manda a `/login?redirect=<ruta>`; con sesión, `/login` y las rutas no permitidas llevan a la ruta inicial del rol (`RECEPCION` y `GERENTE` a `/socios`; `SOCIO` y `EXTERNO` a `/inicio`).
+- **Sesión vencida:** si no se puede renovar el acceso, `main.ts` limpia el store y lleva a `/login`.
+- **Restricciones de rol:** las restricciones del front son solo de navegación (UX); la autorización real la hace el backend.

@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { PlantillaCentradaFz } from '@/ui'
 import FormularioLogin from '../components/FormularioLogin.vue'
+import { useIniciarSesion } from '../composables/useIniciarSesion'
 
-function manejarEnvio() {
-  // Por ahora no hace nada: la conexión con el servicio de sesión se hace en SCRUM-16.
-}
+const { iniciarSesion, cargando, error } = useIniciarSesion()
 </script>
 
 <template>
   <PlantillaCentradaFz titulo="FitZone Sports" subtitulo="Ingresá a tu cuenta">
-    <FormularioLogin @enviar="manejarEnvio" />
+    <FormularioLogin :cargando="cargando" :error="error ?? undefined" @enviar="iniciarSesion" />
   </PlantillaCentradaFz>
 </template>

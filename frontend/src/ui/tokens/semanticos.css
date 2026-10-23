@@ -9,7 +9,9 @@
   --fz-color-fondo: var(--fz-prim-gris-0);
   --fz-color-superficie: var(--fz-prim-gris-50);
   --fz-color-hover: var(--fz-prim-gris-100);
+  /* borde queda para separadores y tarjetas decorativos; borde-control es para controles de formulario (3:1) */
   --fz-color-borde: var(--fz-prim-gris-200);
+  --fz-color-borde-control: var(--fz-prim-gris-300);
   --fz-color-primario: var(--fz-prim-azul-500);
   --fz-color-primario-hover: var(--fz-prim-azul-600);
   --fz-color-texto-sobre-primario: var(--fz-prim-gris-0);

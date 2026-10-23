@@ -66,7 +66,7 @@
   --fz-campo-fondo: var(--fz-color-fondo);
   --fz-campo-texto: var(--fz-color-texto);
   --fz-campo-placeholder: var(--fz-color-texto-suave);
-  --fz-campo-borde: var(--fz-color-borde);
+  --fz-campo-borde: var(--fz-color-borde-control);
   --fz-campo-borde-hover: var(--fz-color-texto-suave);
   --fz-campo-borde-foco: var(--fz-color-foco);
   --fz-campo-borde-invalido: var(--fz-color-peligro);
@@ -99,4 +99,51 @@
   --fz-insignia-advertencia-fondo: var(--fz-color-advertencia-fondo);
   --fz-insignia-advertencia-borde: var(--fz-color-advertencia-borde);
   --fz-insignia-advertencia-texto: var(--fz-color-advertencia);
+
+  /* ---- Aviso ---- */
+  --fz-aviso-relleno-x: var(--fz-espaciado-base);
+  --fz-aviso-relleno-y: var(--fz-espaciado-compacto);
+  --fz-aviso-texto: var(--fz-texto-pequeno);
+  --fz-aviso-radio: var(--fz-radio-control);
+  --fz-aviso-borde-ancho: 1px;
+
+  --fz-aviso-peligro-fondo: var(--fz-color-peligro-fondo);
+  --fz-aviso-peligro-borde: var(--fz-color-peligro-borde);
+  --fz-aviso-peligro-texto: var(--fz-color-peligro);
+
+  --fz-aviso-exito-fondo: var(--fz-color-exito-fondo);
+  --fz-aviso-exito-borde: var(--fz-color-exito-borde);
+  --fz-aviso-exito-texto: var(--fz-color-exito);
+
+  --fz-aviso-advertencia-fondo: var(--fz-color-advertencia-fondo);
+  --fz-aviso-advertencia-borde: var(--fz-color-advertencia-borde);
+  --fz-aviso-advertencia-texto: var(--fz-color-advertencia);
+
+  /* ---- Campo de formulario (molécula) ---- */
+  --fz-campo-formulario-separacion: var(--fz-espaciado-compacto);
+  --fz-campo-formulario-etiqueta-texto: var(--fz-texto-pequeno);
+  --fz-campo-formulario-etiqueta-peso: var(--fz-peso-enfasis);
+  --fz-campo-formulario-etiqueta-color: var(--fz-color-texto);
+  --fz-campo-formulario-ayuda-texto: var(--fz-texto-pequeno);
+  --fz-campo-formulario-ayuda-color: var(--fz-color-texto-suave);
+  --fz-campo-formulario-error-texto: var(--fz-texto-pequeno);
+  --fz-campo-formulario-error-color: var(--fz-color-peligro);
+
+  /* ---- Plantilla centrada ---- */
+  --fz-plantilla-centrada-fondo: var(--fz-color-superficie);
+  --fz-plantilla-centrada-relleno: var(--fz-espaciado-base);
+  --fz-plantilla-centrada-tarjeta-ancho-max: 24rem;
+  --fz-plantilla-centrada-tarjeta-fondo: var(--fz-color-fondo);
+  --fz-plantilla-centrada-tarjeta-borde: var(--fz-color-borde);
+  --fz-plantilla-centrada-tarjeta-borde-ancho: 1px;
+  --fz-plantilla-centrada-tarjeta-radio: var(--fz-radio-tarjeta);
+  --fz-plantilla-centrada-tarjeta-sombra: var(--fz-sombra-suave);
+  --fz-plantilla-centrada-tarjeta-relleno: var(--fz-espaciado-amplio);
+  --fz-plantilla-centrada-encabezado-separacion: var(--fz-espaciado-compacto);
+  --fz-plantilla-centrada-encabezado-margen: var(--fz-espaciado-amplio);
+  --fz-plantilla-centrada-titulo-texto: var(--fz-texto-titulo);
+  --fz-plantilla-centrada-titulo-peso: var(--fz-peso-enfasis);
+  --fz-plantilla-centrada-titulo-color: var(--fz-color-texto);
+  --fz-plantilla-centrada-subtitulo-texto: var(--fz-texto-cuerpo);
+  --fz-plantilla-centrada-subtitulo-color: var(--fz-color-texto-suave);
 }

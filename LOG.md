@@ -2837,3 +2837,61 @@ Arrastrados de entradas anteriores:
 6. **Consultar al profe** si espera Storybook y tokens en formato DTCG.
 7. **Confirmar la versión de Node del equipo.**
 8. **Marcar SCRUM-15 en Jira.**
+
+---
+
+## 2026-10-23 - Cliente HTTP tipado, errores del contrato y raíz de composición (SCRUM-15)
+
+**Fecha:** 23/10/2026 · **Rama:** `main` · **Autor:** Santino
+
+### Actividades
+
+1. **Dependencia nueva: `openapi-fetch` 0.17.** Sin `peerDependencies` ni `engines`; solo depende de `openapi-typescript-helpers`. Instalación sin conflictos.
+
+2. **`compartido/http/errores.ts`.** `ErrorApi` con `status` y `problema` (tipo derivado del esquema `Problem`, RFC 9457). La falla de red es un `ErrorApi` con status 0.
+
+3. **`compartido/http/almacenToken.ts`.** El access token vive solo en memoria.
+
+4. **`compartido/http/clienteApi.ts`.** Cliente tipado con los `paths` del contrato, con `credentials: 'include'` y `Authorization: Bearer`. Ante un 401 en operaciones que no son de autenticación renueva una vez y reintenta una vez, con un `fetch` propio que clona el `Request` antes del primer intento. Si la renovación o el reintento fallan, borra el token y avisa que la sesión expiró. Incluye el helper `desenvolver`, que devuelve los datos o lanza `ErrorApi`.
+
+5. **`compartido/servicios.ts`.** Interfaz `Servicios`, `ServiciosKey` (`InjectionKey`) y `useServicios()`.
+
+6. **`features/sesion/services/servicioSesion.ts`.** `iniciarSesion`, `renovar` y `cerrarSesion`, una función por operación del contrato (`login`, `refrescarToken`, `cerrarSesion`).
+
+7. **`main.ts`** pasó a ser la raíz de composición: crea el almacén, el cliente y el servicio, y los provee con `app.provide`.
+
+8. **`README.md`:** sección "Capa de servicios y raíz de composición".
+
+### Decisiones tomadas
+
+1. **Inyección de dependencias con `provide`/`inject`** (el equivalente en Vue al Context de React visto en la Unidad IV, Clase 2). `main.ts` es el único archivo que conoce las implementaciones concretas y el único que importa `API_URL`; las features usan `useServicios()` desde `setup` o composables; `ui/` nunca usa servicios.
+2. **Sesión.** El access token vive en memoria y el refresh token en la cookie HttpOnly que gestiona el backend. El contrato dice que dos renovaciones con el mismo token cuentan como reuso y revocan todas las sesiones del usuario; por eso las renovaciones concurrentes comparten una sola promesa y todas las llamadas a `/auth/refresh` (automáticas o explícitas) se serializan.
+3. **Login, refresh y logout no pasan por la lógica de renovación ante 401** (evita bucles); `registro-qr` sí.
+4. **Una falla de red al renovar hoy cierra la sesión**, igual que cualquier otra falla de renovación. Se puede distinguir más adelante para no desloguear por un corte de conexión.
+5. **`servicios.ts` (en `compartido/`) importa con `import type` el tipo `ServicioSesion` desde `features/`.** Es el costo de un contenedor central, aceptado.
+6. **`openapi-fetch` es la única dependencia nueva:** tipa cada llamada desde `api.d.ts`.
+
+### Problemas encontrados
+
+1. **Ninguno bloqueante.** Los warnings de engine de npm son los habituales de otras dependencias.
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0** (58 módulos).
+- `API_URL` aparece solo en `config.ts` y `main.ts`. No hay `localStorage`, `sessionStorage` ni `document.cookie` en `src/` (la única coincidencia es un comentario).
+- `ui/`, `router/`, `LoginPage` y los componentes sin cambios. El diff de `package.json` es solo la línea de `openapi-fetch`; el lock solo suma `openapi-fetch` y `openapi-typescript-helpers`.
+- Prueba con `fetch` falso (11 casos, todos OK; el script quedó fuera del repo): 401 con una renovación y un reintento con el mismo cuerpo, reintento tras recarga sin token en memoria, 5 pedidos concurrentes con 401 que hacen una sola renovación, renovaciones explícitas y automáticas en paralelo sin solaparse, renovación fallida, reintento con 401, login con 401 sin disparar renovación, login correcto, logout 204, falla de red y error sin problem+json.
+- **No se probó contra el backend real.**
+
+### Commits
+
+- `13d9b83` `feat(front): cliente HTTP tipado, errores del contrato y raíz de composición`
+
+### Pendientes que siguen abiertos
+
+1. **Paso 8:** store de sesión (Pinia), composable de login, guards del router y `LoginPage` conectada con el aviso de error.
+2. **Probar el cliente contra el backend real** (`CORS_ORIGINS`, header `Origin` y cookie del refresh).
+3. **Pasar la prueba del cliente a tests dentro del repo** cuando se configure Vitest (Unidad V).
+4. **Decidir si una falla de red al renovar debe cerrar la sesión.**
+5. **Escribir ADRs del front:** sesión y tokens, capa de servicios y justificación de librerías.
+6. **Los pendientes anteriores siguen abiertos:** borde del botón secundario, repartir pantallas de los demás módulos, Reka UI, consulta al profe por Storybook y tokens DTCG, versión de Node del equipo y Jira.

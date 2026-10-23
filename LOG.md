@@ -2952,3 +2952,57 @@ Arrastrados de entradas anteriores:
 4. **Borrar o reconocer con el equipo los usuarios de prueba** de la base compartida.
 5. **Decidir si una falla de red al renovar debe cerrar la sesión.**
 6. **Los pendientes anteriores siguen abiertos:** ADRs del front, tests del cliente con Vitest (Unidad V), borde del botón secundario, repartir pantallas de los demás módulos, Reka UI, consulta al profe por Storybook y tokens DTCG, versión de Node del equipo y Jira.
+
+---
+
+## 2026-10-23 - Armazón de la app, rutas por módulo y ruta comodín (SCRUM-16)
+
+**Fecha:** 23/10/2026 · **Rama:** `main` · **Autor:** Santino
+
+### Actividades
+
+1. **Rutas por módulo.** Cada feature exporta sus rutas en `features/<x>/rutas.ts` (`sesion`, `inicio` y `socios`) y `router/index.ts` las junta con spread, para que dos personas que agregan módulos no editen las mismas líneas. `RouteMeta` suma `navegacion?: { etiqueta, orden }`.
+
+2. **Plantilla `PlantillaAppFz` (`ui/plantillas/`).** Presentacional, con slots `encabezado`, `navegacion`, `acciones` y contenido. Tokens `--fz-armazon-*` sobre semánticos. Landmarks `header`, `nav` y `main`, enlace "Saltar al contenido" y `aria-label` en el `nav`.
+
+3. **`app/ArmazonApp.vue`.** Arma el armazón con links construidos desde las rutas con `meta.navegacion`, filtrados por `rolPermitido` y ordenados por `orden`. El botón "Cerrar sesión" usa `cerrarSesion()` del store y va a `/login` aunque falle el aviso al servidor.
+
+4. **Ruta comodín `no-encontrada`.** Redirige a `/login`; con sesión, el guard reubica a la ruta inicial del rol. `useIniciarSesion` ignora un `?redirect` que apunte a la comodín. El nombre de la ruta vive como constante en `acceso.ts` para evitar un ciclo de imports entre el router y la feature.
+
+5. **`README.md`:** estructura actualizada y sección "Rutas por módulo y armazón" con los 4 pasos para agregar un módulo.
+
+### Decisiones tomadas
+
+1. **El link inactivo usa `color-texto` y no `texto-suave`**, porque sobre el gris de hover daría 4.26:1 (mínimo 4.5:1). El activo se distingue por subrayado, peso y fondo.
+2. **La comodín siempre va a `/login` y el guard resuelve el resto**, así no se toca el guard.
+3. **Se agregó un slot `acciones` a la plantilla** para ubicar el botón sin acoplarla a la sesión.
+
+### Problemas encontrados
+
+1. **Ninguno.**
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0**.
+- Sin `fetch` en `features/`, `router/`, `ui/` ni `app/`; `ui/` no importa `features/`, `compartido/` ni `app/`; colores literales solo en `primitivos.css`; sin variables sin definir; sin `localStorage`, `sessionStorage` ni cookies; `package.json` y `package-lock.json` sin cambios.
+- Contraste calculado desde los tokens: texto 12.26:1, hover 10.84:1, enlace de salto 5.19:1, indicador y anillo de foco 5.19:1 y 4.59:1 (mínimo 3:1). El borde inferior del encabezado (1.22:1) es decorativo.
+- Prueba manual en el navegador contra el backend real, con GERENTE y EXTERNO:
+  - el GERENTE ve "Inicio" y "Socios", el EXTERNO solo "Inicio", y el link activo se distingue;
+  - "Cerrar sesión" lleva a `/login` y con F5 sigue ahí;
+  - una ruta inexistente lleva a la ruta inicial del rol (con sesión) o a `/login` (sin sesión);
+  - un `?redirect` inventado cae en la ruta inicial;
+  - el enlace de salto aparece con Tab y mueve el foco al contenido;
+  - a 400 px los links se acomodan sin desborde horizontal;
+  - no hay avisos de `vue-router` en la consola.
+- **No probado:** RECEPCION y SOCIO en el armazón, el logout cuando falla contra el servidor, lector de pantalla y la medición de contraste en el navegador (se calculó desde los tokens).
+
+### Commits
+
+- `928e934` `Frontend: armazón de la app, rutas por módulo y ruta comodín`
+
+### Pendientes que siguen abiertos
+
+1. **Pantallas del Módulo 1** (gestión de socios y membresías, carnet) sobre este armazón.
+2. **Revisar el borde del botón secundario** (~1.2:1) cuando una pantalla lo use.
+3. **Distinguir una falla de red de una sesión vencida** al renovar.
+4. **Pruebas automáticas con Vitest** (SCRUM-18).

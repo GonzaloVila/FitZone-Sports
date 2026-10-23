@@ -3061,3 +3061,54 @@ Arrastrados de entradas anteriores:
 4. **Botón "Reintentar"** en el estado de error.
 5. **Distinguir una falla de red de una sesión vencida** al renovar.
 6. **Pruebas automáticas con Vitest** (SCRUM-18).
+
+---
+
+## 2026-10-23 - Detalle, alta y carnet de socio con QR (SCRUM-16)
+
+**Fecha:** 23/10/2026 · **Rama:** `main` · **Autor:** Santino
+
+### Actividades
+
+1. **Detalle del socio en `/socios/:socioId`.** Seis acciones (suspender, reactivar, cambiar plan, renovación automática, cambiar sede y dejar de ser socio), cada una con un `ModalFz` de confirmación (`<dialog>` nativo).
+
+2. **Alta en `/socios/nuevo`, en dos pasos.** Primero se busca un usuario EXTERNO o se crea uno; después se elige la sede y el plan.
+
+3. **Carnet en `/carnet` para SOCIO,** con `QrFz`, que genera el QR en el navegador.
+
+4. **Pulido.** Menú, `README.md` y accesibilidad.
+
+### Decisiones tomadas
+
+1. **Dependencias nuevas:** `qrcode` 1.5.4 y `@types/qrcode` 1.5.6, con versiones exactas. El `package-lock.json` suma 30 paquetes, 28 de ellos transitivos.
+2. **`registrarQr` se llama solo desde un botón confirmado,** porque sobrescribe el secreto. La URI y el secreto quedan únicamente en la memoria del componente.
+3. **Si `crearUsuario` sale bien y `crearSocio` falla, el reintento no recrea el usuario:** el usuario creado pasa a ser el seleccionado.
+4. **La ruta inicial del SOCIO pasa a `/carnet`.** El menú queda con "Inicio" en orden 0 y "Mi carnet" en orden 1.
+5. **Nuevo composable `useUsuarioSesion` en `sesion`,** que expone `rol` y `socioId`, para que `socios` no importe el store de otra feature.
+6. **Los 422 del backend vienen en inglés** (`class-validator`) y se muestran tal cual, asociados a su campo. El backend está cerrado.
+7. **El secreto del QR se muestra para carga manual,** extraído del parámetro `secret` de la URI.
+
+### Problemas encontrados
+
+1. **Ninguno.**
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0**.
+- 27 pares de contraste medidos, sin incumplimientos. Solo son informativos el borde del modal, el borde del QR y el borde del botón peligro.
+- **No probado en ejecución:**
+  - el render y el flujo de las pantallas nuevas;
+  - el `<dialog>` (foco, Esc, `::backdrop`);
+  - la generación real del QR y su vinculación con una app de autenticación;
+  - los errores 402, 409 y 422 contra el backend real;
+  - lectores de pantalla;
+  - que el login cargue `socioId` en la sesión.
+
+### Commits
+
+- `b235036` `Frontend Pasos 11-14: detalle, alta y carnet de socio con QR`
+
+### Pendientes que siguen abiertos
+
+1. **Probar lo anterior con un socio de prueba** creado desde el alta.
+2. **Borrar los usuarios de prueba** al final.

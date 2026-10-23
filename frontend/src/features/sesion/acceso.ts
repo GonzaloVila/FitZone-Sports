@@ -10,6 +10,8 @@ export function rutaInicialPorRol(rol: Rol | null): string {
     case 'RECEPCION':
     case 'GERENTE':
       return '/socios'
+    case 'SOCIO':
+      return '/carnet'
     default:
       return '/inicio'
   }

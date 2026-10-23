@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
 import { InsigniaFz, TablaFz, type ColumnaTabla } from '@/ui'
 import { ETIQUETAS_ESTADO, ETIQUETAS_PLAN, VARIANTES_ESTADO, formatearFecha } from '../presentacion'
 import type { FilaSocio } from '../tipos'
@@ -23,7 +24,11 @@ const claveFila = (fila: FilaSocio) => fila.socio.id
 
 <template>
   <TablaFz titulo="Listado de socios" ocultar-titulo :columnas="columnas" :filas="filas" :clave-fila="claveFila" :ocupada="ocupada">
-    <template #celda-nombre="{ fila }">{{ fila.socio.nombre }}</template>
+    <template #celda-nombre="{ fila }">
+      <RouterLink :to="{ name: 'socio-detalle', params: { socioId: fila.socio.id } }" class="tabla-socios__enlace">
+        {{ fila.socio.nombre }}
+      </RouterLink>
+    </template>
     <template #celda-email="{ fila }">{{ fila.socio.email }}</template>
     <template #celda-sede="{ fila }">{{ nombreSede(fila.socio.sedeOrigenId) }}</template>
     <template #celda-alta="{ fila }">{{ formatearFecha(fila.socio.fechaAlta) }}</template>
@@ -52,6 +57,22 @@ const claveFila = (fila: FilaSocio) => fila.socio.id
 </template>
 
 <style scoped>
+.tabla-socios__enlace {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  color: var(--fz-color-primario);
+}
+
+.tabla-socios__enlace:hover {
+  color: var(--fz-color-primario-hover);
+}
+
+.tabla-socios__enlace:focus-visible {
+  outline: 2px solid var(--fz-color-foco);
+  outline-offset: 2px;
+}
+
 .tabla-socios__tenue {
   color: var(--fz-color-texto-suave);
 }

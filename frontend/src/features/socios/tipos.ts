@@ -18,3 +18,17 @@ export interface FiltrosListaSocios {
   plan: string
   sede: string
 }
+
+// Dato que se pide aparte y puede fallar sin romper el resto de la pantalla.
+export type Opcional<T> =
+  | { situacion: 'cargando' }
+  | { situacion: 'disponible'; valor: T }
+  | { situacion: 'no-disponible' }
+
+export type AccionSocio =
+  | 'suspender'
+  | 'reactivar'
+  | 'cambiar-plan'
+  | 'renovacion-automatica'
+  | 'cambiar-sede'
+  | 'dejar-de-ser-socio'

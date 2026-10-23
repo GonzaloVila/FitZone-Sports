@@ -34,3 +34,7 @@ export function formatearFecha(fechaIso: string): string {
   const fecha = new Date(fechaIso)
   return Number.isNaN(fecha.getTime()) ? fechaIso : FORMATO_FECHA.format(fecha)
 }
+
+export function formatearVigencia(inicioIso: string, finIso: string): string {
+  return `${formatearFecha(inicioIso)} al ${formatearFecha(finIso)}`
+}

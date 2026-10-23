@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { rolPermitido } from '@/features/sesion/acceso'
 import { useSesionStore } from '@/features/sesion/stores/sesionStore'
 import { BotonFz, PlantillaAppFz } from '@/ui'
@@ -8,6 +8,7 @@ import { BotonFz, PlantillaAppFz } from '@/ui'
 const NOMBRE_APP = 'FitZone Sports'
 
 const router = useRouter()
+const route = useRoute()
 const sesion = useSesionStore()
 
 // Los links salen de las rutas con meta.navegacion, filtradas por el rol de la sesión y ordenadas por `orden`.
@@ -22,6 +23,13 @@ const enlaces = computed(() => {
     )
     .sort((a, b) => a.orden - b.orden)
 })
+
+// "page" en la ruta exacta; "true" en las subrutas de la sección (por ejemplo, /socios/5 y /socios/nuevo
+// dejan resaltado "Socios").
+function marcaActual(rutaEnlace: string): 'page' | 'true' | undefined {
+  if (route.path === rutaEnlace) return 'page'
+  return route.path.startsWith(`${rutaEnlace}/`) ? 'true' : undefined
+}
 
 const cerrando = ref(false)
 
@@ -45,7 +53,11 @@ async function cerrarSesion() {
     <template #navegacion>
       <ul class="armazon-app__lista">
         <li v-for="enlace in enlaces" :key="enlace.ruta">
-          <RouterLink :to="enlace.ruta" class="armazon-app__enlace">{{ enlace.etiqueta }}</RouterLink>
+          <RouterLink v-slot="{ href, navigate }" :to="enlace.ruta" custom>
+            <a :href="href" class="armazon-app__enlace" :aria-current="marcaActual(enlace.ruta)" @click="navigate">
+              {{ enlace.etiqueta }}
+            </a>
+          </RouterLink>
         </li>
       </ul>
     </template>
@@ -86,7 +98,7 @@ async function cerrarSesion() {
   background: var(--fz-armazon-enlace-fondo-hover);
 }
 
-.armazon-app__enlace[aria-current='page'] {
+.armazon-app__enlace[aria-current] {
   border-bottom-color: var(--fz-armazon-enlace-indicador-activo);
   background: var(--fz-armazon-enlace-fondo-hover);
   font-weight: var(--fz-armazon-enlace-peso-activo);

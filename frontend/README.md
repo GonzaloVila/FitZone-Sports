@@ -38,7 +38,7 @@ src/
 │   ├── tokens/
 │   └── index.ts   API pública del kit
 ├── app/           Composición de la aplicación (armazón); puede importar de features/ y ui/
-├── features/      Una carpeta por funcionalidad (sesion, inicio, socios, sedes)
+├── features/      Una carpeta por funcionalidad (sesion, inicio, socios, sedes, usuarios)
 │   └── <feature>/
 │       ├── rutas.ts   Rutas de la feature (RouteRecordRaw[])
 │       ├── pages/
@@ -53,7 +53,7 @@ src/
 
 Reglas de dependencias: **`ui/` no importa nada de `features/`, `app/` ni `compartido/`**; las páginas no usan `fetch`; solo el store de sesión toca la sesión.
 
-Una feature puede importar composables y tipos de otra feature (por ejemplo, `socios` usa `useSedes` de `sedes`), pero nunca sus páginas, componentes ni stores, y no puede haber ciclos entre features.
+Una feature puede importar composables y tipos de otra feature (por ejemplo, `socios` usa `useSedes` de `sedes`), pero nunca sus páginas, componentes ni stores, y no puede haber ciclos entre features. Los datos de la sesión (rol, `socioId`) se leen con el composable `useUsuarioSesion()` de `sesion`, no con su store.
 
 ## Variables de entorno
 
@@ -92,7 +92,7 @@ CORS_ORIGINS=http://localhost:5173
 - **Quién guarda qué:** el access token vive solo en memoria (`compartido/http/almacenToken.ts`) y el refresh token en la cookie HttpOnly que maneja el backend. El store `features/sesion/stores/sesionStore.ts` guarda solo el usuario (`rol`, `sedeId`, `socioId`); nada va a `localStorage` ni a otro storage.
 - **Quién habla con el servicio:** solo el store. `LoginPage` lo usa a través de `useIniciarSesion()` y el armazón (`app/ArmazonApp.vue`) a través de `cerrarSesion()` del store. Las páginas no usan `fetch`.
 - **Rutas:** cada ruta declara su `meta` en el `rutas.ts` de su feature: `publica: true` (login), `roles: [...]` (por ejemplo `/socios` para `RECEPCION` y `GERENTE`) o nada (`/inicio` solo requiere sesión). Un rol desconocido se trata como sin permisos.
-- **Guard global:** en la primera navegación intenta restaurar la sesión con la cookie (F5); sin sesión manda a `/login?redirect=<ruta>`; con sesión, `/login` y las rutas no permitidas llevan a la ruta inicial del rol (`RECEPCION` y `GERENTE` a `/socios`; `SOCIO` y `EXTERNO` a `/inicio`).
+- **Guard global:** en la primera navegación intenta restaurar la sesión con la cookie (F5); sin sesión manda a `/login?redirect=<ruta>`; con sesión, `/login` y las rutas no permitidas llevan a la ruta inicial del rol (`RECEPCION` y `GERENTE` a `/socios`; `SOCIO` a `/carnet`; `EXTERNO` a `/inicio`).
 - **Ruta inexistente:** la comodín (`no-encontrada`) redirige a `/login`; si hay sesión, el guard reubica a la ruta inicial del rol. Un `?redirect` que apunte a una ruta inexistente se ignora.
 - **Sesión vencida:** si no se puede renovar el acceso, `main.ts` limpia el store y lleva a `/login`.
 - **Restricciones de rol:** las restricciones del front son solo de navegación (UX); la autorización real la hace el backend.
@@ -128,3 +128,21 @@ Pantalla `/socios` (RECEPCION y GERENTE): filtros por nombre, estado, plan y sed
   - `PaginacionFz` (molécula): `<nav>` con Anterior/Siguiente y "Página X de Y"; `v-model` de la página.
   - `TablaFz` (organismo): `<table>` semántica con `<caption>` (opcionalmente oculto), `scope` en los encabezados y un slot `celda-<clave>` por columna. Es genérica y no conoce el dominio.
 - **Regla:** el mapeo del dominio (por ejemplo, ACTIVA = verde) vive en `features/`; el kit solo recibe variantes genéricas (`exito`, `peligro`, `advertencia`, `neutra`).
+
+## Detalle del socio, alta y carnet
+
+**Rutas** (todas en `features/socios/rutas.ts`):
+
+| Ruta | Quién | Qué es |
+| --- | --- | --- |
+| `/socios` | RECEPCION, GERENTE | Lista (con el botón "Nuevo socio") |
+| `/socios/nuevo` | RECEPCION, GERENTE | Alta de socio |
+| `/socios/:socioId` | RECEPCION, GERENTE | Detalle y acciones. Un id que no sea un entero positivo se trata como socio inexistente, sin pedir nada a la API |
+| `/carnet` | SOCIO | "Mi carnet", con el QR de acceso |
+
+- **Detalle** (`DetalleSocioPage`, `useDetalleSocio`): carga el socio y su membresía en paralelo y, apenas conoce el `usuarioId`, el usuario (DNI y teléfono). Si la membresía o el usuario fallan, solo ese dato dice "No disponible". Acciones, cada una con un `ModalFz` de confirmación: suspender, reactivar (solo si está suspendida), cambiar plan (abre un período nuevo desde hoy y puede devolver un 402), activar o desactivar la renovación automática, cambiar la sede de origen y dejar de ser socio (elimina la membresía, el usuario vuelve a EXTERNO y el historial de reservas y pagos se conserva). Una membresía VENCIDA no se reactiva: se resuelve con "Cambiar plan". Mientras hay una acción en curso no se dispara otra y el modal no se cierra. Al terminar bien se actualiza el estado con la respuesta del servidor.
+- **Alta** (`NuevoSocioPage`, `useAltaSocio`): paso 1, elegir un usuario existente (se busca entre los de rol EXTERNO por nombre o por email exacto) o crear uno nuevo; paso 2, sede y plan. La validación en el cliente es solo ayuda de uso; los errores del servidor (409, 422) se asocian al campo cuando el contrato lo permite. **Por qué no se recrea el usuario al reintentar:** el alta son dos llamadas (`crearUsuario` y después `crearSocio`). Si la segunda falla, el usuario ya existe: pasa a ser el "usuario seleccionado" y el reintento solo repite `crearSocio`. Recrearlo daría un 409 por DNI o email repetidos. La contraseña se limpia apenas se envía el usuario y al salir de la página.
+- **Carnet** (`CarnetPage`, `useCarnet`): datos del socio de la sesión (`useUsuarioSesion().socioId`) con `CarnetSocio`. **El QR no se pide al cargar la página:** `registrarQr` crea o *sobrescribe* el secreto TOTP del socio, así que solo se llama después de una confirmación explícita, avisando que hay que volver a configurar la app de autenticación. La URI y el secreto viven solo en memoria del componente (ni store, ni storage, ni consola) y se descartan al salir. El QR es para vincular la app de autenticación; el código de ingreso lo genera esa app. El contrato no devuelve el secreto como campo aparte: para la carga manual se extrae del parámetro `secret` de la URI `otpauth://`.
+- **Navegación:** el menú muestra "Inicio" a todos, "Mi carnet" al SOCIO y "Socios" a RECEPCION y GERENTE; "Socios" queda resaltado también en `/socios/:id` y `/socios/nuevo`.
+- **Kit:** `ModalFz` (organismo, `<dialog>` nativo con `showModal()`, título con `aria-labelledby`, Esc, devuelve el foco, no se cierra con una acción en curso) y `QrFz` (átomo, genera el QR como imagen con `alt`).
+- **Dependencia `qrcode`:** `QrFz` genera el QR en el navegador con `qrcode` (1.5.4, versión exacta; `@types/qrcode` 1.5.6 como devDependency). Se justifica porque codificar un QR a mano es inviable y la URI otpauth contiene el secreto, que no debe salir del navegador hacia un servicio externo.

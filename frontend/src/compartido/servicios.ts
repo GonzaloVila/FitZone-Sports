@@ -2,11 +2,13 @@ import { inject, type InjectionKey } from 'vue'
 import type { ServicioSedes } from '@/features/sedes/services/servicioSedes'
 import type { ServicioSesion } from '@/features/sesion/services/servicioSesion'
 import type { ServicioSocios } from '@/features/socios/services/servicioSocios'
+import type { ServicioUsuarios } from '@/features/usuarios/services/servicioUsuarios'
 
 export interface Servicios {
   sesion: ServicioSesion
   socios: ServicioSocios
   sedes: ServicioSedes
+  usuarios: ServicioUsuarios
 }
 
 export const ServiciosKey: InjectionKey<Servicios> = Symbol('servicios')

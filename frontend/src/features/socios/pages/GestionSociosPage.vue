@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { AvisoFz, PaginacionFz } from '@/ui'
 import FiltrosSocios from '../components/FiltrosSocios.vue'
@@ -22,7 +23,10 @@ const mensajeResultados = computed(() => {
 
 <template>
   <section class="socios">
-    <h1 class="socios__titulo">Socios</h1>
+    <div class="socios__encabezado">
+      <h1 class="socios__titulo">Socios</h1>
+      <RouterLink :to="{ name: 'socios-nuevo' }" class="socios__nuevo">Nuevo socio</RouterLink>
+    </div>
 
     <FiltrosSocios
       v-model:nombre="filtros.nombre"
@@ -53,6 +57,37 @@ const mensajeResultados = computed(() => {
   display: flex;
   flex-direction: column;
   gap: var(--fz-espaciado-base);
+}
+
+.socios__encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fz-espaciado-base);
+}
+
+/* Es un enlace (navega), con el aspecto del botón primario. */
+.socios__nuevo {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--fz-boton-alto-md);
+  padding: 0 var(--fz-boton-relleno-x-md);
+  border-radius: var(--fz-boton-radio);
+  background: var(--fz-boton-primario-fondo);
+  color: var(--fz-boton-primario-texto);
+  font-size: var(--fz-boton-texto-md);
+  font-weight: var(--fz-boton-peso);
+  text-decoration: none;
+}
+
+.socios__nuevo:hover {
+  background: var(--fz-boton-primario-fondo-hover);
+}
+
+.socios__nuevo:focus-visible {
+  outline: var(--fz-boton-foco-ancho) solid var(--fz-boton-foco-color);
+  outline-offset: var(--fz-boton-foco-separacion);
 }
 
 .socios__titulo {

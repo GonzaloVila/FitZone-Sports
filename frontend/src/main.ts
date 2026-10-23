@@ -13,6 +13,7 @@ import { crearServicioSedes } from './features/sedes/services/servicioSedes'
 import { crearServicioSesion } from './features/sesion/services/servicioSesion'
 import { useSesionStore } from './features/sesion/stores/sesionStore'
 import { crearServicioSocios } from './features/socios/services/servicioSocios'
+import { crearServicioUsuarios } from './features/usuarios/services/servicioUsuarios'
 
 // Raíz de composición: único lugar que conoce las implementaciones concretas.
 const almacenToken = crearAlmacenToken()
@@ -30,6 +31,7 @@ const servicios = {
   sesion: crearServicioSesion(clienteApi, almacenToken),
   socios: crearServicioSocios(clienteApi),
   sedes: crearServicioSedes(clienteApi),
+  usuarios: crearServicioUsuarios(clienteApi),
 }
 
 const app = createApp(App)

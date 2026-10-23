@@ -195,6 +195,31 @@
   --fz-paginacion-texto: var(--fz-texto-pequeno);
   --fz-paginacion-color: var(--fz-color-texto-suave);
 
+  /* ---- Modal (organismo) ---- */
+  --fz-modal-fondo: var(--fz-color-fondo);
+  --fz-modal-texto: var(--fz-color-texto);
+  --fz-modal-borde: var(--fz-color-borde);
+  --fz-modal-borde-ancho: 1px;
+  --fz-modal-radio: var(--fz-radio-tarjeta);
+  --fz-modal-sombra: var(--fz-sombra-suave);
+  --fz-modal-relleno: var(--fz-espaciado-amplio);
+  --fz-modal-separacion: var(--fz-espaciado-base);
+  --fz-modal-margen: var(--fz-espaciado-base);
+  --fz-modal-ancho-max: 32rem;
+  --fz-modal-titulo-texto: var(--fz-texto-titulo);
+  --fz-modal-titulo-peso: var(--fz-peso-enfasis);
+  --fz-modal-velo: var(--fz-color-texto);
+  --fz-modal-velo-opacidad: 0.45;
+
+  /* ---- QR ---- */
+  --fz-qr-fondo: var(--fz-color-fondo);
+  --fz-qr-borde: var(--fz-color-borde);
+  --fz-qr-borde-ancho: 1px;
+  --fz-qr-relleno: var(--fz-espaciado-compacto);
+  --fz-qr-radio: var(--fz-radio-control);
+  --fz-qr-error-texto: var(--fz-texto-pequeno);
+  --fz-qr-error-color: var(--fz-color-peligro);
+
   /* ---- Campo de formulario (molécula) ---- */
   --fz-campo-formulario-separacion: var(--fz-espaciado-compacto);
   --fz-campo-formulario-etiqueta-texto: var(--fz-texto-pequeno);

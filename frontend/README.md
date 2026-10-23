@@ -38,7 +38,7 @@ src/
 │   ├── tokens/
 │   └── index.ts   API pública del kit
 ├── app/           Composición de la aplicación (armazón); puede importar de features/ y ui/
-├── features/      Una carpeta por funcionalidad (sesion, inicio, socios)
+├── features/      Una carpeta por funcionalidad (sesion, inicio, socios, sedes)
 │   └── <feature>/
 │       ├── rutas.ts   Rutas de la feature (RouteRecordRaw[])
 │       ├── pages/
@@ -52,6 +52,8 @@ src/
 ```
 
 Reglas de dependencias: **`ui/` no importa nada de `features/`, `app/` ni `compartido/`**; las páginas no usan `fetch`; solo el store de sesión toca la sesión.
+
+Una feature puede importar composables y tipos de otra feature (por ejemplo, `socios` usa `useSedes` de `sedes`), pero nunca sus páginas, componentes ni stores, y no puede haber ciclos entre features.
 
 ## Variables de entorno
 
@@ -109,3 +111,20 @@ CORS_ORIGINS=http://localhost:5173
 2. Crear `src/features/<modulo>/rutas.ts` exportando un `RouteRecordRaw[]` con los paths, el `name` y el `meta` (`roles` si la ruta tiene restricción).
 3. Si la ruta debe aparecer en el menú, agregarle `meta.navegacion: { etiqueta, orden }`.
 4. Sumar las rutas con spread en `children` de la ruta del armazón en `src/router/index.ts`.
+
+## Lista de socios
+
+Pantalla `/socios` (RECEPCION y GERENTE): filtros por nombre, estado, plan y sede, tabla y paginación.
+
+- **Dónde vive cada cosa:**
+  - `features/socios/services/servicioSocios.ts` y `features/sedes/services/servicioSedes.ts`: una función por operación del contrato (`listarSocios`, `obtenerMembresia`, `listarSedes`). Se construyen en `main.ts` y llegan por `useServicios()` (`servicios.socios`, `servicios.sedes`).
+  - `features/socios/composables/useListaSocios.ts`: estado de la lista (filtros, página, items, total, `cargando`, `error`). El nombre se aplica con debounce de 300 ms; cambiar un filtro vuelve a la página 1; una respuesta vieja se descarta (cada consulta tiene un número y un `AbortController`).
+  - `features/sedes/composables/useSedes.ts`: carga una vez todas las sedes (el contrato las pagina, con `perPage` máximo 100) para el filtro y para mostrar el nombre de la sede.
+  - `features/socios/components/` (`FiltrosSocios`, `TablaSocios`): reciben props y emiten eventos (`v-model`). `features/socios/presentacion.ts` define cómo se muestran los valores del contrato (etiquetas, variantes de insignia, fecha en `es-AR`).
+  - `GestionSociosPage` solo usa los composables y compone los componentes; no usa `fetch`.
+- **Limitación conocida del contrato:** `SocioOut` (y `ListaSocios`) **no trae el plan ni el estado de la membresía**, aunque `listarSocios` sí permite filtrar por ellos. Por eso, por cada página se pide `obtenerMembresia` de cada fila (hasta 4 en paralelo, 10 filas por página). Si una falla, solo esa fila muestra "No disponible". Si el contrato sumara plan y estado al listado, ese N+1 desaparece.
+- **Componentes nuevos del kit** (`ui/`, exportados desde `ui/index.ts`):
+  - `SelectFz` (átomo): `<select>` nativo con el estilo de `CampoTextoFz`.
+  - `PaginacionFz` (molécula): `<nav>` con Anterior/Siguiente y "Página X de Y"; `v-model` de la página.
+  - `TablaFz` (organismo): `<table>` semántica con `<caption>` (opcionalmente oculto), `scope` en los encabezados y un slot `celda-<clave>` por columna. Es genérica y no conoce el dominio.
+- **Regla:** el mapeo del dominio (por ejemplo, ACTIVA = verde) vive en `features/`; el kit solo recibe variantes genéricas (`exito`, `peligro`, `advertencia`, `neutra`).

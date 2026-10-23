@@ -25,6 +25,11 @@ export function esErrorApiConEstado(e: unknown, status: number): e is ErrorApi {
   return esErrorApi(e) && e.status === status
 }
 
+// Mensaje para mostrar: el del contrato si es un ErrorApi y, si no, el que se indique por defecto.
+export function mensajeDeError(e: unknown, porDefecto: string): string {
+  return esErrorApi(e) ? e.message : porDefecto
+}
+
 // Una falla de red no tiene respuesta HTTP: se representa con status 0.
 export function crearErrorDeRed(): ErrorApi {
   return new ErrorApi(0, MENSAJE_ERROR_RED)

@@ -7,6 +7,8 @@ export function useUsuarioSesion() {
 
   const rol = computed(() => store.usuario?.rol ?? null)
   const socioId = computed(() => store.usuario?.socioId ?? null)
+  // Sede de trabajo del RECEPCION. null = sin sede fija (GERENTE) o sin dato.
+  const sedeId = computed<number | null>(() => store.usuario?.sedeId ?? null)
 
-  return { rol, socioId }
+  return { rol, socioId, sedeId }
 }

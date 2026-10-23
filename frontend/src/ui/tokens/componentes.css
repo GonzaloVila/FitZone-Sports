@@ -119,6 +119,36 @@
   --fz-aviso-advertencia-borde: var(--fz-color-advertencia-borde);
   --fz-aviso-advertencia-texto: var(--fz-color-advertencia);
 
+  /* ---- Armazón de la app (plantilla) ---- */
+  --fz-armazon-fondo: var(--fz-color-fondo);
+  --fz-armazon-encabezado-fondo: var(--fz-color-fondo);
+  --fz-armazon-encabezado-borde: var(--fz-color-borde);
+  --fz-armazon-borde-ancho: 1px;
+  --fz-armazon-relleno-x: var(--fz-espaciado-base);
+  --fz-armazon-relleno-y: var(--fz-espaciado-compacto);
+  --fz-armazon-separacion: var(--fz-espaciado-base);
+  --fz-armazon-contenido-ancho-max: 72rem;
+  --fz-armazon-contenido-relleno: var(--fz-espaciado-amplio);
+  --fz-armazon-marca-texto: var(--fz-texto-cuerpo);
+  --fz-armazon-marca-peso: var(--fz-peso-enfasis);
+  --fz-armazon-marca-color: var(--fz-color-texto);
+  --fz-armazon-enlace-separacion: var(--fz-espaciado-compacto);
+  --fz-armazon-enlace-alto-min: 2rem;
+  --fz-armazon-enlace-relleno-x: var(--fz-espaciado-compacto);
+  --fz-armazon-enlace-radio: var(--fz-radio-control);
+  --fz-armazon-enlace-texto: var(--fz-texto-pequeno);
+  --fz-armazon-enlace-color: var(--fz-color-texto);
+  --fz-armazon-enlace-fondo-hover: var(--fz-color-hover);
+  --fz-armazon-enlace-peso-activo: var(--fz-peso-enfasis);
+  --fz-armazon-enlace-indicador-activo: var(--fz-color-primario);
+  --fz-armazon-enlace-indicador-ancho: 2px;
+  --fz-armazon-foco-color: var(--fz-color-foco);
+  --fz-armazon-foco-ancho: 2px;
+  --fz-armazon-foco-separacion: 2px;
+  --fz-armazon-saltar-fondo: var(--fz-color-primario);
+  --fz-armazon-saltar-texto: var(--fz-color-texto-sobre-primario);
+  --fz-armazon-saltar-relleno: var(--fz-espaciado-compacto);
+
   /* ---- Campo de formulario (molécula) ---- */
   --fz-campo-formulario-separacion: var(--fz-espaciado-compacto);
   --fz-campo-formulario-etiqueta-texto: var(--fz-texto-pequeno);

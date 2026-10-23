@@ -1,7 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { rolPermitido, rutaInicialPorRol } from '../features/sesion/acceso'
+import { rutasInicio } from '../features/inicio/rutas'
+import { NOMBRE_RUTA_NO_ENCONTRADA, rolPermitido, rutaInicialPorRol } from '../features/sesion/acceso'
+import { rutasSesion } from '../features/sesion/rutas'
 import { useSesionStore } from '../features/sesion/stores/sesionStore'
 import type { Rol } from '../features/sesion/tipos'
+import { rutasSocios } from '../features/socios/rutas'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -9,38 +12,35 @@ declare module 'vue-router' {
     publica?: boolean
     // Roles que pueden entrar. Sin `roles`, la ruta solo requiere sesión.
     roles?: Rol[]
+    // Si está, la ruta aparece como link en la navegación del armazón (solo a los roles que puedan entrar).
+    navegacion?: { etiqueta: string; orden: number }
   }
 }
 
+// Cada feature define sus rutas en features/<x>/rutas.ts; acá solo se juntan.
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    ...rutasSesion,
     {
+      // Armazón de las rutas autenticadas. Si se entra a '/' exacto, va a /login y el guard lo reubica.
       path: '/',
+      component: () => import('../app/ArmazonApp.vue'),
       redirect: '/login',
+      children: [...rutasInicio, ...rutasSocios],
     },
+    // Comodín: toda ruta inexistente va a /login; el guard reubica a quien tenga sesión.
     {
-      path: '/login',
-      name: 'login',
-      component: () => import('../features/sesion/pages/LoginPage.vue'),
-      meta: { publica: true },
-    },
-    {
-      path: '/inicio',
-      name: 'inicio',
-      component: () => import('../features/inicio/pages/InicioPage.vue'),
-    },
-    {
-      path: '/socios',
-      name: 'socios',
-      component: () => import('../features/socios/pages/GestionSociosPage.vue'),
-      meta: { roles: ['RECEPCION', 'GERENTE'] },
+      path: '/:pathMatch(.*)*',
+      name: NOMBRE_RUTA_NO_ENCONTRADA,
+      redirect: { name: 'login' },
     },
   ],
 })
 
 // Sin bucles: sin sesión solo se redirige a /login (pública); con sesión, /login y las rutas no permitidas
 // llevan a la ruta inicial del rol, que por construcción (acceso.ts) es una ruta que ese rol sí puede ver.
+// El comodín redirige a /login, así que cae en uno de esos dos casos.
 router.beforeEach(async (to) => {
   const sesion = useSesionStore()
   await sesion.restaurar()

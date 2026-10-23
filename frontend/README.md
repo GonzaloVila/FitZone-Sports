@@ -37,8 +37,10 @@ src/
 │   ├── plantillas/
 │   ├── tokens/
 │   └── index.ts   API pública del kit
-├── features/      Una carpeta por funcionalidad (sesion, socios)
+├── app/           Composición de la aplicación (armazón); puede importar de features/ y ui/
+├── features/      Una carpeta por funcionalidad (sesion, inicio, socios)
 │   └── <feature>/
+│       ├── rutas.ts   Rutas de la feature (RouteRecordRaw[])
 │       ├── pages/
 │       ├── components/
 │       ├── composables/
@@ -46,10 +48,10 @@ src/
 │       └── stores/
 ├── compartido/    Utilidades y cosas sin dueño (por ejemplo, config.ts)
 ├── types/         Tipos generados desde la API
-└── router/        Rutas de la aplicación
+└── router/        Router: junta las rutas de cada feature y define el guard
 ```
 
-Regla de dependencias: **`ui/` no importa nada de `features/`**.
+Reglas de dependencias: **`ui/` no importa nada de `features/`, `app/` ni `compartido/`**; las páginas no usan `fetch`; solo el store de sesión toca la sesión.
 
 ## Variables de entorno
 
@@ -86,8 +88,24 @@ CORS_ORIGINS=http://localhost:5173
 ## Sesión y rutas protegidas
 
 - **Quién guarda qué:** el access token vive solo en memoria (`compartido/http/almacenToken.ts`) y el refresh token en la cookie HttpOnly que maneja el backend. El store `features/sesion/stores/sesionStore.ts` guarda solo el usuario (`rol`, `sedeId`, `socioId`); nada va a `localStorage` ni a otro storage.
-- **Quién habla con el servicio:** solo `LoginPage`, a través de `useIniciarSesion()` y el store. Las páginas no usan `fetch`.
-- **Rutas:** cada ruta declara su `meta` en `src/router/index.ts`: `publica: true` (login), `roles: [...]` (por ejemplo `/socios` para `RECEPCION` y `GERENTE`) o nada (`/inicio` solo requiere sesión). Un rol desconocido se trata como sin permisos.
+- **Quién habla con el servicio:** solo el store. `LoginPage` lo usa a través de `useIniciarSesion()` y el armazón (`app/ArmazonApp.vue`) a través de `cerrarSesion()` del store. Las páginas no usan `fetch`.
+- **Rutas:** cada ruta declara su `meta` en el `rutas.ts` de su feature: `publica: true` (login), `roles: [...]` (por ejemplo `/socios` para `RECEPCION` y `GERENTE`) o nada (`/inicio` solo requiere sesión). Un rol desconocido se trata como sin permisos.
 - **Guard global:** en la primera navegación intenta restaurar la sesión con la cookie (F5); sin sesión manda a `/login?redirect=<ruta>`; con sesión, `/login` y las rutas no permitidas llevan a la ruta inicial del rol (`RECEPCION` y `GERENTE` a `/socios`; `SOCIO` y `EXTERNO` a `/inicio`).
+- **Ruta inexistente:** la comodín (`no-encontrada`) redirige a `/login`; si hay sesión, el guard reubica a la ruta inicial del rol. Un `?redirect` que apunte a una ruta inexistente se ignora.
 - **Sesión vencida:** si no se puede renovar el acceso, `main.ts` limpia el store y lleva a `/login`.
 - **Restricciones de rol:** las restricciones del front son solo de navegación (UX); la autorización real la hace el backend.
+
+## Rutas por módulo y armazón
+
+- **Rutas por módulo:** cada feature exporta sus rutas en `features/<x>/rutas.ts` (`RouteRecordRaw[]`) y `src/router/index.ts` solo las junta con spread. Así, dos personas que agregan módulos distintos no editan las mismas líneas.
+- **`meta` de las rutas:** `publica` (sin sesión), `roles` (quiénes pueden entrar; sin `roles`, basta con tener sesión) y `navegacion: { etiqueta, orden }` (la ruta aparece como link en el armazón, solo a los roles que pueden entrar).
+- **Armazón:** las rutas autenticadas son hijas de una ruta padre que renderiza `src/app/ArmazonApp.vue`. Ese componente arma la plantilla presentacional `PlantillaAppFz` (de `ui/plantillas/`) con el nombre de la app, los links de navegación y el botón "Cerrar sesión". `/login` queda fuera del armazón. Los links se construyen desde las rutas con `meta.navegacion`, filtradas por rol y ordenadas por `orden`: no hay una lista escrita a mano.
+- **Accesibilidad del armazón:** landmarks `header`, `nav` (con `aria-label`) y `main`, enlace "Saltar al contenido", `aria-current="page"` en el link activo y foco visible. En ancho chico los links envuelven en varias líneas.
+- **Cerrar sesión:** el botón llama a `cerrarSesion()` del store; si falla el aviso al servidor igual se limpia la sesión local y se va a `/login`.
+
+### Cómo agregar un módulo
+
+1. Crear la carpeta `src/features/<modulo>/` con sus `pages/`, `components/`, `composables/`, `services/` y `stores/` (las que haga falta).
+2. Crear `src/features/<modulo>/rutas.ts` exportando un `RouteRecordRaw[]` con los paths, el `name` y el `meta` (`roles` si la ruta tiene restricción).
+3. Si la ruta debe aparecer en el menú, agregarle `meta.navegacion: { etiqueta, orden }`.
+4. Sumar las rutas con spread en `children` de la ruta del armazón en `src/router/index.ts`.

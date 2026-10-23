@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { esErrorApiConEstado } from '@/compartido/http/errores'
-import { rutaInicialPorRol } from '../acceso'
+import { NOMBRE_RUTA_NO_ENCONTRADA, rutaInicialPorRol } from '../acceso'
 import type { Credenciales } from '../services/servicioSesion'
 import { useSesionStore } from '../stores/sesionStore'
 
@@ -26,7 +26,10 @@ export function useIniciarSesion() {
       return null
     }
     const resuelta = router.resolve(valor)
-    if (resuelta.matched.length === 0 || resuelta.name === 'login') return null
+    // La comodín matchea cualquier path, así que no cuenta como ruta existente.
+    if (resuelta.matched.length === 0 || resuelta.name === 'login' || resuelta.name === NOMBRE_RUTA_NO_ENCONTRADA) {
+      return null
+    }
     return resuelta.fullPath
   }
 

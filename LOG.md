@@ -3606,3 +3606,42 @@ Al cancelar una reserva de cancha que ya estaba pagada, el `Pago` quedaba APROBA
 
 1. **Paso 2:** el armazón de la app (barra lateral, barra superior, iconos SVG propios, toasts y menú desplegable).
 2. Reemplazar las variables `--fz-*` inventadas de `acceso` y `sedes` al pasar cada módulo al estilo nuevo.
+
+---
+
+## 2026-10-24 - Frontend: reestilización visual, Paso 2a (armazón de la app)
+
+**Fecha:** 24/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `7655652`
+
+### Actividades
+
+1. **Armazón nuevo:** RECEPCION y GERENTE ven una barra lateral de 240 px con secciones (Operaciones, Clases y deporte, Administración) y bloque de usuario abajo; SOCIO y EXTERNO, una barra superior. En celular la barra lateral pasa a una barra superior con botón "Menú" (desplegable con `aria-expanded`, se cierra con Escape y al navegar).
+2. **Kit:** `PlantillaAppFz` suma, de forma aditiva, la prop `disposicion` (`'barra-superior'` por defecto o `'barra-lateral'`), el slot `pie` y las props de texto del menú. Nuevo átomo `IconoFz` con íconos SVG propios (carnet, socios, acceso, clases, canchas, pagos, reportes, cerrar-sesion, menu, cerrar).
+3. **Navegación:** `meta.navegacion` de las rutas suma los campos opcionales `icono` y `seccion` (completados en socios, acceso, clases, canchas y pagos). `/inicio` sale del menú; la ruta queda como respaldo de los roles desconocidos.
+4. **Sesión:** nuevo composable `usePerfilSesion` (nombre y email vía `GET /usuarios/{id}`; nombre de la sede de RECEPCION vía `sedes.listar` filtrando por `sedeId`) con aborto y sin avisos si falla, y `presentacion.ts` con `etiquetaRol`.
+5. **Tokens:** nuevo primitivo `gris-150` (`#ECECE9`) y semántico `seleccionado`; tokens del armazón en `componentes.css`; `texto-minimo` (0.75rem). El gris de texto suave pasa de `#73726e` a `#6b6a66` para llegar a 4.5:1 sobre hover y seleccionado.
+
+### Decisiones tomadas
+
+1. **Sin selector de sede activa:** el contrato no tiene sede activa global. La sede de RECEPCION se muestra como texto.
+2. **Sede desde el listado:** sale de `sedes.listar()` porque no existe `GET /sedes/{id}`; si el backend lo suma, conviene cambiarlo.
+3. **Inicio fuera del menú:** la página está vacía; queda la ruta y se puede usar luego como dashboard.
+4. **Íconos compartidos a propósito:** canchas con mis-reservas y clases con mis-clases.
+5. **Cerrar sesión sin `BotonFz`:** el botón es propio por el hover en rojo de estado (4.59:1 sobre hover).
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **42 tests** en 13 archivos (eran 26 antes del Paso 1 y 37 antes de este ajuste).
+- Contrastes de todos los pares nuevos y existentes: cero fallas (el margen más justo es 4.52:1).
+- Revisión visual manual con sesión real de GERENTE, RECEPCION, SOCIO y EXTERNO y del menú en ancho de celular: el armazón se ve y se comporta como se esperaba.
+- **Pendiente de ver en pantalla:** el nombre de la sede de RECEPCION, porque el usuario de prueba todavía no tiene fila en `EmpleadoSede`. Está cubierto por tests de `usePerfilSesion`.
+- **Hallazgo de backend:** `GET /usuarios` y `GET /usuarios/{id}` no tienen guard ni `security` en el contrato y devuelven DNI, email y teléfono a cualquiera, incluso sin sesión. Pendiente de corregir en el backend.
+
+### Pendientes que siguen abiertos
+
+1. **Paso de densidad:** acercar los tamaños de texto, los altos de controles y los espaciados al prototipo, sin bajar de los 24 px de objetivo táctil (WCAG 2.2 AA). Incluye el ajuste fino del armazón: espaciado de la barra lateral, posición del botón de cerrar sesión y `title` en nombre y email truncados.
+2. **Paso 2b:** toasts y menú desplegable con Reka UI dentro de `ui/` (falta el ADR y aprobar la dependencia).
+3. Proteger con guards y `security` en el contrato los endpoints de usuarios (y revisar socios y membresías).
+4. Probar RECEPCION con sede real (fila en `EmpleadoSede`).
+5. Reemplazar las variables `--fz-*` inventadas de `acceso` y `sedes` al pasar cada módulo al estilo nuevo.
+6. Datos de prueba en la base compartida a limpiar al final: los usuarios de prueba creados para la revisión (incluido un RECEPCION).

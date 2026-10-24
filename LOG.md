@@ -3645,3 +3645,39 @@ Al cancelar una reserva de cancha que ya estaba pagada, el `Pago` quedaba APROBA
 4. Probar RECEPCION con sede real (fila en `EmpleadoSede`).
 5. Reemplazar las variables `--fz-*` inventadas de `acceso` y `sedes` al pasar cada módulo al estilo nuevo.
 6. Datos de prueba en la base compartida a limpiar al final: los usuarios de prueba creados para la revisión (incluido un RECEPCION).
+
+---
+
+## 2026-10-24 - Frontend: reestilización visual, paso de densidad (escala compacta)
+
+**Fecha:** 24/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `19e1fdb`
+
+### Actividades
+
+1. **Escala de texto compacta, solo con tokens:** nuevo primitivo `--fz-prim-texto-13` (0.8125rem). `texto-pequeno` pasa de 14 a 13 px (texto de la interfaz), `texto-cuerpo` de 16 a 14 px y `texto-titulo` de 24 a 20 px. `texto-minimo` queda en 12 px como piso.
+2. **Controles más bajos:** botón, campo de texto y select pasan a 28 / 32 / 36 px (`sm` / `md` / `lg`; antes 32 / 40 / 48). Texto de los controles: `sm` 12 px, `md` 13 px, `lg` 14 px.
+3. **Insignia, tabla, pestañas y medidor:** insignia con texto de 12 px y algo más de relleno vertical; celdas de tabla con 0.625rem arriba y abajo; pestañas y medidor pasan a `texto-pequeno`.
+4. **Ajuste fino del armazón:** links de la barra lateral de 28 px de alto mínimo, menos separación vertical entre links y 1rem entre secciones; el botón de cerrar sesión pasa a la misma fila que los datos del usuario; `title` con el texto completo en nombre y email truncados.
+5. **Documentación:** `ui/README.md` documenta la escala de tamaños y dos reglas: ningún texto legible por debajo de 12 px y ningún control por debajo de 24 px de alto (WCAG 2.2 AA, 2.5.8).
+
+### Decisiones tomadas
+
+1. **Primitivo por valor:** el nuevo se llama `texto-13` porque la escala por talles no tiene lugar libre entre `xs` y `sm`.
+2. **Piso de 12 px para todo texto:** no hay textos de 9 a 11 px, aunque el diseño de referencia los usa, porque se leen mal.
+3. **Controles sobre el mínimo:** el más bajo (28 px) queda por encima de los 24 px mínimos de WCAG 2.2.
+4. **Pantallas sin tocar:** los tamaños escritos a mano en cada módulo se pasan a tokens cuando se restilice ese módulo.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **42 tests** en 13 archivos.
+- Contrastes: sin cambios, todos los pares OK (el margen más justo es 4.52:1).
+- Revisión visual manual con GERENTE (lista de socios) y EXTERNO (canchas): controles, tablas, insignias y armazón con la escala nueva.
+- Los títulos y otros tamaños escritos a mano en las pantallas (por ejemplo 28 px en `acceso`, `canchas`, `clases`, `pagos` y `socios`) no heredan la escala y se ven más grandes hasta que cada módulo pase a tokens.
+
+### Pendientes que siguen abiertos
+
+1. **Paso 2b:** toasts y menú desplegable con Reka UI dentro de `ui/` (falta el ADR y aprobar la dependencia).
+2. Restilizar M1 pantalla por pantalla y pasar a tokens los tamaños y colores escritos a mano de cada módulo, incluidas las variables `--fz-*` inventadas de `acceso` y `sedes`.
+3. Proteger con guards y `security` en el contrato los endpoints de usuarios (y revisar socios y membresías).
+4. Probar RECEPCION con sede real (fila en `EmpleadoSede`).
+5. Datos de prueba en la base compartida a limpiar al final.

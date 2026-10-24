@@ -32,6 +32,34 @@ Reglas centrales:
 - El contenido se pasa por slots.
 - Elementos HTML nativos siempre que se pueda, con foco visible y contraste legible.
 
+## Íconos: `IconoFz`
+
+Átomo decorativo con trazos propios (viewBox 24x24, `stroke="currentColor"`, trazo `--fz-icono-trazo`, `aria-hidden="true"`): toma el color del texto que lo rodea.
+
+| Prop | Tipo | Por defecto |
+| --- | --- | --- |
+| `nombre` | `NombreIconoFz` (unión cerrada, se exporta desde `ui/index.ts`) | requerida |
+| `tamano` | `'sm' \| 'md' \| 'lg'` (1 / 1.25 / 1.5 rem, por token `--fz-icono-tamano-*`) | `'md'` |
+
+Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
+
+## Plantilla de la app: `PlantillaAppFz`
+
+Armazón de las pantallas autenticadas. Los cambios son aditivos: sin las props nuevas se comporta como siempre (barra superior).
+
+| Prop | Tipo | Por defecto |
+| --- | --- | --- |
+| `disposicion` | `'barra-superior' \| 'barra-lateral'` | `'barra-superior'` |
+| `etiquetaNavegacion` | `string` (`aria-label` del `<nav>`) | `'Navegación principal'` |
+| `textoSaltar` | `string` | `'Saltar al contenido'` |
+| `textoMenu`, `etiquetaAbrirMenu`, `etiquetaCerrarMenu` | `string` (solo `'barra-lateral'`) | `'Menú'`, `'Abrir menú'`, `'Cerrar menú'` |
+
+Slots: `encabezado` (marca), `navegacion`, `acciones`, el slot por defecto (contenido) y, nuevo, `pie`.
+
+- `pie`: bloque que se apoya al fondo de la barra lateral (el usuario, por ejemplo). Solo se muestra con `'barra-lateral'`.
+- Con `'barra-lateral'`, desde `48rem` la barra es fija (`position: sticky`, alto `100dvh`, ancho `--fz-armazon-barra-ancho`) y el contenido queda a su derecha: el scroll lo hace la página. Debajo de `48rem` pasa a ser una barra superior con un botón "Menú" (`aria-expanded` y `aria-controls`) que muestra u oculta el panel de links. Es un desplegable, no un modal: no atrapa el foco; se cierra con Escape (devuelve el foco al botón) y al activar cualquier enlace del panel.
+- En ambas disposiciones se mantienen el enlace "Saltar al contenido", el `<nav>` con `aria-label` y el foco visible por tokens; los controles miden al menos `2rem` de alto (WCAG 2.2, 2.5.8).
+
 ## Tokens
 
 Viven en `ui/tokens/` y tienen tres niveles:

@@ -7,7 +7,7 @@ export const rutasAcceso: RouteRecordRaw[] = [
     component: () => import('./pages/AforoPage.vue'),
     meta: {
       roles: ['RECEPCION', 'GERENTE'],
-      navegacion: { etiqueta: 'Acceso', orden: 3 },
+      navegacion: { etiqueta: 'Acceso', orden: 3, icono: 'acceso', seccion: 'operaciones' },
     },
   },
   {

@@ -9,6 +9,8 @@
   --fz-color-fondo: var(--fz-prim-gris-0);
   --fz-color-superficie: var(--fz-prim-gris-50);
   --fz-color-hover: var(--fz-prim-gris-100);
+  /* Ítem activo de la navegación */
+  --fz-color-seleccionado: var(--fz-prim-gris-150);
   /* borde queda para separadores y tarjetas decorativos; borde-control es para controles de formulario (3:1) */
   --fz-color-borde: var(--fz-prim-gris-200);
   --fz-color-borde-control: var(--fz-prim-gris-300);
@@ -33,6 +35,7 @@
   /* Tipografía */
   --fz-fuente-base: var(--fz-prim-fuente-sans);
   --fz-fuente-mono: var(--fz-prim-fuente-mono);
+  --fz-texto-minimo: var(--fz-prim-texto-xs);
   --fz-texto-pequeno: var(--fz-prim-texto-sm);
   --fz-texto-cuerpo: var(--fz-prim-texto-md);
   --fz-texto-titulo: var(--fz-prim-texto-2xl);

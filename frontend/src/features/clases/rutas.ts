@@ -7,7 +7,7 @@ export const rutasClases: RouteRecordRaw[] = [
     component: () => import('./pages/AgendaClasesPage.vue'),
     meta: {
       roles: ['SOCIO', 'RECEPCION', 'GERENTE'],
-      navegacion: { etiqueta: 'Clases', orden: 4 },
+      navegacion: { etiqueta: 'Clases', orden: 4, icono: 'clases', seccion: 'actividades' },
     },
   },
   {
@@ -29,7 +29,7 @@ export const rutasClases: RouteRecordRaw[] = [
     component: () => import('./pages/MisClasesPage.vue'),
     meta: {
       roles: ['SOCIO'],
-      navegacion: { etiqueta: 'Mis clases', orden: 5 },
+      navegacion: { etiqueta: 'Mis clases', orden: 5, icono: 'clases', seccion: 'actividades' },
     },
   },
 ]

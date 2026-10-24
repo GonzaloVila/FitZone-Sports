@@ -7,7 +7,7 @@ export const rutasPagos: RouteRecordRaw[] = [
     component: () => import('./pages/PagosPage.vue'),
     meta: {
       roles: ['RECEPCION', 'GERENTE'],
-      navegacion: { etiqueta: 'Pagos', orden: 8 },
+      navegacion: { etiqueta: 'Pagos', orden: 8, icono: 'pagos', seccion: 'administracion' },
     },
   },
   {
@@ -22,7 +22,7 @@ export const rutasPagos: RouteRecordRaw[] = [
     component: () => import('./pages/ReporteIngresosPage.vue'),
     meta: {
       roles: ['GERENTE'],
-      navegacion: { etiqueta: 'Reportes', orden: 9 },
+      navegacion: { etiqueta: 'Reportes', orden: 9, icono: 'reportes', seccion: 'administracion' },
     },
   },
 ]

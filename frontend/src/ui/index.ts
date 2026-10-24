@@ -3,6 +3,8 @@
 export { default as AvisoFz } from './atomos/AvisoFz.vue'
 export { default as BotonFz } from './atomos/BotonFz.vue'
 export { default as CampoTextoFz } from './atomos/CampoTextoFz.vue'
+export { default as IconoFz } from './atomos/IconoFz.vue'
+export type { NombreIconoFz } from './atomos/IconoFz.vue'
 export { default as InsigniaFz } from './atomos/InsigniaFz.vue'
 export { default as MedidorFz } from './atomos/MedidorFz.vue'
 export { default as QrFz } from './atomos/QrFz.vue'

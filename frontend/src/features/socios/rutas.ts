@@ -7,7 +7,7 @@ export const rutasSocios: RouteRecordRaw[] = [
     component: () => import('./pages/GestionSociosPage.vue'),
     meta: {
       roles: ['RECEPCION', 'GERENTE'],
-      navegacion: { etiqueta: 'Socios', orden: 2 },
+      navegacion: { etiqueta: 'Socios', orden: 2, icono: 'socios', seccion: 'operaciones' },
     },
   },
   {
@@ -29,7 +29,7 @@ export const rutasSocios: RouteRecordRaw[] = [
     component: () => import('./pages/CarnetPage.vue'),
     meta: {
       roles: ['SOCIO'],
-      navegacion: { etiqueta: 'Mi carnet', orden: 1 },
+      navegacion: { etiqueta: 'Mi carnet', orden: 1, icono: 'carnet' },
     },
   },
 ]

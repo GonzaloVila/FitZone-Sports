@@ -7,7 +7,7 @@ export const rutasCanchas: RouteRecordRaw[] = [
     component: () => import('./pages/ListaCanchasPage.vue'),
     meta: {
       roles: ['SOCIO', 'RECEPCION', 'GERENTE', 'EXTERNO'],
-      navegacion: { etiqueta: 'Canchas', orden: 6 },
+      navegacion: { etiqueta: 'Canchas', orden: 6, icono: 'canchas', seccion: 'actividades' },
     },
   },
   {
@@ -29,7 +29,7 @@ export const rutasCanchas: RouteRecordRaw[] = [
     component: () => import('./pages/MisReservasPage.vue'),
     meta: {
       roles: ['SOCIO', 'RECEPCION', 'GERENTE', 'EXTERNO'],
-      navegacion: { etiqueta: 'Mis reservas', orden: 7 },
+      navegacion: { etiqueta: 'Mis reservas', orden: 7, icono: 'canchas', seccion: 'actividades' },
     },
   },
 ]

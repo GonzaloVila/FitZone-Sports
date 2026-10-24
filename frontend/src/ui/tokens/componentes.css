@@ -148,6 +148,53 @@
   --fz-armazon-saltar-fondo: var(--fz-color-primario);
   --fz-armazon-saltar-texto: var(--fz-color-texto-sobre-primario);
   --fz-armazon-saltar-relleno: var(--fz-espaciado-compacto);
+  /* Barra lateral (disposición 'barra-lateral') */
+  --fz-armazon-barra-ancho: 15rem;
+  --fz-armazon-barra-fondo: var(--fz-color-superficie);
+  --fz-armazon-barra-borde: var(--fz-color-borde);
+  --fz-armazon-barra-relleno: var(--fz-espaciado-base);
+  --fz-armazon-barra-separacion: var(--fz-espaciado-amplio);
+  --fz-armazon-logo-tamano: 1.25rem;
+  --fz-armazon-logo-fondo: var(--fz-color-texto);
+  --fz-armazon-logo-texto: var(--fz-color-fondo);
+  --fz-armazon-logo-texto-tamano: var(--fz-texto-minimo);
+  --fz-armazon-logo-radio: var(--fz-radio-control);
+  --fz-armazon-marca-separacion: var(--fz-espaciado-compacto);
+  --fz-armazon-sede-texto: var(--fz-texto-minimo);
+  --fz-armazon-sede-color: var(--fz-color-texto-suave);
+  --fz-armazon-enlace-activo-fondo: var(--fz-color-seleccionado);
+  --fz-armazon-enlace-icono-color: var(--fz-color-texto-suave);
+  --fz-armazon-enlace-icono-activo: var(--fz-color-primario);
+  --fz-armazon-grupo-separacion: var(--fz-espaciado-amplio);
+  --fz-armazon-seccion-titulo-texto: var(--fz-texto-minimo);
+  --fz-armazon-seccion-titulo-peso: var(--fz-peso-enfasis);
+  --fz-armazon-seccion-titulo-color: var(--fz-color-texto-suave);
+  --fz-armazon-seccion-titulo-espaciado: 0.06em;
+  --fz-armazon-seccion-titulo-relleno-x: var(--fz-espaciado-compacto);
+  --fz-armazon-menu-borde: var(--fz-color-borde-control);
+  --fz-armazon-menu-fondo: var(--fz-color-fondo);
+  --fz-armazon-menu-texto: var(--fz-color-texto);
+  --fz-armazon-menu-fondo-hover: var(--fz-color-hover);
+  /* Bloque de usuario (pie de la barra lateral / acciones de la barra superior) */
+  --fz-armazon-usuario-separacion: var(--fz-espaciado-compacto);
+  --fz-armazon-avatar-tamano: 1.75rem;
+  --fz-armazon-avatar-fondo: var(--fz-color-seleccionado);
+  --fz-armazon-avatar-texto: var(--fz-color-texto);
+  --fz-armazon-avatar-radio: var(--fz-radio-control);
+  --fz-armazon-usuario-nombre-texto: var(--fz-texto-pequeno);
+  --fz-armazon-usuario-nombre-peso: var(--fz-peso-enfasis);
+  --fz-armazon-usuario-detalle-texto: var(--fz-texto-minimo);
+  --fz-armazon-usuario-detalle-color: var(--fz-color-texto-suave);
+  --fz-armazon-salir-tamano: 2rem;
+  --fz-armazon-salir-color: var(--fz-color-texto);
+  --fz-armazon-salir-fondo-hover: var(--fz-color-hover);
+  --fz-armazon-salir-color-hover: var(--fz-color-peligro);
+
+  /* ---- Ícono ---- */
+  --fz-icono-tamano-sm: 1rem;
+  --fz-icono-tamano-md: 1.25rem;
+  --fz-icono-tamano-lg: 1.5rem;
+  --fz-icono-trazo: 1.75;
 
   /* ---- Select ---- */
   --fz-select-alto-sm: 2rem;

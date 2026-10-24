@@ -10,6 +10,7 @@ import { rutasSesion } from '../features/sesion/rutas'
 import { useSesionStore } from '../features/sesion/stores/sesionStore'
 import type { Rol } from '../features/sesion/tipos'
 import { rutasSocios } from '../features/socios/rutas'
+import type { NombreIconoFz } from '../ui'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -18,7 +19,13 @@ declare module 'vue-router' {
     // Roles que pueden entrar. Sin `roles`, la ruta solo requiere sesión.
     roles?: Rol[]
     // Si está, la ruta aparece como link en la navegación del armazón (solo a los roles que puedan entrar).
-    navegacion?: { etiqueta: string; orden: number }
+    // `icono` y `seccion` son opcionales: la barra lateral agrupa por sección (sin sección va arriba, sin título).
+    navegacion?: {
+      etiqueta: string
+      orden: number
+      icono?: NombreIconoFz
+      seccion?: 'operaciones' | 'actividades' | 'administracion'
+    }
   }
 }
 

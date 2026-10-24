@@ -6,53 +6,31 @@
 :root {
   /*
    * Colores: familia-escala.
-   * Paleta Slate / Neutral moderna con alto contraste (WCAG 2.2 AA).
+   * gris-500, azul-500, azul-600, ambar-700 y verde-700 se oscurecieron respecto de la
+   * paleta del prototipo para cumplir contraste WCAG 2.2 AA (4.5:1 texto, 3:1 elementos no textuales).
    */
   --fz-prim-gris-0: #ffffff;
-  --fz-prim-gris-50: #f8fafc;
-  --fz-prim-gris-100: #f1f5f9;
-  --fz-prim-gris-200: #e2e8f0;
-  --fz-prim-gris-300: #cbd5e1;
-  --fz-prim-gris-400: #94a3b8;
-  --fz-prim-gris-500: #64748b;
-  --fz-prim-gris-700: #334155;
-  --fz-prim-gris-800: #1e293b;
-  --fz-prim-gris-900: #0f172a;
+  --fz-prim-gris-50: #fbfbfa;
+  --fz-prim-gris-100: #f1f1ef;
+  --fz-prim-gris-200: #e9e9e6;
+  --fz-prim-gris-300: #8c8b87;
+  --fz-prim-gris-500: #73726e;
+  --fz-prim-gris-900: #37352f;
 
-  /* Modo oscuro primitivos */
-  --fz-prim-oscuro-fondo: #0b0f17;
-  --fz-prim-oscuro-tarjeta: #131b26;
-  --fz-prim-oscuro-superficie: #1c2636;
-  --fz-prim-oscuro-hover: #222e42;
-  --fz-prim-oscuro-borde: #28364d;
-  --fz-prim-oscuro-borde-control: #384966;
-  --fz-prim-oscuro-texto: #f1f5f9;
-  --fz-prim-oscuro-texto-suave: #94a3b8;
+  --fz-prim-azul-500: #1a6ec1;
+  --fz-prim-azul-600: #165ca0;
 
-  /* Azul deportivo FitZone */
-  --fz-prim-azul-400: #38bdf8;
-  --fz-prim-azul-500: #0284c7;
-  --fz-prim-azul-600: #0369a1;
-  --fz-prim-azul-700: #075985;
+  --fz-prim-verde-700: #287447;
+  --fz-prim-verde-50: #ebf5ee;
+  --fz-prim-verde-200: #d3edda;
 
-  /* Estados: Esmeralda, Rojo, Ámbar sobrios */
-  --fz-prim-verde-700: #059669;
-  --fz-prim-verde-600: #10b981;
-  --fz-prim-verde-50: #ecfdf5;
-  --fz-prim-verde-200: #a7f3d0;
-  --fz-prim-verde-oscuro-fondo: #064e3b;
+  --fz-prim-rojo-700: #c53b32;
+  --fz-prim-rojo-50: #fdebec;
+  --fz-prim-rojo-200: #f8c9cb;
 
-  --fz-prim-rojo-700: #dc2626;
-  --fz-prim-rojo-600: #ef4444;
-  --fz-prim-rojo-50: #fef2f2;
-  --fz-prim-rojo-200: #fecaca;
-  --fz-prim-rojo-oscuro-fondo: #7f1d1d;
-
-  --fz-prim-ambar-700: #d97706;
-  --fz-prim-ambar-600: #f59e0b;
-  --fz-prim-ambar-50: #fffbeb;
-  --fz-prim-ambar-200: #fde68a;
-  --fz-prim-ambar-oscuro-fondo: #78350f;
+  --fz-prim-ambar-700: #9a610f;
+  --fz-prim-ambar-50: #fdf5e8;
+  --fz-prim-ambar-200: #fbe2ba;
 
   /* Espaciado: escala de 4 px */
   --fz-prim-esp-1: 0.25rem;
@@ -64,11 +42,10 @@
   --fz-prim-esp-7: 1.75rem;
   --fz-prim-esp-8: 2rem;
 
-  /* Radios modernos */
-  --fz-prim-radio-sm: 6px;
+  /* Radios */
+  --fz-prim-radio-sm: 4px;
   --fz-prim-radio-md: 8px;
   --fz-prim-radio-lg: 12px;
-  --fz-prim-radio-xl: 16px;
   --fz-prim-radio-completo: 9999px;
 
   /* Tamaños de texto */
@@ -78,7 +55,6 @@
   --fz-prim-texto-lg: 1.125rem;
   --fz-prim-texto-xl: 1.25rem;
   --fz-prim-texto-2xl: 1.5rem;
-  --fz-prim-texto-3xl: 1.875rem;
 
   /* Pesos de fuente */
   --fz-prim-peso-400: 400;
@@ -86,12 +62,12 @@
   --fz-prim-peso-600: 600;
   --fz-prim-peso-700: 700;
 
-  /* Sombras sutiles */
+  /* Sombras */
   --fz-prim-sombra-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --fz-prim-sombra-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
-  --fz-prim-sombra-suave: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --fz-prim-sombra-suave: 0 1px 2px #37352f14, 0 1px 3px #37352f1f;
 
-  /* Familias tipográficas modernas */
+  /* Familias tipográficas */
   --fz-prim-fuente-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --fz-prim-fuente-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 }

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { useModoOscuro } from '@/compartido/composables/useModoOscuro'
 import { rolPermitido } from '@/features/sesion/acceso'
 import { useSesionStore } from '@/features/sesion/stores/sesionStore'
 import { BotonFz, InsigniaFz, PlantillaAppFz } from '@/ui'
@@ -11,12 +10,6 @@ const NOMBRE_APP = 'FitZone Sports'
 const router = useRouter()
 const route = useRoute()
 const sesion = useSesionStore()
-
-const { temaOscuro, alternarTema, inicializarTema } = useModoOscuro()
-
-onMounted(() => {
-  inicializarTema()
-})
 
 // Inicial del usuario para el avatar
 const inicialUsuario = computed(() => {
@@ -82,20 +75,9 @@ async function cerrarSesion() {
       </ul>
     </template>
 
-    <!-- Acciones, Chip de usuario y Toggle Dark Mode -->
+    <!-- Acciones y chip de usuario -->
     <template #acciones>
       <div class="armazon-app__acciones-grupo">
-        <!-- Botón Modo Oscuro -->
-        <button
-          type="button"
-          class="armazon-app__boton-tema"
-          :title="temaOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-          :aria-label="temaOscuro ? 'Modo claro' : 'Modo oscuro'"
-          @click="alternarTema"
-        >
-          {{ temaOscuro ? '☀️' : '🌙' }}
-        </button>
-
         <!-- Chip de Usuario -->
         <div class="armazon-app__usuario-chip">
           <div class="armazon-app__avatar" aria-hidden="true">
@@ -178,24 +160,6 @@ async function cerrarSesion() {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-
-.armazon-app__boton-tema {
-  background: var(--fz-color-hover);
-  border: 1px solid var(--fz-color-borde);
-  border-radius: var(--fz-radio-control);
-  width: 2rem;
-  height: 2rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 0.875rem;
-  transition: background-color 0.15s;
-}
-
-.armazon-app__boton-tema:hover {
-  background: var(--fz-color-borde);
 }
 
 .armazon-app__usuario-chip {

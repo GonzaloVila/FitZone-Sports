@@ -1,27 +1,20 @@
 /*
  * Tokens semánticos: el significado de cada valor (texto, fondo, peligro, etc.).
- * Referencian SOLO primitivos. Es la capa que se reasigna para un modo oscuro.
+ * Referencian SOLO primitivos.
  */
 :root {
-  /* Fondo general gris claro para profundidad / tarjetas blancas */
-  --fz-color-fondo: var(--fz-prim-gris-50);
-  --fz-color-superficie: var(--fz-prim-gris-0);
-  --fz-color-hover: var(--fz-prim-gris-100);
-
-  /* Texto */
+  /* Colores base */
   --fz-color-texto: var(--fz-prim-gris-900);
   --fz-color-texto-suave: var(--fz-prim-gris-500);
-
-  /* Bordes y sombras */
+  --fz-color-fondo: var(--fz-prim-gris-0);
+  --fz-color-superficie: var(--fz-prim-gris-50);
+  --fz-color-hover: var(--fz-prim-gris-100);
+  /* borde queda para separadores y tarjetas decorativos; borde-control es para controles de formulario (3:1) */
   --fz-color-borde: var(--fz-prim-gris-200);
   --fz-color-borde-control: var(--fz-prim-gris-300);
-  --fz-sombra-tarjeta: var(--fz-prim-sombra-sm);
-  --fz-sombra-elevada: var(--fz-prim-sombra-md);
-
-  /* Identidad FitZone */
   --fz-color-primario: var(--fz-prim-azul-500);
   --fz-color-primario-hover: var(--fz-prim-azul-600);
-  --fz-color-texto-sobre-primario: #ffffff;
+  --fz-color-texto-sobre-primario: var(--fz-prim-gris-0);
   --fz-color-foco: var(--fz-prim-azul-500);
 
   /* Estados */
@@ -42,11 +35,10 @@
   --fz-fuente-mono: var(--fz-prim-fuente-mono);
   --fz-texto-pequeno: var(--fz-prim-texto-sm);
   --fz-texto-cuerpo: var(--fz-prim-texto-md);
-  --fz-texto-titulo: var(--fz-prim-texto-xl);
+  --fz-texto-titulo: var(--fz-prim-texto-2xl);
   --fz-peso-normal: var(--fz-prim-peso-400);
   --fz-peso-medio: var(--fz-prim-peso-500);
   --fz-peso-enfasis: var(--fz-prim-peso-600);
-  --fz-peso-fuerte: var(--fz-prim-peso-700);
 
   /* Formas */
   --fz-radio-control: var(--fz-prim-radio-sm);
@@ -57,35 +49,9 @@
   --fz-espaciado-compacto: var(--fz-prim-esp-2);
   --fz-espaciado-base: var(--fz-prim-esp-4);
   --fz-espaciado-amplio: var(--fz-prim-esp-6);
-}
 
-/* 🌙 Modo Oscuro */
-html.modo-oscuro {
-  --fz-color-fondo: var(--fz-prim-oscuro-fondo);
-  --fz-color-superficie: var(--fz-prim-oscuro-tarjeta);
-  --fz-color-hover: var(--fz-prim-oscuro-hover);
-
-  --fz-color-texto: var(--fz-prim-oscuro-texto);
-  --fz-color-texto-suave: var(--fz-prim-oscuro-texto-suave);
-
-  --fz-color-borde: var(--fz-prim-oscuro-borde);
-  --fz-color-borde-control: var(--fz-prim-oscuro-borde-control);
-  --fz-sombra-tarjeta: 0 1px 3px 0 rgb(0 0 0 / 0.4);
-  --fz-sombra-elevada: 0 4px 6px -1px rgb(0 0 0 / 0.5);
-
-  --fz-color-primario: var(--fz-prim-azul-400);
-  --fz-color-primario-hover: var(--fz-prim-azul-500);
-  --fz-color-texto-sobre-primario: #0b0f17;
-
-  --fz-color-exito: #34d399;
-  --fz-color-exito-fondo: rgba(6, 78, 59, 0.4);
-  --fz-color-exito-borde: #065f46;
-
-  --fz-color-peligro: #f87171;
-  --fz-color-peligro-fondo: rgba(127, 29, 29, 0.4);
-  --fz-color-peligro-borde: #991b1b;
-
-  --fz-color-advertencia: #fbbf24;
-  --fz-color-advertencia-fondo: rgba(120, 53, 15, 0.4);
-  --fz-color-advertencia-borde: #92400e;
+  /* Elevación */
+  --fz-sombra-suave: var(--fz-prim-sombra-suave);
+  --fz-sombra-tarjeta: var(--fz-prim-sombra-sm);
+  --fz-sombra-elevada: var(--fz-prim-sombra-md);
 }

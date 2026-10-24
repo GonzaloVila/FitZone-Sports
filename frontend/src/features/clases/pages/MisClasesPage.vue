@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useSedes } from '@/features/sedes/composables/useSedes'
-import { AvisoFz, PestanasFz } from '@/ui'
+import { AvisoFz, BotonFz, PestanasFz } from '@/ui'
 import ModalCancelarClase from '../components/ModalCancelarClase.vue'
 import TablaMisEsperas from '../components/TablaMisEsperas.vue'
 import TablaMisReservas from '../components/TablaMisReservas.vue'
@@ -18,8 +18,12 @@ const {
   accionando,
   errorAccion,
   exitoAccion,
+  pagoPenalidad,
+  descargandoComprobante,
+  errorDescarga,
   sinSocio,
   cancelarReserva,
+  descargarComprobantePenalidad,
   confirmarCupo,
   salirDeEspera,
 } = useMisClases()
@@ -61,6 +65,17 @@ async function confirmarCancelacion() {
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
     <AvisoFz v-if="errorAccion && !modalCancelar" variante="peligro">{{ errorAccion }}</AvisoFz>
     <AvisoFz v-if="exitoAccion" variante="exito">{{ exitoAccion }}</AvisoFz>
+    <div v-if="pagoPenalidad" class="mis-clases__acciones">
+      <BotonFz
+        variante="secundario"
+        :cargando="descargandoComprobante"
+        :disabled="descargandoComprobante"
+        @click="descargarComprobantePenalidad"
+      >
+        Descargar comprobante
+      </BotonFz>
+    </div>
+    <AvisoFz v-if="errorDescarga" variante="peligro">{{ errorDescarga }}</AvisoFz>
 
     <p v-if="cargando" class="mis-clases__estado" role="status">Cargando tus clases…</p>
 
@@ -147,6 +162,12 @@ async function confirmarCancelacion() {
 .mis-clases__vacio {
   margin: 0;
   color: var(--fz-color-texto-suave);
+}
+
+.mis-clases__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fz-espaciado-compacto);
 }
 
 .mis-clases__seccion {

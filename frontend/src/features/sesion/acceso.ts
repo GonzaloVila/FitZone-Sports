@@ -12,6 +12,8 @@ export function rutaInicialPorRol(rol: Rol | null): string {
       return '/socios'
     case 'SOCIO':
       return '/carnet'
+    case 'EXTERNO':
+      return '/canchas'
     default:
       return '/inicio'
   }

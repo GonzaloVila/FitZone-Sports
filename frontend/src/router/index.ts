@@ -1,7 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { rutasAcceso } from '../features/acceso/rutas'
+import { rutasCanchas } from '../features/canchas/rutas'
 import { rutasClases } from '../features/clases/rutas'
 import { rutasInicio } from '../features/inicio/rutas'
+import { rutasPagos } from '../features/pagos/rutas'
 import { NOMBRE_RUTA_NO_ENCONTRADA, rolPermitido, rutaInicialPorRol } from '../features/sesion/acceso'
 import { rutasSedes } from '../features/sedes/rutas'
 import { rutasSesion } from '../features/sesion/rutas'
@@ -30,7 +32,15 @@ const router = createRouter({
       path: '/',
       component: () => import('../app/ArmazonApp.vue'),
       redirect: '/login',
-      children: [...rutasInicio, ...rutasSocios, ...rutasAcceso, ...rutasSedes, ...rutasClases],
+      children: [
+        ...rutasInicio,
+        ...rutasSocios,
+        ...rutasAcceso,
+        ...rutasSedes,
+        ...rutasClases,
+        ...rutasCanchas,
+        ...rutasPagos,
+      ],
     },
     // Comodín: toda ruta inexistente va a /login; el guard reubica a quien tenga sesión.
     {

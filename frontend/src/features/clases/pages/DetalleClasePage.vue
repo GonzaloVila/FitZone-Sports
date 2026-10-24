@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useSedes } from '@/features/sedes/composables/useSedes'
-import { AvisoFz, InsigniaFz } from '@/ui'
+import { AvisoFz, BotonFz, InsigniaFz } from '@/ui'
 import AccionesClase from '../components/AccionesClase.vue'
 import ListaEsperaClase from '../components/ListaEsperaClase.vue'
 import ListaInscriptos from '../components/ListaInscriptos.vue'
@@ -34,10 +34,15 @@ const {
   accionando,
   errorAccion,
   exitoAccion,
+  reservaCancelada,
+  pagoPenalidad,
+  descargandoComprobante,
+  errorDescarga,
   esSocio,
   esPersonal,
   reservar,
   cancelarReserva,
+  descargarComprobantePenalidad,
   anotarseEnEspera,
   confirmarCupo,
   salirDeEspera,
@@ -101,9 +106,24 @@ function abrirCancelacion() {
 
       <AvisoFz v-if="errorAccion && !modalCancelar" variante="peligro">{{ errorAccion }}</AvisoFz>
       <AvisoFz v-if="exitoAccion" variante="exito">{{ exitoAccion }}</AvisoFz>
+      <div v-if="pagoPenalidad || reservaCancelada" class="detalle__acciones">
+        <BotonFz
+          v-if="pagoPenalidad"
+          variante="secundario"
+          :cargando="descargandoComprobante"
+          :disabled="descargandoComprobante"
+          @click="descargarComprobantePenalidad"
+        >
+          Descargar comprobante
+        </BotonFz>
+        <RouterLink v-if="reservaCancelada" :to="{ name: 'clases' }">
+          <BotonFz variante="primario">Volver a la agenda</BotonFz>
+        </RouterLink>
+      </div>
+      <AvisoFz v-if="errorDescarga" variante="peligro">{{ errorDescarga }}</AvisoFz>
 
       <AccionesClase
-        v-if="esSocio"
+        v-if="esSocio && !reservaCancelada"
         :clase="clase"
         :reserva="reserva"
         :espera="espera"
@@ -164,6 +184,12 @@ function abrirCancelacion() {
 .detalle__estado {
   margin: 0;
   color: var(--fz-color-texto-suave);
+}
+
+.detalle__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fz-espaciado-compacto);
 }
 
 .detalle__encabezado {

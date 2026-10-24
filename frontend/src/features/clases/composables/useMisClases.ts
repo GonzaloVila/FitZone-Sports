@@ -2,7 +2,10 @@ import { computed, onScopeDispose, ref } from 'vue'
 import { mensajeDeError } from '@/compartido/http/errores'
 import { useActualizacionPeriodica } from '@/compartido/composables/useActualizacionPeriodica'
 import { useServicios } from '@/compartido/servicios'
+import { useDescargaPdf } from '@/features/pagos/composables/useDescargaPdf'
+import type { Pago } from '@/features/pagos/services/servicioPagos'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
+import { formatearMonto } from '../presentacion'
 import { traducirErrorCancelacion, traducirErrorConfirmacion, traducirErrorSalidaDeEspera } from '../errores'
 import type { Clase, EsperaClase, ReservaClase } from '../services/servicioClases'
 import type { FilaEspera, FilaReserva } from '../tipos'
@@ -12,7 +15,8 @@ const INTERVALO_ACTUALIZACION_MS = 5000
 const POR_PAGINA = 100
 
 export function useMisClases() {
-  const servicio = useServicios().clases
+  const servicios = useServicios()
+  const servicio = servicios.clases
   const { socioId } = useUsuarioSesion()
 
   const proximas = ref<FilaReserva[]>([])
@@ -26,6 +30,13 @@ export function useMisClases() {
   const accionando = ref(false)
   const errorAccion = ref<string | null>(null)
   const exitoAccion = ref<string | null>(null)
+
+  const pagoPenalidad = ref<Pago | null>(null)
+  const {
+    descargando: descargandoComprobante,
+    error: errorDescarga,
+    descargar,
+  } = useDescargaPdf()
 
   // Descarte de respuestas viejas.
   let ultimaCarga = 0
@@ -118,6 +129,7 @@ export function useMisClases() {
     accionando.value = true
     errorAccion.value = null
     exitoAccion.value = null
+    pagoPenalidad.value = null
     let ok = false
     try {
       await accion()
@@ -132,8 +144,28 @@ export function useMisClases() {
     return ok
   }
 
-  const cancelarReserva = (reservaId: number) =>
-    ejecutar(() => servicio.cancelarReserva(reservaId), 'Reserva cancelada.', traducirErrorCancelacion)
+  async function cancelarReserva(reservaId: number): Promise<boolean> {
+    const ok = await ejecutar(() => servicio.cancelarReserva(reservaId), 'Reserva cancelada.', traducirErrorCancelacion)
+    if (!ok) return false
+
+    try {
+      const pagos = await servicios.pagos.listar({ reservaClaseId: reservaId }, 1, 1)
+      const pago = pagos.items[0] ?? null
+      pagoPenalidad.value = pago
+      if (pago) {
+        exitoAccion.value = `Reserva cancelada. Se cobró una penalidad de ${formatearMonto(pago.monto)}.`
+      }
+    } catch {
+      pagoPenalidad.value = null
+    }
+    return true
+  }
+
+  function descargarComprobantePenalidad(): Promise<boolean> {
+    const pago = pagoPenalidad.value
+    if (!pago) return Promise.resolve(false)
+    return descargar(`comprobante-penalidad-${pago.id}.pdf`, () => servicios.pagos.descargarComprobante(pago.id))
+  }
 
   const confirmarCupo = (esperaId: number) =>
     ejecutar(
@@ -159,8 +191,12 @@ export function useMisClases() {
     accionando,
     errorAccion,
     exitoAccion,
+    pagoPenalidad,
+    descargandoComprobante,
+    errorDescarga,
     sinSocio,
     cancelarReserva,
+    descargarComprobantePenalidad,
     confirmarCupo,
     salirDeEspera,
   }

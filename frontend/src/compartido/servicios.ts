@@ -1,6 +1,8 @@
 import { inject, type InjectionKey } from 'vue'
 import type { ServicioAcceso } from '@/features/acceso/services/servicioAcceso'
+import type { ServicioCanchas } from '@/features/canchas/services/servicioCanchas'
 import type { ServicioClases } from '@/features/clases/services/servicioClases'
+import type { ServicioPagos } from '@/features/pagos/services/servicioPagos'
 import type { ServicioSedes } from '@/features/sedes/services/servicioSedes'
 import type { ServicioSesion } from '@/features/sesion/services/servicioSesion'
 import type { ServicioSocios } from '@/features/socios/services/servicioSocios'
@@ -13,6 +15,8 @@ export interface Servicios {
   usuarios: ServicioUsuarios
   acceso: ServicioAcceso
   clases: ServicioClases
+  canchas: ServicioCanchas
+  pagos: ServicioPagos
 }
 
 export const ServiciosKey: InjectionKey<Servicios> = Symbol('servicios')

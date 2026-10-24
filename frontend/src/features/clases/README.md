@@ -56,3 +56,5 @@ src/features/clases/
 8. **Limitaciones del contrato:** `GET /clases` no filtra por fecha (la agenda es el listado paginado) y las reservas y esperas no traen el nombre del socio (se muestra "Socio #id").
 9. **Kit:** se agregó `PestanasFz` (`ui/moleculas`) y `CampoTextoFz` acepta `tipo="time"`.
 10. **Accesibilidad:** foco visible, etiquetas en todos los campos, errores asociados con `aria-describedby`, tablas con título, pestañas con teclado.
+11. **Penalidad (RF-07):** si la cancelación es tardía, después del 204 se busca el pago de la reserva (`GET /pagos?reservaClaseId=`) y se muestra el importe con el botón de comprobante, que reusa `useDescargaPdf` de M5.
+12. **Después de cancelar:** el detalle ya no ofrece "Reservar"; queda "Volver a la agenda" (más el comprobante de la penalidad si hubo). Para reservar de nuevo hay que rehacer el recorrido: `reservaCancelada` se resetea al cambiar de clase.

@@ -10,7 +10,9 @@ import { crearAlmacenToken } from './compartido/http/almacenToken'
 import { crearClienteApi } from './compartido/http/clienteApi'
 import { ServiciosKey } from './compartido/servicios'
 import { crearServicioAcceso } from './features/acceso/services/servicioAcceso'
+import { crearServicioCanchas } from './features/canchas/services/servicioCanchas'
 import { crearServicioClases } from './features/clases/services/servicioClases'
+import { crearServicioPagos } from './features/pagos/services/servicioPagos'
 import { crearServicioSedes } from './features/sedes/services/servicioSedes'
 import { crearServicioSesion } from './features/sesion/services/servicioSesion'
 import { useSesionStore } from './features/sesion/stores/sesionStore'
@@ -36,6 +38,8 @@ const servicios = {
   usuarios: crearServicioUsuarios(clienteApi),
   acceso: crearServicioAcceso(clienteApi),
   clases: crearServicioClases(clienteApi),
+  canchas: crearServicioCanchas(clienteApi),
+  pagos: crearServicioPagos(clienteApi),
 }
 
 const app = createApp(App)

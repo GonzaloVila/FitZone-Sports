@@ -21,6 +21,7 @@ export type SesionIniciada = components['schemas']['LoginOut']
 // Lo que el front guarda del usuario autenticado; el token no forma parte de esto.
 export interface UsuarioSesion {
   rol: Rol | null
+  usuarioId?: number
   sedeId?: number
   socioId?: number
 }
@@ -28,6 +29,7 @@ export interface UsuarioSesion {
 export function usuarioDesdeSesion(sesion: SesionIniciada): UsuarioSesion {
   return {
     rol: esRol(sesion.rol) ? sesion.rol : null,
+    usuarioId: sesion.usuarioId,
     sedeId: sesion.sedeId,
     socioId: sesion.socioId,
   }

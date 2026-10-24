@@ -50,3 +50,9 @@ export function formatearHora(fechaIso: string): string {
 export function formatearHorario(clase: Pick<Clase, 'horarioInicio' | 'horarioFin'>): string {
   return `${formatearDia(clase.horarioInicio)}, ${formatearHora(clase.horarioInicio)} a ${formatearHora(clase.horarioFin)} hs`
 }
+
+const FORMATO_MONTO = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' })
+
+export function formatearMonto(monto: number): string {
+  return FORMATO_MONTO.format(monto)
+}

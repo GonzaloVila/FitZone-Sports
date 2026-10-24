@@ -1,8 +1,11 @@
-import { computed, onScopeDispose, ref } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { esErrorApi, mensajeDeError } from '@/compartido/http/errores'
 import { useActualizacionPeriodica } from '@/compartido/composables/useActualizacionPeriodica'
 import { useServicios } from '@/compartido/servicios'
+import { useDescargaPdf } from '@/features/pagos/composables/useDescargaPdf'
+import type { Pago } from '@/features/pagos/services/servicioPagos'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
+import { formatearMonto } from '../presentacion'
 import {
   traducirErrorCancelacion,
   traducirErrorConfirmacion,
@@ -18,7 +21,8 @@ const POR_PAGINA_OCUPACION = 100
 
 // Un id inválido (null) se trata como clase inexistente, sin pedir nada a la API.
 export function useDetalleClase(claseId: () => number | null) {
-  const servicio = useServicios().clases
+  const servicios = useServicios()
+  const servicio = servicios.clases
   const { rol, socioId } = useUsuarioSesion()
 
   const clase = ref<Clase | null>(null)
@@ -36,6 +40,19 @@ export function useDetalleClase(claseId: () => number | null) {
   const accionando = ref(false)
   const errorAccion = ref<string | null>(null)
   const exitoAccion = ref<string | null>(null)
+  const reservaCancelada = ref(false)
+
+  // Al cambiar de clase (otro recorrido) se vuelve a habilitar "Reservar".
+  watch(claseId, () => {
+    reservaCancelada.value = false
+  })
+
+  const pagoPenalidad = ref<Pago | null>(null)
+  const {
+    descargando: descargandoComprobante,
+    error: errorDescarga,
+    descargar,
+  } = useDescargaPdf()
 
   const esSocio = computed(() => rol.value === 'SOCIO')
   const esPersonal = computed(() => rol.value === 'RECEPCION' || rol.value === 'GERENTE')
@@ -121,6 +138,7 @@ export function useDetalleClase(claseId: () => number | null) {
     accionando.value = true
     errorAccion.value = null
     exitoAccion.value = null
+    pagoPenalidad.value = null
     let ok = false
     try {
       await accion()
@@ -152,7 +170,29 @@ export function useDetalleClase(claseId: () => number | null) {
   async function cancelarReserva() {
     const actual = reserva.value
     if (!actual) return false
-    return ejecutar(() => servicio.cancelarReserva(actual.id), 'Reserva cancelada.', traducirErrorCancelacion)
+    const ok = await ejecutar(() => servicio.cancelarReserva(actual.id), 'Reserva cancelada.', traducirErrorCancelacion)
+    if (!ok) return false
+
+    // En esta pantalla ya no se ofrece reservar de nuevo: solo se puede volver y rehacer el recorrido.
+    reservaCancelada.value = true
+
+    try {
+      const pagos = await servicios.pagos.listar({ reservaClaseId: actual.id }, 1, 1)
+      const pago = pagos.items[0] ?? null
+      pagoPenalidad.value = pago
+      if (pago) {
+        exitoAccion.value = `Reserva cancelada. Se cobró una penalidad de ${formatearMonto(pago.monto)}.`
+      }
+    } catch {
+      pagoPenalidad.value = null
+    }
+    return true
+  }
+
+  function descargarComprobantePenalidad(): Promise<boolean> {
+    const pago = pagoPenalidad.value
+    if (!pago) return Promise.resolve(false)
+    return descargar(`comprobante-penalidad-${pago.id}.pdf`, () => servicios.pagos.descargarComprobante(pago.id))
   }
 
   async function anotarseEnEspera() {
@@ -200,10 +240,15 @@ export function useDetalleClase(claseId: () => number | null) {
     accionando,
     errorAccion,
     exitoAccion,
+    reservaCancelada,
+    pagoPenalidad,
+    descargandoComprobante,
+    errorDescarga,
     esSocio,
     esPersonal,
     reservar,
     cancelarReserva,
+    descargarComprobantePenalidad,
     anotarseEnEspera,
     confirmarCupo,
     salirDeEspera,

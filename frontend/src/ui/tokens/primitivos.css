@@ -6,14 +6,15 @@
 :root {
   /*
    * Colores: familia-escala.
-   * gris-500, azul-500, azul-600, ambar-700 y verde-700 se oscurecieron respecto de la
-   * paleta del prototipo para cumplir contraste WCAG 2.2 AA (4.5:1 texto, 3:1 elementos no textuales).
+   * gris-500, azul-500, azul-600, ambar-700 y verde-700 son lo bastante oscuros para cumplir
+   * contraste WCAG 2.2 AA (4.5:1 texto, 3:1 elementos no textuales).
    */
   --fz-prim-gris-0: #ffffff;
   --fz-prim-gris-50: #fbfbfa;
   --fz-prim-gris-100: #f1f1ef;
   --fz-prim-gris-150: #ecece9;
   --fz-prim-gris-200: #e9e9e6;
+  --fz-prim-gris-250: #d3d2ce;
   --fz-prim-gris-300: #8c8b87;
   --fz-prim-gris-500: #6b6a66;
   --fz-prim-gris-900: #37352f;

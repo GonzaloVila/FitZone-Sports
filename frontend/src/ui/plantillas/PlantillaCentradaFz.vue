@@ -8,6 +8,7 @@ defineProps<{
 <template>
   <main class="plantilla-centrada">
     <div class="plantilla-centrada__tarjeta">
+      <div v-if="$slots.marca" class="plantilla-centrada__marca"><slot name="marca" /></div>
       <header v-if="titulo || subtitulo" class="plantilla-centrada__encabezado">
         <h1 v-if="titulo" class="plantilla-centrada__titulo">{{ titulo }}</h1>
         <p v-if="subtitulo" class="plantilla-centrada__subtitulo">{{ subtitulo }}</p>
@@ -37,6 +38,10 @@ defineProps<{
   border-radius: var(--fz-plantilla-centrada-tarjeta-radio);
   background: var(--fz-plantilla-centrada-tarjeta-fondo);
   box-shadow: var(--fz-plantilla-centrada-tarjeta-sombra);
+}
+
+.plantilla-centrada__marca {
+  margin-bottom: var(--fz-plantilla-centrada-marca-margen);
 }
 
 .plantilla-centrada__encabezado {

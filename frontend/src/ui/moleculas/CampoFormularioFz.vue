@@ -33,7 +33,18 @@ const describedby = computed(() => {
 <template>
   <div class="campo-formulario">
     <label :for="idCampo" class="campo-formulario__etiqueta">{{ etiqueta }}</label>
+    <div v-if="$slots.sufijo" class="campo-formulario__control">
+      <CampoTextoFz
+        v-bind="attrs"
+        :id="idCampo"
+        v-model="modelo"
+        :invalido="Boolean(error)"
+        :aria-describedby="describedby"
+      />
+      <div class="campo-formulario__sufijo"><slot name="sufijo" /></div>
+    </div>
     <CampoTextoFz
+      v-else
       v-bind="attrs"
       :id="idCampo"
       v-model="modelo"
@@ -56,6 +67,20 @@ const describedby = computed(() => {
   font-size: var(--fz-campo-formulario-etiqueta-texto);
   font-weight: var(--fz-campo-formulario-etiqueta-peso);
   color: var(--fz-campo-formulario-etiqueta-color);
+}
+
+/* Con slot `sufijo`: el contenido se apoya sobre el borde derecho del campo (el campo reserva su lugar). */
+.campo-formulario__control {
+  position: relative;
+}
+
+.campo-formulario__sufijo {
+  position: absolute;
+  top: 0;
+  right: var(--fz-campo-formulario-sufijo-margen);
+  bottom: 0;
+  display: flex;
+  align-items: center;
 }
 
 .campo-formulario__ayuda,

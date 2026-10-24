@@ -5,7 +5,7 @@ import { usePerfilSesion } from '@/features/sesion/composables/usePerfilSesion'
 import { rolPermitido } from '@/features/sesion/acceso'
 import { etiquetaRol } from '@/features/sesion/presentacion'
 import { useSesionStore } from '@/features/sesion/stores/sesionStore'
-import { IconoFz, PlantillaAppFz } from '@/ui'
+import { IconoFz, MarcaFz, PlantillaAppFz } from '@/ui'
 
 const NOMBRE_APP = 'FitZone Sports'
 
@@ -85,15 +85,7 @@ async function cerrarSesion() {
 <template>
   <PlantillaAppFz :disposicion="disposicion">
     <template #encabezado>
-      <div class="armazon-app__identidad">
-        <div class="armazon-app__marca">
-          <span class="armazon-app__logo" aria-hidden="true">F</span>
-          <span>{{ NOMBRE_APP }}</span>
-        </div>
-        <span v-if="lateral && perfil.nombreSede.value" class="armazon-app__sede" :title="perfil.nombreSede.value">
-          {{ perfil.nombreSede.value }}
-        </span>
-      </div>
+      <MarcaFz :nombre="NOMBRE_APP" :descripcion="lateral ? (perfil.nombreSede.value ?? undefined) : undefined" />
     </template>
 
     <template v-if="grupos.length > 0" #navegacion>
@@ -169,43 +161,6 @@ async function cerrarSesion() {
 </template>
 
 <style scoped>
-/* ---- Marca ---- */
-.armazon-app__identidad {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-/* Alineada con el texto de la marca, no con el logo. */
-.armazon-app__sede {
-  padding-left: calc(var(--fz-armazon-logo-tamano) + var(--fz-armazon-marca-separacion));
-  overflow: hidden;
-  font-size: var(--fz-armazon-sede-texto);
-  font-weight: var(--fz-peso-normal);
-  color: var(--fz-armazon-sede-color);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.armazon-app__marca {
-  display: flex;
-  align-items: center;
-  gap: var(--fz-armazon-marca-separacion);
-}
-
-.armazon-app__logo {
-  display: grid;
-  place-items: center;
-  width: var(--fz-armazon-logo-tamano);
-  height: var(--fz-armazon-logo-tamano);
-  border-radius: var(--fz-armazon-logo-radio);
-  background: var(--fz-armazon-logo-fondo);
-  color: var(--fz-armazon-logo-texto);
-  font-size: var(--fz-armazon-logo-texto-tamano);
-  font-weight: var(--fz-armazon-marca-peso);
-  line-height: 1;
-}
-
 /* ---- Navegación ---- */
 .armazon-app__grupos {
   display: flex;

@@ -155,14 +155,6 @@
   --fz-armazon-barra-borde: var(--fz-color-borde);
   --fz-armazon-barra-relleno: var(--fz-espaciado-base);
   --fz-armazon-barra-separacion: var(--fz-espaciado-amplio);
-  --fz-armazon-logo-tamano: 1.25rem;
-  --fz-armazon-logo-fondo: var(--fz-color-texto);
-  --fz-armazon-logo-texto: var(--fz-color-fondo);
-  --fz-armazon-logo-texto-tamano: var(--fz-texto-minimo);
-  --fz-armazon-logo-radio: var(--fz-radio-control);
-  --fz-armazon-marca-separacion: var(--fz-espaciado-compacto);
-  --fz-armazon-sede-texto: var(--fz-texto-minimo);
-  --fz-armazon-sede-color: var(--fz-color-texto-suave);
   --fz-armazon-enlace-activo-fondo: var(--fz-color-seleccionado);
   --fz-armazon-enlace-icono-color: var(--fz-color-texto-suave);
   --fz-armazon-enlace-icono-activo: var(--fz-color-primario);
@@ -258,6 +250,30 @@
   --fz-aviso-flotante-animacion-duracion: var(--fz-duracion-media);
   --fz-aviso-flotante-animacion-desplazamiento: 1rem;
 
+  /* ---- Marca (molécula) ---- */
+  --fz-marca-separacion: var(--fz-espaciado-compacto);
+  --fz-marca-logo-tamano: 1.25rem;
+  --fz-marca-logo-fondo: var(--fz-color-texto);
+  --fz-marca-logo-texto: var(--fz-color-fondo);
+  --fz-marca-logo-texto-tamano: var(--fz-texto-minimo);
+  --fz-marca-logo-peso: var(--fz-peso-enfasis);
+  --fz-marca-logo-radio: var(--fz-radio-control);
+  --fz-marca-nombre-texto: var(--fz-texto-cuerpo);
+  --fz-marca-nombre-peso: var(--fz-peso-enfasis);
+  --fz-marca-nombre-color: var(--fz-color-texto);
+  --fz-marca-descripcion-texto: var(--fz-texto-minimo);
+  --fz-marca-descripcion-peso: var(--fz-peso-normal);
+  --fz-marca-descripcion-color: var(--fz-color-texto-suave);
+
+  /* ---- Campo de contraseña (molécula) ---- */
+  --fz-campo-contrasenia-boton-tamano: 1.75rem;
+  --fz-campo-contrasenia-boton-radio: var(--fz-radio-control);
+  --fz-campo-contrasenia-icono-color: var(--fz-color-texto-suave);
+  --fz-campo-contrasenia-icono-color-hover: var(--fz-color-texto);
+  --fz-campo-contrasenia-boton-fondo-hover: var(--fz-color-hover);
+  --fz-campo-contrasenia-foco-color: var(--fz-color-foco);
+  --fz-campo-contrasenia-foco-ancho: 2px;
+
   /* ---- Select ---- */
   --fz-select-alto-sm: 1.75rem;
   --fz-select-alto-md: 2rem;
@@ -338,22 +354,24 @@
   --fz-campo-formulario-ayuda-color: var(--fz-color-texto-suave);
   --fz-campo-formulario-error-texto: var(--fz-texto-pequeno);
   --fz-campo-formulario-error-color: var(--fz-color-peligro);
+  --fz-campo-formulario-sufijo-margen: 0.25rem;
 
   /* ---- Plantilla centrada ---- */
   --fz-plantilla-centrada-fondo: var(--fz-color-superficie);
   --fz-plantilla-centrada-relleno: var(--fz-espaciado-base);
   --fz-plantilla-centrada-tarjeta-ancho-max: 24rem;
   --fz-plantilla-centrada-tarjeta-fondo: var(--fz-color-fondo);
-  --fz-plantilla-centrada-tarjeta-borde: var(--fz-color-borde);
+  --fz-plantilla-centrada-tarjeta-borde: var(--fz-color-borde-marcado);
   --fz-plantilla-centrada-tarjeta-borde-ancho: 1px;
-  --fz-plantilla-centrada-tarjeta-radio: var(--fz-radio-tarjeta);
-  --fz-plantilla-centrada-tarjeta-sombra: var(--fz-sombra-suave);
+  --fz-plantilla-centrada-tarjeta-radio: var(--fz-radio-control);
+  --fz-plantilla-centrada-tarjeta-sombra: none;
   --fz-plantilla-centrada-tarjeta-relleno: var(--fz-espaciado-amplio);
   --fz-plantilla-centrada-encabezado-separacion: var(--fz-espaciado-compacto);
+  --fz-plantilla-centrada-marca-margen: var(--fz-espaciado-amplio);
   --fz-plantilla-centrada-encabezado-margen: var(--fz-espaciado-amplio);
   --fz-plantilla-centrada-titulo-texto: var(--fz-texto-titulo);
   --fz-plantilla-centrada-titulo-peso: var(--fz-peso-enfasis);
   --fz-plantilla-centrada-titulo-color: var(--fz-color-texto);
-  --fz-plantilla-centrada-subtitulo-texto: var(--fz-texto-cuerpo);
+  --fz-plantilla-centrada-subtitulo-texto: var(--fz-texto-pequeno);
   --fz-plantilla-centrada-subtitulo-color: var(--fz-color-texto-suave);
 }

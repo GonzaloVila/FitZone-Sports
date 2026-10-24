@@ -14,6 +14,8 @@ export type NombreIconoFz =
   | 'exito'
   | 'error'
   | 'info'
+  | 'ojo'
+  | 'ojo-tachado'
 </script>
 
 <script setup lang="ts">
@@ -71,6 +73,10 @@ const TRAZOS: Record<NombreIconoFz, readonly string[]> = {
   error: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 7.5v5', 'M12 16v.01'],
   // Círculo con una "i".
   info: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 11v5', 'M12 8v.01'],
+  // Ojo abierto: contorno con la pupila al centro.
+  ojo: ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z', 'M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0'],
+  // El mismo ojo cruzado por una barra.
+  'ojo-tachado': ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z', 'M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0', 'M4 4l16 16'],
 }
 
 const trazos = computed(() => TRAZOS[props.nombre])

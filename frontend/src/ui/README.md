@@ -41,7 +41,7 @@ Reglas centrales:
 | `nombre` | `NombreIconoFz` (unión cerrada, se exporta desde `ui/index.ts`) | requerida |
 | `tamano` | `'sm' \| 'md' \| 'lg'` (1 / 1.25 / 1.5 rem, por token `--fz-icono-tamano-*`) | `'md'` |
 
-Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
+Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
 
 ## Plantilla de la app: `PlantillaAppFz`
 
@@ -59,6 +59,48 @@ Slots: `encabezado` (marca), `navegacion`, `acciones`, el slot por defecto (cont
 - `pie`: bloque que se apoya al fondo de la barra lateral (el usuario, por ejemplo). Solo se muestra con `'barra-lateral'`.
 - Con `'barra-lateral'`, desde `48rem` la barra es fija (`position: sticky`, alto `100dvh`, ancho `--fz-armazon-barra-ancho`) y el contenido queda a su derecha: el scroll lo hace la página. Debajo de `48rem` pasa a ser una barra superior con un botón "Menú" (`aria-expanded` y `aria-controls`) que muestra u oculta el panel de links. Es un desplegable, no un modal: no atrapa el foco; se cierra con Escape (devuelve el foco al botón) y al activar cualquier enlace del panel.
 - En ambas disposiciones se mantienen el enlace "Saltar al contenido", el `<nav>` con `aria-label` y el foco visible por tokens; los controles miden al menos `2rem` de alto (WCAG 2.2, 2.5.8).
+
+## Plantilla centrada, marca y campo de contraseña
+
+### `PlantillaCentradaFz`
+
+Pantalla de una sola tarjeta centrada (hoy, el login). Props: `titulo` y `subtitulo`. Slots: el por defecto (contenido) y, opcional, `marca`: se dibuja dentro de la tarjeta, arriba del encabezado; sin él la plantilla se ve igual que antes. La tarjeta es blanca, de borde fino, radio chico y sin sombra, sobre el fondo de superficie.
+
+### `MarcaFz` (molécula)
+
+Cuadradito oscuro con la inicial, el nombre y, si hay, una descripción debajo (alineada con el nombre, con puntos suspensivos si no entra y el texto completo en el `title`). Es la marca de la barra lateral y del login.
+
+| Prop | Tipo | |
+| --- | --- | --- |
+| `nombre` | `string` | Obligatoria |
+| `descripcion` | `string` | Opcional |
+| `inicial` | `string` | Opcional; por defecto, la primera letra del `nombre` |
+
+```vue
+<PlantillaCentradaFz titulo="Iniciar sesión" subtitulo="Ingresá tus credenciales para acceder.">
+  <template #marca>
+    <MarcaFz nombre="FitZone Sports" descripcion="Gestión de Clubes y Sedes Deportivas" />
+  </template>
+  <!-- formulario -->
+</PlantillaCentradaFz>
+```
+
+### `CampoContraseniaFz` (molécula)
+
+Campo de contraseña con un botón dentro, a la derecha, para mostrarla u ocultarla. Hace todo lo de `CampoFormularioFz` (etiqueta asociada con `for`, `aria-describedby` hacia la ayuda y el error, `aria-invalid`, error con `role="alert"`) y pasa el resto de los atributos (`name`, `autocomplete`…) al `<input>`.
+
+| Prop | Tipo | |
+| --- | --- | --- |
+| `v-model` | `string` | Valor |
+| `etiqueta` | `string` | Obligatoria |
+| `error`, `ayuda`, `id` | `string` | Opcionales |
+| `etiquetaBoton` | `string` | Nombre accesible del botón; por defecto `"Mostrar contraseña"` |
+
+El botón es un `<button type="button">` de 1.75rem (por encima de los 24 px de WCAG 2.5.8), va después del campo en el orden de tabulación y tiene anillo de foco propio. Su nombre accesible **no cambia** con el estado (lo da `aria-pressed`), para que no se anuncie dos veces. Para ubicarlo dentro del campo, `CampoFormularioFz` suma un slot opcional `sufijo`: sin él, su markup es el de siempre.
+
+```vue
+<CampoContraseniaFz v-model="contrasenia" etiqueta="Contraseña" name="contrasenia" autocomplete="current-password" :error="error" />
+```
 
 ## Menú de acciones y avisos flotantes (Reka UI)
 
@@ -114,7 +156,7 @@ avisos.info('Sincronizando…', undefined, 3000) // último parámetro: duració
 
 ## Escala de tamaños
 
-La interfaz es compacta (referencia: prototipo SportOS). Se cambia solo en los tokens; las pantallas la heredan.
+La interfaz es compacta. Se cambia solo en los tokens; las pantallas la heredan.
 
 | Token semántico | Valor | Para qué |
 | --- | --- | --- |

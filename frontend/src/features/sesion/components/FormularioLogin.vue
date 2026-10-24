@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { AvisoFz, BotonFz, CampoFormularioFz } from '@/ui'
+import { AvisoFz, BotonFz, CampoContraseniaFz, CampoFormularioFz } from '@/ui'
 
 defineProps<{
   cargando?: boolean
@@ -22,8 +22,8 @@ const intentoEnvio = ref(false)
 const errorEmail = computed(() => {
   if (!intentoEnvio.value) return undefined
   const valor = email.value.trim()
-  if (!valor) return 'Ingresá tu email.'
-  if (!FORMATO_EMAIL.test(valor)) return 'Ingresá un email válido.'
+  if (!valor) return 'Ingresá tu correo.'
+  if (!FORMATO_EMAIL.test(valor)) return 'Ingresá un correo válido.'
   return undefined
 })
 
@@ -41,24 +41,25 @@ function enviar() {
 
 <template>
   <form class="formulario-login" novalidate @submit.prevent="enviar">
+    <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
     <CampoFormularioFz
       v-model="email"
-      etiqueta="Email"
+      etiqueta="Correo electrónico"
       tipo="email"
       name="email"
       autocomplete="username"
       :error="errorEmail"
     />
-    <CampoFormularioFz
+    <CampoContraseniaFz
       v-model="contrasenia"
       etiqueta="Contraseña"
-      tipo="password"
       name="contrasenia"
       autocomplete="current-password"
       :error="errorContrasenia"
     />
-    <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
-    <BotonFz tipo="submit" class="formulario-login__enviar" :cargando="cargando">Ingresar</BotonFz>
+    <BotonFz tipo="submit" tamano="lg" class="formulario-login__enviar" :cargando="cargando">
+      {{ cargando ? 'Ingresando…' : 'Ingresar' }}
+    </BotonFz>
   </form>
 </template>
 

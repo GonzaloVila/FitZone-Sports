@@ -14,6 +14,8 @@
   /* borde queda para separadores y tarjetas decorativos; borde-control es para controles de formulario (3:1) */
   --fz-color-borde: var(--fz-prim-gris-200);
   --fz-color-borde-control: var(--fz-prim-gris-300);
+  /* borde-marcado: para tarjetas sueltas sobre el fondo de superficie, donde borde casi no se ve */
+  --fz-color-borde-marcado: var(--fz-prim-gris-250);
   --fz-color-primario: var(--fz-prim-azul-500);
   --fz-color-primario-hover: var(--fz-prim-azul-600);
   --fz-color-texto-sobre-primario: var(--fz-prim-gris-0);

@@ -6,7 +6,7 @@ import type { Credenciales } from '../services/servicioSesion'
 import { useSesionStore } from '../stores/sesionStore'
 
 function mensajeDeError(e: unknown): string {
-  if (esErrorApiConEstado(e, 401)) return 'Email o contraseña incorrectos'
+  if (esErrorApiConEstado(e, 401)) return 'El correo o la contraseña no son correctos.'
   if (esErrorApiConEstado(e, 0)) return 'No se pudo conectar con el servidor'
   return 'No se pudo iniciar sesión. Probá de nuevo.'
 }

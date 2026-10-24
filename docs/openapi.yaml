@@ -2053,6 +2053,7 @@ components:
         - tokenType
         - expiresIn
         - rol
+        - usuarioId
       properties:
         accessToken:
           type: string
@@ -2067,6 +2068,10 @@ components:
         rol:
           type: string
           example: RECEPCION
+        usuarioId:
+          type: number
+          description: ID del usuario autenticado (clave de Usuario).
+          example: 7
         sedeId:
           type: number
           description: Sucursal de trabajo. Solo presente para rol RECEPCION.

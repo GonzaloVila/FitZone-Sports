@@ -119,6 +119,7 @@ export class AuthService {
       tokenType: 'Bearer',
       expiresIn: expiresIn,
       rol: usuario.rol,
+      usuarioId: usuario.id,
       sedeId: sedeId,
       socioId: socioIdPayload,
     });

@@ -99,7 +99,13 @@ describe('AuthService: login', () => {
 
     const payload = jwt.decode(respuesta.accessToken) as Record<string, unknown>;
     expect(payload).toMatchObject({ sub: 7, rol: 'RECEPCION', sedeId: 5 });
-    expect(respuesta).toMatchObject({ tokenType: 'Bearer', expiresIn: JWT_EXPIRES_IN, rol: 'RECEPCION', sedeId: 5 });
+    expect(respuesta).toMatchObject({
+      tokenType: 'Bearer',
+      expiresIn: JWT_EXPIRES_IN,
+      rol: 'RECEPCION',
+      usuarioId: 7,
+      sedeId: 5,
+    });
     expect(respuesta.refreshToken).toBeUndefined();
 
     expect(refreshToken).toMatch(/^[A-Za-z0-9_-]{43}$/);

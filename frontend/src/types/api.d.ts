@@ -973,6 +973,11 @@ export interface components {
             /** @example RECEPCION */
             rol: string;
             /**
+             * @description ID del usuario autenticado (clave de Usuario).
+             * @example 7
+             */
+            usuarioId: number;
+            /**
              * @description Sucursal de trabajo. Solo presente para rol RECEPCION.
              * @example 5
              */

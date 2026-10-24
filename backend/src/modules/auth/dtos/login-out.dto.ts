@@ -21,6 +21,10 @@ export class LoginOut {
   rol!: RolUsuario;
 
   @Expose()
+  @ApiProperty({ example: 7, description: 'ID del usuario autenticado (clave de Usuario).' })
+  usuarioId!: number;
+
+  @Expose()
   @ApiPropertyOptional({
     example: 5,
     description: 'Sucursal de trabajo. Solo presente para rol RECEPCION.',

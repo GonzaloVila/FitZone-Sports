@@ -3576,3 +3576,33 @@ Al cancelar una reserva de cancha que ya estaba pagada, el `Pago` quedaba APROBA
 2. **QR dinámico (M1/M2):** `POST /auth/totp` sin secreto en la respuesta (provisiona si falta y devuelve solo `{codigo, expiraEn}`); carnet con solo el QR `FZ:<socioId>:<codigo>` refrescado cada 30 s; escáner en `/acceso/ingreso` con `vue-qrcode-reader` y auto-validación (fallback manual).
 3. **B4 (backend):** reintento de cobro tras 402/anulación con historial de intentos (migración: `PagoReserva.reserva_id` deja de ser único, con `revocado`/unique parcial) + front de reintentos y cancelar.
 4. Default de `/pagos`: definir en la reunión.
+
+---
+
+## 2026-10-24 - Frontend: reestilización visual, Paso 1 (tokens de diseño)
+
+**Fecha:** 24/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `3c7fa76`
+
+### Actividades
+
+1. **Paleta:** se reemplazó la de Santiago por la del prototipo "SportOS" (estilo Notion), ajustada para WCAG 2.2 AA. Fondo `#FFFFFF`, superficie `#FBFBFA`, hover `#F1F1EF`; texto `#37352F` y secundario `#73726e` (contraste AA); borde de controles `#8c8b87` (3:1); acento azul `#1a6ec1` (hover `#165ca0`); estados verde `#287447`, rojo `#c53b32` y ámbar `#9a610f`.
+2. **Capa semántica:** mapeo actualizado (fondo, superficie, hover, texto sobre primario, foco), sin hex ni rgba literales.
+3. **Tipografía y formas:** escala ajustada (título 1.5rem), fuente Inter con fallbacks de sistema y radios 4/8/12/completo.
+4. **Modo oscuro eliminado:** se borró `useModoOscuro.ts` y se quitó su uso y el botón de tema en `ArmazonApp.vue`.
+
+### Decisiones tomadas
+
+1. **Sin modo oscuro:** no está en el contrato ni en el dominio, y el prototipo no lo tiene.
+2. **Variables inventadas sin tocar:** las `--fz-*` con valor de respaldo en `acceso` y `sedes` se corrigen módulo por módulo, no en este paso.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde (**26/26** tests).
+- Tabla de contrastes revisada con un script sobre los valores reales de los tokens: todo OK.
+- Quedan solo las variables no definidas ya conocidas (tokens inventados en `acceso` y `sedes`).
+- Revisión visual manual con sesión de GERENTE en `/socios`: la paleta nueva se ve coherente (pills de estado y plan, bordes de filtros, botón primario y menú activo legibles). La estructura de la pantalla (barra superior, botón Exportar CSV, menú "···", placeholder con DNI) sigue siendo la anterior y se rehace en los pasos de M1.
+
+### Pendientes que siguen abiertos
+
+1. **Paso 2:** el armazón de la app (barra lateral, barra superior, iconos SVG propios, toasts y menú desplegable).
+2. Reemplazar las variables `--fz-*` inventadas de `acceso` y `sedes` al pasar cada módulo al estilo nuevo.

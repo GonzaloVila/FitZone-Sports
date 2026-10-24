@@ -10,6 +10,10 @@ export type NombreIconoFz =
   | 'cerrar-sesion'
   | 'menu'
   | 'cerrar'
+  | 'acciones'
+  | 'exito'
+  | 'error'
+  | 'info'
 </script>
 
 <script setup lang="ts">
@@ -59,6 +63,14 @@ const TRAZOS: Record<NombreIconoFz, readonly string[]> = {
   'cerrar-sesion': ['M10 4H5v16h5', 'M10 12h10', 'M16 8l4 4-4 4'],
   menu: ['M4 6h16', 'M4 12h16', 'M4 18h16'],
   cerrar: ['M6 6l12 12', 'M18 6L6 18'],
+  // Tres puntos en horizontal.
+  acciones: ['M4 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0', 'M11 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0', 'M18 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0'],
+  // Círculo con tilde.
+  exito: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M8 12.5l3 3 5-6'],
+  // Círculo con signo de exclamación.
+  error: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 7.5v5', 'M12 16v.01'],
+  // Círculo con una "i".
+  info: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 11v5', 'M12 8v.01'],
 }
 
 const trazos = computed(() => TRAZOS[props.nombre])

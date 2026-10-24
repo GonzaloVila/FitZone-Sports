@@ -197,6 +197,67 @@
   --fz-icono-tamano-lg: 1.5rem;
   --fz-icono-trazo: 1.75;
 
+  /* ---- Menú de acciones (molécula) ---- */
+  --fz-menu-acciones-disparador-alto: 1.75rem;
+  --fz-menu-acciones-disparador-color: var(--fz-color-texto);
+  --fz-menu-acciones-disparador-fondo-hover: var(--fz-color-hover);
+  --fz-menu-acciones-disparador-radio: var(--fz-radio-control);
+  --fz-menu-acciones-foco-color: var(--fz-color-foco);
+  --fz-menu-acciones-foco-ancho: 2px;
+  --fz-menu-acciones-foco-separacion: 2px;
+  --fz-menu-acciones-capa: var(--fz-capa-menu);
+  --fz-menu-acciones-fondo: var(--fz-color-superficie);
+  --fz-menu-acciones-borde: var(--fz-color-borde);
+  --fz-menu-acciones-borde-ancho: 1px;
+  --fz-menu-acciones-radio: var(--fz-radio-tarjeta);
+  --fz-menu-acciones-sombra: var(--fz-sombra-elevada);
+  --fz-menu-acciones-relleno: 0.25rem;
+  --fz-menu-acciones-ancho-min: 10rem;
+  --fz-menu-acciones-item-alto: 1.75rem;
+  --fz-menu-acciones-item-relleno-x: var(--fz-espaciado-compacto);
+  --fz-menu-acciones-item-separacion: var(--fz-espaciado-compacto);
+  --fz-menu-acciones-item-radio: var(--fz-radio-control);
+  --fz-menu-acciones-item-texto: var(--fz-texto-pequeno);
+  --fz-menu-acciones-item-color: var(--fz-color-texto);
+  --fz-menu-acciones-item-fondo-resaltado: var(--fz-color-hover);
+  --fz-menu-acciones-item-peligro-color: var(--fz-color-peligro);
+  --fz-menu-acciones-item-deshabilitado-color: var(--fz-color-texto-suave);
+  --fz-menu-acciones-item-deshabilitado-opacidad: 0.6;
+  --fz-menu-acciones-animacion-duracion: var(--fz-duracion-breve);
+  --fz-menu-acciones-animacion-desplazamiento: 0.25rem;
+
+  /* ---- Avisos flotantes / toasts (organismo) ---- */
+  --fz-aviso-flotante-capa: var(--fz-capa-aviso);
+  --fz-aviso-flotante-margen: var(--fz-espaciado-base);
+  --fz-aviso-flotante-separacion: var(--fz-espaciado-compacto);
+  --fz-aviso-flotante-ancho-max: 22rem;
+  --fz-aviso-flotante-fondo: var(--fz-color-superficie);
+  --fz-aviso-flotante-borde: var(--fz-color-borde);
+  --fz-aviso-flotante-borde-ancho: 1px;
+  --fz-aviso-flotante-acento-ancho: 3px;
+  --fz-aviso-flotante-radio: var(--fz-radio-tarjeta);
+  --fz-aviso-flotante-sombra: var(--fz-sombra-elevada);
+  --fz-aviso-flotante-relleno-x: var(--fz-espaciado-base);
+  --fz-aviso-flotante-relleno-y: 0.75rem;
+  --fz-aviso-flotante-contenido-separacion: var(--fz-espaciado-compacto);
+  --fz-aviso-flotante-titulo-texto: var(--fz-texto-pequeno);
+  --fz-aviso-flotante-titulo-peso: var(--fz-peso-enfasis);
+  --fz-aviso-flotante-titulo-color: var(--fz-color-texto);
+  --fz-aviso-flotante-descripcion-texto: var(--fz-texto-pequeno);
+  --fz-aviso-flotante-descripcion-color: var(--fz-color-texto-suave);
+  --fz-aviso-flotante-exito-color: var(--fz-color-exito);
+  --fz-aviso-flotante-error-color: var(--fz-color-peligro);
+  --fz-aviso-flotante-info-color: var(--fz-color-info);
+  --fz-aviso-flotante-cerrar-tamano: 1.75rem;
+  --fz-aviso-flotante-cerrar-color: var(--fz-color-texto-suave);
+  --fz-aviso-flotante-cerrar-color-hover: var(--fz-color-texto);
+  --fz-aviso-flotante-cerrar-fondo-hover: var(--fz-color-hover);
+  --fz-aviso-flotante-foco-color: var(--fz-color-foco);
+  --fz-aviso-flotante-foco-ancho: 2px;
+  --fz-aviso-flotante-foco-separacion: 2px;
+  --fz-aviso-flotante-animacion-duracion: var(--fz-duracion-media);
+  --fz-aviso-flotante-animacion-desplazamiento: 1rem;
+
   /* ---- Select ---- */
   --fz-select-alto-sm: 1.75rem;
   --fz-select-alto-md: 2rem;

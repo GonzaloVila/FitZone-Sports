@@ -60,6 +60,58 @@ Slots: `encabezado` (marca), `navegacion`, `acciones`, el slot por defecto (cont
 - Con `'barra-lateral'`, desde `48rem` la barra es fija (`position: sticky`, alto `100dvh`, ancho `--fz-armazon-barra-ancho`) y el contenido queda a su derecha: el scroll lo hace la página. Debajo de `48rem` pasa a ser una barra superior con un botón "Menú" (`aria-expanded` y `aria-controls`) que muestra u oculta el panel de links. Es un desplegable, no un modal: no atrapa el foco; se cierra con Escape (devuelve el foco al botón) y al activar cualquier enlace del panel.
 - En ambas disposiciones se mantienen el enlace "Saltar al contenido", el `<nav>` con `aria-label` y el foco visible por tokens; los controles miden al menos `2rem` de alto (WCAG 2.2, 2.5.8).
 
+## Menú de acciones y avisos flotantes (Reka UI)
+
+`MenuAccionesFz`, `ContenedorAvisosFz` y `useAvisosFz` se apoyan en [Reka UI](https://reka-ui.com) (`reka-ui`, MIT) para lo que es difícil hacer bien a mano: foco, teclado, portales, anuncios a lectores de pantalla. **`reka-ui` se importa solo desde `ui/`**: ningún otro código lo toca, y ninguno de estos componentes importa `features/`, `app/` ni `compartido/`.
+
+### `MenuAccionesFz` (molécula)
+
+Botón con el ícono `acciones` que despliega un menú. No tiene lógica de negocio ni navega: avisa qué acción se eligió y la pantalla decide.
+
+| Prop | Tipo | Descripción |
+| --- | --- | --- |
+| `etiqueta` | `string` | Obligatoria. `aria-label` del disparador (solo tiene un ícono), ej. `"Acciones de Camila Domínguez"` |
+| `acciones` | `AccionMenuFz[]` | `{ clave, etiqueta, icono?, deshabilitada?, peligro? }`; `icono` es un `NombreIconoFz` |
+
+Evento: `seleccionar(clave: string)`.
+
+```vue
+<MenuAccionesFz
+  :etiqueta="`Acciones de ${socio.nombre}`"
+  :acciones="[
+    { clave: 'ver', etiqueta: 'Ver ficha' },
+    { clave: 'bloquear', etiqueta: 'Bloquear', peligro: true, deshabilitada: !puedeBloquear },
+  ]"
+  @seleccionar="(clave) => ejecutar(clave, socio)"
+/>
+```
+
+Teclado (lo da Reka): Enter, Espacio o flecha abajo abren el menú; flechas, Home y End mueven; escribir una letra salta al ítem que empieza así; Enter o Espacio eligen; Escape cierra y devuelve el foco al disparador; clic afuera cierra. El ítem con foco de teclado lleva un anillo (WCAG 1.4.11) además del fondo de resaltado. El contenido va en un portal, alineado al borde derecho del disparador y con colisión automática.
+
+### `useAvisosFz` y `ContenedorAvisosFz` (avisos flotantes)
+
+`ContenedorAvisosFz` se monta **una sola vez**, en `App.vue`, junto al `RouterView` (así también existe en el login). Las pantallas no lo usan: llaman a `useAvisosFz()`.
+
+```ts
+import { useAvisosFz } from '@/ui'
+
+const avisos = useAvisosFz()
+avisos.exito('Socio guardado', 'Quedó registrado en la sede Centro')
+avisos.error('No se pudo guardar', 'Probá de nuevo en unos minutos')
+avisos.info('Sincronizando…', undefined, 3000) // último parámetro: duración en ms
+```
+
+| Función | |
+| --- | --- |
+| `exito(titulo, descripcion?, duracionMs?)`, `error(...)`, `info(...)` | Agregan un aviso y devuelven su `id` |
+| `cerrar(id)`, `cerrarTodos()` | Cierran uno o todos |
+| `avisos` | Cola de solo lectura (un `Ref<AvisoFlotante[]>`) |
+
+- Duración por defecto: 5000 ms éxito e info, 8000 ms error. `0` deja el aviso hasta que se lo cierre. El cierre automático lo lleva el composable; se pausa mientras el puntero o el foco están sobre el aviso.
+- No se agrega un aviso idéntico (mismo tipo, título y descripción) a uno visible. Máximo 4 a la vez: al pasarse se descarta el más viejo.
+- Los errores se anuncian de inmediato a los lectores de pantalla y el resto con cortesía. El viewport se llama "Avisos (F8)": F8 lleva el foco a los avisos. Abajo a la derecha en escritorio; en menos de `40rem`, a todo el ancho menos el margen.
+- Los avisos y el menú van en capas propias (`--fz-capa-aviso`, `--fz-capa-menu`). `ModalFz` usa `<dialog>` con `showModal()`, que el navegador pone en la capa superior: un aviso que se dispare con un modal abierto queda detrás hasta que el modal se cierre.
+
 ## Escala de tamaños
 
 La interfaz es compacta (referencia: prototipo SportOS). Se cambia solo en los tokens; las pantallas la heredan.

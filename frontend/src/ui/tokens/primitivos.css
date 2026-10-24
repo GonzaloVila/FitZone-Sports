@@ -64,6 +64,12 @@
   --fz-prim-peso-600: 600;
   --fz-prim-peso-700: 700;
 
+  /* Capas (z-index) y duraciones de animación */
+  --fz-prim-capa-1: 1000;
+  --fz-prim-capa-2: 1100;
+  --fz-prim-duracion-120: 120ms;
+  --fz-prim-duracion-200: 200ms;
+
   /* Sombras */
   --fz-prim-sombra-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --fz-prim-sombra-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);

@@ -18,6 +18,7 @@
   --fz-color-primario-hover: var(--fz-prim-azul-600);
   --fz-color-texto-sobre-primario: var(--fz-prim-gris-0);
   --fz-color-foco: var(--fz-prim-azul-500);
+  --fz-color-info: var(--fz-prim-azul-500);
 
   /* Estados */
   --fz-color-exito: var(--fz-prim-verde-700);
@@ -52,6 +53,14 @@
   --fz-espaciado-compacto: var(--fz-prim-esp-2);
   --fz-espaciado-base: var(--fz-prim-esp-4);
   --fz-espaciado-amplio: var(--fz-prim-esp-6);
+
+  /* Capas: el ModalFz usa <dialog> con showModal(), que va en la capa superior del navegador y queda por encima de estas. */
+  --fz-capa-menu: var(--fz-prim-capa-1);
+  --fz-capa-aviso: var(--fz-prim-capa-2);
+
+  /* Movimiento */
+  --fz-duracion-breve: var(--fz-prim-duracion-120);
+  --fz-duracion-media: var(--fz-prim-duracion-200);
 
   /* Elevación */
   --fz-sombra-suave: var(--fz-prim-sombra-suave);

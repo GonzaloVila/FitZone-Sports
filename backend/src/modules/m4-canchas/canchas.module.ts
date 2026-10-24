@@ -20,6 +20,7 @@ import { ReservaPrecioService } from './services/reserva-precio.service';
 import { CanchaExiste } from './validaciones/cancha-existe.validacion';
 import { CanchaOperativa } from './validaciones/cancha-operativa.validacion';
 import { RangoHorarioValido } from './validaciones/rango-horario-valido.validacion';
+import { TurnoNoPasado } from './validaciones/turno-no-pasado.validacion';
 import { VALIDACIONES_RESERVA_CANCHA } from './validaciones/validacion-de-reserva-cancha';
 import { ValidadorDeReservasCancha } from './validaciones/validador-de-reservas-cancha';
 
@@ -53,18 +54,20 @@ import { ValidadorDeReservasCancha } from './validaciones/validador-de-reservas-
     },
     TarifadorDePrecios,
     // Cadena de validaciones de la reserva de cancha (ADR-10, Chain of Responsibility).
-    // Orden: [cancha existe, cancha operativa, rango horario válido].
+    // Orden: [cancha existe, cancha operativa, rango horario válido, turno no pasado].
     CanchaExiste,
     CanchaOperativa,
     RangoHorarioValido,
+    TurnoNoPasado,
     {
       provide: VALIDACIONES_RESERVA_CANCHA,
       useFactory: (
         canchaExiste: CanchaExiste,
         operativa: CanchaOperativa,
         rango: RangoHorarioValido,
-      ) => [canchaExiste, operativa, rango],
-      inject: [CanchaExiste, CanchaOperativa, RangoHorarioValido],
+        noPasado: TurnoNoPasado,
+      ) => [canchaExiste, operativa, rango, noPasado],
+      inject: [CanchaExiste, CanchaOperativa, RangoHorarioValido, TurnoNoPasado],
     },
     ValidadorDeReservasCancha,
   ],

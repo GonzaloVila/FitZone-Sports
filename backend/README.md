@@ -24,6 +24,8 @@ M1 no depende de ningún otro módulo de negocio. M5 lee el precio de M1/M3/M4 p
 services públicos (`MembresiaPrecioService`, `ReservaPrecioService`,
 `ReservaClasePrecioService`) sin consultar tablas ajenas (ADR-07); el cobro interno
 (alta, cambio de plan, penalidad, renovación) llega por el bus de eventos, no por import.
+M4 también emite la cancelación de una reserva de cancha y M5 la escucha para anular el
+pago aprobado (devolución incluida): el grafo sigue sin ciclos.
 
 ## Árbol
 

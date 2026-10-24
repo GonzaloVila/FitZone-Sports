@@ -121,6 +121,18 @@ export class PagoRepository {
     return fila ? this.aDominio(fila) : null;
   }
 
+  // Pago (en cualquier estado) de una reserva de cancha. Lo usa el listener de
+  // cancelacion para anular el cobro aprobado sin exponer `PagoReserva` afuera.
+  async buscarPorReservaCancha(reservaId: number): Promise<Pago | null> {
+    const fila = await this.prisma.pago.findFirst({
+      where: { pago_reserva: { reserva_id: reservaId } },
+      include: { pago_reserva: true, pago_membresia: true, pago_reserva_clase: true },
+      orderBy: { id: 'desc' },
+    });
+
+    return fila ? this.aDominio(fila) : null;
+  }
+
   /**
    * El listado de pagos, con la lista blanca de filtros del contrato.
    *

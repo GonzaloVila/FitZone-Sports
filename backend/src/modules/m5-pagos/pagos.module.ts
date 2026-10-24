@@ -65,6 +65,7 @@ import { PasarelaPagoService } from './services/pasarela-pago.service';
 import { PenalidadReservaClaseListener } from './services/penalidad-reserva-clase.listener';
 import { PenalidadReservaClaseService } from './services/penalidad-reserva-clase.service';
 import { ReporteIngresosService } from './services/reporte-ingresos.service';
+import { ReservaCanceladaListener } from './services/reserva-cancelada.listener';
 import { RenovacionesListener } from './services/renovaciones.listener';
 import { RenovacionesService } from './services/renovaciones.service';
 
@@ -93,6 +94,7 @@ import { RenovacionesService } from './services/renovaciones.service';
     RenovacionesCron,
     PenalidadReservaClaseService,
     PenalidadReservaClaseListener,
+    ReservaCanceladaListener,
     ReporteIngresosService,
   ],
   // Read side del CQRS: `ReportesModule` (Unidad IV) importa PagosModule para leer el

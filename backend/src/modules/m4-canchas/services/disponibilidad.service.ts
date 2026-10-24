@@ -38,6 +38,7 @@ export class DisponibilidadService {
 
     const { desde, hasta } = rangoDelDia(fecha);
     const grilla = this.armarGrilla(desde);
+    const ahora = new Date();
 
     // RF-12: en mantenimiento todo el día está bloqueado; no hace falta leer
     // las reservas para saberlo.
@@ -50,9 +51,11 @@ export class DisponibilidadService {
       fechaHoraInicio: inicio,
       fechaHoraFin: fin,
       // Solapamiento de intervalos semiabiertos: un turno que termina justo
-      // cuando empieza el tramo no lo ocupa (mismo criterio que la constraint de exclusion de RN-02).
+      // cuando empieza el tramo no lo ocupa (mismo criterio que la constraint de exclusión de RN-02).
+      // Un tramo que ya empezó tampoco está disponible: no se puede reservar el pasado.
       disponible:
         !bloqueada &&
+        inicio.getTime() > ahora.getTime() &&
         !ocupadas.some(
           (r) =>
             r.fechaHoraInicio.getTime() < fin.getTime() &&

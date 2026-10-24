@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { plainToInstance } from 'class-transformer';
+import { EVENTO_RESERVA_CANCHA_CANCELADA } from '../../../commons/eventos';
 import { rangoDelDia } from '../../../commons/fechas';
 import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
 import { MembresiasService } from '../../m1-usuarios/services/membresias.service';
@@ -50,6 +52,8 @@ export class ReservasCanchasService {
     private readonly precios: TarifadorDePrecios,
     // Cadena de validaciones previas a la reserva (Chain of Responsibility).
     private readonly validador: ValidadorDeReservasCancha,
+    // Bus de eventos: M5 escucha la cancelacion para anular el pago aprobado.
+    private readonly eventos: EventEmitter2,
   ) {}
 
   async crear(dto: ReservaCanchaIn): Promise<ReservaCanchaOut> {
@@ -147,6 +151,13 @@ export class ReservasCanchasService {
     if (!cancelada) {
       throw reservaYaCancelada(id);
     }
+
+    // M5 anula el pago aprobado (RF-12/RF-13). Va despues del commit de la
+    // cancelacion: si el reembolso falla, el error sube y el pago queda ANULADO.
+    await this.eventos.emitAsync(EVENTO_RESERVA_CANCHA_CANCELADA, {
+      reservaId: id,
+      usuarioId: reserva.usuarioId,
+    });
   }
 
   private aOut(reserva: Reserva): ReservaCanchaOut {

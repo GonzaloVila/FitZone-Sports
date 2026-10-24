@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { EventEmitter2 } from '@nestjs/event-emitter';
 import type { ProblemException } from 'src/commons/filters/problem.exception';
 import type { MembresiasService } from 'src/modules/m1-usuarios/services/membresias.service';
 import {
@@ -98,6 +99,7 @@ function armar() {
     membresias,
     new TarifadorDePrecios([new DescuentoSocio(), new RecargoHorarioPico()]),
     validador,
+    { emitAsync: async () => [] } as unknown as EventEmitter2,
   );
   return { service, repo };
 }

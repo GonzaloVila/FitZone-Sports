@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 import { turnoOcupadoBody } from '../../../commons/errors/turno-ocupado';
-import { ProblemException } from '../../../commons/filters/problem.exception';
+import { GENERIC_TYPE, ProblemException } from '../../../commons/filters/problem.exception';
 
 // RN-02: el turno ya estaba tomado. El cuerpo (type, title, detail) vive en
 // commons/errors/turno-ocupado porque el ProblemFilter global tambien lo usa.
@@ -48,5 +48,16 @@ export function rangoHorarioInvalido(): ProblemException {
     title: 'Rango horario inválido',
     status: HttpStatus.UNPROCESSABLE_ENTITY,
     detail: 'fecha_hora_inicio debe ser anterior a fecha_hora_fin.',
+  });
+}
+
+// 422 (datos inválidos) y no 409: la forma del pedido es válida pero el turno ya
+// empezó. Reusa el 422 que el contrato ya declara, con un detail que lo explica.
+export function turnoPasado(): ProblemException {
+  return new ProblemException({
+    type: GENERIC_TYPE,
+    title: 'Turno pasado',
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    detail: 'No se puede reservar un turno que ya comenzó.',
   });
 }

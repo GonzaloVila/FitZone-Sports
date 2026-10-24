@@ -3,6 +3,7 @@ import type { ProblemException } from 'src/commons/filters/problem.exception';
 import { CanchaExiste } from 'src/modules/m4-canchas/validaciones/cancha-existe.validacion';
 import { CanchaOperativa } from 'src/modules/m4-canchas/validaciones/cancha-operativa.validacion';
 import { RangoHorarioValido } from 'src/modules/m4-canchas/validaciones/rango-horario-valido.validacion';
+import { TurnoNoPasado } from 'src/modules/m4-canchas/validaciones/turno-no-pasado.validacion';
 import type {
   ContextoReservaCancha,
   ValidacionDeReservaCancha,
@@ -14,11 +15,16 @@ import { ValidadorDeReservasCancha } from 'src/modules/m4-canchas/validaciones/v
 
 const canchaOperativa = { id: 1, sedeId: 1, tipo: 'FUTBOL5' as const, costoPorHora: 5000, estado: 'OPERATIVA' as const };
 
+function enHoras(horas: number): Date {
+  return new Date(Date.now() + horas * 60 * 60 * 1000);
+}
+
 function ctx(over: Partial<ContextoReservaCancha> = {}): ContextoReservaCancha {
+  const inicio = enHoras(24);
   return {
     cancha: canchaOperativa,
-    inicio: new Date('2026-11-20T14:00:00-03:00'),
-    fin: new Date('2026-11-20T15:00:00-03:00'),
+    inicio,
+    fin: new Date(inicio.getTime() + 60 * 60 * 1000),
     ...over,
   };
 }
@@ -46,8 +52,14 @@ describe('validaciones de reserva de cancha', () => {
 
   it('RangoHorarioValido: 422 si inicio >= fin; no lanza si el rango es válido', () => {
     const v = new RangoHorarioValido();
-    const inicio = new Date('2026-11-20T14:00:00-03:00');
+    const inicio = enHoras(24);
     expect(capturar(() => v.validar(ctx({ inicio, fin: inicio }))).getStatus()).toBe(422);
+    expect(() => v.validar(ctx())).not.toThrow();
+  });
+
+  it('TurnoNoPasado: 422 si el turno ya empezó; no lanza si es futuro', () => {
+    const v = new TurnoNoPasado();
+    expect(capturar(() => v.validar(ctx({ inicio: enHoras(-2), fin: enHoras(-1) }))).getStatus()).toBe(422);
     expect(() => v.validar(ctx())).not.toThrow();
   });
 
@@ -70,6 +82,7 @@ describe('validaciones de reserva de cancha', () => {
       new CanchaExiste(),
       new CanchaOperativa(),
       new RangoHorarioValido(),
+      new TurnoNoPasado(),
     ]);
     expect(() => validador.validar(ctx())).not.toThrow();
   });

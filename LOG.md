@@ -3681,3 +3681,41 @@ Al cancelar una reserva de cancha que ya estaba pagada, el `Pago` quedaba APROBA
 3. Proteger con guards y `security` en el contrato los endpoints de usuarios (y revisar socios y membresías).
 4. Probar RECEPCION con sede real (fila en `EmpleadoSede`).
 5. Datos de prueba en la base compartida a limpiar al final.
+
+---
+
+## 2026-10-24 - Frontend: reestilización visual, Paso 2b (menú de acciones y avisos con Reka UI)
+
+**Fecha:** 24/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `028f1c7`
+
+### Actividades
+
+1. **Dependencia nueva, aprobada por Santino:** `reka-ui` 2.11.0 (MIT, `vue >= 3.4.0`), librería de componentes sin estilos (headless). Se importa solo desde `ui/`; `ui/` sigue sin importar `features/`, `app/` ni `compartido/`. Suma 17 paquetes al lockfile, todos dependencias propias de Reka, y `npm audit` sin vulnerabilidades.
+2. **`MenuAccionesFz`:** nueva molécula (menú desplegable accesible). Recibe `etiqueta` y una lista de `acciones` (clave, etiqueta, ícono opcional, `deshabilitada`, `peligro`) y emite `seleccionar` con la clave. Teclado completo de Reka (flechas, Home y End, búsqueda por letra, Escape con retorno del foco). El ítem enfocado por teclado suma un anillo de foco además del fondo de resaltado (WCAG 1.4.11).
+3. **Avisos flotantes:** nuevo composable `useAvisosFz` y organismo `ContenedorAvisosFz` (toasts). API `exito`, `error`, `info`, `cerrar` y `cerrarTodos`. Duración por defecto de 5 s para éxito e información y de 8 s para error (se puede cambiar, y `0` deja el aviso hasta cerrarlo); no repite un aviso idéntico visible y muestra como máximo 4. Los errores se anuncian de inmediato a los lectores de pantalla (`foreground`); el resto, de forma cortés. Se pausan con el mouse y el foco. El contenedor se monta una sola vez en `App.vue`.
+4. **Íconos:** nuevos en `IconoFz`: `acciones` (tres puntos), `exito`, `error` e `info`.
+5. **Tokens y documentación:** primitivos de capas y duraciones; semánticos `capa-menu`, `capa-aviso`, `duracion-breve`, `duracion-media` y `color-info`; tokens de componente `--fz-menu-acciones-*` y `--fz-aviso-flotante-*`. `ui/README.md` documenta las dos piezas y el composable.
+
+### Decisiones tomadas
+
+1. **Reka solo dentro de `ui/`:** las pantallas usan `MenuAccionesFz` y `useAvisosFz`, no la librería.
+2. **Cierre automático en el composable:** los temporizadores los lleva `useAvisosFz` y no Reka (a Reka se le pasa duración infinita). Así un aviso no queda colgado sin contenedor y se puede probar con reloj simulado.
+3. **Avisos y modales:** `ModalFz` usa `<dialog>` con `showModal()`, que el navegador pone por encima de cualquier capa. Un aviso disparado con un modal abierto queda tapado hasta que se cierra. Regla para las pantallas: los errores que ocurren dentro de un modal se muestran dentro del propio modal; los avisos flotantes quedan para lo que pasa después de cerrarlo o en la pantalla principal.
+4. **Errores de 8 s:** se pausan con el mouse y el foco y siempre se pueden cerrar; para un error que deba quedar hasta que se lo lea, se puede pasar duración `0`.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **65 tests** en 16 archivos (eran 42 en 13).
+- Contrastes: cero fallas en los pares nuevos (peligro sobre superficie y sobre hover, íconos de éxito, peligro e información, anillo de foco sobre superficie y sobre hover, texto suave).
+- Build: JavaScript de 337.76 a 370.95 kB (130.70 a 141.17 kB comprimido) y CSS de 81.79 a 87.98 kB. El contenedor de avisos está en `App.vue`, así que Reka Toast se carga siempre.
+- Prueba manual con una página temporal (ya borrada), con mouse y teclado: apertura y cierre del menú, flechas con anillo de foco, Home y End, búsqueda por letra, Escape, selección, ítem deshabilitado, apertura hacia arriba al pie de la página, duración de cada tipo de aviso, pausa con el mouse, avisos sin duplicar, máximo de 4 y cierre con la X.
+- **Sin confirmar:** la tecla F8 (lleva el foco a los avisos) no se pudo comprobar en el navegador de prueba; no bloquea nada porque los avisos se pueden cerrar con el mouse. Tampoco están cubiertos por tests automáticos la posición y colisión del menú, la pausa por hover ni las animaciones.
+
+### Pendientes que siguen abiertos
+
+1. ADR de la decisión de usar Reka UI (justificación y alternativas descartadas), junto con ADR-13 y ADR-15.
+2. Restilizar M1 pantalla por pantalla usando `MenuAccionesFz` y `useAvisosFz`, y pasar a tokens los tamaños y colores escritos a mano de cada módulo, incluidas las variables `--fz-*` inventadas de `acceso` y `sedes`.
+3. Reconfirmar F8 en otro navegador.
+4. Proteger con guards y `security` en el contrato los endpoints de usuarios (y revisar socios y membresías).
+5. Probar RECEPCION con sede real (fila en `EmpleadoSede`).
+6. Datos de prueba en la base compartida a limpiar al final.

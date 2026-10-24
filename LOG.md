@@ -3296,3 +3296,283 @@ Arrastrados de entradas anteriores:
 2. **Recorrido visual** de las pantallas con un socio, un RECEPCION y un GERENTE.
 3. **Tests de los composables con Vitest,** cuando el proyecto lo configure.
 4. **Nombres de socio en inscriptos y espera,** si el contrato los incorpora.
+
+---
+
+## 2026-10-23 - Frontend M4/M5: `usuarioId` en la sesión y Vitest
+
+**Fecha:** 23/10/2026 · **Rama:** `feat/m4-m5-canchas-pagos` · **Autor:** Exequiel Ansaldi
+
+### Actividades
+
+1. **Backend (cambio autorizado):** `LoginOut` agrega `usuarioId` (DTO con `@ApiProperty` y `AuthService.emitirAccessToken()` con `usuario.id`), así login y refresh lo devuelven. `auth.service.spec.ts` lo verifica.
+2. **Contrato:** `docs/openapi.yaml` declara `LoginOut.usuarioId` como requerido; `npm run types:api` regenera `src/types/api.d.ts`.
+3. **Sesión del front:** `UsuarioSesion` y `usuarioDesdeSesion` guardan `usuarioId`; `useUsuarioSesion` lo expone como `usuarioId`.
+4. **Vitest:** se instalan `vitest`, `@vue/test-utils` y `jsdom`; `vitest.config.ts` reutiliza la configuración de Vite (jsdom, `src/**/*.spec.ts`, `restoreMocks`) y se agregan los scripts `test` y `test:watch`. Un primer spec cubre `usuarioDesdeSesion`.
+
+### Decisiones tomadas
+
+1. **`usuarioId` en la sesión:** `POST/GET /reservas-canchas` lo exigen y `LoginOut` solo traía `socioId`/`sedeId`. Se agregó al contrato y al backend (autorizado) en vez de resolverlo con un request extra a `GET /socios/{socioId}` o decodificando el JWT.
+2. **Vitest instalado:** M3 lo había dejado pendiente "cuando el proyecto lo configure"; M4/M5 lo necesitan para los tests de composables. Es una dependencia nueva y queda anotada para la revisión del PR.
+
+### Verificación
+
+- Backend: `npx tsc --noEmit` 0; `npm run test:unit` **285/285** (incluye `auth.service.spec.ts` con `usuarioId: 7`).
+- Frontend: `npm run type-check` 0; `npm run build` 0; `npm run test` **2/2**.
+- Smoke contra el backend real: `GET /api/v1/sedes` 200; `GET /api/v1/sedes/1/canchas` 200 (canchas con `costoPorHora` y `estado`).
+- **No probado en ejecución:** respuesta de `POST /auth/login` con una sesión real (se cubrió con el unit test de `AuthService`).
+
+### Pendientes que siguen abiertos
+
+1. Revisión de Santino del cambio en `LoginOut`/contrato y de la dependencia de Vitest.
+
+---
+
+## 2026-10-23 - Frontend M4: canchas, grilla y reservas
+
+**Fecha:** 23/10/2026 · **Rama:** `feat/m4-m5-canchas-pagos` · **Autor:** Exequiel Ansaldi
+
+### Actividades
+
+1. **Servicio `servicioCanchas`** (listar, crear, obtener, modificar, disponibilidad, crear/listar/obtener/cancelar reserva), tipado contra `api.d.ts`; registrado en `compartido/servicios.ts` y `main.ts`.
+2. **`/canchas`:** lista de canchas por sede con filtro de estado y paginación; RECEPCION arranca en su sede y el GERENTE ve el acceso a la gestión.
+3. **`/canchas/:canchaId/turnos`:** fecha (`YYYY-MM-DD`), cancha con estado y precio, y grilla donde cada tramo es un botón con rango y estado en texto (libre / ocupado / no disponible por mantenimiento).
+4. **Reserva:** `ConfirmarReserva` (`ModalFz`) muestra el precio base; ante un 409 por `turno-ocupado` avisa "Ese turno acaba de ser tomado, elegí otro" y recarga la grilla.
+5. **`/mis-reservas`:** pestañas Próximas / Canceladas / Pasadas con `PestanasFz`, cancelación con confirmación y botón "Pagar" cuando no hay un pago aprobado.
+6. **`/canchas/gestion` (GERENTE):** alta con deporte y costo por hora, edición del costo y pasar/liberar mantenimiento.
+7. `errores.ts` (409 por `type`), `presentacion.ts` (etiquetas, montos y fechas de la sede), `rutas.ts` y `README.md` del feature.
+
+### Decisiones tomadas
+
+1. **Precio:** `DisponibilidadEntrada` no trae precio, así que el modal muestra `costoPorHora` como precio base y el `precioAplicado` del 201 es el definitivo. El front no calcula ni estima.
+2. **409 por `type`:** `turno-ocupado` y `cancha-en-mantenimiento` al reservar; `reserva-ya-cancelada` y `reserva-pasada` al cancelar. Sin errores genéricos.
+3. **Mantenimiento:** la cancha `EN_MANTENIMIENTO` deshabilita todos los tramos con su propio texto, distinto de "ocupado".
+4. **"Mis reservas":** el estado de pago se resuelve con `listarPagos({ reservaCanchaId })` por fila (default APROBADO) y concurrencia 4; con pago aprobado se muestra la insignia "Pagada".
+5. **Limitaciones del contrato:** `ReservaCanchaOut` no trae la cancha (se muestra "Cancha #id") y la disponibilidad no trae precio.
+
+### Problemas encontrados
+
+1. **`ReservaCanchaOut` no incluye la cancha:** "Mis reservas" muestra "Cancha #id" en lugar del deporte.
+2. **`GET /reservas-canchas` sin `usuarioId` devuelve todas:** "Mis reservas" siempre manda el `usuarioId` de la sesión.
+3. **`ConsultarDisponibilidadQueryDto` pagina con `perPage` máximo 100:** la grilla pide `perPage=100` para traer el día completo.
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0**.
+- `npm run test`: **green** (los specs de M4/M5 suman 13 casos).
+- Smoke contra el backend real: `GET /api/v1/sedes/1/canchas` 200; `GET /api/v1/canchas/1/disponibilidad?fecha=2026-10-24` 200 (tramos con `disponible`); `GET /api/v1/reservas-canchas?usuarioId=1` 200.
+- **No probado en ejecución:** recorrido visual con sesión, dos pestañas sobre el mismo turno, cancha en mantenimiento y cancelación.
+
+### Pendientes que siguen abiertos
+
+1. Prueba manual con SOCIO, RECEPCION y GERENTE reales.
+2. Revisión de Santino del PR.
+
+---
+
+## 2026-10-23 - Frontend M5: pago, comprobante, anulación y reporte
+
+**Fecha:** 23/10/2026 · **Rama:** `feat/m4-m5-canchas-pagos` · **Autor:** Exequiel Ansaldi
+
+### Actividades
+
+1. **Servicio `servicioPagos`:** `procesar` (con `Idempotency-Key`), `listar`, `obtener`, `anular`, `descargarComprobante` y `descargarReporte` (`parseAs: 'blob'`).
+2. **`/pagos/nuevo?reservaId=`:** resumen de la reserva y el monto, `SelectFz` de medio simulado (aprobada/rechazada), resultado y descarga del comprobante.
+3. **`/pagos` (RECEPCION, GERENTE):** filtros por estado, concepto y período, lista paginada, descarga del comprobante y anulación con confirmación.
+4. **`/reportes/ingresos` (GERENTE):** desde/hasta, aviso de que sin fechas es todo el histórico y descarga del PDF.
+5. **Composables:** `usePagarReserva`, `useListaPagos`, `useAnularPago`, `useDescargaPdf` y `useReporteIngresos`; `README.md` del feature.
+
+### Decisiones tomadas
+
+1. **Idempotencia:** `crypto.randomUUID()` por intento; un reintento por corte de red conserva la clave (no se sabe si cobró) y después de un 402 se genera una nueva.
+2. **409:** sea `idempotencia-repetida` o "reserva ya cobrada", se consulta `listarPagos({ reservaCanchaId })` y se muestra el pago real, no un error.
+3. **402:** "El pago fue rechazado"; la reserva sigue confirmada y se puede reintentar con otra clave.
+4. **Token de pago:** el select usa valores opacos (`aprobada`/`rechazada`) y el composable los traduce a `tok_aprobado_demo`/`tok_rechazado_demo`. El token nunca se muestra, guarda ni loguea.
+5. **PDF:** comprobante y reporte se bajan como Blob con el cliente autenticado y se ofrecen con una URL temporal que se libera; un enlace directo no autentica porque el token vive en memoria.
+6. **Errores de los PDF:** con `parseAs: 'blob'` el error también llega como Blob, así que `desenvolverPdf` lee el `problem+json` antes de armar el `ErrorApi`.
+7. **Lista de pagos:** sin estado el contrato devuelve solo aprobados; la columna "Concepto" muestra el tipo genérico (también aparecen penalidades de clase).
+
+### Problemas encontrados
+
+1. **`parseAs: 'blob'` degrada el mensaje de error:** se resolvió leyendo el Blob como texto y parseando el `problem+json`.
+2. **`comprobantePdfUrl` no se usa:** el contrato lo expone, pero el PDF se pide al endpoint autenticado.
+
+### Verificación
+
+- `npm run type-check` y `npm run build`: **exit 0**.
+- `npm run test`: **13/13** en 5 archivos (pago con misma/nueva clave, 409 con pago real, lista de pagos y descarga de PDF).
+- Smoke contra el backend real: `GET /api/v1/pagos` 200 (pagos aprobados); `GET /api/v1/reportes/pagos` **401 sin token** (protegido para GERENTE).
+- **No probado en ejecución:** pago aprobado y rechazado, reintento con la misma clave, comprobante y reporte con una sesión real.
+
+### Pendientes que siguen abiertos
+
+1. Prueba manual del flujo completo con sesión (login → reservar → pagar → comprobante → anular → reporte).
+2. Revisión de Santino del PR.
+
+---
+
+## 2026-10-23 - Fix: el EXTERNO reserva y ve sus reservas
+
+**Fecha:** 23/10/2026 · **Rama:** `feat/m4-m5-canchas-pagos` · **Autor:** Exequiel Ansaldi
+
+### Problema
+
+Un usuario con rol `EXTERNO` entraba y no podía reservar una cancha ni ver sus reservas: los `meta.roles` de M4/M5 solo incluían `SOCIO`, `RECEPCION` y `GERENTE`, así que el guard del router lo redirigía a `/inicio`. El backend no tiene guards en M4/M5 y `LoginOut.usuarioId` ya está en la sesión, por lo que la API sí acepta al EXTERNO.
+
+### Actividades
+
+1. `features/canchas/rutas.ts`: `EXTERNO` agregado a `/canchas`, `/canchas/:canchaId/turnos` y `/mis-reservas`.
+2. `features/pagos/rutas.ts`: `EXTERNO` agregado a `/pagos/nuevo` (`pagar-reserva`). `/pagos` y `/reportes/ingresos` siguen para RECEPCION/GERENTE y GERENTE.
+3. `features/sesion/acceso.ts`: `rutaInicialPorRol('EXTERNO')` devuelve `/canchas` (antes caía en `/inicio`, que es un placeholder).
+4. READMEs de `canchas` y `pagos` actualizados; tests de regresión `rutas.spec.ts` en cada feature.
+
+### Decisiones tomadas
+
+1. **El EXTERNO reserva y paga:** el doc de M4/M5 se contradice (la tabla de pantallas excluye `EXTERNO`, pero el alcance dice "todos los roles con sesión"); se sigue el alcance y el pedido del equipo. El EXTERNO no tiene `socioId`, pero sí `usuarioId`, y el servidor lo cotiza como externo.
+2. **La lista de pagos y el reporte no se abren al EXTERNO:** siguen siendo del staff.
+
+### Verificación
+
+- `npm run type-check` 0; `npm run build` 0; `npm run test` **17/17** (se suman los dos `rutas.spec.ts`).
+- **No probado en ejecución:** login real con un EXTERNO.
+
+### Pendientes que siguen abiertos
+
+1. Prueba manual con un EXTERNO real (reservar, ver "Mis reservas" y pagar).
+2. Revisión de Santino del PR.
+
+---
+
+## 2026-10-23 - Correcciones de la prueba manual (M4)
+
+**Fecha:** 23/10/2026 · **Rama:** `feat/m4-m5-canchas-pagos` · **Autor:** Exequiel Ansaldi
+
+### Actividades
+
+1. **Pagar una reserva cumplida:** `TablaReservas` solo ofrecía "Pagar" en `CONFIRMADA`, así que al terminar el turno (estado derivado `CUMPLIDA`) desaparecía. Ahora se ofrece en `CONFIRMADA` y `CUMPLIDA` impagas (`puedePagarse`), y "Cancelar" solo si el turno no empezó.
+2. **Mantenimiento (A):** pasar una cancha a `EN_MANTENIMIENTO` conserva las reservas existentes. `useGrillaTurnos` carga las reservas del día (`CONFIRMADA` + `CUMPLIDA`) y `estadoDeTurno` muestra esos tramos como "ocupado" y el resto como "no disponible por mantenimiento" (antes los tapaba a todos).
+3. **Turnos pasados:** `DisponibilidadService` marca `inicio <= ahora` como `disponible: false`; se agrega la validación `TurnoNoPasado` a la cadena de reservas (422 `Turno pasado`, `about:blank`); la grilla muestra "ya pasó" y el selector de fecha arranca en hoy.
+4. **Turno en curso (bucle del modal):** `puedeCancelarse` usa el **inicio** (el backend deriva `CUMPLIDA` recién al terminar), `situacionDeReserva` muestra "En curso", `MisReservasPage` cierra el modal siempre y deja el 409 como aviso en la página. Se agregan un reloj local de 30 s y un refresco de 60 s.
+
+### Decisiones tomadas
+
+1. **Mantenimiento (A):** se conservan las reservas ya tomadas y la grilla las sigue mostrando como ocupadas; solo se bloquean las nuevas (409 `cancha-en-mantenimiento`). Esto mantiene la lectura de RF-12 del doc ("no toca las reservas ya tomadas") y evita cancelar turnos que el socio ya tenía.
+2. **Turno pasado = 422 `about:blank`:** reusa el 422 que el contrato ya declara, sin agregar un `type` nuevo al contrato.
+3. **"En curso" es derivado en el front:** el contrato solo tiene `CONFIRMADA`/`CANCELADA`/`CUMPLIDA`; el estado "en curso" se calcula con las fechas.
+
+### Verificación
+
+- Backend: `npx tsc --noEmit` 0; `npm run test:unit` **286/286** (nuevo caso `TurnoNoPasado`).
+- Frontend: `npm run type-check` 0; `npm run build` 0; `npm run test` **23/23** (8 archivos).
+- Backend real (tras reiniciar, el `--watch` no había tomado los cambios):
+  - `GET /canchas/1/disponibilidad?fecha=2026-10-23`: los tramos de 08:00 a 20:00 (ya pasados) responden `disponible: false`; 21:00-22:00 `true`.
+  - `POST /reservas-canchas` con 08:00-09:00 de hoy: **422** `Turno pasado` ("No se puede reservar un turno que ya comenzó").
+- **No probado en ejecución:** las pantallas con sesión (pagar una cumplida, ver una cancha en mantenimiento con reservas, "En curso" y cancelación sin bucle).
+
+### Pendientes que siguen abiertos
+
+1. Prueba manual en el navegador de los cuatro casos.
+2. Revisión de Santino del PR.
+3. **B (backend):** permitir reintentar el cobro de una reserva tras un 402 o una anulación (hoy el `@unique` de `PagoReserva.reserva_id` lo bloquea).
+
+---
+
+## 2026-10-23 - M3: comprobante de la penalidad por cancelación tardía (RF-07)
+
+**Fecha:** 23/10/2026 · **Rama:** `feat/m4-m5-canchas-pagos` · **Autor:** Exequiel Ansaldi
+
+### Problema
+
+Al cancelar una reserva de clase con menos de 2 hs, el backend cobraba la penalidad (RF-07) y generaba el comprobante, pero el front solo mostraba "Reserva cancelada.": el socio no veía el importe ni tenía forma de descargar el PDF (la lista `/pagos` es de RECEPCION/GERENTE).
+
+### Actividades
+
+1. `useDetalleClase` y `useMisClases`: después del 204, `GET /pagos?reservaClaseId=<id>`; si hay pago, `pagoPenalidad` y el mensaje con el importe (`formatearMonto`).
+2. `descargarComprobantePenalidad()` reusa `useDescargaPdf` de M5 + `GET /pagos/{pagoId}/comprobante`.
+3. `DetalleClasePage` y `MisClasesPage`: botón "Descargar comprobante" cuando hay `pagoPenalidad` y aviso del error de descarga.
+4. `presentacion.ts` de M3: `formatearMonto` (`Intl.NumberFormat` es-AR/ARS).
+5. Spec `useMisClases.spec.ts` (con penalidad y sin penalidad).
+
+### Decisiones tomadas
+
+1. **Sin cambios de backend:** el pago y el comprobante ya se generaban en `CobroInternoService`; el front los busca por `reservaClaseId`, que ya está en el contrato de `listarPagos`. No se cambia el 204 de la cancelación.
+2. **El comprobante lo baja el socio:** se reusa `useDescargaPdf` (M5) en vez de duplicar el manejo de Blob/URL temporal.
+
+### Verificación
+
+- `npm run type-check` 0; `npm run test` **25/25** (9 archivos); `npm run build` 0.
+- **No probado en ejecución:** la cancelación tardía en el navegador (importe + descarga del PDF).
+
+### Pendientes que siguen abiertos
+
+1. Prueba manual: cancelar una clase a menos de 2 hs y descargar el comprobante.
+2. Avisar a Gonzalo (M3) y revisión de Santino del PR.
+
+---
+
+## 2026-10-23 - M3: no volver a reservar en la misma pantalla tras cancelar
+
+**Fecha:** 23/10/2026 · **Rama:** `feat/m4-m5-canchas-pagos` · **Autor:** Exequiel Ansaldi
+
+### Problema
+
+Después de cancelar una clase, el detalle recargaba y `AccionesClase` volvía a mostrar "Reservar" (el cupo quedaba libre y el backend lo permite). El pedido es que en esa pantalla solo quede "Volver a la agenda" y que reservar de nuevo requiera rehacer el recorrido.
+
+### Actividades
+
+1. `useDetalleClase`: `reservaCancelada` (se pone en `true` al cancelar; se resetea al cambiar de clase con `watch(claseId)`).
+2. `DetalleClasePage`: oculta `AccionesClase` cuando `reservaCancelada` y muestra "Volver a la agenda" (`/clases`); el "Descargar comprobante" de la penalidad sigue visible.
+3. Spec `useDetalleClase.spec.ts` (el flag y el reset).
+
+### Decisiones tomadas
+
+1. **Solo UX, sin backend:** la API sigue permitiendo reservar; lo que cambia es que la pantalla no lo ofrece inmediatamente.
+2. **"Volver" a la agenda** (`/clases`), como pidió el equipo, en vez de `router.back()`.
+
+### Verificación
+
+- `npm run type-check` 0; `npm run test` **26/26** (10 archivos); `npm run build` 0.
+- **No probado en ejecución:** el recorrido en el navegador.
+
+### Pendientes que siguen abiertos
+
+1. Prueba manual: cancelar → solo "Volver a la agenda" → rehacer el recorrido para reservar.
+2. Avisar a Gonzalo (M3) y revisión de Santino del PR.
+
+---
+
+## 2026-10-24 - M4/M5: cancelar una reserva de cancha pagada anula el pago
+
+**Fecha:** 24/10/2026 · **Rama:** `feat/m4-m5-canchas-pagos` · **Autor:** Exequiel Ansaldi
+
+### Problema
+
+Al cancelar una reserva de cancha que ya estaba pagada, el `Pago` quedaba APROBADO y no se devolvía el dinero. La anulación existía solo como acción manual (`POST /pagos/{id}/anulaciones`).
+
+### Actividades
+
+1. `commons/eventos.ts`: `EVENTO_RESERVA_CANCHA_CANCELADA = 'reservaCancha.cancelada'`.
+2. `ReservasCanchasService.cancelar` (M4): inyecta `EventEmitter2` y emite el evento después del commit, con `reservaId` y `usuarioId`.
+3. `PagoRepository.buscarPorReservaCancha(reservaId)`: encuentra el pago (cualquier estado) por la relación `pago_reserva`.
+4. `ReservaCanceladaListener` (M5): si el pago está APROBADO, llama a `PagosService.anularPago` (ANULADO + reembolso). `suppressErrors: false`: si el reembolso falla, el error sube.
+5. `PagosModule`: registra el listener.
+6. Tests: unit del listener (APROBADO/otros estados/sin pago/error) e integración M4→M5 contra la BD real. El módulo de integración necesita `init()` para que el `@OnEvent` quede suscrito.
+
+### Decisiones tomadas
+
+1. **Evento, no import:** M4 no puede depender de M5 (el grafo es M5 → M4); se reusa el patrón Observer de RF-02/RF-07.
+2. **Anulación idempotente:** PENDIENTE/RECHAZADO/ANULADO no se tocan (PENDIENTE no se cobró; RECHAZADO no es anulable).
+3. **Re-pago tras la anulación:** queda para la reunión (B4): `PagoReserva.reserva_id` es `@unique` y bloquea un segundo cobro.
+
+### Verificación
+
+- `npx tsc --noEmit` 0; `npm run test:unit` **292/292** (41 archivos); `npm run test:integration` **54/54** (11 archivos).
+- Smoke HTTP contra el backend (`:3000`, Supabase): login EXTERNO → reservar → pagar (`tok_aprobado_demo`) → cancelar (204) → el pago pasa a **ANULADO**. Los datos del smoke se borraron.
+- **No probado en ejecución:** el recorrido en el navegador.
+
+### Pendientes que siguen abiertos
+
+1. Prueba manual: reservar → pagar → cancelar → ver el pago ANULADO en `/pagos` (filtro ANULADO).
+2. **QR dinámico (M1/M2):** `POST /auth/totp` sin secreto en la respuesta (provisiona si falta y devuelve solo `{codigo, expiraEn}`); carnet con solo el QR `FZ:<socioId>:<codigo>` refrescado cada 30 s; escáner en `/acceso/ingreso` con `vue-qrcode-reader` y auto-validación (fallback manual).
+3. **B4 (backend):** reintento de cobro tras 402/anulación con historial de intentos (migración: `PagoReserva.reserva_id` deja de ser único, con `revocado`/unique parcial) + front de reintentos y cancelar.
+4. Default de `/pagos`: definir en la reunión.

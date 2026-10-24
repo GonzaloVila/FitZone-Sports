@@ -112,7 +112,7 @@ async function alTeclear(evento: KeyboardEvent) {
   background: transparent;
   color: var(--fz-color-texto-suave);
   font-family: inherit;
-  font-size: var(--fz-texto-cuerpo);
+  font-size: var(--fz-texto-pequeno);
   font-weight: var(--fz-peso-enfasis);
   cursor: pointer;
 }

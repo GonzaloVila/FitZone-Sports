@@ -5,14 +5,14 @@
  */
 :root {
   /* ---- Botón ---- */
-  --fz-boton-alto-sm: 2rem;
-  --fz-boton-alto-md: 2.5rem;
-  --fz-boton-alto-lg: 3rem;
+  --fz-boton-alto-sm: 1.75rem;
+  --fz-boton-alto-md: 2rem;
+  --fz-boton-alto-lg: 2.25rem;
   --fz-boton-relleno-x-sm: var(--fz-espaciado-compacto);
   --fz-boton-relleno-x-md: var(--fz-espaciado-base);
   --fz-boton-relleno-x-lg: var(--fz-espaciado-amplio);
-  --fz-boton-texto-sm: var(--fz-texto-pequeno);
-  --fz-boton-texto-md: var(--fz-texto-cuerpo);
+  --fz-boton-texto-sm: var(--fz-texto-minimo);
+  --fz-boton-texto-md: var(--fz-texto-pequeno);
   --fz-boton-texto-lg: var(--fz-texto-cuerpo);
   --fz-boton-separacion: var(--fz-espaciado-compacto);
   --fz-boton-radio: var(--fz-radio-control);
@@ -52,14 +52,14 @@
   --fz-boton-deshabilitado-borde: var(--fz-color-borde);
 
   /* ---- Campo de texto ---- */
-  --fz-campo-alto-sm: 2rem;
-  --fz-campo-alto-md: 2.5rem;
-  --fz-campo-alto-lg: 3rem;
+  --fz-campo-alto-sm: 1.75rem;
+  --fz-campo-alto-md: 2rem;
+  --fz-campo-alto-lg: 2.25rem;
   --fz-campo-relleno-x-sm: var(--fz-espaciado-compacto);
   --fz-campo-relleno-x-md: var(--fz-espaciado-base);
   --fz-campo-relleno-x-lg: var(--fz-espaciado-base);
-  --fz-campo-texto-sm: var(--fz-texto-pequeno);
-  --fz-campo-texto-md: var(--fz-texto-cuerpo);
+  --fz-campo-texto-sm: var(--fz-texto-minimo);
+  --fz-campo-texto-md: var(--fz-texto-pequeno);
   --fz-campo-texto-lg: var(--fz-texto-cuerpo);
   --fz-campo-radio: var(--fz-radio-control);
   --fz-campo-borde-ancho: 1px;
@@ -78,8 +78,8 @@
 
   /* ---- Insignia ---- */
   --fz-insignia-relleno-x: var(--fz-espaciado-compacto);
-  --fz-insignia-relleno-y: 0.125rem;
-  --fz-insignia-texto: var(--fz-texto-pequeno);
+  --fz-insignia-relleno-y: 0.1875rem;
+  --fz-insignia-texto: var(--fz-texto-minimo);
   --fz-insignia-peso: var(--fz-peso-enfasis);
   --fz-insignia-radio: var(--fz-radio-pildora);
   --fz-insignia-borde-ancho: 1px;
@@ -133,7 +133,8 @@
   --fz-armazon-marca-peso: var(--fz-peso-enfasis);
   --fz-armazon-marca-color: var(--fz-color-texto);
   --fz-armazon-enlace-separacion: var(--fz-espaciado-compacto);
-  --fz-armazon-enlace-alto-min: 2rem;
+  --fz-armazon-enlace-alto-min: 1.75rem;
+  --fz-armazon-enlace-separacion-vertical: 0.125rem;
   --fz-armazon-enlace-relleno-x: var(--fz-espaciado-compacto);
   --fz-armazon-enlace-radio: var(--fz-radio-control);
   --fz-armazon-enlace-texto: var(--fz-texto-pequeno);
@@ -165,7 +166,7 @@
   --fz-armazon-enlace-activo-fondo: var(--fz-color-seleccionado);
   --fz-armazon-enlace-icono-color: var(--fz-color-texto-suave);
   --fz-armazon-enlace-icono-activo: var(--fz-color-primario);
-  --fz-armazon-grupo-separacion: var(--fz-espaciado-amplio);
+  --fz-armazon-grupo-separacion: var(--fz-espaciado-base);
   --fz-armazon-seccion-titulo-texto: var(--fz-texto-minimo);
   --fz-armazon-seccion-titulo-peso: var(--fz-peso-enfasis);
   --fz-armazon-seccion-titulo-color: var(--fz-color-texto-suave);
@@ -185,7 +186,7 @@
   --fz-armazon-usuario-nombre-peso: var(--fz-peso-enfasis);
   --fz-armazon-usuario-detalle-texto: var(--fz-texto-minimo);
   --fz-armazon-usuario-detalle-color: var(--fz-color-texto-suave);
-  --fz-armazon-salir-tamano: 2rem;
+  --fz-armazon-salir-tamano: 1.75rem;
   --fz-armazon-salir-color: var(--fz-color-texto);
   --fz-armazon-salir-fondo-hover: var(--fz-color-hover);
   --fz-armazon-salir-color-hover: var(--fz-color-peligro);
@@ -197,14 +198,14 @@
   --fz-icono-trazo: 1.75;
 
   /* ---- Select ---- */
-  --fz-select-alto-sm: 2rem;
-  --fz-select-alto-md: 2.5rem;
-  --fz-select-alto-lg: 3rem;
+  --fz-select-alto-sm: 1.75rem;
+  --fz-select-alto-md: 2rem;
+  --fz-select-alto-lg: 2.25rem;
   --fz-select-relleno-x-sm: var(--fz-espaciado-compacto);
   --fz-select-relleno-x-md: var(--fz-espaciado-compacto);
   --fz-select-relleno-x-lg: var(--fz-espaciado-base);
-  --fz-select-texto-sm: var(--fz-texto-pequeno);
-  --fz-select-texto-md: var(--fz-texto-cuerpo);
+  --fz-select-texto-sm: var(--fz-texto-minimo);
+  --fz-select-texto-md: var(--fz-texto-pequeno);
   --fz-select-texto-lg: var(--fz-texto-cuerpo);
   --fz-select-radio: var(--fz-radio-control);
   --fz-select-borde-ancho: 1px;
@@ -228,7 +229,7 @@
   --fz-tabla-texto: var(--fz-texto-pequeno);
   --fz-tabla-celda-texto: var(--fz-color-texto);
   --fz-tabla-celda-relleno-x: var(--fz-espaciado-base);
-  --fz-tabla-celda-relleno-y: var(--fz-espaciado-compacto);
+  --fz-tabla-celda-relleno-y: 0.625rem;
   --fz-tabla-encabezado-fondo: var(--fz-color-superficie);
   --fz-tabla-encabezado-texto: var(--fz-color-texto);
   --fz-tabla-encabezado-peso: var(--fz-peso-enfasis);

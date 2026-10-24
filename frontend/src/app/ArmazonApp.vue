@@ -216,7 +216,7 @@ async function cerrarSesion() {
 .armazon-app__grupo {
   display: flex;
   flex-direction: column;
-  gap: var(--fz-armazon-enlace-separacion);
+  gap: var(--fz-armazon-enlace-separacion-vertical);
 }
 
 .armazon-app__seccion {
@@ -241,6 +241,7 @@ async function cerrarSesion() {
 .armazon-app__lista--lateral {
   flex-direction: column;
   flex-wrap: nowrap;
+  gap: var(--fz-armazon-enlace-separacion-vertical);
 }
 
 .armazon-app__enlace {
@@ -279,15 +280,17 @@ async function cerrarSesion() {
 }
 
 /* ---- Usuario ---- */
+/* Datos del usuario a la izquierda (ocupan el resto y se truncan) y cerrar sesión a la derecha. */
 .armazon-app__pie {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--fz-armazon-usuario-separacion);
 }
 
 .armazon-app__usuario {
   display: flex;
+  flex: 1 1 auto;
   align-items: center;
   gap: var(--fz-armazon-usuario-separacion);
   min-width: 0;
@@ -350,7 +353,7 @@ async function cerrarSesion() {
   align-items: center;
   justify-content: center;
   gap: var(--fz-armazon-enlace-separacion);
-  align-self: flex-end;
+  flex: none;
   min-width: var(--fz-armazon-salir-tamano);
   min-height: var(--fz-armazon-salir-tamano);
   padding: 0;
@@ -364,7 +367,6 @@ async function cerrarSesion() {
 }
 
 .armazon-app__salir--texto {
-  align-self: auto;
   padding: 0 var(--fz-armazon-enlace-relleno-x);
 }
 

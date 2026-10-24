@@ -36,9 +36,9 @@
   --fz-fuente-base: var(--fz-prim-fuente-sans);
   --fz-fuente-mono: var(--fz-prim-fuente-mono);
   --fz-texto-minimo: var(--fz-prim-texto-xs);
-  --fz-texto-pequeno: var(--fz-prim-texto-sm);
-  --fz-texto-cuerpo: var(--fz-prim-texto-md);
-  --fz-texto-titulo: var(--fz-prim-texto-2xl);
+  --fz-texto-pequeno: var(--fz-prim-texto-13);
+  --fz-texto-cuerpo: var(--fz-prim-texto-sm);
+  --fz-texto-titulo: var(--fz-prim-texto-xl);
   --fz-peso-normal: var(--fz-prim-peso-400);
   --fz-peso-medio: var(--fz-prim-peso-500);
   --fz-peso-enfasis: var(--fz-prim-peso-600);

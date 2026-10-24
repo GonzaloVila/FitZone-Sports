@@ -60,6 +60,29 @@ Slots: `encabezado` (marca), `navegacion`, `acciones`, el slot por defecto (cont
 - Con `'barra-lateral'`, desde `48rem` la barra es fija (`position: sticky`, alto `100dvh`, ancho `--fz-armazon-barra-ancho`) y el contenido queda a su derecha: el scroll lo hace la página. Debajo de `48rem` pasa a ser una barra superior con un botón "Menú" (`aria-expanded` y `aria-controls`) que muestra u oculta el panel de links. Es un desplegable, no un modal: no atrapa el foco; se cierra con Escape (devuelve el foco al botón) y al activar cualquier enlace del panel.
 - En ambas disposiciones se mantienen el enlace "Saltar al contenido", el `<nav>` con `aria-label` y el foco visible por tokens; los controles miden al menos `2rem` de alto (WCAG 2.2, 2.5.8).
 
+## Escala de tamaños
+
+La interfaz es compacta (referencia: prototipo SportOS). Se cambia solo en los tokens; las pantallas la heredan.
+
+| Token semántico | Valor | Para qué |
+| --- | --- | --- |
+| `--fz-texto-minimo` | 0.75rem (12 px) | Piso: detalles, insignias, títulos de sección, botones `sm` |
+| `--fz-texto-pequeno` | 0.8125rem (13 px) | Texto de la interfaz: menú, tablas, botones, campos, avisos |
+| `--fz-texto-cuerpo` | 0.875rem (14 px) | Texto corrido y base del `body`; controles `lg` |
+| `--fz-texto-titulo` | 1.25rem (20 px) | Títulos de pantalla y de modal |
+
+| Control (botón, campo de texto, select) | Alto | Texto |
+| --- | --- | --- |
+| `sm` | 1.75rem (28 px) | `texto-minimo` |
+| `md` (estándar) | 2rem (32 px) | `texto-pequeno` |
+| `lg` | 2.25rem (36 px) | `texto-cuerpo` |
+
+Reglas:
+
+- **Ningún texto legible por debajo de 12 px** (`0.75rem`).
+- **Ningún control por debajo de 24 px de alto** (WCAG 2.2 AA, 2.5.8): hoy el mínimo es 28 px (`sm` y los links del armazón).
+- Los tamaños se piden por token semántico; los primitivos de texto (`--fz-prim-texto-*`) no se usan fuera de `ui/tokens/`.
+
 ## Tokens
 
 Viven en `ui/tokens/` y tienen tres niveles:

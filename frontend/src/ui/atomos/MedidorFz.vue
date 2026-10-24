@@ -75,7 +75,7 @@ const nivel = computed<'normal' | 'advertencia' | 'critico'>(() => {
 .medidor-fz__texto {
   font-variant-numeric: tabular-nums;
   color: var(--fz-color-texto-suave);
-  font-size: 0.8125rem;
+  font-size: var(--fz-texto-pequeno);
 }
 
 .medidor-fz__pista {

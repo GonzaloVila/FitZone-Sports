@@ -3719,3 +3719,43 @@ Al cancelar una reserva de cancha que ya estaba pagada, el `Pago` quedaba APROBA
 4. Proteger con guards y `security` en el contrato los endpoints de usuarios (y revisar socios y membresías).
 5. Probar RECEPCION con sede real (fila en `EmpleadoSede`).
 6. Datos de prueba en la base compartida a limpiar al final.
+
+---
+
+## 2026-10-24 - Frontend: reestilización visual, Paso 3 (pantalla de login)
+
+**Fecha:** 24/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `b5d315f`
+
+### Actividades
+
+1. **`PlantillaCentradaFz`:** nueva ranura opcional `marca` arriba del encabezado; tarjeta con borde fino, radio chico y sin sombra, sobre fondo de página gris muy claro. Único uso: `LoginPage`.
+2. **`MarcaFz` (molécula nueva):** cuadradito con la inicial, nombre y descripción opcional. Se usa en el login y también en `ArmazonApp.vue` (menú lateral y barra superior), donde reemplaza el markup propio; se borraron los tokens `--fz-armazon-logo-*`, `--fz-armazon-sede-*` y `--fz-armazon-marca-separacion`, reemplazados por `--fz-marca-*`.
+3. **`CampoContraseniaFz` (molécula nueva):** campo de contraseña con botón para mostrar/ocultar dentro del campo. Nombre accesible fijo "Mostrar contraseña" con `aria-pressed`, área de 1.75rem (WCAG 2.5.8), anillo de foco propio y orden de tabulación input → botón. Se apoya en un slot aditivo `sufijo` de `CampoFormularioFz` (sin el slot, el markup es el de siempre; la API existente no cambió).
+4. **Íconos:** `ojo` y `ojo-tachado` en `IconoFz`.
+5. **Login:** título "Iniciar sesión", subtítulo "Ingresá tus credenciales para acceder.", marca "FitZone Sports / Gestión de Clubes y Sedes Deportivas". Etiqueta "Correo electrónico" sin placeholder, aviso de error arriba de los campos, botón "Ingresar" de ancho completo y tamaño `lg`, con spinner y "Ingresando…" mientras carga (ya lo hacía `BotonFz`). Mensaje del 401: "El correo o la contraseña no son correctos."; los mensajes de validación pasan a decir "correo". La lógica de redirect y la guarda de doble envío no cambiaron.
+6. **Se sacó:** "¿Olvidaste tu contraseña?" (el backend no tiene ese endpoint), "Registrarse para alquilar canchas" (hasta que exista el registro), perfiles de prueba y el aviso de éxito al entrar.
+7. **Tokens y documentación:** `--fz-marca-*`, `--fz-campo-contrasenia-*`, `--fz-campo-formulario-sufijo-margen`, `--fz-plantilla-centrada-marca-margen`; primitivo `--fz-prim-gris-250` (#d3d2ce) y semántico `--fz-color-borde-marcado` para el borde de la tarjeta (`--fz-color-borde` no cambió, lo usan unos 51 lugares). `ui/README.md` documenta ranura, moléculas, slot e íconos. Se reformularon dos menciones al origen de la paleta que habían quedado en el README de la escala y en un comentario de `primitivos.css`.
+
+### Decisiones tomadas
+
+1. **Slot `sufijo` en vez de un componente aparte:** evita duplicar etiqueta, ayuda y error del campo, y mantiene estable la API pública del kit.
+2. **Borde de la tarjeta con token propio:** el escalón existente más oscuro (`gris-300`, el borde de los controles) era demasiado fuerte para una tarjeta; se agregó `gris-250` y un semántico `borde-marcado`, sin tocar el borde general.
+3. **Sin placeholder en el correo:** el placeholder necesita 4.5:1 y no aportaba; la etiqueta alcanza.
+4. **El botón de mostrar/ocultar no cambia de nombre:** el estado lo da `aria-pressed`, para que no se anuncie doble.
+5. **Mensaje de `useAltaSocio` ("Ingresá un email válido.") sin tocar:** se alinea cuando se restilice el alta de socio.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **104 tests** en 21 archivos (eran 65 en 16). Tests nuevos de `FormularioLogin`, `CampoContraseniaFz`, `MarcaFz`, `PlantillaCentradaFz` y `useIniciarSesion` (con router real en memoria: redirect válido; rechazo de `//host`, URLs absolutas, `/\host`, ruta comodín y `/login`; mensajes de 401, sin conexión y error genérico; doble envío).
+- Contrastes: cero fallas. Ícono sobre el campo 5.41:1, anillo de foco 5.19:1 sobre el campo y 4.59:1 sobre hover, subtítulo 5.41:1 y 5.23:1, título 12.26:1; el borde de la tarjeta es decorativo (1.46:1 contra la página).
+- Prueba manual en el navegador (desktop y mobile de 375 px): login con la estética nueva, botón de ojo con Tab, Enter y Espacio, errores de validación, aviso de credenciales incorrectas arriba de los campos, estado "Ingresando…" con red lenta (una sola llamada `login`), sin scroll horizontal, y menú lateral y barra superior con la marca nueva.
+- Las variables `--fz-*` sin definir son las diez conocidas de `acceso` y `sedes`; no se sumó ninguna.
+
+### Pendientes que siguen abiertos
+
+1. Restilizar el resto de M1 pantalla por pantalla (lista de socios, alta, ficha, modales, carnet) y pasar a tokens los tamaños y colores escritos a mano de cada módulo, incluidas las variables `--fz-*` inventadas.
+2. ADR de la decisión de usar Reka UI (junto con ADR-13 y ADR-15).
+3. Reconfirmar F8 en otro navegador.
+4. Proteger con guards y `security` en el contrato los endpoints de usuarios (y revisar socios y membresías).
+5. Probar RECEPCION con sede real: no hay endpoint que cree `EmpleadoSede`, hay que insertar la fila a mano en la base.
+6. Datos de prueba en la base compartida a limpiar al final.

@@ -5,7 +5,7 @@ defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(
   defineProps<{
-    variante?: 'primario' | 'secundario' | 'peligro' | 'fantasma'
+    variante?: 'primario' | 'secundario' | 'peligro' | 'advertencia' | 'fantasma'
     tamano?: 'sm' | 'md' | 'lg'
     cargando?: boolean
     tipo?: 'button' | 'submit' | 'reset'
@@ -115,6 +115,17 @@ const deshabilitado = computed(
   background: var(--fz-boton-peligro-fondo-hover);
   border-color: var(--fz-boton-peligro-borde-hover);
   color: var(--fz-boton-peligro-texto-hover);
+}
+
+.boton--advertencia {
+  background: var(--fz-boton-advertencia-fondo);
+  border-color: var(--fz-boton-advertencia-borde);
+  color: var(--fz-boton-advertencia-texto);
+}
+
+.boton--advertencia:hover:not(:disabled) {
+  background: var(--fz-boton-advertencia-fondo-hover);
+  border-color: var(--fz-boton-advertencia-borde-hover);
 }
 
 .boton--fantasma {

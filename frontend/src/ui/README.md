@@ -41,7 +41,7 @@ Reglas centrales:
 | `nombre` | `NombreIconoFz` (unión cerrada, se exporta desde `ui/index.ts`) | requerida |
 | `tamano` | `'sm' \| 'md' \| 'lg'` (1 / 1.25 / 1.5 rem, por token `--fz-icono-tamano-*`) | `'md'` |
 
-Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
+Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`, `advertencia` (triángulo con exclamación), `tilde` (check simple, sin círculo). Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
 
 ## Interruptor y avatar (átomos)
 
@@ -79,6 +79,57 @@ Cuadradito de esquinas redondeadas (el radio de control, como `MarcaFz`) con las
 | `tamano` | `'sm' \| 'md'` (1.5 / 2 rem) | `'md'` |
 
 Iniciales: la primera letra de cada una de las dos primeras palabras, en mayúsculas (`Camila Domínguez` → `CD`); con una sola palabra, solo su primera letra (`Camila` → `C`); con el nombre vacío o solo espacios, `?`. Respeta acentos y la Ñ. Tokens: `--fz-avatar-*`.
+
+## Modal, opciones en tarjeta y botón de advertencia
+
+Todo lo nuevo es opcional y aditivo: los usos existentes de `ModalFz` y `BotonFz` no cambian.
+
+### `ModalFz`
+
+`<dialog>` nativo (no Reka). Estructura: encabezado, cuerpo y, si hay slot `acciones`, un pie.
+
+| Prop | Tipo | Por defecto |
+| --- | --- | --- |
+| `titulo` | `string` | requerida |
+| `descripcion` | `string` | sin subtítulo; si hay, queda como `aria-describedby` |
+| `icono` | `NombreIconoFz` | sin cajita de ícono |
+| `tono` | `'neutro' \| 'primario' \| 'advertencia' \| 'peligro'` | `'neutro'` (color de la cajita del ícono) |
+| `ancho` | `'angosto' \| 'normal' \| 'amplio'` (24 / 32 / 40 rem) | `'normal'` |
+| `ocupado` | `boolean` | `false` |
+
+- Encabezado: cajita de ícono (si hay), título, descripción (si hay) y a la derecha un botón "Cerrar" (`aria-label="Cerrar"`) que hace lo mismo que Cancelar. Separador fino debajo.
+- Pie: el slot `acciones` (`{ cerrar }`, sin cambios) va sobre el fondo de superficie, con separador fino arriba y los botones a la derecha; Cancelar queda a la izquierda de la acción principal. Sin slot, no hay pie.
+- Mientras `ocupado`: la X queda deshabilitada, Esc no cierra y el modal no se cierra.
+- Foco: al abrir va al primer control del cuerpo (o la opción elegida de un grupo de radios) y, si no hay, al primer botón del pie; al cerrar vuelve a quien lo abrió.
+- Fondo: velo del color de texto al 30 % con un desenfoque leve. Tokens `--fz-modal-*`.
+
+```vue
+<ModalFz v-model="abierto" titulo="Dejar de ser socio" descripcion="Camila Domínguez" icono="quitar-usuario" tono="peligro" ancho="angosto">
+  <p>Se elimina la membresía del socio.</p>
+  <template #acciones="{ cerrar }">
+    <BotonFz variante="secundario" @click="cerrar">Cancelar</BotonFz>
+    <BotonFz variante="peligro" @click="confirmar">Dejar de ser socio</BotonFz>
+  </template>
+</ModalFz>
+```
+
+### `OpcionesTarjetaFz` (molécula)
+
+Grupo de opciones como tarjetas, una por fila. Es un `<fieldset>` con un `<legend>` oculto a la vista (el nombre accesible del grupo) y un `<input type="radio">` nativo por opción, dentro de un `<label>` que es la tarjeta entera. El radio está fuera de la vista pero accesible: las flechas las da el navegador y el foco de teclado dibuja un anillo sobre la tarjeta.
+
+| Prop | Tipo | |
+| --- | --- | --- |
+| `v-model` | `string` | Valor elegido |
+| `opciones` | `OpcionTarjetaFz[]` | `{ valor, titulo, descripcion?, etiqueta? }`; la `etiqueta` va como insignia a la derecha |
+| `nombre` | `string` | `name` de los radios |
+| `leyenda` | `string` | Nombre accesible del grupo |
+| `deshabilitado` | `boolean` | Deshabilita todos los radios |
+
+Elegida: borde primario y fondo primario muy claro. Tokens `--fz-opcion-tarjeta-*`.
+
+### `BotonFz` con `variante="advertencia"`
+
+Botón ámbar sólido con texto blanco (5.1:1; 7.2:1 en hover), para confirmar acciones delicadas pero reversibles, como suspender. Tokens `--fz-boton-advertencia-*`; el estado deshabilitado es el de las demás variantes.
 
 ## Botón como enlace y campo con ícono
 

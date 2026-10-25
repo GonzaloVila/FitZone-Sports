@@ -35,7 +35,7 @@ const emit = defineEmits<{
 
 const columnas: ColumnaTabla[] = [
   { clave: 'socio', etiqueta: 'Socio', encabezadoFila: true },
-  { clave: 'sede', etiqueta: 'Sede' },
+  { clave: 'sede', etiqueta: 'Sede', ajustada: true },
   { clave: 'alta', etiqueta: 'Fecha de alta', ajustada: true },
   { clave: 'plan', etiqueta: 'Plan', ajustada: true },
   { clave: 'estado', etiqueta: 'Estado', ajustada: true },

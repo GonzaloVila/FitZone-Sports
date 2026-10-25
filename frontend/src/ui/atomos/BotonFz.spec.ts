@@ -18,6 +18,21 @@ describe('BotonFz', () => {
     expect(wrapper.attributes('aria-busy')).toBe('true')
   })
 
+  it('la variante advertencia agrega su clase y sigue siendo un botón normal', async () => {
+    const wrapper = mount(BotonFz, { props: { variante: 'advertencia' }, slots: { default: 'Suspender' } })
+
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['boton', 'boton--advertencia', 'boton--md']))
+    expect(wrapper.attributes('type')).toBe('button')
+    await wrapper.trigger('click')
+    expect(wrapper.emitted('click')).toHaveLength(1)
+  })
+
+  it('la variante advertencia deshabilitada no es clickeable', () => {
+    const wrapper = mount(BotonFz, { props: { variante: 'advertencia' }, attrs: { disabled: '' } })
+
+    expect(wrapper.attributes('disabled')).toBeDefined()
+  })
+
   it('como="a" es un enlace con aspecto de botón: lleva el href y no lleva type ni disabled', () => {
     const wrapper = mount(BotonFz, {
       props: { como: 'a', variante: 'secundario' },

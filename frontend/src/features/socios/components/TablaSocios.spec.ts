@@ -193,15 +193,14 @@ describe('TablaSocios', () => {
     wrapper.unmount()
   })
 
-  it('las columnas de datos se ajustan a su contenido, la de renovación va centrada y la de acciones a la derecha', () => {
+  it('todas las columnas menos Socio se ajustan a su contenido, la de renovación va centrada y la de acciones a la derecha', () => {
     const wrapper = montar()
     const encabezados = wrapper.findAll('thead th')
     const fila = wrapper.findAll('tbody tr')[0]!
 
-    // Socio y Sede se reparten el espacio sobrante.
+    // Solo Socio se queda con el espacio sobrante.
     expect(encabezados[0]!.classes()).not.toContain('tabla__encabezado--ajustada')
-    expect(encabezados[1]!.classes()).not.toContain('tabla__encabezado--ajustada')
-    for (const encabezado of encabezados.slice(2)) expect(encabezado.classes()).toContain('tabla__encabezado--ajustada')
+    for (const encabezado of encabezados.slice(1)) expect(encabezado.classes()).toContain('tabla__encabezado--ajustada')
 
     const renovacion = encabezados[5]!
     expect(renovacion.text()).toBe('Renovación automática')

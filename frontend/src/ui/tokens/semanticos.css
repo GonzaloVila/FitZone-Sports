@@ -18,6 +18,8 @@
   --fz-color-borde-marcado: var(--fz-prim-gris-250);
   --fz-color-primario: var(--fz-prim-azul-500);
   --fz-color-primario-hover: var(--fz-prim-azul-600);
+  /* Fondo muy claro del color primario: opción elegida, ícono de tono primario */
+  --fz-color-primario-fondo: var(--fz-prim-azul-50);
   --fz-color-texto-sobre-primario: var(--fz-prim-gris-0);
   --fz-color-foco: var(--fz-prim-azul-500);
   --fz-color-info: var(--fz-prim-azul-500);
@@ -32,6 +34,7 @@
   --fz-color-peligro-borde: var(--fz-prim-rojo-200);
 
   --fz-color-advertencia: var(--fz-prim-ambar-700);
+  --fz-color-advertencia-hover: var(--fz-prim-ambar-800);
   --fz-color-advertencia-fondo: var(--fz-prim-ambar-50);
   --fz-color-advertencia-borde: var(--fz-prim-ambar-200);
 
@@ -41,7 +44,9 @@
   --fz-texto-minimo: var(--fz-prim-texto-xs);
   --fz-texto-pequeno: var(--fz-prim-texto-13);
   --fz-texto-cuerpo: var(--fz-prim-texto-sm);
+  --fz-texto-subtitulo: var(--fz-prim-texto-md);
   --fz-texto-titulo: var(--fz-prim-texto-xl);
+  --fz-letras-apretado: var(--fz-prim-letras-apretado);
   --fz-peso-normal: var(--fz-prim-peso-400);
   --fz-peso-medio: var(--fz-prim-peso-500);
   --fz-peso-enfasis: var(--fz-prim-peso-600);

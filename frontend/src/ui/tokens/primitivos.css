@@ -19,6 +19,7 @@
   --fz-prim-gris-500: #6b6a66;
   --fz-prim-gris-900: #37352f;
 
+  --fz-prim-azul-50: #eef5fc;
   --fz-prim-azul-500: #1a6ec1;
   --fz-prim-azul-600: #165ca0;
 
@@ -31,6 +32,7 @@
   --fz-prim-rojo-200: #f8c9cb;
 
   --fz-prim-ambar-700: #9a610f;
+  --fz-prim-ambar-800: #7c4d0b;
   --fz-prim-ambar-50: #fdf5e8;
   --fz-prim-ambar-200: #fbe2ba;
 
@@ -58,6 +60,9 @@
   --fz-prim-texto-lg: 1.125rem;
   --fz-prim-texto-xl: 1.25rem;
   --fz-prim-texto-2xl: 1.5rem;
+
+  /* Espaciado entre letras */
+  --fz-prim-letras-apretado: -0.01em;
 
   /* Pesos de fuente */
   --fz-prim-peso-400: 400;

@@ -22,6 +22,8 @@ export type NombreIconoFz =
   | 'pausa'
   | 'reproducir'
   | 'quitar-usuario'
+  | 'advertencia'
+  | 'tilde'
 </script>
 
 <script setup lang="ts">
@@ -99,6 +101,10 @@ const TRAZOS: Record<NombreIconoFz, readonly string[]> = {
     'M2.5 20v-1a4.5 4.5 0 0 1 4.5-4.5h4a4.5 4.5 0 0 1 4.5 4.5v1',
     'M17.5 10h4.5',
   ],
+  // Triángulo con signo de exclamación.
+  advertencia: ['M10.3 4.3L2.9 17.4a2 2 0 0 0 1.7 3h14.8a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z', 'M12 9.5v4', 'M12 17v.01'],
+  // Tilde simple, sin círculo.
+  tilde: ['M5 12.5l4.5 4.5L19 7.5'],
 }
 
 const trazos = computed(() => TRAZOS[props.nombre])

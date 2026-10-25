@@ -180,13 +180,36 @@ describe('TablaSocios', () => {
     wrapper.unmount()
   })
 
-  it('cada fila tiene el enlace "Ver" a la ficha', () => {
+  it('la columna Acciones tiene solo el botón del menú, sin enlace "Ver"', () => {
     const wrapper = montar()
-    const ver = filaDe(wrapper, 'Elena')
-      .findAll('a')
-      .find((enlace) => enlace.text() === 'Ver')
 
-    expect(ver?.attributes('href')).toBe('/socios/3')
+    for (const fila of wrapper.findAll('tbody tr')) {
+      const celda = fila.findAll('td').at(-1)!
+      expect(celda.findAll('button')).toHaveLength(1)
+      expect(celda.get('button').attributes('aria-haspopup')).toBe('menu')
+      expect(celda.find('a').exists()).toBe(false)
+    }
+    expect(wrapper.findAll('a').some((enlace) => enlace.text() === 'Ver')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('las columnas de datos se ajustan a su contenido, la de renovación va centrada y la de acciones a la derecha', () => {
+    const wrapper = montar()
+    const encabezados = wrapper.findAll('thead th')
+    const fila = wrapper.findAll('tbody tr')[0]!
+
+    // Socio y Sede se reparten el espacio sobrante.
+    expect(encabezados[0]!.classes()).not.toContain('tabla__encabezado--ajustada')
+    expect(encabezados[1]!.classes()).not.toContain('tabla__encabezado--ajustada')
+    for (const encabezado of encabezados.slice(2)) expect(encabezado.classes()).toContain('tabla__encabezado--ajustada')
+
+    const renovacion = encabezados[5]!
+    expect(renovacion.text()).toBe('Renovación automática')
+    expect(renovacion.classes()).toEqual(expect.arrayContaining(['tabla__encabezado--en-lineas', 'tabla__encabezado--centro']))
+    expect(fila.findAll('td')[4]!.classes()).toContain('tabla__celda--centro')
+
+    expect(encabezados[6]!.classes()).toContain('tabla__encabezado--fin')
+    expect(fila.findAll('td')[5]!.classes()).toContain('tabla__celda--fin')
     wrapper.unmount()
   })
 

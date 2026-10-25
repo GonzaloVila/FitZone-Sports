@@ -16,13 +16,22 @@ defineSlots<{
   [celda: `celda-${string}`]: (props: { fila: T }) => unknown
 }>()
 
+// La región (div raíz) es desplazable en ancho chico: tiene que poder recibir foco para usarse con teclado.
+
+// Clases de una columna para su encabezado (base 'tabla__encabezado') o sus celdas (base 'tabla__celda').
+function clasesDeColumna(base: string, columna: ColumnaTabla) {
+  return {
+    [`${base}--ajustada`]: columna.ajustada,
+    [`${base}--${columna.alineacion}`]: columna.alineacion !== undefined && columna.alineacion !== 'inicio',
+  }
+}
+
 function valorDeCelda(fila: T, clave: string): unknown {
   return (fila as Record<string, unknown>)[clave]
 }
 </script>
 
 <template>
-  <!-- La región es desplazable en ancho chico: tiene que poder recibir foco para usarse con teclado. -->
   <div class="tabla" role="region" :aria-label="titulo" tabindex="0">
     <table class="tabla__tabla" :aria-busy="ocupada || undefined">
       <caption :class="['tabla__titulo', { 'tabla__titulo--oculto': ocultarTitulo }]">
@@ -30,7 +39,12 @@ function valorDeCelda(fila: T, clave: string): unknown {
       </caption>
       <thead>
         <tr>
-          <th v-for="columna in columnas" :key="columna.clave" scope="col" class="tabla__encabezado">
+          <th
+            v-for="columna in columnas"
+            :key="columna.clave"
+            scope="col"
+            :class="['tabla__encabezado', clasesDeColumna('tabla__encabezado', columna), { 'tabla__encabezado--en-lineas': columna.encabezadoEnLineas }]"
+          >
             {{ columna.etiqueta }}
           </th>
         </tr>
@@ -38,10 +52,14 @@ function valorDeCelda(fila: T, clave: string): unknown {
       <tbody>
         <tr v-for="fila in filas" :key="claveFila(fila)" class="tabla__fila">
           <template v-for="columna in columnas" :key="columna.clave">
-            <th v-if="columna.encabezadoFila" scope="row" class="tabla__celda tabla__celda--encabezado">
+            <th
+              v-if="columna.encabezadoFila"
+              scope="row"
+              :class="['tabla__celda', 'tabla__celda--encabezado', clasesDeColumna('tabla__celda', columna)]"
+            >
               <slot :name="`celda-${columna.clave}`" :fila="fila">{{ valorDeCelda(fila, columna.clave) }}</slot>
             </th>
-            <td v-else class="tabla__celda">
+            <td v-else :class="['tabla__celda', clasesDeColumna('tabla__celda', columna)]">
               <slot :name="`celda-${columna.clave}`" :fila="fila">{{ valorDeCelda(fila, columna.clave) }}</slot>
             </td>
           </template>
@@ -116,5 +134,30 @@ function valorDeCelda(fila: T, clave: string): unknown {
 .tabla__celda--encabezado {
   font-weight: var(--fz-tabla-celda-encabezado-peso);
   text-align: left;
+}
+
+/* Columnas ajustadas: width 1% hace que ocupen su contenido mínimo y el resto del ancho vaya a las demás. */
+.tabla__encabezado--ajustada,
+.tabla__celda--ajustada {
+  width: 1%;
+}
+
+.tabla__celda--ajustada {
+  white-space: nowrap;
+}
+
+.tabla__encabezado--en-lineas {
+  white-space: normal;
+  text-wrap: balance;
+}
+
+.tabla__encabezado--centro,
+.tabla__celda--centro {
+  text-align: center;
+}
+
+.tabla__encabezado--fin,
+.tabla__celda--fin {
+  text-align: end;
 }
 </style>

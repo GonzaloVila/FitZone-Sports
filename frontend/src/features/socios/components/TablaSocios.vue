@@ -2,8 +2,6 @@
 import { RouterLink } from 'vue-router'
 import {
   AvatarFz,
-  BotonFz,
-  IconoFz,
   InsigniaFz,
   InterruptorFz,
   MenuAccionesFz,
@@ -38,11 +36,11 @@ const emit = defineEmits<{
 const columnas: ColumnaTabla[] = [
   { clave: 'socio', etiqueta: 'Socio', encabezadoFila: true },
   { clave: 'sede', etiqueta: 'Sede' },
-  { clave: 'alta', etiqueta: 'Fecha de alta' },
-  { clave: 'plan', etiqueta: 'Plan' },
-  { clave: 'estado', etiqueta: 'Estado' },
-  { clave: 'renovacion', etiqueta: 'Renovación automática' },
-  { clave: 'acciones', etiqueta: 'Acciones' },
+  { clave: 'alta', etiqueta: 'Fecha de alta', ajustada: true },
+  { clave: 'plan', etiqueta: 'Plan', ajustada: true },
+  { clave: 'estado', etiqueta: 'Estado', ajustada: true },
+  { clave: 'renovacion', etiqueta: 'Renovación automática', ajustada: true, alineacion: 'centro', encabezadoEnLineas: true },
+  { clave: 'acciones', etiqueta: 'Acciones', ajustada: true, alineacion: 'fin' },
 ]
 
 const claveFila = (fila: FilaSocio) => fila.socio.id
@@ -132,19 +130,11 @@ function alSeleccionar(fila: FilaSocio, clave: string) {
     </template>
 
     <template #celda-acciones="{ fila }">
-      <div class="acciones">
-        <RouterLink v-slot="{ href, navigate }" :to="{ name: 'socio-detalle', params: { socioId: fila.socio.id } }" custom>
-          <BotonFz como="a" variante="secundario" tamano="sm" :href="href" @click="navigate">
-            <IconoFz nombre="ojo" tamano="sm" />
-            Ver
-          </BotonFz>
-        </RouterLink>
-        <MenuAccionesFz
-          :etiqueta="`Acciones de ${fila.socio.nombre}`"
-          :acciones="accionesDe(fila)"
-          @seleccionar="(clave) => alSeleccionar(fila, clave)"
-        />
-      </div>
+      <MenuAccionesFz
+        :etiqueta="`Acciones de ${fila.socio.nombre}`"
+        :acciones="accionesDe(fila)"
+        @seleccionar="(clave) => alSeleccionar(fila, clave)"
+      />
     </template>
   </TablaFz>
 </template>
@@ -199,12 +189,5 @@ function alSeleccionar(fila: FilaSocio, clave: string) {
 
 .tenue {
   color: var(--fz-color-texto-suave);
-}
-
-.acciones {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--fz-espaciado-compacto);
 }
 </style>

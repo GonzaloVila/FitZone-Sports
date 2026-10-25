@@ -189,6 +189,8 @@ Evento: `seleccionar(clave: string)`.
 />
 ```
 
+**Estilos sin `scoped`.** Reka dibuja envoltorios propios (el del Popper en el menú, la región del Viewport en los avisos): el atributo `data-v-…` de un `<style scoped>` cae en el envoltorio y nuestra clase en el elemento interno, que no lo recibe, así que el CSS no se aplica y el contenido se ve sin estilo. Por eso `MenuAccionesFz` y `ContenedorAvisosFz` llevan su `<style>` sin `scoped`, con clases de prefijo propio. Un componente nuevo que use Reka tiene que hacer lo mismo; `ui/estilosReka.spec.ts` lo vigila (es una comprobación estática: jsdom no aplica los estilos).
+
 Teclado (lo da Reka): Enter, Espacio o flecha abajo abren el menú; flechas, Home y End mueven; escribir una letra salta al ítem que empieza así; Enter o Espacio eligen; Escape cierra y devuelve el foco al disparador; clic afuera cierra. El ítem con foco de teclado lleva un anillo (WCAG 1.4.11) además del fondo de resaltado. El contenido va en un portal, alineado al borde derecho del disparador y con colisión automática.
 
 ### `useAvisosFz` y `ContenedorAvisosFz` (avisos flotantes)
@@ -219,10 +221,20 @@ avisos.info('Sincronizando…', undefined, 3000) // último parámetro: duració
 
 La API y la estructura no cambian (región con foco, `<caption>`, `scope`). Cambió el estilo, solo por tokens `--fz-tabla-*`, y alcanza a todas las tablas de la app:
 
-- Contenedor con borde fino, radio chico (el de control, 4 px) y sin sombra (`--fz-tabla-sombra: none`).
+- Contenedor con borde fino y marcado (`--fz-color-borde-marcado`, también en los separadores de fila y el del encabezado), radio chico (el de control, 4 px) y sin sombra (`--fz-tabla-sombra: none`).
 - Encabezado sobre el fondo de superficie, con texto suave en `--fz-texto-pequeno`, peso medio y relleno de 0.625 rem × 1 rem.
 - Celdas con relleno de 0.5 rem × 1 rem y separadores de fila de 1 px. La celda de encabezado de fila (`encabezadoFila`) conserva el peso de énfasis (`--fz-tabla-celda-encabezado-peso`).
 - Al pasar el puntero, la fila toma el fondo de superficie (`--fz-tabla-fila-fondo-hover`), sin transición. El texto suave sobre ese fondo cumple 4.5:1.
+
+### Opciones de columna (`ColumnaTabla`)
+
+Todas opcionales y aditivas; sin ellas la columna se comporta como siempre.
+
+| Opción | Efecto |
+| --- | --- |
+| `ajustada` | La columna ocupa lo justo para su contenido; el espacio sobrante va a las columnas que no lo son |
+| `alineacion` | `'inicio'` (por defecto), `'centro'` o `'fin'`, para el encabezado y las celdas |
+| `encabezadoEnLineas` | El encabezado puede partirse en varias líneas, balanceadas (por defecto va en una sola) |
 
 ## Escala de tamaños
 

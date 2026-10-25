@@ -203,10 +203,10 @@
   --fz-menu-acciones-foco-ancho: 2px;
   --fz-menu-acciones-foco-separacion: 2px;
   --fz-menu-acciones-capa: var(--fz-capa-menu);
-  --fz-menu-acciones-fondo: var(--fz-color-superficie);
-  --fz-menu-acciones-borde: var(--fz-color-borde);
+  --fz-menu-acciones-fondo: var(--fz-color-fondo);
+  --fz-menu-acciones-borde: var(--fz-color-borde-marcado);
   --fz-menu-acciones-borde-ancho: 1px;
-  --fz-menu-acciones-radio: var(--fz-radio-tarjeta);
+  --fz-menu-acciones-radio: var(--fz-radio-control);
   --fz-menu-acciones-sombra: var(--fz-sombra-elevada);
   --fz-menu-acciones-relleno: 0.25rem;
   --fz-menu-acciones-ancho-min: 10rem;
@@ -228,17 +228,16 @@
   --fz-aviso-flotante-margen: var(--fz-espaciado-base);
   --fz-aviso-flotante-separacion: var(--fz-espaciado-compacto);
   --fz-aviso-flotante-ancho-max: 22rem;
-  --fz-aviso-flotante-fondo: var(--fz-color-superficie);
-  --fz-aviso-flotante-borde: var(--fz-color-borde);
+  --fz-aviso-flotante-fondo: var(--fz-color-fondo);
+  --fz-aviso-flotante-borde: var(--fz-color-borde-marcado);
   --fz-aviso-flotante-borde-ancho: 1px;
-  --fz-aviso-flotante-acento-ancho: 3px;
-  --fz-aviso-flotante-radio: var(--fz-radio-tarjeta);
+  --fz-aviso-flotante-radio: var(--fz-radio-control);
   --fz-aviso-flotante-sombra: var(--fz-sombra-elevada);
   --fz-aviso-flotante-relleno-x: var(--fz-espaciado-base);
   --fz-aviso-flotante-relleno-y: 0.75rem;
   --fz-aviso-flotante-contenido-separacion: var(--fz-espaciado-compacto);
   --fz-aviso-flotante-titulo-texto: var(--fz-texto-pequeno);
-  --fz-aviso-flotante-titulo-peso: var(--fz-peso-enfasis);
+  --fz-aviso-flotante-titulo-peso: var(--fz-peso-medio);
   --fz-aviso-flotante-titulo-color: var(--fz-color-texto);
   --fz-aviso-flotante-descripcion-texto: var(--fz-texto-pequeno);
   --fz-aviso-flotante-descripcion-color: var(--fz-color-texto-suave);
@@ -336,7 +335,7 @@
 
   /* ---- Tabla (organismo) ---- */
   --fz-tabla-fondo: var(--fz-color-fondo);
-  --fz-tabla-borde: var(--fz-color-borde);
+  --fz-tabla-borde: var(--fz-color-borde-marcado);
   --fz-tabla-borde-ancho: 1px;
   --fz-tabla-radio: var(--fz-radio-control);
   --fz-tabla-sombra: none;

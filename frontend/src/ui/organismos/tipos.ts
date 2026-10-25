@@ -4,4 +4,10 @@ export interface ColumnaTabla {
   etiqueta: string
   // Si es true, la celda de esta columna es el encabezado de su fila (<th scope="row">).
   encabezadoFila?: boolean
+  // Si es true, la columna ocupa lo justo para su contenido y el espacio sobrante va a las demás.
+  ajustada?: boolean
+  // Alineación del encabezado y de las celdas (por defecto, al inicio).
+  alineacion?: 'inicio' | 'centro' | 'fin'
+  // Si es true, el encabezado puede partirse en varias líneas (balanceadas); por defecto va en una sola.
+  encabezadoEnLineas?: boolean
 }

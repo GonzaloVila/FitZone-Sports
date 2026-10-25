@@ -51,7 +51,12 @@ const emit = defineEmits<{
   </DropdownMenuRoot>
 </template>
 
-<style scoped>
+<style>
+/*
+ * Sin scoped a propósito: Reka dibuja un envoltorio propio (el del Popper, alrededor del contenido del menú) que recibe el atributo data-v del
+ * componente, y nuestra clase cae en el elemento interno, que no lo recibe. Con scoped esos estilos no se
+ * aplican. Las clases llevan el prefijo del componente para que no se crucen con otras.
+ */
 .menu-acciones__disparador {
   display: inline-flex;
   align-items: center;

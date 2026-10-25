@@ -43,7 +43,12 @@ function alCambiarApertura(id: number, abierto: boolean) {
   </ToastProvider>
 </template>
 
-<style scoped>
+<style>
+/*
+ * Sin scoped a propósito: Reka dibuja un envoltorio propio (la región del Viewport, que contiene el <ol> y los avisos) que recibe el atributo data-v del
+ * componente, y nuestra clase cae en el elemento interno, que no lo recibe. Con scoped esos estilos no se
+ * aplican. Las clases llevan el prefijo del componente para que no se crucen con otras.
+ */
 /* Abajo a la derecha; en ancho chico, a todo el ancho menos el margen. */
 .avisos-flotantes {
   position: fixed;
@@ -75,7 +80,6 @@ function alCambiarApertura(id: number, abierto: boolean) {
   gap: var(--fz-aviso-flotante-contenido-separacion);
   padding: var(--fz-aviso-flotante-relleno-y) var(--fz-aviso-flotante-relleno-x);
   border: var(--fz-aviso-flotante-borde-ancho) solid var(--fz-aviso-flotante-borde);
-  border-left: var(--fz-aviso-flotante-acento-ancho) solid var(--fz-aviso-flotante-acento, var(--fz-aviso-flotante-borde));
   border-radius: var(--fz-aviso-flotante-radio);
   background: var(--fz-aviso-flotante-fondo);
   box-shadow: var(--fz-aviso-flotante-sombra);

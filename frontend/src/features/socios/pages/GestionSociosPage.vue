@@ -95,21 +95,9 @@ function abrirAccion({ socioId, accion }: { socioId: number; accion: AccionFila 
 
     <p v-else-if="cargandoSinFilas" class="socios__estado" role="status">Cargando socios…</p>
 
-    <div v-else-if="vacio" class="socios__vacio">
-      <template v-if="hayFiltrosActivos">
-        <p class="socios__estado">No se encontraron socios con los filtros aplicados.</p>
-        <BotonFz variante="secundario" @click="limpiarFiltros">Limpiar filtros</BotonFz>
-      </template>
-      <template v-else>
-        <p class="socios__estado">Todavía no hay socios.</p>
-        <RouterLink v-slot="{ href, navigate }" :to="{ name: 'socios-nuevo' }" custom>
-          <BotonFz como="a" :href="href" @click="navigate">
-            <IconoFz nombre="mas" tamano="sm" />
-            Nuevo socio
-          </BotonFz>
-        </RouterLink>
-      </template>
-    </div>
+    <p v-else-if="vacio" class="socios__estado socios__vacio">
+      {{ hayFiltrosActivos ? 'No se encontraron socios con los filtros aplicados.' : 'Todavía no hay socios.' }}
+    </p>
 
     <footer class="socios__pie">
       <p class="socios__rango" role="status" aria-live="polite" aria-atomic="true">{{ textoRango }}</p>
@@ -166,10 +154,6 @@ function abrirAccion({ socioId, accion }: { socioId: number; accion: AccionFila 
 }
 
 .socios__vacio {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--fz-espaciado-compacto);
   padding: var(--fz-espaciado-amplio) 0;
 }
 

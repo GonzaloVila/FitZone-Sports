@@ -83,34 +83,37 @@ describe('GestionSociosPage', () => {
     wrapper.unmount()
   })
 
-  it('sin socios y sin filtros: "Todavía no hay socios." y un enlace a "Nuevo socio"', async () => {
+  it('sin socios y sin filtros: solo el mensaje, sin botones ni enlaces extra', async () => {
     const wrapper = await montar()
 
-    expect(wrapper.text()).toContain('Todavía no hay socios.')
+    const vacio = wrapper.get('.socios__vacio')
+    expect(vacio.text()).toBe('Todavía no hay socios.')
+    expect(vacio.find('button, a').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('No se encontraron socios')
-    const enlaces = wrapper.findAll('a').filter((enlace) => enlace.text() === 'Nuevo socio')
-    expect(enlaces).toHaveLength(2)
-    expect(enlaces.every((enlace) => enlace.attributes('href') === '/socios/nuevo')).toBe(true)
+    // "Nuevo socio" queda solo en la cabecera.
+    expect(wrapper.findAll('a').filter((enlace) => enlace.text() === 'Nuevo socio')).toHaveLength(1)
     expect(wrapper.find('table').exists()).toBe(false)
     wrapper.unmount()
   })
 
-  it('sin resultados con filtros: mensaje y "Limpiar filtros", que restaura el listado', async () => {
+  it('sin resultados con filtros: solo el mensaje; "Limpiar" de los filtros restaura el listado', async () => {
     const wrapper = await montar()
 
     await wrapper.get('select[name="estado"]').setValue('ACTIVA')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No se encontraron socios con los filtros aplicados.')
-    expect(wrapper.text()).not.toContain('Todavía no hay socios.')
-    const limpiar = wrapper.findAll('button').find((boton) => boton.text() === 'Limpiar filtros')
-    expect(limpiar).toBeDefined()
+    const vacio = wrapper.get('.socios__vacio')
+    expect(vacio.text()).toBe('No se encontraron socios con los filtros aplicados.')
+    expect(vacio.find('button, a').exists()).toBe(false)
+    expect(wrapper.findAll('button').some((boton) => boton.text() === 'Limpiar filtros')).toBe(false)
 
+    const limpiar = wrapper.findAll('button').find((boton) => boton.text() === 'Limpiar')
+    expect(limpiar).toBeDefined()
     await limpiar!.trigger('click')
     await flushPromises()
 
     expect((wrapper.get('select[name="estado"]').element as HTMLSelectElement).value).toBe('')
-    expect(wrapper.text()).toContain('Todavía no hay socios.')
+    expect(wrapper.get('.socios__vacio').text()).toBe('Todavía no hay socios.')
     wrapper.unmount()
   })
 

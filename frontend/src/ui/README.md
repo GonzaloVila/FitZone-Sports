@@ -41,7 +41,44 @@ Reglas centrales:
 | `nombre` | `NombreIconoFz` (unión cerrada, se exporta desde `ui/index.ts`) | requerida |
 | `tamano` | `'sm' \| 'md' \| 'lg'` (1 / 1.25 / 1.5 rem, por token `--fz-icono-tamano-*`) | `'md'` |
 
-Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
+Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
+
+## Interruptor y avatar (átomos)
+
+### `InterruptorFz`
+
+Interruptor de dos estados, **controlado**: no cambia por su cuenta. Al activarlo emite `update:modelValue` con el valor contrario y el padre decide cuándo reflejarlo (típicamente después de guardar).
+
+| Prop | Tipo | |
+| --- | --- | --- |
+| `modelValue` | `boolean` | Estado actual |
+| `etiqueta` | `string` | Obligatoria. Nombre accesible (`aria-label`): el control no tiene texto visible |
+| `deshabilitado` | `boolean` | Opcional. No emite |
+| `ocupado` | `boolean` | Opcional. Mientras es `true` ignora clics y teclado, pone `aria-busy` y se ve atenuado (sin spinner) |
+
+```vue
+<InterruptorFz
+  :model-value="socio.activo"
+  :etiqueta="`Activar a ${socio.nombre}`"
+  :ocupado="guardando"
+  @update:model-value="(valor) => guardar(socio, valor)"
+/>
+```
+
+- Es un `<button type="button" role="switch">` con `aria-checked`: Espacio y Enter lo alternan, sin código de teclado propio. El anillo de foco rodea la pista.
+- La pista mide 2 × 1.25 rem y la perilla 1 rem; el área clickeable llega a 1.5 rem de alto (WCAG 2.5.8). Apagado usa el color de borde de controles (3:1 contra el fondo), encendido el primario, y la perilla es blanca.
+- La transición usa `--fz-duracion-breve` y se desactiva con `prefers-reduced-motion: reduce`. Tokens: `--fz-interruptor-*`.
+
+### `AvatarFz`
+
+Cuadradito de esquinas redondeadas (el radio de control, como `MarcaFz`) con las iniciales del nombre. Es **decorativo** (`aria-hidden="true"`): el nombre siempre va escrito al lado.
+
+| Prop | Tipo | Por defecto |
+| --- | --- | --- |
+| `nombre` | `string` | requerida |
+| `tamano` | `'sm' \| 'md'` (1.5 / 2 rem) | `'md'` |
+
+Iniciales: la primera letra de cada una de las dos primeras palabras, en mayúsculas (`Camila Domínguez` → `CD`); con una sola palabra, solo su primera letra (`Camila` → `C`); con el nombre vacío o solo espacios, `?`. Respeta acentos y la Ñ. Tokens: `--fz-avatar-*`.
 
 ## Plantilla de la app: `PlantillaAppFz`
 
@@ -153,6 +190,15 @@ avisos.info('Sincronizando…', undefined, 3000) // último parámetro: duració
 - No se agrega un aviso idéntico (mismo tipo, título y descripción) a uno visible. Máximo 4 a la vez: al pasarse se descarta el más viejo.
 - Los errores se anuncian de inmediato a los lectores de pantalla y el resto con cortesía. El viewport se llama "Avisos (F8)": F8 lleva el foco a los avisos. Abajo a la derecha en escritorio; en menos de `40rem`, a todo el ancho menos el margen.
 - Los avisos y el menú van en capas propias (`--fz-capa-aviso`, `--fz-capa-menu`). `ModalFz` usa `<dialog>` con `showModal()`, que el navegador pone en la capa superior: un aviso que se dispare con un modal abierto queda detrás hasta que el modal se cierre.
+
+## Tabla: `TablaFz`
+
+La API y la estructura no cambian (región con foco, `<caption>`, `scope`). Cambió el estilo, solo por tokens `--fz-tabla-*`, y alcanza a todas las tablas de la app:
+
+- Contenedor con borde fino, radio chico (el de control, 4 px) y sin sombra (`--fz-tabla-sombra: none`).
+- Encabezado sobre el fondo de superficie, con texto suave en `--fz-texto-pequeno`, peso medio y relleno de 0.625 rem × 1 rem.
+- Celdas con relleno de 0.5 rem × 1 rem y separadores de fila de 1 px. La celda de encabezado de fila (`encabezadoFila`) conserva el peso de énfasis (`--fz-tabla-celda-encabezado-peso`).
+- Al pasar el puntero, la fila toma el fondo de superficie (`--fz-tabla-fila-fondo-hover`), sin transición. El texto suave sobre ese fondo cumple 4.5:1.
 
 ## Escala de tamaños
 

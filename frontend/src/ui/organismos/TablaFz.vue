@@ -57,6 +57,7 @@ function valorDeCelda(fila: T, clave: string): unknown {
   border: var(--fz-tabla-borde-ancho) solid var(--fz-tabla-borde);
   border-radius: var(--fz-tabla-radio);
   background: var(--fz-tabla-fondo);
+  box-shadow: var(--fz-tabla-sombra);
 }
 
 .tabla:focus-visible {
@@ -90,15 +91,20 @@ function valorDeCelda(fila: T, clave: string): unknown {
 }
 
 .tabla__encabezado {
-  padding: var(--fz-tabla-celda-relleno-y) var(--fz-tabla-celda-relleno-x);
+  padding: var(--fz-tabla-encabezado-relleno-y) var(--fz-tabla-encabezado-relleno-x);
   background: var(--fz-tabla-encabezado-fondo);
   color: var(--fz-tabla-encabezado-texto);
+  font-size: var(--fz-tabla-encabezado-tamano);
   font-weight: var(--fz-tabla-encabezado-peso);
   white-space: nowrap;
 }
 
 .tabla__fila {
   border-top: var(--fz-tabla-borde-ancho) solid var(--fz-tabla-borde);
+}
+
+.tabla__fila:hover {
+  background: var(--fz-tabla-fila-fondo-hover);
 }
 
 .tabla__celda {
@@ -108,7 +114,7 @@ function valorDeCelda(fila: T, clave: string): unknown {
 }
 
 .tabla__celda--encabezado {
-  font-weight: var(--fz-tabla-encabezado-peso);
+  font-weight: var(--fz-tabla-celda-encabezado-peso);
   text-align: left;
 }
 </style>

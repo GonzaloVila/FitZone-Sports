@@ -16,6 +16,12 @@ export type NombreIconoFz =
   | 'info'
   | 'ojo'
   | 'ojo-tachado'
+  | 'buscar'
+  | 'mas'
+  | 'cambiar'
+  | 'pausa'
+  | 'reproducir'
+  | 'quitar-usuario'
 </script>
 
 <script setup lang="ts">
@@ -77,6 +83,22 @@ const TRAZOS: Record<NombreIconoFz, readonly string[]> = {
   ojo: ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z', 'M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0'],
   // El mismo ojo cruzado por una barra.
   'ojo-tachado': ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z', 'M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0', 'M4 4l16 16'],
+  // Lupa: lente y mango en diagonal.
+  buscar: ['M4.5 11a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0-13 0', 'M16 16l4.5 4.5'],
+  // Cruz de suma.
+  mas: ['M12 5v14', 'M5 12h14'],
+  // Dos flechas circulares, una hacia cada lado.
+  cambiar: ['M4 12a8 8 0 0 1 13.5-5.8L20 8.5', 'M20 4v4.5h-4.5', 'M20 12a8 8 0 0 1-13.5 5.8L4 15.5', 'M4 20v-4.5h4.5'],
+  // Dos barras verticales.
+  pausa: ['M7 5h3.5v14H7z', 'M13.5 5H17v14h-3.5z'],
+  // Triángulo apuntando a la derecha.
+  reproducir: ['M7 4.5l12 7.5-12 7.5z'],
+  // Una persona con un signo menos al costado.
+  'quitar-usuario': [
+    'M5 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0',
+    'M2.5 20v-1a4.5 4.5 0 0 1 4.5-4.5h4a4.5 4.5 0 0 1 4.5 4.5v1',
+    'M17.5 10h4.5',
+  ],
 }
 
 const trazos = computed(() => TRAZOS[props.nombre])

@@ -3759,3 +3759,47 @@ Al cancelar una reserva de cancha que ya estaba pagada, el `Pago` quedaba APROBA
 4. Proteger con guards y `security` en el contrato los endpoints de usuarios (y revisar socios y membresías).
 5. Probar RECEPCION con sede real: no hay endpoint que cree `EmpleadoSede`, hay que insertar la fila a mano en la base.
 6. Datos de prueba en la base compartida a limpiar al final.
+
+---
+
+## 2026-10-25 - Frontend: rediseño visual, Pasos 4a a 4e (lista de socios y modales de acción)
+
+**Fecha:** 25/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commits:** 4a `36498e8`, 4b `9cae975`, 4c `c2558cb`, 4d `7a3478a`, 4e `9887c6c`
+
+### Actividades
+
+1. **Paso 4a (`36498e8`), piezas nuevas del kit:** `InterruptorFz` (con spec), `AvatarFz` (con spec) e `IconoFz`; ajuste del estilo de `TablaFz`; tokens nuevos en `componentes.css`; exports en `ui/index.ts` y `ui/README.md` al día.
+2. **Paso 4b (`9cae975`), lista de socios:** se restilizaron `GestionSociosPage`, `FiltrosSocios` (reescrito, con spec) y `TablaSocios` (reescrita, con spec) con avatar, interruptor de renovación automática y menú de acciones por fila. `useListaSocios` incorpora la edición de la renovación automática desde la lista. `CampoTextoFz` y `BotonFz` ganan variantes de estilo (con specs). `presentacion.ts` y `tipos.ts` suman helpers, y se ajustaron los specs de `DetalleSocioPage`, `GestionSociosPage` y `useListaSocios`.
+3. **Paso 4c (`c2558cb`), estilos de Reka:** los estilos de `MenuAccionesFz` y `ContenedorAvisosFz` dejaron de ser scoped: Reka dibuja elementos envoltorio que reciben el atributo del scoped, mientras que nuestras clases caen en elementos internos. Ahora usan clases con prefijo, y un test estático (`ui/estilosReka.spec.ts`) vigila que no vuelvan a ser scoped. Tokens nuevos de borde marcado, radio y fondo. `TablaFz` gana las opciones `ajustada`, `alineacion` y `encabezadoEnLineas` (con `TablaFz.spec`), y se ajustaron las columnas de `TablaSocios`.
+4. **Paso 4d (`7a3478a`), modal y tarjetas de opción:** `ModalFz` rediseñado, con props `titulo`, `descripcion`, `icono`, `tono`, `ancho` y `ocupado`; encabezado con ícono y X, cuerpo con scroll, pie con acciones y foco inicial en el primer control o en la opción marcada. Nueva molécula `OpcionesTarjetaFz` (radios nativos en `fieldset`/`legend`, con spec). `BotonFz` suma la variante `advertencia`; íconos `advertencia` y `tilde`; tokens nuevos y specs de `ModalFz`, `OpcionesTarjetaFz` y `BotonFz`.
+5. **Paso 4e (`9887c6c`), modales de acción sobre un socio:** cambiar plan o renovar, suspender, reactivar y dejar de ser socio se abren directo desde la lista y los comparte la ficha, mediante el composable `useAccionesSocio` y los componentes de `components/modales/`. Se eliminó el mecanismo `?accion=`. Cada acción termina con un aviso flotante de éxito y la fila se actualiza sin recargar la lista (la baja sí recarga).
+6. **Regla de cambio de plan (4e):** en una membresía ACTIVA se envía `{plan}`; en una VENCIDA se envía `{plan, estado:'ACTIVA'}` y el menú la muestra como "Renovar"; en una SUSPENDIDA "Cambiar plan" queda deshabilitado (primero se reactiva).
+7. **Modal Suspender (4e):** el texto sigue lo que confirma el backend: un socio suspendido no puede ingresar, ni reservar clases, ni anotarse en listas de espera; sí puede reservar canchas, pero sin el descuento de socio.
+8. **Kit (4e):** el botón `peligro` pasó de contorno a sólido en todo el kit; el fantasma deshabilitado y el outline del `<dialog>` se ajustaron; `MenuAccionesFz` gana la prop `identificador`. `ui/README.md` documenta los cambios.
+
+### Decisiones tomadas
+
+1. **Estilos de Reka sin scoped:** los componentes que envuelven Reka usan `<style>` sin scoped y clases con prefijo; el test estático evita que se rompa sin que nadie lo note.
+2. **Error del cobro dentro del modal:** el 402 (cobro rechazado) se muestra dentro del modal y no como aviso flotante, porque un aviso quedaría detrás del `<dialog>`. El modal queda abierto y se puede cerrar o reintentar.
+3. **Foco:** al cerrar un modal (Esc, Cancelar o X) el foco vuelve al botón "···" de la fila; tras la baja, como la fila ya no existe, pasa al título de la página.
+4. **Respuestas tardías descartadas:** un contador de versión en `useAccionesSocio` ignora la respuesta de un pedido que ya se cerró o reemplazó, y no se ejecuta una acción nueva mientras hay otra en curso.
+5. **Sin precios de planes:** el front no los conoce; las tarjetas muestran el nombre del plan y su duración.
+6. **Botón de peligro sólido para todo el kit:** afecta también a los botones de cancelar y anular de clases, canchas y pagos.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde al cierre de 4e: **285 tests** en 38 archivos (eran 104 en 21 antes de 4a).
+- Recorrido con eventos reales de teclado y mouse en un navegador sin ventana, sobre una página temporal con servicios simulados (ya borrada): **21/21**. Cubre menús de fila (VENCIDA y SUSPENDIDA), apertura y cierre de los modales con Esc, Cancelar y X, retorno del foco, estado ocupado, éxito con aviso, error 402 dentro del modal y baja.
+- Prueba a mano contra el backend real: renovar, cambiar plan, suspender y reactivar, y foco con teclado.
+- Contrastes de los pares nuevos verificados con script (el botón `peligro` sólido da 5.19:1 y 6.73:1).
+
+### Pendientes que siguen abiertos
+
+1. Confirmar con el arquitecto si el backend debería reactivar la membresía por sí mismo al cobrar un cambio de plan en una membresía vencida o suspendida. Hoy cobra y actualiza plan y fechas, pero no cambia el estado, y por eso el front envía el estado `ACTIVA` al renovar. Documentar el caso en el contrato.
+2. Hay 11 variables `--fz-*` usadas sin definir en `sedes` y `acceso` (no son de este paso): se resuelven en la pasada de tokens por módulo.
+3. Partir `ui/tokens/componentes.css` (más de 300 líneas).
+4. Partir `useListaSocios.spec.ts` por tema (más de 300 líneas).
+5. Restilizar el resto de M1 (alta de socio, ficha y carnet) y pasar a tokens los tamaños y colores escritos a mano de cada módulo.
+6. ADR de la decisión de usar Reka UI (junto con ADR-13 y ADR-15).
+7. Proteger con guards y `security` en el contrato los endpoints de usuarios (y revisar socios y membresías).
+8. Datos de prueba en la base compartida a limpiar al final.

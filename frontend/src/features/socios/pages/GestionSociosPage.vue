@@ -1,126 +1,119 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useSedes } from '@/features/sedes/composables/useSedes'
-import { AvisoFz, BotonFz, InsigniaFz, PaginacionFz, SelectFz } from '@/ui'
+import { AvisoFz, BotonFz, IconoFz, InsigniaFz, PaginacionFz } from '@/ui'
 import FiltrosSocios from '../components/FiltrosSocios.vue'
 import TablaSocios from '../components/TablaSocios.vue'
 import { useListaSocios } from '../composables/useListaSocios'
+import type { AccionFila } from '../tipos'
 
-const { filtros, pagina, items, total, totalPaginas, cargando, error } = useListaSocios()
+const router = useRouter()
+const {
+  filtros,
+  pagina,
+  porPagina,
+  items,
+  total,
+  totalPaginas,
+  cargando,
+  error,
+  hayFiltrosActivos,
+  limpiarFiltros,
+  alternarRenovacion,
+  guardandoRenovacion,
+} = useListaSocios()
 const { sedes, error: errorSedes, nombreDeSede } = useSedes()
 
 const hayFilas = computed(() => items.value.length > 0)
+const cargandoSinFilas = computed(() => cargando.value && !hayFilas.value)
+const vacio = computed(() => !cargando.value && !hayFilas.value && !error.value)
 
-// Cálculo del rango mostrado en la página actual
-const rangoInicio = computed(() => (total.value === 0 ? 0 : (pagina.value - 1) * 10 + 1))
-const rangoFin = computed(() => Math.min(total.value, pagina.value * 10))
+// Rango mostrado en la página actual.
+const rangoInicio = computed(() => (total.value === 0 ? 0 : (pagina.value - 1) * porPagina + 1))
+const rangoFin = computed(() => Math.min(total.value, pagina.value * porPagina))
 
-// Función para exportar a CSV los socios cargados en pantalla
-function exportarCsv() {
-  if (items.value.length === 0) return
+// La región del pie siempre está en el DOM (los lectores de pantalla solo anuncian cambios de una región
+// existente); mientras no hay un resultado que informar, queda vacía.
+const textoRango = computed(() => {
+  if (cargandoSinFilas.value || error.value) return ''
+  if (total.value === 0) return '0 socios'
+  return `Mostrando ${rangoInicio.value} a ${rangoFin.value} de ${total.value} ${total.value === 1 ? 'socio' : 'socios'}`
+})
 
-  const encabezados = ['ID Socio', 'Nombre', 'Email', 'Sede', 'Fecha Alta', 'Plan', 'Estado']
-  const filasCsv = items.value.map((item) => [
-    item.socio.id,
-    `"${item.socio.nombre.replace(/"/g, '""')}"`,
-    `"${item.socio.email}"`,
-    `"${nombreDeSede(item.socio.sedeOrigenId)}"`,
-    item.socio.fechaAlta ? new Date(item.socio.fechaAlta).toLocaleDateString() : '',
-    item.membresia.situacion === 'disponible' ? item.membresia.membresia.plan : 'N/A',
-    item.membresia.situacion === 'disponible' ? item.membresia.membresia.estado : 'N/A',
-  ])
-
-  const contenido = [encabezados.join(','), ...filasCsv.map((f) => f.join(','))].join('\n')
-  const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.setAttribute('href', url)
-  link.setAttribute('download', `socios_fitzone_${new Date().toISOString().slice(0, 10)}.csv`)
-  link.click()
-  URL.revokeObjectURL(url)
+// Las acciones con modal se resuelven en la ficha: la lista solo navega y avisa cuál se pidió.
+function abrirAccion({ socioId, accion }: { socioId: number; accion: AccionFila }) {
+  void router.push({
+    name: 'socio-detalle',
+    params: { socioId },
+    query: accion === 'ver-ficha' ? undefined : { accion },
+  })
 }
 </script>
 
 <template>
   <section class="socios">
-    <!-- Cabecera moderna alineada con botón primario "+ Nuevo socio" -->
     <header class="socios__encabezado">
       <div class="socios__titulos">
         <div class="socios__titulo-grupo">
           <h1 class="socios__titulo">Socios</h1>
-          <InsigniaFz variante="neutra" class="socios__badge-conteo">
-            {{ total }} {{ total === 1 ? 'socio' : 'socios' }}
-          </InsigniaFz>
+          <InsigniaFz>{{ total }} {{ total === 1 ? 'socio' : 'socios' }}</InsigniaFz>
         </div>
         <p class="socios__subtitulo">Gestión de membresías, altas y consulta de socios.</p>
       </div>
 
-      <RouterLink :to="{ name: 'socios-nuevo' }">
-        <BotonFz variante="primario">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 0.375rem;">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+      <RouterLink v-slot="{ href, navigate }" :to="{ name: 'socios-nuevo' }" custom>
+        <BotonFz como="a" :href="href" @click="navigate">
+          <IconoFz nombre="mas" tamano="sm" />
           Nuevo socio
         </BotonFz>
       </RouterLink>
     </header>
 
-    <!-- Toolbar unificada de búsqueda y filtros -->
     <FiltrosSocios
       v-model:nombre="filtros.nombre"
       v-model:estado="filtros.estado"
       v-model:plan="filtros.plan"
       v-model:sede="filtros.sede"
       :sedes="sedes"
-      :total-resultados="total"
-      @exportar="exportarCsv"
+      :hay-filtros-activos="hayFiltrosActivos"
+      @limpiar="limpiarFiltros"
     />
 
     <AvisoFz v-if="errorSedes" variante="advertencia">{{ errorSedes }}</AvisoFz>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
 
-    <!-- Tabla de socios con avatar e identidad unificada -->
     <TablaSocios
       v-if="hayFilas"
       :filas="items"
       :nombre-sede="nombreDeSede"
       :ocupada="cargando"
+      :guardando-renovacion="guardandoRenovacion"
+      @alternar-renovacion="alternarRenovacion"
+      @abrir-accion="abrirAccion"
     />
 
-    <!-- Estado vacío estilizado cuando no hay socios -->
-    <div v-else-if="!cargando" class="socios__vacio">
-      <div class="socios__vacio-icono" aria-hidden="true">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="7" r="4" />
-          <path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2" />
-        </svg>
-      </div>
-      <h3 class="socios__vacio-titulo">No se encontraron socios</h3>
-      <p class="socios__vacio-descripcion">
-        No hay registros que coincidan con los filtros aplicados o aún no se han dado de alta socios.
-      </p>
-      <RouterLink :to="{ name: 'socios-nuevo' }">
-        <BotonFz variante="primario" tamano="sm">
-          + Dar de alta nuevo socio
-        </BotonFz>
-      </RouterLink>
+    <p v-else-if="cargandoSinFilas" class="socios__estado" role="status">Cargando socios…</p>
+
+    <div v-else-if="vacio" class="socios__vacio">
+      <template v-if="hayFiltrosActivos">
+        <p class="socios__estado">No se encontraron socios con los filtros aplicados.</p>
+        <BotonFz variante="secundario" @click="limpiarFiltros">Limpiar filtros</BotonFz>
+      </template>
+      <template v-else>
+        <p class="socios__estado">Todavía no hay socios.</p>
+        <RouterLink v-slot="{ href, navigate }" :to="{ name: 'socios-nuevo' }" custom>
+          <BotonFz como="a" :href="href" @click="navigate">
+            <IconoFz nombre="mas" tamano="sm" />
+            Nuevo socio
+          </BotonFz>
+        </RouterLink>
+      </template>
     </div>
 
-    <!-- Pie de tabla integrado (Rango de resultados + Paginación) -->
-    <footer v-if="hayFilas" class="socios__pie">
-      <span class="socios__pie-rango">
-        Mostrando <strong>{{ rangoInicio }}</strong> a <strong>{{ rangoFin }}</strong> de <strong>{{ total }}</strong> socios
-      </span>
-
-      <div v-if="totalPaginas > 1" class="socios__pie-paginacion">
-        <PaginacionFz
-          v-model="pagina"
-          :total-paginas="totalPaginas"
-          etiqueta="Paginación de socios"
-        />
-      </div>
+    <footer class="socios__pie">
+      <p class="socios__rango" role="status" aria-live="polite" aria-atomic="true">{{ textoRango }}</p>
+      <PaginacionFz v-if="totalPaginas > 1" v-model="pagina" :total-paginas="totalPaginas" etiqueta="Paginación de socios" />
     </footer>
   </section>
 </template>
@@ -129,9 +122,7 @@ function exportarCsv() {
 .socios {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  max-width: 64rem;
-  margin: 0 auto;
+  gap: var(--fz-espaciado-base);
   width: 100%;
 }
 
@@ -140,93 +131,59 @@ function exportarCsv() {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--fz-espaciado-base);
 }
 
 .socios__titulos {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--fz-espaciado-compacto);
 }
 
 .socios__titulo-grupo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--fz-espaciado-compacto);
 }
 
 .socios__titulo {
   margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
   color: var(--fz-color-texto);
-}
-
-.socios__badge-conteo {
-  font-size: 0.8125rem;
+  font-size: var(--fz-texto-titulo);
+  font-weight: var(--fz-peso-enfasis);
 }
 
 .socios__subtitulo {
   margin: 0;
-  font-size: 0.875rem;
   color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-cuerpo);
 }
 
-/* Empty State */
+.socios__estado {
+  margin: 0;
+  color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-pequeno);
+}
+
 .socios__vacio {
-  background: var(--fz-color-superficie);
-  border: 1px dashed var(--fz-color-borde);
-  border-radius: var(--fz-radio-tarjeta);
-  padding: 3.5rem 1.5rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 0.75rem;
-  box-shadow: var(--fz-sombra-tarjeta);
+  align-items: flex-start;
+  gap: var(--fz-espaciado-compacto);
+  padding: var(--fz-espaciado-amplio) 0;
 }
 
-.socios__vacio-icono {
-  color: var(--fz-color-texto-suave);
-  opacity: 0.6;
-}
-
-.socios__vacio-titulo {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--fz-color-texto);
-}
-
-.socios__vacio-descripcion {
-  margin: 0 0 0.5rem;
-  font-size: var(--fz-texto-pequeno);
-  color: var(--fz-color-texto-suave);
-  max-width: 26rem;
-}
-
-/* Footer / Pie de tabla */
 .socios__pie {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 1rem;
-  padding: 0.75rem 0;
-  border-top: 1px solid var(--fz-color-borde);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fz-espaciado-base);
 }
 
-.socios__pie-rango {
-  font-size: 0.875rem;
+.socios__rango {
+  margin: 0;
   color: var(--fz-color-texto-suave);
-}
-
-.socios__pie-rango strong {
-  color: var(--fz-color-texto);
-}
-
-.socios__pie-paginacion {
-  margin-left: auto;
+  font-size: var(--fz-texto-pequeno);
 }
 </style>

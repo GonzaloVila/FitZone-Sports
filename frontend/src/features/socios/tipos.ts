@@ -32,3 +32,6 @@ export type AccionSocio =
   | 'renovacion-automatica'
   | 'cambiar-sede'
   | 'dejar-de-ser-socio'
+
+// Lo que la lista pide a la ficha: abrir una acción con modal, o simplemente ver la ficha.
+export type AccionFila = 'ver-ficha' | Extract<AccionSocio, 'cambiar-plan' | 'suspender' | 'reactivar' | 'dejar-de-ser-socio'>

@@ -1,4 +1,5 @@
 import type { EstadoMembresia, Plan } from './services/servicioSocios'
+import type { AccionFila, AccionSocio } from './tipos'
 
 // Cómo se muestran los valores del contrato. Record<...> obliga a actualizar esto si el contrato agrega uno.
 export const ETIQUETAS_ESTADO: Record<EstadoMembresia, string> = {
@@ -37,4 +38,34 @@ export function formatearFecha(fechaIso: string): string {
 
 export function formatearVigencia(inicioIso: string, finIso: string): string {
   return `${formatearFecha(inicioIso)} al ${formatearFecha(finIso)}`
+}
+
+// Acciones que se resuelven en un modal de la ficha y que la lista puede pedir.
+export const ACCIONES_CON_MODAL = ['cambiar-plan', 'suspender', 'reactivar', 'dejar-de-ser-socio'] as const satisfies readonly AccionSocio[]
+export type AccionConModal = (typeof ACCIONES_CON_MODAL)[number]
+
+export function esAccionConModal(valor: unknown): valor is AccionConModal {
+  return ACCIONES_CON_MODAL.some((accion) => accion === valor)
+}
+
+export function esAccionFila(valor: unknown): valor is AccionFila {
+  return valor === 'ver-ficha' || esAccionConModal(valor)
+}
+
+// Regla única de qué acciones admite una membresía según su estado (null = membresía no disponible).
+// Suspender solo desde ACTIVA. Reactivar solo desde SUSPENDIDA: una VENCIDA se resuelve con "Cambiar plan".
+// Las acciones que no dependen de la membresía (dejar de ser socio, cambiar sede) siempre se permiten.
+export function accionPermitida(accion: AccionSocio, estadoMembresia: EstadoMembresia | null): boolean {
+  switch (accion) {
+    case 'suspender':
+      return estadoMembresia === 'ACTIVA'
+    case 'reactivar':
+      return estadoMembresia === 'SUSPENDIDA'
+    case 'cambiar-plan':
+    case 'renovacion-automatica':
+      return estadoMembresia !== null
+    case 'cambiar-sede':
+    case 'dejar-de-ser-socio':
+      return true
+  }
 }

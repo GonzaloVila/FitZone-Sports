@@ -3,6 +3,7 @@ import { esErrorApiConEstado, mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
 import type { Usuario } from '@/features/usuarios/services/servicioUsuarios'
 import type { Membresia, MembresiaPatch, Plan, Socio } from '../services/servicioSocios'
+import { accionPermitida } from '../presentacion'
 import type { AccionSocio, Opcional } from '../tipos'
 
 export type EstadoDetalle = 'cargando' | 'listo' | 'no-existe' | 'error'
@@ -89,9 +90,9 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
     membresia.value.situacion === 'disponible' ? membresia.value.valor.estado : null,
   )
   const hayMembresia = computed(() => membresia.value.situacion === 'disponible')
-  // Suspender solo desde ACTIVA. Reactivar solo desde SUSPENDIDA: una VENCIDA se resuelve con "Cambiar plan".
-  const puedeSuspender = computed(() => estadoMembresia.value === 'ACTIVA')
-  const puedeReactivar = computed(() => estadoMembresia.value === 'SUSPENDIDA')
+  // Las reglas viven en presentacion.ts: la lista de socios usa las mismas.
+  const puedeSuspender = computed(() => accionPermitida('suspender', estadoMembresia.value))
+  const puedeReactivar = computed(() => accionPermitida('reactivar', estadoMembresia.value))
 
   // Sin doble disparo: mientras hay una acción en curso no se ejecuta otra. Devuelve true si salió bien.
   async function ejecutar(accion: AccionSocio, tarea: (id: number) => Promise<ResultadoAccion>): Promise<boolean> {

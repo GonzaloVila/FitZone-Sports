@@ -75,6 +75,11 @@
   --fz-campo-foco-separacion: 2px;
   --fz-campo-deshabilitado-fondo: var(--fz-color-hover);
   --fz-campo-deshabilitado-texto: var(--fz-color-texto-suave);
+  /* Ícono dentro del campo (tamaño sm de IconoFz, 1rem): posición desde el borde y relleno que deja lugar al texto. */
+  --fz-campo-icono-color: var(--fz-color-texto-suave);
+  --fz-campo-icono-tamano: 1rem;
+  --fz-campo-icono-posicion: var(--fz-espaciado-compacto);
+  --fz-campo-icono-relleno: calc(var(--fz-espaciado-compacto) + var(--fz-campo-icono-tamano) + var(--fz-espaciado-compacto));
 
   /* ---- Insignia ---- */
   --fz-insignia-relleno-x: var(--fz-espaciado-compacto);

@@ -2,7 +2,7 @@
 import { computed, ref, useId, watch } from 'vue'
 import type { Sede } from '@/features/sedes/services/servicioSedes'
 import { AvisoFz, BotonFz, ModalFz, SelectFz } from '@/ui'
-import { ETIQUETAS_PLAN, PLANES } from '../presentacion'
+import { ETIQUETAS_PLAN, PLANES, type AccionConModal } from '../presentacion'
 import type { Plan } from '../services/servicioSocios'
 import type { AccionSocio } from '../tipos'
 
@@ -17,6 +17,9 @@ const props = defineProps<{
   // Acción en curso (null si no hay) y error de la última acción.
   ejecutando: AccionSocio | null
   error: string | null
+  // Pide abrir el modal de una acción desde afuera (por ejemplo, cuando la lista la eligió). Al pasar de null a
+  // un valor se abre como si se hubiera tocado su botón; el padre decide cuándo (y si está permitida).
+  accionInicial?: AccionConModal | null
 }>()
 
 const emit = defineEmits<{
@@ -49,6 +52,13 @@ function abrir(nueva: AccionSocio) {
   emit('abrir')
   accion.value = nueva
 }
+
+watch(
+  () => props.accionInicial,
+  (pedida) => {
+    if (pedida) abrir(pedida)
+  },
+)
 
 // Si la acción terminó bien (dejó de estar en curso y no hay error), el modal se cierra solo.
 watch(

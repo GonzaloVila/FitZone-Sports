@@ -1,14 +1,38 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { InsigniaFz, TablaFz, type ColumnaTabla } from '@/ui'
-import { ETIQUETAS_ESTADO, ETIQUETAS_PLAN, VARIANTES_ESTADO, formatearFecha } from '../presentacion'
-import type { FilaSocio } from '../tipos'
+import {
+  AvatarFz,
+  BotonFz,
+  IconoFz,
+  InsigniaFz,
+  InterruptorFz,
+  MenuAccionesFz,
+  TablaFz,
+  type AccionMenuFz,
+  type ColumnaTabla,
+} from '@/ui'
+import {
+  ETIQUETAS_ESTADO,
+  ETIQUETAS_PLAN,
+  VARIANTES_ESTADO,
+  accionPermitida,
+  esAccionFila,
+  formatearFecha,
+} from '../presentacion'
+import type { EstadoMembresia } from '../services/servicioSocios'
+import type { AccionFila, FilaSocio } from '../tipos'
 
 defineProps<{
   filas: FilaSocio[]
   nombreSede: (sedeId: number) => string
   ocupada?: boolean
+  // Socios cuya renovación automática se está guardando: su interruptor queda ocupado.
+  guardandoRenovacion: ReadonlySet<number>
+}>()
+
+const emit = defineEmits<{
+  'alternar-renovacion': [socioId: number]
+  'abrir-accion': [pedido: { socioId: number; accion: AccionFila }]
 }>()
 
 const columnas: ColumnaTabla[] = [
@@ -17,301 +41,170 @@ const columnas: ColumnaTabla[] = [
   { clave: 'alta', etiqueta: 'Fecha de alta' },
   { clave: 'plan', etiqueta: 'Plan' },
   { clave: 'estado', etiqueta: 'Estado' },
+  { clave: 'renovacion', etiqueta: 'Renovación automática' },
   { clave: 'acciones', etiqueta: 'Acciones' },
 ]
 
 const claveFila = (fila: FilaSocio) => fila.socio.id
 
-// Iniciales del socio para el avatar
-function iniciales(nombre: string): string {
-  const partes = nombre.trim().split(/\s+/)
-  const p1 = partes[0]
-  const p2 = partes[1]
-  if (p1 && p2) {
-    return `${p1.charAt(0)}${p2.charAt(0)}`.toUpperCase()
-  }
-  return nombre.slice(0, 2).toUpperCase()
+function estadoDe(fila: FilaSocio): EstadoMembresia | null {
+  return fila.membresia.situacion === 'disponible' ? fila.membresia.membresia.estado : null
 }
 
-// Menú contextual activo por fila
-const menuActivoId = ref<number | null>(null)
-
-function alternarMenu(id: number) {
-  menuActivoId.value = menuActivoId.value === id ? null : id
+// Las reglas de habilitación son las de la ficha (accionPermitida): sin membresía disponible, estado = null.
+function accionesDe(fila: FilaSocio): AccionMenuFz[] {
+  const estado = estadoDe(fila)
+  const alternaEstado: AccionMenuFz =
+    estado === 'SUSPENDIDA'
+      ? { clave: 'reactivar', etiqueta: 'Reactivar', icono: 'reproducir', deshabilitada: !accionPermitida('reactivar', estado) }
+      : { clave: 'suspender', etiqueta: 'Suspender', icono: 'pausa', deshabilitada: !accionPermitida('suspender', estado) }
+  return [
+    { clave: 'ver-ficha', etiqueta: 'Ver ficha', icono: 'ojo' },
+    { clave: 'cambiar-plan', etiqueta: 'Cambiar plan', icono: 'cambiar', deshabilitada: !accionPermitida('cambiar-plan', estado) },
+    alternaEstado,
+    { clave: 'dejar-de-ser-socio', etiqueta: 'Dejar de ser socio', icono: 'quitar-usuario', peligro: true },
+  ]
 }
 
-function cerrarMenu() {
-  menuActivoId.value = null
+function alSeleccionar(fila: FilaSocio, clave: string) {
+  if (esAccionFila(clave)) emit('abrir-accion', { socioId: fila.socio.id, accion: clave })
 }
 </script>
 
 <template>
-  <div class="tabla-socios-contenedor">
-    <TablaFz
-      titulo="Listado de socios"
-      ocultar-titulo
-      :columnas="columnas"
-      :filas="filas"
-      :clave-fila="claveFila"
-      :ocupada="ocupada"
-    >
-      <!-- Identidad unificada: Avatar + Nombre + Email -->
-      <template #celda-socio="{ fila }">
-        <div class="tabla-socios__identidad">
-          <div class="tabla-socios__avatar" aria-hidden="true">
-            {{ iniciales((fila as FilaSocio).socio.nombre) }}
+  <TablaFz
+    titulo="Listado de socios"
+    ocultar-titulo
+    :columnas="columnas"
+    :filas="filas"
+    :clave-fila="claveFila"
+    :ocupada="ocupada"
+  >
+    <template #celda-socio="{ fila }">
+      <div class="socio">
+        <AvatarFz :nombre="fila.socio.nombre" />
+        <div class="socio__datos">
+          <div class="socio__linea">
+            <RouterLink :to="{ name: 'socio-detalle', params: { socioId: fila.socio.id } }" class="socio__nombre">
+              {{ fila.socio.nombre }}
+            </RouterLink>
+            <span class="socio__id" title="ID de socio para registrar accesos">#{{ fila.socio.id }}</span>
           </div>
-          <div class="tabla-socios__detalles">
-            <div class="tabla-socios__fila-nombre">
-              <RouterLink
-                :to="{ name: 'socio-detalle', params: { socioId: (fila as FilaSocio).socio.id } }"
-                class="tabla-socios__nombre-link"
-              >
-                {{ (fila as FilaSocio).socio.nombre }}
-              </RouterLink>
-              <span class="tabla-socios__badge-id" title="ID de socio para registrar accesos">
-                #{{ (fila as FilaSocio).socio.id }}
-              </span>
-            </div>
-            <span class="tabla-socios__email">{{ (fila as FilaSocio).socio.email }}</span>
-          </div>
+          <span class="socio__email" :title="fila.socio.email">{{ fila.socio.email }}</span>
         </div>
-      </template>
+      </div>
+    </template>
 
-      <template #celda-sede="{ fila }">
-        <span>{{ nombreSede((fila as FilaSocio).socio.sedeOrigenId) }}</span>
-      </template>
+    <template #celda-sede="{ fila }">
+      {{ nombreSede(fila.socio.sedeOrigenId) }}
+    </template>
 
-      <template #celda-alta="{ fila }">
-        <span class="tabla-socios__fecha">{{ formatearFecha((fila as FilaSocio).socio.fechaAlta) }}</span>
-      </template>
+    <template #celda-alta="{ fila }">
+      <span class="tenue">{{ formatearFecha(fila.socio.fechaAlta) }}</span>
+    </template>
 
-      <template #celda-plan="{ fila }">
-        <InsigniaFz v-if="(fila as FilaSocio).membresia.situacion === 'disponible'">
-          {{ ETIQUETAS_PLAN[((fila as FilaSocio).membresia as { situacion: 'disponible'; membresia: { plan: 'MENSUAL' | 'TRIMESTRAL' | 'ANUAL' } }).membresia.plan] }}
-        </InsigniaFz>
-        <span v-else class="tabla-socios__tenue">
-          {{ (fila as FilaSocio).membresia.situacion === 'cargando' ? 'Cargando…' : 'Sin plan' }}
-        </span>
-      </template>
+    <template #celda-plan="{ fila }">
+      <InsigniaFz v-if="fila.membresia.situacion === 'disponible'">
+        {{ ETIQUETAS_PLAN[fila.membresia.membresia.plan] }}
+      </InsigniaFz>
+      <span v-else class="tenue">{{ fila.membresia.situacion === 'cargando' ? 'Cargando…' : 'Sin plan' }}</span>
+    </template>
 
-      <template #celda-estado="{ fila }">
-        <InsigniaFz
-          v-if="(fila as FilaSocio).membresia.situacion === 'disponible'"
-          :variante="VARIANTES_ESTADO[((fila as FilaSocio).membresia as { situacion: 'disponible'; membresia: { estado: 'ACTIVA' | 'VENCIDA' | 'SUSPENDIDA' } }).membresia.estado]"
-        >
-          {{ ETIQUETAS_ESTADO[((fila as FilaSocio).membresia as { situacion: 'disponible'; membresia: { estado: 'ACTIVA' | 'VENCIDA' | 'SUSPENDIDA' } }).membresia.estado] }}
-        </InsigniaFz>
-        <span v-else class="tabla-socios__tenue">
-          {{ (fila as FilaSocio).membresia.situacion === 'cargando' ? 'Cargando…' : '—' }}
-        </span>
-      </template>
+    <template #celda-estado="{ fila }">
+      <InsigniaFz
+        v-if="fila.membresia.situacion === 'disponible'"
+        :variante="VARIANTES_ESTADO[fila.membresia.membresia.estado]"
+      >
+        {{ ETIQUETAS_ESTADO[fila.membresia.membresia.estado] }}
+      </InsigniaFz>
+      <span v-else class="tenue">{{ fila.membresia.situacion === 'cargando' ? 'Cargando…' : '—' }}</span>
+    </template>
 
-      <!-- Columna de Acciones -->
-      <template #celda-acciones="{ fila }">
-        <div class="tabla-socios__acciones-fila">
-          <RouterLink
-            :to="{ name: 'socio-detalle', params: { socioId: (fila as FilaSocio).socio.id } }"
-            class="tabla-socios__boton-accion"
-            title="Ver ficha detallada"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <span class="tabla-socios__accion-texto">Ver</span>
-          </RouterLink>
+    <template #celda-renovacion="{ fila }">
+      <InterruptorFz
+        v-if="fila.membresia.situacion === 'disponible'"
+        :model-value="fila.membresia.membresia.renuevaAutomatica"
+        :etiqueta="`Renovación automática de ${fila.socio.nombre}`"
+        :ocupado="guardandoRenovacion.has(fila.socio.id)"
+        @update:model-value="emit('alternar-renovacion', fila.socio.id)"
+      />
+      <span v-else class="tenue">{{ fila.membresia.situacion === 'cargando' ? 'Cargando…' : '—' }}</span>
+    </template>
 
-          <!-- Menú de opciones secundarias (tres puntos) -->
-          <div class="tabla-socios__menu-contenedor">
-            <button
-              type="button"
-              class="tabla-socios__boton-tres-puntos"
-              title="Más opciones"
-              aria-label="Más opciones"
-              @click="alternarMenu((fila as FilaSocio).socio.id)"
-            >
-              ···
-            </button>
-
-            <div
-              v-if="menuActivoId === (fila as FilaSocio).socio.id"
-              class="tabla-socios__dropdown"
-              @mouseleave="cerrarMenu"
-            >
-              <RouterLink
-                :to="{ name: 'socio-detalle', params: { socioId: (fila as FilaSocio).socio.id } }"
-                class="tabla-socios__dropdown-item"
-              >
-                Modificar membresía
-              </RouterLink>
-              <RouterLink
-                :to="{ name: 'socio-detalle', params: { socioId: (fila as FilaSocio).socio.id } }"
-                class="tabla-socios__dropdown-item"
-              >
-                Ver carnet / QR
-              </RouterLink>
-            </div>
-          </div>
-        </div>
-      </template>
-    </TablaFz>
-  </div>
+    <template #celda-acciones="{ fila }">
+      <div class="acciones">
+        <RouterLink v-slot="{ href, navigate }" :to="{ name: 'socio-detalle', params: { socioId: fila.socio.id } }" custom>
+          <BotonFz como="a" variante="secundario" tamano="sm" :href="href" @click="navigate">
+            <IconoFz nombre="ojo" tamano="sm" />
+            Ver
+          </BotonFz>
+        </RouterLink>
+        <MenuAccionesFz
+          :etiqueta="`Acciones de ${fila.socio.nombre}`"
+          :acciones="accionesDe(fila)"
+          @seleccionar="(clave) => alSeleccionar(fila, clave)"
+        />
+      </div>
+    </template>
+  </TablaFz>
 </template>
 
 <style scoped>
-.tabla-socios-contenedor {
-  width: 100%;
-}
-
-.tabla-socios__identidad {
+.socio {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--fz-espaciado-compacto);
 }
 
-.tabla-socios__avatar {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background: var(--fz-color-hover);
-  border: 1px solid var(--fz-color-borde);
-  color: var(--fz-color-texto);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.tabla-socios__detalles {
+.socio__datos {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  max-width: calc(15 * var(--fz-espaciado-base));
 }
 
-.tabla-socios__fila-nombre {
+.socio__linea {
   display: flex;
-  align-items: center;
-  gap: 0.375rem;
+  align-items: baseline;
+  gap: var(--fz-espaciado-compacto);
 }
 
-.tabla-socios__badge-id {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--fz-color-primario);
-  background: var(--fz-color-hover);
-  border: 1px solid var(--fz-color-borde);
-  padding: 0.0625rem 0.375rem;
-  border-radius: var(--fz-radio-control);
-}
-
-.tabla-socios__nombre-link {
+.socio__nombre {
   color: var(--fz-color-texto);
-  font-weight: 600;
+  font-weight: var(--fz-peso-enfasis);
   text-decoration: none;
-  transition: color 0.15s ease;
 }
 
-.tabla-socios__nombre-link:hover {
-  color: var(--fz-color-primario);
+.socio__nombre:hover {
   text-decoration: underline;
 }
 
-.tabla-socios__email {
-  font-size: 0.75rem;
+.socio__nombre:focus-visible {
+  outline: 2px solid var(--fz-color-foco);
+  outline-offset: 2px;
+}
+
+.socio__id,
+.socio__email {
+  color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-minimo);
+  font-weight: var(--fz-peso-normal);
+}
+
+.socio__email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tenue {
   color: var(--fz-color-texto-suave);
 }
 
-.tabla-socios__fecha {
-  font-size: 0.875rem;
-  color: var(--fz-color-texto-suave);
-}
-
-.tabla-socios__tenue {
-  color: var(--fz-color-texto-suave);
-  font-size: 0.8125rem;
-}
-
-.tabla-socios__acciones-fila {
+.acciones {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   justify-content: flex-end;
-}
-
-.tabla-socios__boton-accion {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--fz-radio-control);
-  background: var(--fz-color-hover);
-  border: 1px solid var(--fz-color-borde);
-  color: var(--fz-color-texto);
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
-
-.tabla-socios__boton-accion:hover {
-  background: var(--fz-color-borde);
-}
-
-.tabla-socios__accion-texto {
-  font-size: 0.75rem;
-}
-
-.tabla-socios__menu-contenedor {
-  position: relative;
-}
-
-.tabla-socios__boton-tres-puntos {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--fz-radio-control);
-  color: var(--fz-color-texto-suave);
-  font-size: 1.125rem;
-  font-weight: bold;
-  padding: 0 0.375rem;
-  cursor: pointer;
-  line-height: 1;
-  transition: background 0.15s ease;
-}
-
-.tabla-socios__boton-tres-puntos:hover {
-  background: var(--fz-color-hover);
-  border-color: var(--fz-color-borde);
-  color: var(--fz-color-texto);
-}
-
-.tabla-socios__dropdown {
-  position: absolute;
-  right: 0;
-  top: 100%;
-  margin-top: 0.25rem;
-  background: var(--fz-color-superficie);
-  border: 1px solid var(--fz-color-borde);
-  border-radius: var(--fz-radio-control);
-  box-shadow: var(--fz-sombra-elevada);
-  display: flex;
-  flex-direction: column;
-  min-width: 10rem;
-  z-index: 10;
-  padding: 0.25rem 0;
-}
-
-.tabla-socios__dropdown-item {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.8125rem;
-  color: var(--fz-color-texto);
-  text-decoration: none;
-  transition: background 0.15s;
-}
-
-.tabla-socios__dropdown-item:hover {
-  background: var(--fz-color-hover);
-  color: var(--fz-color-primario);
+  gap: var(--fz-espaciado-compacto);
 }
 </style>

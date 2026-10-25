@@ -9,12 +9,15 @@ const props = withDefaults(
     tamano?: 'sm' | 'md' | 'lg'
     cargando?: boolean
     tipo?: 'button' | 'submit' | 'reset'
+    // 'a' lo dibuja como enlace (el `href` llega por atributos) con el aspecto de un botón.
+    como?: 'button' | 'a'
   }>(),
   {
     variante: 'primario',
     tamano: 'md',
     cargando: false,
     tipo: 'button',
+    como: 'button',
   },
 )
 
@@ -27,16 +30,17 @@ const deshabilitado = computed(
 </script>
 
 <template>
-  <button
+  <component
+    :is="como"
     v-bind="attrs"
-    :type="tipo"
-    :disabled="deshabilitado"
+    :type="como === 'button' ? tipo : undefined"
+    :disabled="como === 'button' ? deshabilitado : undefined"
     :aria-busy="cargando || undefined"
     :class="['boton', `boton--${variante}`, `boton--${tamano}`, { 'boton--cargando': cargando }]"
   >
     <span v-if="cargando" class="boton__spinner" aria-hidden="true" />
     <slot />
-  </button>
+  </component>
 </template>
 
 <style scoped>
@@ -50,6 +54,7 @@ const deshabilitado = computed(
   font-family: inherit;
   font-weight: var(--fz-boton-peso);
   line-height: 1;
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   transition:

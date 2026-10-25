@@ -80,6 +80,30 @@ Cuadradito de esquinas redondeadas (el radio de control, como `MarcaFz`) con las
 
 Iniciales: la primera letra de cada una de las dos primeras palabras, en mayúsculas (`Camila Domínguez` → `CD`); con una sola palabra, solo su primera letra (`Camila` → `C`); con el nombre vacío o solo espacios, `?`. Respeta acentos y la Ñ. Tokens: `--fz-avatar-*`.
 
+## Botón como enlace y campo con ícono
+
+Dos adiciones que no cambian el uso existente.
+
+### `BotonFz` con `como="a"`
+
+Para navegar sin poner un botón dentro de un enlace (HTML inválido y dos paradas de tabulación). Con `como="a"` el componente dibuja un `<a class="boton ...">` con el mismo aspecto, sin `type` ni `disabled`; el `href` y el resto de los atributos llegan por atributos. El kit no conoce el router: quien lo usa le pasa el destino. Con `RouterLink` en modo `custom`:
+
+```vue
+<RouterLink v-slot="{ href, navigate }" :to="{ name: 'socios-nuevo' }" custom>
+  <BotonFz como="a" :href="href" @click="navigate">Nuevo socio</BotonFz>
+</RouterLink>
+```
+
+Un enlace se activa con Enter (no con Espacio) y no puede deshabilitarse: para acciones que no navegan, seguir usando el botón.
+
+### `CampoTextoFz` con `icono`
+
+Prop opcional `icono` (un `NombreIconoFz`, ej. `"buscar"`): dibuja el ícono decorativo a la izquierda, dentro del campo, y deja lugar al texto con el token `--fz-campo-icono-relleno`. Sin la prop, el componente es el `<input>` de siempre; con ella, la raíz pasa a ser un envoltorio y los atributos (`class` incluida) siguen yendo al `<input>`. El nombre accesible lo da una etiqueta o un `aria-label`, no el ícono.
+
+```vue
+<CampoTextoFz v-model="nombre" tipo="search" icono="buscar" placeholder="Buscar por nombre…" aria-label="Buscar socio por nombre" />
+```
+
 ## Plantilla de la app: `PlantillaAppFz`
 
 Armazón de las pantallas autenticadas. Los cambios son aditivos: sin las props nuevas se comporta como siempre (barra superior).

@@ -1,6 +1,7 @@
 import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
 import { mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
+import { useAvisosFz } from '@/ui'
 import { ESTADOS, PLANES } from '../presentacion'
 import type { FiltrosSocios } from '../services/servicioSocios'
 import type { FilaSocio, FiltrosListaSocios } from '../tipos'
@@ -12,6 +13,7 @@ const CONCURRENCIA_MEMBRESIAS = 4
 
 export function useListaSocios() {
   const servicio = useServicios().socios
+  const avisos = useAvisosFz()
 
   const filtros = reactive<FiltrosListaSocios>({ nombre: '', estado: '', plan: '', sede: '' })
   const pagina = ref(1)
@@ -21,6 +23,8 @@ export function useListaSocios() {
   const error = ref<string | null>(null)
 
   const totalPaginas = computed(() => Math.max(1, Math.ceil(total.value / POR_PAGINA)))
+  // Ids de los socios cuya renovación automática se está guardando.
+  const guardandoRenovacion = reactive(new Set<number>())
 
   // El nombre se aplica con debounce; el resto de los filtros, de inmediato.
   const nombreAplicado = ref('')
@@ -107,6 +111,43 @@ export function useListaSocios() {
     await Promise.all(Array.from({ length: CONCURRENCIA_MEMBRESIAS }, trabajador))
   }
 
+  const hayFiltrosActivos = computed(() =>
+    Boolean(filtros.nombre.trim() || filtros.estado || filtros.plan || filtros.sede),
+  )
+
+  function limpiarFiltros() {
+    // El nombre se aplica sin esperar el debounce: limpiar es una acción explícita.
+    clearTimeout(temporizador)
+    nombreAplicado.value = ''
+    filtros.nombre = ''
+    filtros.estado = ''
+    filtros.plan = ''
+    filtros.sede = ''
+  }
+
+  // Se guarda al tocar el interruptor y la fila se actualiza con lo que devuelve el servidor. Si falla, la fila
+  // no cambia (el interruptor vuelve solo a su estado anterior) y sale un aviso.
+  async function alternarRenovacion(socioId: number) {
+    const fila = items.value.find((candidata) => candidata.socio.id === socioId)
+    if (!fila || fila.membresia.situacion !== 'disponible' || guardandoRenovacion.has(socioId)) return
+    const consulta = ultimaConsulta
+    guardandoRenovacion.add(socioId)
+    try {
+      const actualizada = await servicio.modificarMembresia(socioId, {
+        renuevaAutomatica: !fila.membresia.membresia.renuevaAutomatica,
+      })
+      // Si cambió la consulta o la fila ya no está, el resultado no aplica.
+      if (consulta !== ultimaConsulta) return
+      const vigente = items.value.find((candidata) => candidata.socio.id === socioId)
+      if (vigente) vigente.membresia = { situacion: 'disponible', membresia: actualizada }
+    } catch (e) {
+      if (consulta !== ultimaConsulta) return
+      avisos.error(mensajeDeError(e, 'No se pudo cambiar la renovación automática.'))
+    } finally {
+      guardandoRenovacion.delete(socioId)
+    }
+  }
+
   // Cambiar un filtro vuelve a la página 1; si ya estaba en la 1, recarga directamente.
   watch([nombreAplicado, () => filtros.estado, () => filtros.plan, () => filtros.sede], () => {
     if (pagina.value !== 1) pagina.value = 1
@@ -122,5 +163,18 @@ export function useListaSocios() {
 
   void cargar()
 
-  return { filtros, pagina, items, total, totalPaginas, cargando, error }
+  return {
+    filtros,
+    pagina,
+    porPagina: POR_PAGINA,
+    items,
+    total,
+    totalPaginas,
+    cargando,
+    error,
+    hayFiltrosActivos,
+    limpiarFiltros,
+    alternarRenovacion,
+    guardandoRenovacion,
+  }
 }

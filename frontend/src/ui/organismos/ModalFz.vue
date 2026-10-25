@@ -125,6 +125,14 @@ function pedirCierre() {
   box-shadow: var(--fz-modal-sombra);
 }
 
+/*
+ * El propio <dialog> recibe el foco cuando no hay nada enfocable (todo deshabilitado u ocupado) y el navegador le
+ * dibuja un contorno que es solo ruido: no es un control. Los botones y campos de adentro conservan el suyo.
+ */
+.modal:focus-visible {
+  outline: none;
+}
+
 /* Columna: el encabezado y el pie quedan a la vista y solo el cuerpo se desplaza. */
 .modal[open] {
   display: flex;

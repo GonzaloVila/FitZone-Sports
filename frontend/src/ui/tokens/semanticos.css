@@ -30,6 +30,7 @@
   --fz-color-exito-borde: var(--fz-prim-verde-200);
 
   --fz-color-peligro: var(--fz-prim-rojo-700);
+  --fz-color-peligro-hover: var(--fz-prim-rojo-800);
   --fz-color-peligro-fondo: var(--fz-prim-rojo-50);
   --fz-color-peligro-borde: var(--fz-prim-rojo-200);
 

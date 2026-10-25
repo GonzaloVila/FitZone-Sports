@@ -114,7 +114,6 @@ const deshabilitado = computed(
 .boton--peligro:hover:not(:disabled) {
   background: var(--fz-boton-peligro-fondo-hover);
   border-color: var(--fz-boton-peligro-borde-hover);
-  color: var(--fz-boton-peligro-texto-hover);
 }
 
 .boton--advertencia {
@@ -151,6 +150,13 @@ const deshabilitado = computed(
   border-color: var(--fz-boton-deshabilitado-borde);
   color: var(--fz-boton-deshabilitado-texto);
   cursor: not-allowed;
+}
+
+.boton--fantasma:disabled:not(.boton--cargando) {
+  background: var(--fz-boton-fantasma-deshabilitado-fondo);
+  border-color: var(--fz-boton-fantasma-deshabilitado-borde);
+  color: var(--fz-boton-fantasma-deshabilitado-texto);
+  opacity: var(--fz-boton-fantasma-deshabilitado-opacidad);
 }
 
 .boton--cargando {

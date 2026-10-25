@@ -33,5 +33,11 @@ export type AccionSocio =
   | 'cambiar-sede'
   | 'dejar-de-ser-socio'
 
-// Lo que la lista pide a la ficha: abrir una acción con modal, o simplemente ver la ficha.
+// Lo que se puede pedir desde el menú de una fila: ver la ficha o abrir el modal de una acción.
 export type AccionFila = 'ver-ficha' | Extract<AccionSocio, 'cambiar-plan' | 'suspender' | 'reactivar' | 'dejar-de-ser-socio'>
+
+// Las acciones de una fila que se resuelven en un modal.
+export type AccionConModal = Exclude<AccionFila, 'ver-ficha'>
+
+// Lo mínimo del socio que muestran los modales (la lista y la ficha lo arman con lo que tienen).
+export type SocioResumen = Pick<Socio, 'id' | 'nombre' | 'email'>

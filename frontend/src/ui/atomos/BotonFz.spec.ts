@@ -27,6 +27,21 @@ describe('BotonFz', () => {
     expect(wrapper.emitted('click')).toHaveLength(1)
   })
 
+  it('la variante peligro agrega su clase (el estilo sólido va por tokens) y dispara el clic', async () => {
+    const wrapper = mount(BotonFz, { props: { variante: 'peligro' }, slots: { default: 'Anular pago' } })
+
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['boton', 'boton--peligro']))
+    await wrapper.trigger('click')
+    expect(wrapper.emitted('click')).toHaveLength(1)
+  })
+
+  it('la variante fantasma deshabilitada conserva su clase y queda sin disparar clics', async () => {
+    const wrapper = mount(BotonFz, { props: { variante: 'fantasma' }, attrs: { disabled: '' } })
+
+    expect(wrapper.classes()).toContain('boton--fantasma')
+    expect(wrapper.attributes('disabled')).toBeDefined()
+  })
+
   it('la variante advertencia deshabilitada no es clickeable', () => {
     const wrapper = mount(BotonFz, { props: { variante: 'advertencia' }, attrs: { disabled: '' } })
 

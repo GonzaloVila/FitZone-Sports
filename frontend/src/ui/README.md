@@ -99,7 +99,8 @@ Todo lo nuevo es opcional y aditivo: los usos existentes de `ModalFz` y `BotonFz
 
 - Encabezado: cajita de ícono (si hay), título, descripción (si hay) y a la derecha un botón "Cerrar" (`aria-label="Cerrar"`) que hace lo mismo que Cancelar. Separador fino debajo.
 - Pie: el slot `acciones` (`{ cerrar }`, sin cambios) va sobre el fondo de superficie, con separador fino arriba y los botones a la derecha; Cancelar queda a la izquierda de la acción principal. Sin slot, no hay pie.
-- Mientras `ocupado`: la X queda deshabilitada, Esc no cierra y el modal no se cierra.
+- Mientras `ocupado`: la X queda deshabilitada (sin fondo ni borde, solo atenuada), Esc no cierra y el modal no se cierra.
+- El propio `<dialog>` no dibuja contorno cuando recibe el foco él mismo (pasa cuando no hay nada enfocable, por ejemplo con todo deshabilitado u ocupado): no es un control y el contorno solo era ruido. Los botones y campos de adentro conservan su anillo de foco.
 - Foco: al abrir va al primer control del cuerpo (o la opción elegida de un grupo de radios) y, si no hay, al primer botón del pie; al cerrar vuelve a quien lo abrió.
 - Fondo: velo del color de texto al 30 % con un desenfoque leve. Tokens `--fz-modal-*`.
 
@@ -130,6 +131,11 @@ Elegida: borde primario y fondo primario muy claro. Tokens `--fz-opcion-tarjeta-
 ### `BotonFz` con `variante="advertencia"`
 
 Botón ámbar sólido con texto blanco (5.1:1; 7.2:1 en hover), para confirmar acciones delicadas pero reversibles, como suspender. Tokens `--fz-boton-advertencia-*`; el estado deshabilitado es el de las demás variantes.
+
+### `BotonFz` con `variante="peligro"` (sólida) y fantasma deshabilitado
+
+- `peligro` es **sólido** en toda la app: fondo `--fz-color-peligro`, texto blanco (5.2:1), borde del mismo color; en hover pasa a `--fz-color-peligro-hover`, un rojo más oscuro (6.7:1). Tokens `--fz-boton-peligro-*`. Es solo el botón: la variante `peligro` de `AvisoFz` y de `InsigniaFz` no cambia.
+- `fantasma` deshabilitado queda **sin fondo ni borde**, solo atenuado (tokens `--fz-boton-fantasma-deshabilitado-*`): así la X de un modal ocupado no se ve como una cajita gris. Las demás variantes deshabilitadas siguen rellenándose de gris.
 
 ## Botón como enlace y campo con ícono
 
@@ -226,6 +232,7 @@ Botón con el ícono `acciones` que despliega un menú. No tiene lógica de nego
 | --- | --- | --- |
 | `etiqueta` | `string` | Obligatoria. `aria-label` del disparador (solo tiene un ícono), ej. `"Acciones de Camila Domínguez"` |
 | `acciones` | `AccionMenuFz[]` | `{ clave, etiqueta, icono?, deshabilitada?, peligro? }`; `icono` es un `NombreIconoFz` |
+| `identificador` | `string` | Opcional. Se publica en el botón disparador como `data-identificador`, para que quien lo usa pueda devolverle el foco desde afuera cuando una acción abre un modal (el ítem del menú ya no existe) |
 
 Evento: `seleccionar(clave: string)`.
 
@@ -319,6 +326,8 @@ Viven en `ui/tokens/` y tienen tres niveles:
 3. **De componente** (`--fz-boton-*`...): decisiones por átomo. Referencian solo semánticos.
 
 Un componente **nunca** usa primitivos ni colores literales: solo tokens de componente o semánticos.
+
+Pares de color con poco margen (no tocar uno de los dos sin volver a medir): el texto de `AvisoFz` y de `InsigniaFz` en `peligro` es `--fz-color-peligro` sobre `--fz-color-peligro-fondo` (`#c53b32` sobre `#fdebec`, **4.52:1**, el mínimo de AA es 4.5:1); el de `advertencia` es `#9a610f` sobre `#fdf5e8` (4.74:1). Aclarar el rojo del texto o oscurecer el fondo rosado lo deja por debajo.
 
 Los tokens los cambia solo quien lleva el kit; los demás piden el cambio.
 

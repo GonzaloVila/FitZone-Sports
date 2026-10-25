@@ -17,6 +17,14 @@ beforeAll(() => {
       disconnect() {}
     },
   )
+  // jsdom no implementa <dialog>.showModal(): se completa con lo mínimo para que el modal quede "abierto".
+  const dialogo = HTMLDialogElement.prototype
+  dialogo.showModal ??= function (this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  }
+  dialogo.close ??= function (this: HTMLDialogElement) {
+    this.removeAttribute('open')
+  }
 })
 
 const servicios = {
@@ -200,14 +208,16 @@ describe('GestionSociosPage', () => {
     wrapper.unmount()
   })
 
-  it('una acción con modal navega a la ficha con ?accion=', async () => {
+  it('una acción con modal se abre en la propia lista, sin navegar a la ficha', async () => {
     servicios.socios.listar.mockResolvedValue({ items: [socio(7)], total: 1 })
     const wrapper = await montar()
 
     wrapper.getComponent(TablaSocios).vm.$emit('abrir-accion', { socioId: 7, accion: 'suspender' })
     await flushPromises()
 
-    expect(router.currentRoute.value.fullPath).toBe('/socios/7?accion=suspender')
+    expect(router.currentRoute.value.fullPath).toBe('/socios')
+    expect(wrapper.findAll('dialog[open]')).toHaveLength(1)
+    expect(wrapper.get('dialog[open] h2').text()).toBe('Suspender membresía')
     wrapper.unmount()
   })
 })

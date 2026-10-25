@@ -34,12 +34,11 @@
   --fz-boton-secundario-borde: var(--fz-color-borde-control);
   --fz-boton-secundario-borde-hover: var(--fz-color-borde-control);
 
-  --fz-boton-peligro-fondo: var(--fz-color-peligro-fondo);
-  --fz-boton-peligro-fondo-hover: var(--fz-color-peligro);
-  --fz-boton-peligro-texto: var(--fz-color-peligro);
-  --fz-boton-peligro-texto-hover: var(--fz-color-texto-sobre-primario);
-  --fz-boton-peligro-borde: var(--fz-color-peligro-borde);
-  --fz-boton-peligro-borde-hover: var(--fz-color-peligro);
+  --fz-boton-peligro-fondo: var(--fz-color-peligro);
+  --fz-boton-peligro-fondo-hover: var(--fz-color-peligro-hover);
+  --fz-boton-peligro-texto: var(--fz-color-texto-sobre-primario);
+  --fz-boton-peligro-borde: var(--fz-color-peligro);
+  --fz-boton-peligro-borde-hover: var(--fz-color-peligro-hover);
 
   --fz-boton-advertencia-fondo: var(--fz-color-advertencia);
   --fz-boton-advertencia-fondo-hover: var(--fz-color-advertencia-hover);
@@ -52,6 +51,11 @@
   --fz-boton-fantasma-texto: var(--fz-color-texto);
   --fz-boton-fantasma-borde: transparent;
   --fz-boton-fantasma-borde-hover: transparent;
+  /* Fantasma deshabilitado: sin fondo ni borde, solo atenuado (a diferencia del resto, que se rellena de gris). */
+  --fz-boton-fantasma-deshabilitado-fondo: transparent;
+  --fz-boton-fantasma-deshabilitado-borde: transparent;
+  --fz-boton-fantasma-deshabilitado-texto: var(--fz-color-texto-suave);
+  --fz-boton-fantasma-deshabilitado-opacidad: 0.6;
 
   --fz-boton-deshabilitado-fondo: var(--fz-color-hover);
   --fz-boton-deshabilitado-texto: var(--fz-color-texto-suave);

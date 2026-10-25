@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, useTemplateRef, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { AvisoFz, BotonFz, IconoFz, InsigniaFz, PaginacionFz } from '@/ui'
 import FiltrosSocios from '../components/FiltrosSocios.vue'
+import ModalesAccionSocio from '../components/modales/ModalesAccionSocio.vue'
 import TablaSocios from '../components/TablaSocios.vue'
+import { useAccionesSocio } from '../composables/useAccionesSocio'
 import { useListaSocios } from '../composables/useListaSocios'
 import type { AccionFila } from '../tipos'
 
@@ -22,6 +24,8 @@ const {
   limpiarFiltros,
   alternarRenovacion,
   guardandoRenovacion,
+  reemplazarMembresia,
+  recargar,
 } = useListaSocios()
 const { sedes, error: errorSedes, nombreDeSede } = useSedes()
 
@@ -41,14 +45,33 @@ const textoRango = computed(() => {
   return `Mostrando ${rangoInicio.value} a ${rangoFin.value} de ${total.value} ${total.value === 1 ? 'socio' : 'socios'}`
 })
 
-// Las acciones con modal se resuelven en la ficha: la lista solo navega y avisa cuál se pidió.
+const titulo = useTemplateRef<HTMLElement>('titulo')
+
+// Las acciones con modal se resuelven acá mismo: al terminar bien, la fila se actualiza con lo que devolvió el
+// servidor y, si fue una baja, se vuelve a consultar la página (la fila ya no existe).
+const acciones = useAccionesSocio(async (resultado) => {
+  if (!('baja' in resultado)) return reemplazarMembresia(resultado.socioId, resultado.membresia)
+  await recargar()
+  await nextTick()
+  titulo.value?.focus()
+})
+
 function abrirAccion({ socioId, accion }: { socioId: number; accion: AccionFila }) {
-  void router.push({
-    name: 'socio-detalle',
-    params: { socioId },
-    query: accion === 'ver-ficha' ? undefined : { accion },
-  })
+  if (accion === 'ver-ficha') {
+    void router.push({ name: 'socio-detalle', params: { socioId } })
+    return
+  }
+  const fila = items.value.find((candidata) => candidata.socio.id === socioId)
+  if (fila) acciones.abrir(fila, accion)
 }
+
+// Al cerrarse el modal (Cancelar, X, Esc o éxito) el foco vuelve al botón "···" de esa fila: el ítem del menú que
+// lo abrió ya no existe. Se espera a que el modal termine de cerrarse para que su propia devolución de foco no pise esta.
+watch(acciones.pedido, async (nuevo, previo) => {
+  if (nuevo || !previo) return
+  await nextTick()
+  document.querySelector<HTMLElement>(`[data-identificador="menu-socio-${previo.fila.socio.id}"]`)?.focus()
+})
 </script>
 
 <template>
@@ -56,7 +79,7 @@ function abrirAccion({ socioId, accion }: { socioId: number; accion: AccionFila 
     <header class="socios__encabezado">
       <div class="socios__titulos">
         <div class="socios__titulo-grupo">
-          <h1 class="socios__titulo">Socios</h1>
+          <h1 ref="titulo" class="socios__titulo" tabindex="-1">Socios</h1>
           <InsigniaFz>{{ total }} {{ total === 1 ? 'socio' : 'socios' }}</InsigniaFz>
         </div>
         <p class="socios__subtitulo">Gestión de membresías, altas y consulta de socios.</p>
@@ -99,6 +122,19 @@ function abrirAccion({ socioId, accion }: { socioId: number; accion: AccionFila 
       {{ hayFiltrosActivos ? 'No se encontraron socios con los filtros aplicados.' : 'Todavía no hay socios.' }}
     </p>
 
+    <ModalesAccionSocio
+      :accion="acciones.accion.value"
+      :socio="acciones.socio.value"
+      :membresia="acciones.membresia.value"
+      :ejecutando="acciones.ejecutando.value"
+      :error="acciones.error.value"
+      @cerrar="acciones.cerrar"
+      @confirmar-plan="acciones.confirmarPlan"
+      @suspender="acciones.suspender"
+      @reactivar="acciones.reactivar"
+      @dejar-de-ser-socio="acciones.dejarDeSerSocio"
+    />
+
     <footer class="socios__pie">
       <p class="socios__rango" role="status" aria-live="polite" aria-atomic="true">{{ textoRango }}</p>
       <PaginacionFz v-if="totalPaginas > 1" v-model="pagina" :total-paginas="totalPaginas" etiqueta="Paginación de socios" />
@@ -136,6 +172,7 @@ function abrirAccion({ socioId, accion }: { socioId: number; accion: AccionFila 
 
 .socios__titulo {
   margin: 0;
+  outline: none;
   color: var(--fz-color-texto);
   font-size: var(--fz-texto-titulo);
   font-weight: var(--fz-peso-enfasis);

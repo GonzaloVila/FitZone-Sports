@@ -53,6 +53,19 @@ describe('MenuAccionesFz', () => {
     wrapper.unmount()
   })
 
+  it('el identificador opcional se publica en el disparador (data-identificador), y sin él no hay atributo', () => {
+    const con = mount(MenuAccionesFz, {
+      props: { etiqueta: 'Acciones', acciones, identificador: 'menu-socio-7' },
+      attachTo: document.body,
+    })
+    expect(con.get('button').attributes('data-identificador')).toBe('menu-socio-7')
+    con.unmount()
+
+    const sin = montar()
+    expect(sin.get('button').attributes('data-identificador')).toBeUndefined()
+    sin.unmount()
+  })
+
   it('con el teclado abre el menú en el portal con todas las acciones', async () => {
     const wrapper = montar()
 

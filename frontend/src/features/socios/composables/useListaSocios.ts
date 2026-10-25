@@ -3,7 +3,7 @@ import { mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
 import { useAvisosFz } from '@/ui'
 import { ESTADOS, PLANES } from '../presentacion'
-import type { FiltrosSocios } from '../services/servicioSocios'
+import type { FiltrosSocios, Membresia } from '../services/servicioSocios'
 import type { FilaSocio, FiltrosListaSocios } from '../tipos'
 
 const POR_PAGINA = 10
@@ -125,6 +125,17 @@ export function useListaSocios() {
     filtros.sede = ''
   }
 
+  // Actualiza la fila de esa página con lo que devolvió el servidor, sin volver a consultar el listado.
+  function reemplazarMembresia(socioId: number, membresia: Membresia) {
+    const fila = items.value.find((candidata) => candidata.socio.id === socioId)
+    if (fila) fila.membresia = { situacion: 'disponible', membresia }
+  }
+
+  // Vuelve a consultar la página actual (por ejemplo, después de una baja). Una respuesta vieja se descarta igual.
+  function recargar() {
+    return cargar()
+  }
+
   // Se guarda al tocar el interruptor y la fila se actualiza con lo que devuelve el servidor. Si falla, la fila
   // no cambia (el interruptor vuelve solo a su estado anterior) y sale un aviso.
   async function alternarRenovacion(socioId: number) {
@@ -138,8 +149,7 @@ export function useListaSocios() {
       })
       // Si cambió la consulta o la fila ya no está, el resultado no aplica.
       if (consulta !== ultimaConsulta) return
-      const vigente = items.value.find((candidata) => candidata.socio.id === socioId)
-      if (vigente) vigente.membresia = { situacion: 'disponible', membresia: actualizada }
+      reemplazarMembresia(socioId, actualizada)
     } catch (e) {
       if (consulta !== ultimaConsulta) return
       avisos.error(mensajeDeError(e, 'No se pudo cambiar la renovación automática.'))
@@ -176,5 +186,7 @@ export function useListaSocios() {
     limpiarFiltros,
     alternarRenovacion,
     guardandoRenovacion,
+    reemplazarMembresia,
+    recargar,
   }
 }

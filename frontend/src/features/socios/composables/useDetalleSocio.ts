@@ -3,7 +3,7 @@ import { esErrorApiConEstado, mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
 import type { Usuario } from '@/features/usuarios/services/servicioUsuarios'
 import type { Membresia, MembresiaPatch, Plan, Socio } from '../services/servicioSocios'
-import { accionPermitida } from '../presentacion'
+import { accionPermitida, cambiosParaPlan, mensajeDeErrorDeMembresia } from '../presentacion'
 import type { AccionSocio, Opcional } from '../tipos'
 
 export type EstadoDetalle = 'cargando' | 'listo' | 'no-existe' | 'error'
@@ -110,7 +110,7 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
       exito.value = mensaje
       return true
     } catch (e) {
-      if (carga === ultimaCarga) errorAccion.value = mensajeDeError(e, 'No se pudo completar la acción.')
+      if (carga === ultimaCarga) errorAccion.value = mensajeDeErrorDeMembresia(e, 'No se pudo completar la acción.')
       return false
     } finally {
       if (carga === ultimaCarga) ejecutando.value = null
@@ -131,8 +131,15 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
 
   const suspender = () => cambiarMembresia('suspender', { estado: 'SUSPENDIDA' }, 'La membresía quedó suspendida.')
   const reactivar = () => cambiarMembresia('reactivar', { estado: 'ACTIVA' }, 'La membresía volvió a estar activa.')
-  const cambiarPlan = (plan: Plan) =>
-    cambiarMembresia('cambiar-plan', { plan }, 'Se cambió el plan y se abrió un período nuevo desde hoy.')
+  // Una VENCIDA se renueva (se cobra el plan nuevo y vuelve a estar activa); una ACTIVA cambia sin cobro.
+  const cambiarPlan = (plan: Plan) => {
+    const vencida = estadoMembresia.value === 'VENCIDA'
+    return cambiarMembresia(
+      'cambiar-plan',
+      cambiosParaPlan(plan, estadoMembresia.value),
+      vencida ? 'La membresía se renovó con el plan nuevo desde hoy.' : 'Se cambió el plan y se abrió un período nuevo desde hoy.',
+    )
+  }
 
   function alternarRenovacion() {
     if (membresia.value.situacion !== 'disponible') return Promise.resolve(false)

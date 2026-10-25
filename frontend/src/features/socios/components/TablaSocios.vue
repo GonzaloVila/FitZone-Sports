@@ -58,7 +58,12 @@ function accionesDe(fila: FilaSocio): AccionMenuFz[] {
       : { clave: 'suspender', etiqueta: 'Suspender', icono: 'pausa', deshabilitada: !accionPermitida('suspender', estado) }
   return [
     { clave: 'ver-ficha', etiqueta: 'Ver ficha', icono: 'ojo' },
-    { clave: 'cambiar-plan', etiqueta: 'Cambiar plan', icono: 'cambiar', deshabilitada: !accionPermitida('cambiar-plan', estado) },
+    {
+      clave: 'cambiar-plan',
+      etiqueta: estado === 'VENCIDA' ? 'Renovar' : 'Cambiar plan',
+      icono: 'cambiar',
+      deshabilitada: !accionPermitida('cambiar-plan', estado),
+    },
     alternaEstado,
     { clave: 'dejar-de-ser-socio', etiqueta: 'Dejar de ser socio', icono: 'quitar-usuario', peligro: true },
   ]
@@ -132,6 +137,7 @@ function alSeleccionar(fila: FilaSocio, clave: string) {
     <template #celda-acciones="{ fila }">
       <MenuAccionesFz
         :etiqueta="`Acciones de ${fila.socio.nombre}`"
+        :identificador="`menu-socio-${fila.socio.id}`"
         :acciones="accionesDe(fila)"
         @seleccionar="(clave) => alSeleccionar(fila, clave)"
       />

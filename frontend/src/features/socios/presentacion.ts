@@ -1,4 +1,5 @@
-import type { EstadoMembresia, Plan } from './services/servicioSocios'
+import { esErrorApiConEstado, mensajeDeError } from '@/compartido/http/errores'
+import type { EstadoMembresia, Membresia, MembresiaPatch, Plan } from './services/servicioSocios'
 import type { AccionFila, AccionSocio } from './tipos'
 
 // Cómo se muestran los valores del contrato. Record<...> obliga a actualizar esto si el contrato agrega uno.
@@ -40,20 +41,26 @@ export function formatearVigencia(inicioIso: string, finIso: string): string {
   return `${formatearFecha(inicioIso)} al ${formatearFecha(finIso)}`
 }
 
-// Acciones que se resuelven en un modal de la ficha y que la lista puede pedir.
-export const ACCIONES_CON_MODAL = ['cambiar-plan', 'suspender', 'reactivar', 'dejar-de-ser-socio'] as const satisfies readonly AccionSocio[]
-export type AccionConModal = (typeof ACCIONES_CON_MODAL)[number]
-
-export function esAccionConModal(valor: unknown): valor is AccionConModal {
-  return ACCIONES_CON_MODAL.some((accion) => accion === valor)
+// El período de la membresía ya terminó (aunque el estado todavía no se haya actualizado a VENCIDA).
+export function periodoTerminado(fechaFinIso: string, ahora: Date = new Date()): boolean {
+  return new Date(fechaFinIso).getTime() < ahora.getTime()
 }
 
+export function textoVigencia(membresia: Pick<Membresia, 'estado' | 'fechaFin'>, ahora: Date = new Date()): string {
+  const fecha = formatearFecha(membresia.fechaFin)
+  if (periodoTerminado(membresia.fechaFin, ahora)) return `Venció el ${fecha}`
+  return membresia.estado === 'ACTIVA' ? `Vigente hasta ${fecha}` : `Período hasta ${fecha}`
+}
+
+const ACCIONES_FILA = ['ver-ficha', 'cambiar-plan', 'suspender', 'reactivar', 'dejar-de-ser-socio'] as const satisfies readonly AccionFila[]
+
 export function esAccionFila(valor: unknown): valor is AccionFila {
-  return valor === 'ver-ficha' || esAccionConModal(valor)
+  return ACCIONES_FILA.some((accion) => accion === valor)
 }
 
 // Regla única de qué acciones admite una membresía según su estado (null = membresía no disponible).
-// Suspender solo desde ACTIVA. Reactivar solo desde SUSPENDIDA: una VENCIDA se resuelve con "Cambiar plan".
+// Suspender solo desde ACTIVA. Reactivar solo desde SUSPENDIDA. Cambiar plan desde ACTIVA (cambia sin cobro) o
+// desde VENCIDA (renueva: se cobra el plan nuevo); una SUSPENDIDA se reactiva primero.
 // Las acciones que no dependen de la membresía (dejar de ser socio, cambiar sede) siempre se permiten.
 export function accionPermitida(accion: AccionSocio, estadoMembresia: EstadoMembresia | null): boolean {
   switch (accion) {
@@ -62,10 +69,38 @@ export function accionPermitida(accion: AccionSocio, estadoMembresia: EstadoMemb
     case 'reactivar':
       return estadoMembresia === 'SUSPENDIDA'
     case 'cambiar-plan':
+      return estadoMembresia === 'ACTIVA' || estadoMembresia === 'VENCIDA'
     case 'renovacion-automatica':
       return estadoMembresia !== null
     case 'cambiar-sede':
     case 'dejar-de-ser-socio':
       return true
   }
+}
+
+// Qué se manda al cambiar de plan. El backend cobra el plan nuevo a una membresía no vigente pero no le cambia el
+// estado: para renovar una VENCIDA hay que pedir también que quede ACTIVA, en el mismo pedido.
+export function cambiosParaPlan(plan: Plan, estadoMembresia: EstadoMembresia | null): MembresiaPatch {
+  return estadoMembresia === 'VENCIDA' ? { plan, estado: 'ACTIVA' } : { plan }
+}
+
+// ACTIVA exige un plan distinto del actual (con el mismo se reiniciaría el período sin sentido). En VENCIDA vale
+// cualquiera, incluido el actual: es renovar.
+export function puedeConfirmarPlan(estadoMembresia: EstadoMembresia | null, planActual: Plan | null, planElegido: string): boolean {
+  if (!PLANES.some((plan) => plan === planElegido)) return false
+  if (estadoMembresia === 'ACTIVA') return planElegido !== planActual
+  return estadoMembresia === 'VENCIDA'
+}
+
+export const DURACION_PLAN: Record<Plan, string> = {
+  MENSUAL: '1 mes',
+  TRIMESTRAL: '3 meses',
+  ANUAL: '12 meses',
+}
+
+export const MENSAJE_COBRO_RECHAZADO = 'El cobro fue rechazado, no se hicieron cambios.'
+
+// El 402 es el cobro rechazado de un cambio de plan sobre una membresía no vigente.
+export function mensajeDeErrorDeMembresia(e: unknown, porDefecto: string): string {
+  return esErrorApiConEstado(e, 402) ? MENSAJE_COBRO_RECHAZADO : mensajeDeError(e, porDefecto)
 }

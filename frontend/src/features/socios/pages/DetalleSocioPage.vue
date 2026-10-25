@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { AvisoFz } from '@/ui'
@@ -7,15 +7,7 @@ import AccionesSocio from '../components/AccionesSocio.vue'
 import CarnetSocio from '../components/CarnetSocio.vue'
 import FichaSocio from '../components/FichaSocio.vue'
 import { useDetalleSocio } from '../composables/useDetalleSocio'
-import {
-  ETIQUETAS_ESTADO,
-  ETIQUETAS_PLAN,
-  VARIANTES_ESTADO,
-  accionPermitida,
-  esAccionConModal,
-  formatearVigencia,
-  type AccionConModal,
-} from '../presentacion'
+import { ETIQUETAS_ESTADO, ETIQUETAS_PLAN, VARIANTES_ESTADO, formatearVigencia } from '../presentacion'
 
 const route = useRoute()
 const router = useRouter()
@@ -43,9 +35,6 @@ const {
   ejecutando,
   errorAccion,
   exito,
-  puedeSuspender,
-  puedeReactivar,
-  hayMembresia,
   suspender,
   reactivar,
   cambiarPlan,
@@ -68,44 +57,6 @@ const carnet = computed(() => {
     vigencia: m ? formatearVigencia(m.fechaInicio, m.fechaFin) : undefined,
   }
 })
-
-// Acción pedida por la lista (?accion=...). Espera a que carguen el socio y su membresía; entonces, si es una
-// de las que abren modal y el estado actual la admite (mismas reglas que los botones), se abre. Pase lo que
-// pase, se quita de la URL para que recargar o volver atrás no la reabra. Una inválida se ignora sin error.
-const accionPedida = ref<unknown>(route.query.accion)
-const accionInicial = ref<AccionConModal | null>(null)
-const estadoMembresia = computed(() => datosMembresia.value?.estado ?? null)
-
-watch(
-  () => route.query.accion,
-  (valor) => {
-    if (valor !== undefined) accionPedida.value = valor
-  },
-)
-watch(socioId, () => {
-  accionInicial.value = null
-})
-
-watch(
-  [accionPedida, estado, socio, membresia],
-  async () => {
-    const pedida = accionPedida.value
-    if (pedida === undefined) return
-    const sinSocio = estado.value === 'no-existe' || estado.value === 'error'
-    const cargado = estado.value === 'listo' && socio.value?.id === socioId.value && membresia.value.situacion !== 'cargando'
-    if (!sinSocio && !cargado) return
-
-    accionPedida.value = undefined
-    void router.replace({ name: 'socio-detalle', params: route.params, query: { ...route.query, accion: undefined } })
-    if (cargado && esAccionConModal(pedida) && accionPermitida(pedida, estadoMembresia.value)) {
-      accionInicial.value = pedida
-      // AccionesSocio abre el modal al ver el cambio; después se baja para que una pedida igual pueda repetirse.
-      await nextTick()
-      accionInicial.value = null
-    }
-  },
-  { immediate: true },
-)
 
 async function alDejarDeSerSocio() {
   if (await dejarDeSerSocio()) await router.push({ name: 'socios' })
@@ -143,16 +94,12 @@ async function alDejarDeSerSocio() {
       <section class="detalle__seccion" aria-labelledby="detalle-acciones">
         <h2 id="detalle-acciones" class="detalle__subtitulo">Acciones</h2>
         <AccionesSocio
-          :puede-suspender="puedeSuspender"
-          :puede-reactivar="puedeReactivar"
-          :hay-membresia="hayMembresia"
-          :renueva-automatica="datosMembresia?.renuevaAutomatica ?? null"
-          :plan-actual="datosMembresia?.plan ?? null"
+          :socio="socio"
+          :membresia="datosMembresia"
           :sede-actual-id="socio.sedeOrigenId"
           :sedes="sedes"
           :ejecutando="ejecutando"
           :error="errorAccion"
-          :accion-inicial="accionInicial"
           @abrir="limpiarErrorAccion"
           @suspender="suspender"
           @reactivar="reactivar"

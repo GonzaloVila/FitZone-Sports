@@ -21,6 +21,9 @@ defineProps<{
   // Texto accesible del disparador (que solo tiene un ícono), ej. "Acciones de Camila Domínguez".
   etiqueta: string
   acciones: AccionMenuFz[]
+  // Marca el botón disparador (data-identificador) para que quien lo usa pueda devolverle el foco desde afuera,
+  // por ejemplo cuando una acción del menú abre un modal y el ítem ya no existe.
+  identificador?: string
 }>()
 
 const emit = defineEmits<{
@@ -30,7 +33,7 @@ const emit = defineEmits<{
 
 <template>
   <DropdownMenuRoot>
-    <DropdownMenuTrigger class="menu-acciones__disparador" :aria-label="etiqueta">
+    <DropdownMenuTrigger class="menu-acciones__disparador" :aria-label="etiqueta" :data-identificador="identificador">
       <IconoFz nombre="acciones" tamano="sm" />
     </DropdownMenuTrigger>
     <DropdownMenuPortal>

@@ -51,7 +51,19 @@ export function formatearHorario(clase: Pick<Clase, 'horarioInicio' | 'horarioFi
   return `${formatearDia(clase.horarioInicio)}, ${formatearHora(clase.horarioInicio)} a ${formatearHora(clase.horarioFin)} hs`
 }
 
-const FORMATO_MONTO = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' })
+export interface EstadoClase {
+  etiqueta: string
+  variante: 'neutra' | 'exito' | 'peligro'
+}
+
+// El estado sale de los cupos que informa el servidor y del horario de inicio.
+export function estadoDeClase(clase: Pick<Clase, 'horarioInicio' | 'cupoDisponible'>, ahora: number = Date.now()): EstadoClase {
+  if (new Date(clase.horarioInicio).getTime() <= ahora) return { etiqueta: 'Comenzada', variante: 'neutra' }
+  if (clase.cupoDisponible <= 0) return { etiqueta: 'Sin cupos', variante: 'peligro' }
+  return { etiqueta: 'Con cupos', variante: 'exito' }
+}
+
+const FORMATO_MONTO =new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' })
 
 export function formatearMonto(monto: number): string {
   return FORMATO_MONTO.format(monto)

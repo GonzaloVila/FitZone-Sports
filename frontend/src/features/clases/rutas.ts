@@ -11,13 +11,6 @@ export const rutasClases: RouteRecordRaw[] = [
     },
   },
   {
-    // Estática: gana sobre /clases/:claseId, así que "nueva" nunca se interpreta como un id.
-    path: '/clases/nueva',
-    name: 'clases-nueva',
-    component: () => import('./pages/AltaClasePage.vue'),
-    meta: { roles: ['RECEPCION', 'GERENTE'] },
-  },
-  {
     path: '/clases/:claseId',
     name: 'clase-detalle',
     component: () => import('./pages/DetalleClasePage.vue'),

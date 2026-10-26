@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
+import { computed, onScopeDispose, reactive, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
@@ -8,12 +8,25 @@ import type { FiltrosAgendaClases } from '../tipos'
 export const POR_PAGINA_CLASES = 10
 const ESPERA_BUSQUEDA_MS = 300
 
-export function useAgendaClases() {
+// `sedeInicial` es la sede con la que arranca el filtro de quien no tiene una fija (la sede activa del personal; el SOCIO no
+// la pasa y ve todas). Puede llegar después, cuando terminan de cargar las sedes: se aplica una sola vez y solo si el filtro
+// sigue en "todas".
+export function useAgendaClases(sedeInicial?: MaybeRefOrGetter<number | null>) {
   const servicio = useServicios().clases
   const { sedeId } = useUsuarioSesion()
 
-  // RECEPCION arranca viendo su sede; el GERENTE (sin sede fija) y el SOCIO, todas.
+  // RECEPCION arranca viendo su sede; los demás, la sede inicial si la hay o todas.
   const filtros = reactive<FiltrosAgendaClases>({ tipo: '', sede: sedeId.value === null ? '' : String(sedeId.value) })
+  let sedeInicialAplicada = sedeId.value !== null
+  watch(
+    () => toValue(sedeInicial) ?? null,
+    (id) => {
+      if (sedeInicialAplicada || id === null) return
+      sedeInicialAplicada = true
+      if (filtros.sede === '') filtros.sede = String(id)
+    },
+    { immediate: true },
+  )
   const pagina = ref(1)
   const items = ref<Clase[]>([])
   const total = ref(0)

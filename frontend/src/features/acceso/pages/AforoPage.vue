@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import ModalNuevaSede from '@/features/sedes/components/modales/ModalNuevaSede.vue'
+import { useSedeActiva } from '@/compartido/composables/useSedeActiva'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
 import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz, SelectFz } from '@/ui'
@@ -10,7 +11,6 @@ import TarjetaAforo from '../components/TarjetaAforo.vue'
 import TablaPersonasDentro from '../components/TablaPersonasDentro.vue'
 import { useAforo } from '../composables/useAforo'
 import { usePersonasDentro } from '../composables/usePersonasDentro'
-import { useSedeActiva } from '../composables/useSedeActiva'
 
 const { rol, sedeId: sedeUsuario } = useUsuarioSesion()
 const esGerente = computed(() => rol.value === 'GERENTE')

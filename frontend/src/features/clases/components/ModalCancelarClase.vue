@@ -22,7 +22,7 @@ const conPenalidad = computed(() => (props.clase ? cancelacionConPenalidad(props
 </script>
 
 <template>
-  <ModalFz v-model="abierto" titulo="Cancelar reserva" :ocupado="cargando">
+  <ModalFz v-model="abierto" titulo="Cancelar reserva" icono="cerrar" tono="peligro" ancho="angosto" :ocupado="cargando">
     <p v-if="clase" class="modal-cancelar__texto">
       ¿Querés cancelar tu cupo en <strong>{{ clase.tipo }}</strong> ({{ formatearHorario(clase) }})?
     </p>

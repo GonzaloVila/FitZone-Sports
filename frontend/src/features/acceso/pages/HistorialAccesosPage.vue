@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useSedeActiva } from '@/compartido/composables/useSedeActiva'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
 import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz } from '@/ui'
@@ -7,7 +8,6 @@ import FiltrosHistorial from '../components/FiltrosHistorial.vue'
 import ModalRegistrarIngreso from '../components/modales/ModalRegistrarIngreso.vue'
 import TablaHistorial from '../components/TablaHistorial.vue'
 import { useHistorialAccesos } from '../composables/useHistorialAccesos'
-import { useSedeActiva } from '../composables/useSedeActiva'
 
 const { rol, sedeId: sedeUsuario } = useUsuarioSesion()
 const esGerente = computed(() => rol.value === 'GERENTE')

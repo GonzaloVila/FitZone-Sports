@@ -1,10 +1,11 @@
 import { computed, ref, toValue, watch, type MaybeRefOrGetter, type WritableComputedRef } from 'vue'
 
-// La sede que se está mirando en el módulo de acceso. Es estado de módulo (no se guarda en el navegador): vive mientras
-// la app esté abierta y la comparten todas las pantallas, así ir al historial y volver al aforo conserva la sede elegida.
+// La sede que se está mirando en las pantallas de trabajo (acceso, clases, canchas). Es estado de módulo (no se guarda en
+// el navegador): vive mientras la app esté abierta y la comparten todas las pantallas, así ir al historial y volver al
+// aforo conserva la sede elegida.
 const elegida = ref<number | null>(null)
 
-// Sede activa del módulo. `sedes` es el listado disponible; `sedeFija` es la sede del RECEPCION, que trabaja en una sola
+// Sede activa. `sedes` es el listado disponible; `sedeFija` es la sede del RECEPCION, que trabaja en una sola
 // y no puede cambiarla (con ella, la sede activa es siempre esa).
 // - Sin elección (o si la elegida deja de existir), la activa es la primera sede disponible.
 // - Escribir null vuelve al valor por defecto.

@@ -16,9 +16,14 @@ export function useAltaClase(opciones?: { alExito?: (clase: Clase) => void }) {
   const servicio = useServicios().clases
   const { sedeId } = useUsuarioSesion()
 
+  // RECEPCION tiene sede fija; el GERENTE elige y arranca en la sede que se le pase (la sede activa).
+  function sedePorDefecto(sedeInicial: number | null): string {
+    const sede = sedeId.value ?? sedeInicial
+    return sede === null ? '' : String(sede)
+  }
+
   const form = reactive<FormularioClaseDatos>({
-    // RECEPCION tiene sede fija; el GERENTE elige.
-    sedeId: sedeId.value === null ? '' : String(sedeId.value),
+    sedeId: sedePorDefecto(null),
     tipo: '',
     instructor: '',
     dia: '',
@@ -31,6 +36,20 @@ export function useAltaClase(opciones?: { alExito?: (clase: Clase) => void }) {
   const error = ref<string | null>(null)
   const errores = ref<Record<string, string>>({})
   const claseCreada = ref<Clase | null>(null)
+
+  // Deja el formulario como recién abierto (el modal lo usa cada vez que se abre).
+  function reiniciar(sedeInicial: number | null = null) {
+    form.sedeId = sedePorDefecto(sedeInicial)
+    form.tipo = ''
+    form.instructor = ''
+    form.dia = ''
+    form.horaInicio = ''
+    form.horaFin = ''
+    form.capacidad = ''
+    error.value = null
+    errores.value = {}
+    claseCreada.value = null
+  }
 
   // Validación de ayuda de uso: el servidor siempre decide.
   function validar(): boolean {
@@ -54,8 +73,9 @@ export function useAltaClase(opciones?: { alExito?: (clase: Clase) => void }) {
     return Object.keys(nuevos).length === 0
   }
 
-  async function crear() {
-    if (guardando.value || !validar()) return
+  // Devuelve la clase creada, o null si no se pudo (los errores quedan en el estado).
+  async function crear(): Promise<Clase | null> {
+    if (guardando.value || !validar()) return null
 
     guardando.value = true
     error.value = null
@@ -71,6 +91,7 @@ export function useAltaClase(opciones?: { alExito?: (clase: Clase) => void }) {
       })
       claseCreada.value = creada
       opciones?.alExito?.(creada)
+      return creada
     } catch (e) {
       if (esErrorApi(e) && e.status === 409) {
         // La clase cae fuera del horario de la sede (o en el pasado): se muestra junto al campo de horario.
@@ -85,10 +106,11 @@ export function useAltaClase(opciones?: { alExito?: (clase: Clase) => void }) {
       } else {
         error.value = mensajeDeError(e, 'No se pudo crear la clase.')
       }
+      return null
     } finally {
       guardando.value = false
     }
   }
 
-  return { form, guardando, error, errores, claseCreada, crear }
+  return { form, guardando, error, errores, claseCreada, crear, reiniciar }
 }

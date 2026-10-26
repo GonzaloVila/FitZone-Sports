@@ -81,7 +81,7 @@ const motivo = computed(() => {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--fz-espaciado-base);
+  gap: var(--fz-espaciado-compacto);
 }
 
 .acciones-clase__motivo {

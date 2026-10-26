@@ -105,6 +105,7 @@ export function useHistorialAccesos(sedeInicial?: number | null) {
   return {
     filtros,
     pagina,
+    porPagina: POR_PAGINA,
     items,
     total,
     totalPaginas,

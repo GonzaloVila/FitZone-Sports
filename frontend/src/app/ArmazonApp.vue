@@ -6,6 +6,7 @@ import { rolPermitido } from '@/features/sesion/acceso'
 import { etiquetaRol } from '@/features/sesion/presentacion'
 import { useSesionStore } from '@/features/sesion/stores/sesionStore'
 import { IconoFz, MarcaFz, PlantillaAppFz } from '@/ui'
+import { marcaDeEnlace } from './navegacion'
 
 const NOMBRE_APP = 'FitZone Sports'
 
@@ -40,7 +41,7 @@ const enlaces = computed(() =>
     .getRoutes()
     .flatMap((ruta) =>
       ruta.meta.navegacion && rolPermitido(ruta.meta.roles, rol.value)
-        ? [{ ruta: ruta.path, ...ruta.meta.navegacion }]
+        ? [{ ruta: ruta.path, nombre: ruta.name, ...ruta.meta.navegacion }]
         : [],
     )
     .sort((a, b) => a.orden - b.orden),
@@ -62,10 +63,7 @@ const grupos = computed(() => {
   return todos.filter((grupo) => grupo.enlaces.length > 0)
 })
 
-function marcaActual(rutaEnlace: string): 'page' | 'true' | undefined {
-  if (route.path === rutaEnlace) return 'page'
-  return route.path.startsWith(`${rutaEnlace}/`) ? 'true' : undefined
-}
+const rutaActual = computed(() => ({ path: route.path, activaEn: route.meta.activaEnNavegacion }))
 
 const cerrando = ref(false)
 
@@ -100,7 +98,7 @@ async function cerrarSesion() {
           >
             <li v-for="enlace in grupo.enlaces" :key="enlace.ruta">
               <RouterLink v-slot="{ href, navigate }" :to="enlace.ruta" custom>
-                <a :href="href" class="armazon-app__enlace" :aria-current="marcaActual(enlace.ruta)" @click="navigate">
+                <a :href="href" class="armazon-app__enlace" :aria-current="marcaDeEnlace(enlace, rutaActual)" @click="navigate">
                   <IconoFz v-if="enlace.icono" :nombre="enlace.icono" tamano="sm" class="armazon-app__icono" />
                   <span>{{ enlace.etiqueta }}</span>
                 </a>

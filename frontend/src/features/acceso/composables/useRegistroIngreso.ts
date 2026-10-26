@@ -40,7 +40,7 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
     if (!idSede) {
       resultado.value = {
         tipo: 'error_general',
-        mensaje: 'Debe seleccionar una sede antes de registrar el ingreso.',
+        mensaje: 'Elegí una sede antes de registrar el ingreso.',
       }
       return
     }
@@ -49,7 +49,7 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
     if (!socio || isNaN(socio)) {
       resultado.value = {
         tipo: 'error_validacion',
-        mensaje: 'Debe indicar el número de socio (ID).',
+        mensaje: 'Ingresá el número de socio.',
       }
       return
     }
@@ -72,7 +72,7 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
 
       resultado.value = {
         tipo: 'exito',
-        mensaje: `Ingreso permitido para ${ingreso.nombre} (DNI ${ingreso.dni}).`,
+        mensaje: `Registramos el ingreso de ${ingreso.nombre}.`,
         ingreso,
       }
 
@@ -83,8 +83,8 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
         if (type === TIPOS_ERROR_ACCESO.MEMBRESIA_INACTIVA || e.status === 403) {
           resultado.value = {
             tipo: 'membresia_inactiva',
-            mensaje: 'Acceso rechazado: Membresía no vigente o suspendida.',
-            detalle: e.problema?.detail ?? 'El socio no posee una membresía activa para ingresar.',
+            mensaje: 'La membresía no está vigente o está suspendida.',
+            detalle: e.problema?.detail,
           }
         } else if (type === TIPOS_ERROR_ACCESO.ACCESO_DUPLICADO) {
           resultado.value = {
@@ -95,19 +95,19 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
         } else if (type === TIPOS_ERROR_ACCESO.AFORO_LLENO) {
           resultado.value = {
             tipo: 'aforo_lleno',
-            mensaje: 'Acceso denegado: Aforo completo.',
-            detalle: e.problema?.detail ?? 'La sede alcanzó su capacidad máxima.',
+            mensaje: 'La sede alcanzó su capacidad máxima.',
+            detalle: e.problema?.detail ?? 'Podrá ingresar cuando alguien registre su egreso.',
           }
         } else if (e.status === 422) {
           resultado.value = {
             tipo: 'error_validacion',
-            mensaje: 'Datos de ingreso inválidos.',
+            mensaje: 'Revisá los datos del ingreso.',
             detalle: e.problema?.detail ?? e.message,
           }
         } else {
           resultado.value = {
             tipo: 'error_general',
-            mensaje: e.problema?.title ?? 'Error al registrar ingreso.',
+            mensaje: e.problema?.title ?? 'No se pudo registrar el ingreso.',
             detalle: e.problema?.detail ?? e.message,
           }
         }

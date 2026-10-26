@@ -54,7 +54,7 @@ export function useAltaSede(opciones?: { alExito?: (sede: Sede) => void }) {
       if (esErrorApi(e) && e.status === 422) {
         error.value = e.problema?.detail ?? 'Datos de la sede inválidos.'
       } else {
-        error.value = mensajeDeError(e, 'No se pudo crear la sucursal.')
+        error.value = mensajeDeError(e, 'No se pudo crear la sede.')
       }
     } finally {
       guardando.value = false

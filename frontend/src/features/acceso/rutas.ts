@@ -16,6 +16,7 @@ export const rutasAcceso: RouteRecordRaw[] = [
     component: () => import('./pages/RegistrarIngresoPage.vue'),
     meta: {
       roles: ['RECEPCION', 'GERENTE'],
+      activaEnNavegacion: 'acceso-aforo',
     },
   },
   {
@@ -24,6 +25,7 @@ export const rutasAcceso: RouteRecordRaw[] = [
     component: () => import('./pages/HistorialAccesosPage.vue'),
     meta: {
       roles: ['RECEPCION', 'GERENTE'],
+      activaEnNavegacion: 'acceso-aforo',
     },
   },
 ]

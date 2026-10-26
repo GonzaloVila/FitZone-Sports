@@ -18,6 +18,9 @@ declare module 'vue-router' {
     publica?: boolean
     // Roles que pueden entrar. Sin `roles`, la ruta solo requiere sesión.
     roles?: Rol[]
+    // Nombre de la ruta del ítem del menú al que pertenece esta pantalla: ese ítem queda marcado mientras se la ve
+    // (por ejemplo, el registro de ingreso o el alta de sede, a los que se entra desde el aforo).
+    activaEnNavegacion?: string
     // Si está, la ruta aparece como link en la navegación del armazón (solo a los roles que puedan entrar).
     // `icono` y `seccion` son opcionales: la barra lateral agrupa por sección (sin sección va arriba, sin título).
     navegacion?: {

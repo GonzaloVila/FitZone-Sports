@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { InsigniaFz, PaginacionFz, TablaFz, type ColumnaTabla } from '@/ui'
+import { computed } from 'vue'
+import { AvatarFz, InsigniaFz, PaginacionFz, TablaFz, type ColumnaTabla } from '@/ui'
 import type { Ingreso } from '../services/servicioAcceso'
 
 const props = defineProps<{
   items: Ingreso[]
   total: number
   totalPaginas: number
+  porPagina: number
   cargando: boolean
   nombreDeSede: (sedeId: number) => string
 }>()
@@ -14,100 +16,143 @@ const pagina = defineModel<number>('pagina', { required: true })
 
 const columnas: ColumnaTabla[] = [
   { clave: 'socio', etiqueta: 'Socio', encabezadoFila: true },
-  { clave: 'dni', etiqueta: 'DNI' },
-  { clave: 'sede', etiqueta: 'Sede' },
-  { clave: 'ingreso', etiqueta: 'Fecha y Hora Ingreso' },
-  { clave: 'egreso', etiqueta: 'Fecha y Hora Egreso' },
-  { clave: 'estado', etiqueta: 'Estado actual' },
+  { clave: 'dni', etiqueta: 'DNI', ajustada: true },
+  { clave: 'sede', etiqueta: 'Sede', ajustada: true },
+  { clave: 'ingreso', etiqueta: 'Ingreso', ajustada: true },
+  { clave: 'egreso', etiqueta: 'Egreso', ajustada: true },
+  { clave: 'estado', etiqueta: 'Estado', ajustada: true },
 ]
 
 const claveFila = (fila: Ingreso) => fila.id
 
 function formatearFechaHora(iso: string | null | undefined) {
   if (!iso) return '—'
-  try {
-    const d = new Date(iso)
-    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-  } catch {
-    return iso
-  }
+  const fecha = new Date(iso)
+  if (Number.isNaN(fecha.getTime())) return iso
+  return `${fecha.toLocaleDateString('es-AR')} ${fecha.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`
 }
+
+const hayFilas = computed(() => props.items.length > 0)
+const cargandoSinFilas = computed(() => props.cargando && !hayFilas.value)
+
+// La región del pie siempre está en el DOM (los lectores de pantalla solo anuncian cambios de una región existente);
+// mientras no hay un resultado que informar, queda vacía.
+const textoRango = computed(() => {
+  if (cargandoSinFilas.value) return ''
+  if (props.total === 0) return '0 registros'
+  const inicio = (pagina.value - 1) * props.porPagina + 1
+  const fin = Math.min(props.total, pagina.value * props.porPagina)
+  return `Mostrando ${inicio} a ${fin} de ${props.total} ${props.total === 1 ? 'registro' : 'registros'}`
+})
 </script>
 
 <template>
-  <div class="tabla-historial">
+  <div class="historial">
     <TablaFz
+      v-if="hayFilas"
       titulo="Historial de accesos"
       ocultar-titulo
       :columnas="columnas"
       :filas="items"
       :clave-fila="claveFila"
       :ocupada="cargando"
-      texto-vacio="No se encontraron registros de accesos con los filtros seleccionados."
     >
       <template #celda-socio="{ fila }">
-        <div class="tabla-historial__socio">
-          <strong>{{ (fila as Ingreso).nombre }}</strong>
-          <span class="tabla-historial__id">ID: {{ (fila as Ingreso).socioId }}</span>
+        <div class="socio">
+          <AvatarFz :nombre="(fila as Ingreso).nombre" />
+          <div class="socio__datos">
+            <span class="socio__nombre">{{ (fila as Ingreso).nombre }}</span>
+            <span class="socio__id" title="ID de socio">#{{ (fila as Ingreso).socioId }}</span>
+          </div>
         </div>
       </template>
 
-      <template #celda-dni="{ fila }">
-        <span>{{ (fila as Ingreso).dni }}</span>
-      </template>
+      <template #celda-dni="{ fila }">{{ (fila as Ingreso).dni }}</template>
 
-      <template #celda-sede="{ fila }">
-        <span>{{ nombreDeSede((fila as Ingreso).sedeId) }}</span>
-      </template>
+      <template #celda-sede="{ fila }">{{ nombreDeSede((fila as Ingreso).sedeId) }}</template>
 
       <template #celda-ingreso="{ fila }">
-        <span>{{ formatearFechaHora((fila as Ingreso).fechaHoraIngreso) }}</span>
+        <span class="tenue">{{ formatearFechaHora((fila as Ingreso).fechaHoraIngreso) }}</span>
       </template>
 
       <template #celda-egreso="{ fila }">
-        <span>{{ formatearFechaHora((fila as Ingreso).fechaHoraEgreso) }}</span>
+        <span class="tenue">{{ formatearFechaHora((fila as Ingreso).fechaHoraEgreso) }}</span>
       </template>
 
       <template #celda-estado="{ fila }">
-        <InsigniaFz v-if="!(fila as Ingreso).fechaHoraEgreso" variante="exito">
-          En la sede
-        </InsigniaFz>
-        <InsigniaFz v-else variante="neutra">
-          Egresado
-        </InsigniaFz>
+        <InsigniaFz v-if="!(fila as Ingreso).fechaHoraEgreso" variante="exito">En la sede</InsigniaFz>
+        <InsigniaFz v-else>Egresado</InsigniaFz>
       </template>
     </TablaFz>
 
-    <div v-if="totalPaginas > 1" class="tabla-historial__paginacion">
-      <PaginacionFz
-        v-model="pagina"
-        :total-paginas="totalPaginas"
-      />
-    </div>
+    <p v-else-if="cargandoSinFilas" class="estado" role="status">Cargando historial…</p>
+
+    <p v-else class="estado estado--vacio">No hay registros de accesos con los filtros elegidos.</p>
+
+    <footer class="pie">
+      <p class="rango" role="status" aria-live="polite" aria-atomic="true">{{ textoRango }}</p>
+      <PaginacionFz v-if="totalPaginas > 1" v-model="pagina" :total-paginas="totalPaginas" etiqueta="Paginación del historial" />
+    </footer>
   </div>
 </template>
 
 <style scoped>
-.tabla-historial {
+.historial {
   display: flex;
   flex-direction: column;
   gap: var(--fz-espaciado-base);
   width: 100%;
 }
 
-.tabla-historial__socio {
+.socio {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: var(--fz-espaciado-compacto);
 }
 
-.tabla-historial__id {
-  font-size: var(--fz-texto-minimo);
+.socio__datos {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fz-espaciado-compacto);
+  min-width: 0;
+}
+
+.socio__nombre {
+  color: var(--fz-color-texto);
+  font-weight: var(--fz-peso-enfasis);
+}
+
+.socio__id,
+.tenue {
   color: var(--fz-color-texto-suave);
 }
 
-.tabla-historial__paginacion {
+.socio__id {
+  font-size: var(--fz-texto-minimo);
+  font-weight: var(--fz-peso-normal);
+}
+
+.estado {
+  margin: 0;
+  color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-pequeno);
+}
+
+.estado--vacio {
+  padding: var(--fz-espaciado-amplio) 0;
+}
+
+.pie {
   display: flex;
-  justify-content: center;
-  padding: var(--fz-espaciado-compacto) 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fz-espaciado-base);
+}
+
+.rango {
+  margin: 0;
+  color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-pequeno);
 }
 </style>

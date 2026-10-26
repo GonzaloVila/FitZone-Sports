@@ -7,6 +7,7 @@ export const rutasSedes: RouteRecordRaw[] = [
     component: () => import('./pages/AltaSedePage.vue'),
     meta: {
       roles: ['GERENTE'],
+      activaEnNavegacion: 'acceso-aforo',
     },
   },
 ]

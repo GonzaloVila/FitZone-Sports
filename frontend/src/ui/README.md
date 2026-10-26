@@ -154,6 +154,30 @@ Los segmentos comparten el ancho. El elegido se dibuja como una pastilla blanca 
 />
 ```
 
+### `EncabezadoPaginaFz` (molécula)
+
+Encabezado de una pantalla: el mismo que usa la lista de Socios. Dibuja un `<header>` con el título en un `<h1>` (`--fz-texto-titulo`, semibold), un subtítulo opcional (`--fz-texto-cuerpo`, gris suave), un enlace opcional "← Volver a …" encima del título (el mismo estilo que el de la ficha del socio) y dos slots.
+
+| Prop / slot | |
+| --- | --- |
+| `titulo` | `string`, obligatorio. Título de la pantalla, en frase ("Historial de accesos") |
+| `subtitulo` | `string`, opcional |
+| `volver` | `{ texto: string; a: RouteLocationRaw }`, opcional. `a` es una ruta del router (nunca `history.back()`): el destino es siempre el mismo, venga de donde venga la persona |
+| slot `insignia` | Junto al título (por ejemplo, una insignia con un conteo) |
+| slot `acciones` | A la derecha; en pantallas angostas se apila debajo del título |
+
+El enlace de volver usa `<RouterLink>` **registrado globalmente por el router de la app**: el kit no importa `vue-router` (solo su tipo `RouteLocationRaw`), pero la app que lo monte tiene que haber instalado el router (en los tests, como plugin). Tokens `--fz-encabezado-pagina-*`.
+
+```vue
+<EncabezadoPaginaFz titulo="Historial de accesos" subtitulo="Ingresos y egresos de las sedes." :volver="{ texto: 'Volver al aforo', a: { name: 'acceso-aforo' } }">
+  <template #acciones>
+    <RouterLink v-slot="{ href, navigate }" :to="{ name: 'acceso-ingreso' }" custom>
+      <BotonFz como="a" :href="href" @click="navigate">Registrar ingreso</BotonFz>
+    </RouterLink>
+  </template>
+</EncabezadoPaginaFz>
+```
+
 ### `CampoFormularioFz`: obligatorio, etiqueta chica y contenido propio
 
 Todo opcional y aditivo: sin las props nuevas el campo se ve y se comporta como siempre.
@@ -359,7 +383,6 @@ La interfaz es compacta. Se cambia solo en los tokens; las pantallas la heredan.
 | --- | --- | --- |
 | `--fz-espaciado-minimo` | 0.25rem (4 px) | Separaciones mínimas: entre líneas de un mismo bloque |
 | `--fz-espaciado-compacto` | 0.5rem (8 px) | Separación entre elementos vecinos |
-| `--fz-espaciado-medio` | 0.75rem (12 px) | Separación intermedia entre grupos de controles |
 | `--fz-espaciado-base` | 1rem (16 px) | Relleno y separación estándar |
 | `--fz-espaciado-amplio` | 1.5rem (24 px) | Relleno de tarjetas y separación entre secciones |
 

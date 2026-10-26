@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { BotonFz, CampoFormularioFz } from '@/ui'
+import { AvisoFz, BotonFz, CampoFormularioFz } from '@/ui'
 import type { SedeIn } from '@/features/sedes/services/servicioSedes'
 
 const props = defineProps<{
   form: SedeIn
   guardando: boolean
   errores: Record<string, string>
+  // Error general del servidor: se muestra dentro del formulario, sobre los botones.
+  error: string | null
 }>()
 
 const emit = defineEmits<{
   (e: 'guardar'): void
+  (e: 'cancelar'): void
 }>()
 
 const aforoMaximoTexto = computed({
@@ -22,50 +25,49 @@ const aforoMaximoTexto = computed({
 </script>
 
 <template>
-  <form class="formulario-sede" @submit.prevent="emit('guardar')">
+  <form class="formulario-sede" novalidate @submit.prevent="emit('guardar')">
     <CampoFormularioFz
       v-model="form.nombre"
       etiqueta="Nombre de la sede"
+      etiqueta-chica
+      obligatorio
       name="nombre"
+      placeholder="Ej: FitZone Centro"
+      autocomplete="off"
       :error="errores.nombre"
-      ayuda="Ej: FitZone Centro"
-      placeholder="Nombre de la sucursal"
       :disabled="guardando"
-      required
     />
 
     <CampoFormularioFz
       v-model="form.direccion"
       etiqueta="Dirección"
+      etiqueta-chica
+      obligatorio
       name="direccion"
+      placeholder="Calle, número y ciudad"
+      autocomplete="off"
       :error="errores.direccion"
-      ayuda="Calle, número y ciudad"
-      placeholder="Ej: Av. Colón 1200, Córdoba"
       :disabled="guardando"
-      required
     />
 
     <CampoFormularioFz
       v-model="aforoMaximoTexto"
-      etiqueta="Capacidad máxima (Aforo)"
+      etiqueta="Capacidad máxima"
+      etiqueta-chica
+      obligatorio
       name="aforoMaximo"
       tipo="number"
       min="1"
+      ayuda="Cantidad de socios que pueden estar a la vez en la sede."
       :error="errores.aforoMaximo"
-      ayuda="Cantidad máxima de socios simultáneos en la sede"
       :disabled="guardando"
-      required
     />
 
+    <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
+
     <div class="formulario-sede__acciones">
-      <BotonFz
-        variante="primario"
-        tipo="submit"
-        :cargando="guardando"
-        :disabled="guardando"
-      >
-        {{ guardando ? 'Creando sede…' : 'Crear Sede' }}
-      </BotonFz>
+      <BotonFz variante="fantasma" :disabled="guardando" @click="emit('cancelar')">Cancelar</BotonFz>
+      <BotonFz tipo="submit" :cargando="guardando">Guardar</BotonFz>
     </div>
   </form>
 </template>
@@ -75,16 +77,15 @@ const aforoMaximoTexto = computed({
   display: flex;
   flex-direction: column;
   gap: var(--fz-espaciado-base);
-  background: var(--fz-color-fondo);
-  border: 1px solid var(--fz-color-borde);
-  border-radius: var(--fz-radio-control);
   padding: var(--fz-espaciado-amplio);
-  max-width: 32rem;
+  border: 1px solid var(--fz-color-borde-marcado);
+  border-radius: var(--fz-radio-control);
+  background: var(--fz-color-fondo);
 }
 
 .formulario-sede__acciones {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--fz-espaciado-compacto);
+  gap: var(--fz-espaciado-compacto);
 }
 </style>

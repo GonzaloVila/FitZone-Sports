@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { BotonFz, CampoTextoFz, ModalFz, TablaFz, type ColumnaTabla } from '@/ui'
+import { AvatarFz, BotonFz, CampoTextoFz, ModalFz, TablaFz, type ColumnaTabla } from '@/ui'
 import type { Ingreso } from '../services/servicioAcceso'
 
 const props = defineProps<{
@@ -21,16 +21,14 @@ const filtroTexto = ref('')
 const personasFiltradas = computed(() => {
   const query = filtroTexto.value.trim().toLowerCase()
   if (!query) return props.personas
-  return props.personas.filter((p) =>
-    p.nombre.toLowerCase().includes(query) || p.dni.includes(query)
-  )
+  return props.personas.filter((p) => p.nombre.toLowerCase().includes(query) || p.dni.includes(query))
 })
 
 const columnas: ColumnaTabla[] = [
-  { clave: 'socio', etiqueta: 'Socio / Nombre', encabezadoFila: true },
-  { clave: 'dni', etiqueta: 'DNI' },
-  { clave: 'ingreso', etiqueta: 'Hora de ingreso' },
-  { clave: 'acciones', etiqueta: 'Acciones' },
+  { clave: 'socio', etiqueta: 'Socio', encabezadoFila: true },
+  { clave: 'dni', etiqueta: 'DNI', ajustada: true },
+  { clave: 'ingreso', etiqueta: 'Hora de ingreso', ajustada: true },
+  { clave: 'acciones', etiqueta: 'Acciones', ajustada: true, alineacion: 'fin' },
 ]
 
 const claveFila = (fila: Ingreso) => fila.id
@@ -56,131 +54,100 @@ function ejecutarEgreso() {
 }
 
 function formatearHora(iso: string) {
-  try {
-    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  } catch {
-    return iso
-  }
+  const fecha = new Date(iso)
+  return Number.isNaN(fecha.getTime()) ? iso : fecha.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
 }
 </script>
 
 <template>
-  <div class="tabla-personas-dentro">
-    <!-- Barra de búsqueda rápida e integración de controles -->
-    <div v-if="personas.length > 0" class="tabla-personas-dentro__toolbar">
-      <div class="tabla-personas-dentro__busqueda">
-        <CampoTextoFz
-          v-model="filtroTexto"
-          tipo="search"
-          tamano="sm"
-          placeholder="Filtrar por nombre o DNI…"
-          aria-label="Filtrar socios dentro"
-        />
-      </div>
-
-      <div class="tabla-personas-dentro__acciones-toolbar">
-        <span class="tabla-personas-dentro__conteo">
+  <div class="personas">
+    <template v-if="personas.length > 0">
+      <div class="personas__barra">
+        <div class="personas__busqueda">
+          <CampoTextoFz
+            v-model="filtroTexto"
+            tipo="search"
+            icono="buscar"
+            name="filtro"
+            autocomplete="off"
+            placeholder="Filtrar por nombre o DNI…"
+            aria-label="Filtrar los socios que están dentro"
+          />
+        </div>
+        <span class="personas__conteo" role="status" aria-live="polite">
           Mostrando {{ personasFiltradas.length }} de {{ personas.length }}
         </span>
-        <BotonFz
-          variante="secundario"
-          tamano="sm"
-          :cargando="cargando"
-          :disabled="cargando"
-          @click="emit('actualizar')"
-        >
-          Actualizar lista
+        <BotonFz variante="secundario" :cargando="cargando" :disabled="cargando" @click="emit('actualizar')">
+          Actualizar
         </BotonFz>
       </div>
-    </div>
 
-    <!-- Empty State Dedicado cuando personas está vacío -->
-    <div v-if="personas.length === 0 && !cargando" class="tabla-personas-dentro__vacio">
-      <div class="tabla-personas-dentro__vacio-icono" aria-hidden="true">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
+      <div v-if="personasFiltradas.length === 0 && !cargando" class="personas__estado">
+        <p class="personas__texto">No hay socios que coincidan con "{{ filtroTexto }}".</p>
+        <BotonFz variante="fantasma" @click="filtroTexto = ''">Limpiar búsqueda</BotonFz>
       </div>
-      <h3 class="tabla-personas-dentro__vacio-titulo">
-        No hay socios dentro de las instalaciones en este momento
-      </h3>
-      <p class="tabla-personas-dentro__vacio-descripcion">
-        Los ingresos validados en el puesto de acceso aparecerán listados aquí para registrar sus egresos.
-      </p>
-      <RouterLink to="/acceso/ingreso">
-        <BotonFz variante="primario" tamano="sm">
-          + Registrar primer ingreso
-        </BotonFz>
+
+      <TablaFz
+        v-else
+        titulo="Socios en la sede"
+        ocultar-titulo
+        :columnas="columnas"
+        :filas="personasFiltradas"
+        :clave-fila="claveFila"
+        :ocupada="cargando"
+      >
+        <template #celda-socio="{ fila }">
+          <div class="socio">
+            <AvatarFz :nombre="(fila as Ingreso).nombre" />
+            <div class="socio__datos">
+              <span class="socio__nombre">{{ (fila as Ingreso).nombre }}</span>
+              <span class="socio__id" title="ID de socio">#{{ (fila as Ingreso).socioId }}</span>
+            </div>
+          </div>
+        </template>
+
+        <template #celda-dni="{ fila }">{{ (fila as Ingreso).dni }}</template>
+
+        <template #celda-ingreso="{ fila }">
+          <span class="tenue">{{ formatearHora((fila as Ingreso).fechaHoraIngreso) }}</span>
+        </template>
+
+        <template #celda-acciones="{ fila }">
+          <BotonFz
+            variante="secundario"
+            tamano="sm"
+            :disabled="egresandoId === (fila as Ingreso).id"
+            @click="confirmarEgreso(fila as Ingreso)"
+          >
+            {{ egresandoId === (fila as Ingreso).id ? 'Registrando…' : 'Registrar egreso' }}
+          </BotonFz>
+        </template>
+      </TablaFz>
+    </template>
+
+    <p v-else-if="cargando" class="personas__texto" role="status">Cargando los socios que están dentro…</p>
+
+    <div v-else class="personas__estado">
+      <p class="personas__texto">No hay socios dentro de la sede en este momento.</p>
+      <RouterLink v-slot="{ href, navigate }" :to="{ name: 'acceso-ingreso' }" custom>
+        <BotonFz como="a" variante="secundario" :href="href" @click="navigate">Registrar ingreso</BotonFz>
       </RouterLink>
     </div>
 
-    <!-- Si se filtró y no coincide nada -->
-    <div v-else-if="personasFiltradas.length === 0 && !cargando" class="tabla-personas-dentro__sin-resultados">
-      <p>No se encontraron socios que coincidan con "<strong>{{ filtroTexto }}</strong>".</p>
-      <BotonFz variante="fantasma" tamano="sm" @click="filtroTexto = ''">Limpiar búsqueda</BotonFz>
-    </div>
-
-    <!-- Tabla cuando hay datos -->
-    <TablaFz
-      v-else
-      titulo="Socios en la sede"
-      ocultar-titulo
-      :columnas="columnas"
-      :filas="personasFiltradas"
-      :clave-fila="claveFila"
-      :ocupada="cargando"
-      texto-vacio=""
-    >
-      <template #celda-socio="{ fila }">
-        <div class="tabla-personas-dentro__socio">
-          <strong>{{ (fila as Ingreso).nombre }}</strong>
-          <span class="tabla-personas-dentro__subtexto">ID Socio: {{ (fila as Ingreso).socioId }}</span>
-        </div>
-      </template>
-
-      <template #celda-dni="{ fila }">
-        <span>{{ (fila as Ingreso).dni }}</span>
-      </template>
-
-      <template #celda-ingreso="{ fila }">
-        <span>{{ formatearHora((fila as Ingreso).fechaHoraIngreso) }}</span>
-      </template>
-
-      <template #celda-acciones="{ fila }">
-        <BotonFz
-          variante="secundario"
-          tamano="sm"
-          :disabled="egresandoId === (fila as Ingreso).id"
-          @click="confirmarEgreso(fila as Ingreso)"
-        >
-          {{ egresandoId === (fila as Ingreso).id ? 'Egresando…' : 'Registrar egreso' }}
-        </BotonFz>
-      </template>
-    </TablaFz>
-
-    <!-- Modal de confirmación -->
     <ModalFz
       v-model="modalAbierto"
-      titulo="Confirmar egreso de socio"
+      titulo="Registrar egreso"
+      icono="cerrar-sesion"
+      ancho="angosto"
       :ocupado="egresandoId !== null"
     >
-      <p v-if="personaAEgresar" class="tabla-personas-dentro__modal-texto">
-        ¿Desea registrar la salida de <strong>{{ personaAEgresar.nombre }}</strong> (DNI {{ personaAEgresar.dni }}) de la sede? Esto liberará 1 lugar en el aforo.
+      <p v-if="personaAEgresar" class="personas__texto personas__texto--normal">
+        ¿Registrar la salida de <strong>{{ personaAEgresar.nombre }}</strong> (DNI {{ personaAEgresar.dni }})? Se libera un lugar en el aforo.
       </p>
 
-      <template #acciones="{ cerrar }">
-        <BotonFz variante="secundario" :disabled="egresandoId !== null" @click="cancelarModal">
-          Volver
-        </BotonFz>
-        <BotonFz
-          variante="primario"
-          :cargando="egresandoId !== null"
-          :disabled="egresandoId !== null"
-          @click="ejecutarEgreso"
-        >
+      <template #acciones>
+        <BotonFz variante="secundario" :disabled="egresandoId !== null" @click="cancelarModal">Cancelar</BotonFz>
+        <BotonFz :cargando="egresandoId !== null" :disabled="egresandoId !== null" @click="ejecutarEgreso">
           Registrar egreso
         </BotonFz>
       </template>
@@ -189,96 +156,75 @@ function formatearHora(iso: string) {
 </template>
 
 <style scoped>
-.tabla-personas-dentro {
+.personas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fz-espaciado-base);
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--fz-espaciado-medio);
 }
 
-.tabla-personas-dentro__toolbar {
+.personas__barra {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
   flex-wrap: wrap;
-  gap: var(--fz-espaciado-medio);
-  padding: var(--fz-espaciado-compacto) 0;
-}
-
-.tabla-personas-dentro__busqueda {
-  min-width: 15rem;
-}
-
-.tabla-personas-dentro__acciones-toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--fz-espaciado-medio);
-}
-
-.tabla-personas-dentro__conteo {
-  font-size: var(--fz-texto-pequeno);
-  color: var(--fz-color-texto-suave);
-}
-
-.tabla-personas-dentro__socio {
-  display: flex;
-  flex-direction: column;
-}
-
-.tabla-personas-dentro__subtexto {
-  font-size: var(--fz-texto-pequeno);
-  color: var(--fz-color-texto-suave);
-}
-
-/* Empty State */
-.tabla-personas-dentro__vacio {
-  background: var(--fz-color-superficie);
-  border: 1px dashed var(--fz-color-borde);
-  border-radius: var(--fz-radio-tarjeta);
-  padding: 3rem var(--fz-espaciado-amplio);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: var(--fz-espaciado-medio);
-}
-
-.tabla-personas-dentro__vacio-icono {
-  color: var(--fz-color-texto-suave);
-  opacity: 0.6;
-  margin-bottom: var(--fz-espaciado-minimo);
-}
-
-.tabla-personas-dentro__vacio-titulo {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: var(--fz-peso-enfasis);
-  color: var(--fz-color-texto);
-}
-
-.tabla-personas-dentro__vacio-descripcion {
-  margin: 0 0 var(--fz-espaciado-compacto);
-  font-size: var(--fz-texto-pequeno);
-  color: var(--fz-color-texto-suave);
-  max-width: 28rem;
-}
-
-.tabla-personas-dentro__sin-resultados {
-  background: var(--fz-color-superficie);
-  border: 1px solid var(--fz-color-borde);
-  border-radius: var(--fz-radio-control);
-  padding: 2rem;
-  text-align: center;
-  color: var(--fz-color-texto-suave);
-  display: flex;
-  flex-direction: column;
   align-items: center;
   gap: var(--fz-espaciado-compacto);
 }
 
-.tabla-personas-dentro__modal-texto {
+/* El buscador se estira; el conteo y el botón quedan a la derecha. */
+.personas__busqueda {
+  flex: 1 1 calc(10 * var(--fz-espaciado-amplio));
+  min-width: 0;
+}
+
+.personas__conteo {
+  color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-pequeno);
+}
+
+.personas__estado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fz-espaciado-base);
+  padding: var(--fz-espaciado-base) 0;
+}
+
+.personas__texto {
   margin: 0;
-  font-size: var(--fz-texto-cuerpo);
+  color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-pequeno);
+}
+
+.personas__texto--normal {
   color: var(--fz-color-texto);
+  font-size: var(--fz-texto-cuerpo);
+}
+
+.socio {
+  display: flex;
+  align-items: center;
+  gap: var(--fz-espaciado-compacto);
+}
+
+.socio__datos {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fz-espaciado-compacto);
+  min-width: 0;
+}
+
+.socio__nombre {
+  color: var(--fz-color-texto);
+  font-weight: var(--fz-peso-enfasis);
+}
+
+.socio__id,
+.tenue {
+  color: var(--fz-color-texto-suave);
+}
+
+.socio__id {
+  font-size: var(--fz-texto-minimo);
+  font-weight: var(--fz-peso-normal);
 }
 </style>

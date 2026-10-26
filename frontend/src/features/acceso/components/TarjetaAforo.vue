@@ -19,245 +19,161 @@ const ocupacionPorcentaje = computed(() => {
   return Math.round((props.aforo.aforoActual / props.aforo.aforoMaximo) * 100)
 })
 
-const colorOcupacion = computed(() => {
-  if (ocupacionPorcentaje.value >= 100) return 'peligro'
-  if (ocupacionPorcentaje.value >= 80) return 'advertencia'
-  return 'normal'
+const casiLleno = computed(() => !estaLleno.value && ocupacionPorcentaje.value >= 80)
+
+// Estado de la sede para la insignia: Disponible, Casi lleno o Lleno.
+const estado = computed(() => {
+  if (estaLleno.value) return { texto: 'Lleno', variante: 'peligro' as const }
+  if (casiLleno.value) return { texto: 'Casi lleno', variante: 'advertencia' as const }
+  return { texto: 'Disponible', variante: 'exito' as const }
 })
+
+// Solo el número lleva color, y solo cuando el estado lo pide: los mismos umbrales que cambian el color de la barra
+// (70 % ámbar, 90 % rojo).
+const tonoOcupacion = computed(() =>
+  ocupacionPorcentaje.value >= 90 ? 'peligro' : ocupacionPorcentaje.value >= 70 ? 'advertencia' : 'normal',
+)
+const tonoDisponibles = computed(() => (estaLleno.value ? 'peligro' : 'normal'))
 </script>
 
 <template>
-  <div class="tarjeta-aforo">
-    <div class="tarjeta-aforo__cabecera">
-      <div class="tarjeta-aforo__info-sede">
-        <h3 class="tarjeta-aforo__titulo">
-          {{ nombreSede ? nombreSede : 'Aforo de la sede' }}
-        </h3>
-        <InsigniaFz v-if="aforo" :variante="estaLleno ? 'peligro' : ocupacionPorcentaje >= 80 ? 'advertencia' : 'exito'">
-          {{ estaLleno ? 'Lleno' : 'Disponible' }}
-        </InsigniaFz>
+  <section class="tarjeta" aria-label="Aforo de la sede">
+    <div class="tarjeta__cabecera">
+      <div class="tarjeta__sede">
+        <h2 class="tarjeta__nombre">{{ nombreSede ?? 'Aforo de la sede' }}</h2>
+        <InsigniaFz v-if="aforo" :variante="estado.variante">{{ estado.texto }}</InsigniaFz>
+        <span v-if="cargando" class="tarjeta__actualizando" aria-live="polite">Actualizando…</span>
       </div>
 
-      <div class="tarjeta-aforo__acciones-cabecera">
-        <!-- Slot para inyectar selector de sede o controles adicionales -->
-        <slot name="selector" />
-        <span v-if="cargando" class="tarjeta-aforo__actualizando" aria-live="polite">
-          <span class="tarjeta-aforo__spinner" aria-hidden="true" />
-          Actualizando…
-        </span>
-      </div>
+      <slot name="selector" />
     </div>
 
-    <div v-if="aforo" class="tarjeta-aforo__cuerpo">
-      <!-- Barra visual estilizada -->
-      <MedidorFz
-        :valor="aforo.aforoActual"
-        :maximo="aforo.aforoMaximo"
-        etiqueta="Nivel de ocupación"
-      />
+    <template v-if="aforo">
+      <MedidorFz :valor="aforo.aforoActual" :maximo="aforo.aforoMaximo" etiqueta="Nivel de ocupación" />
 
-      <!-- KPI Cards destacadas -->
-      <div class="tarjeta-aforo__kpis">
-        <!-- KPI 1: Ocupación actual -->
-        <div class="tarjeta-aforo__kpi" :class="[`tarjeta-aforo__kpi--${colorOcupacion}`]">
-          <span class="tarjeta-aforo__kpi-etiqueta">Ocupación actual</span>
-          <div class="tarjeta-aforo__kpi-valor-grupo">
-            <span class="tarjeta-aforo__kpi-valor">{{ aforo.aforoActual }}</span>
-            <span class="tarjeta-aforo__kpi-subtexto">personas</span>
-          </div>
+      <dl class="indicadores">
+        <div class="indicador">
+          <dt class="indicador__etiqueta">Ocupación actual</dt>
+          <dd :class="['indicador__valor', `indicador__valor--${tonoOcupacion}`]">{{ aforo.aforoActual }}</dd>
         </div>
-
-        <!-- KPI 2: Lugares disponibles (Esmeralda destacado) -->
-        <div class="tarjeta-aforo__kpi tarjeta-aforo__kpi--disponibles">
-          <span class="tarjeta-aforo__kpi-etiqueta">Lugares disponibles</span>
-          <div class="tarjeta-aforo__kpi-valor-grupo">
-            <span class="tarjeta-aforo__kpi-valor">{{ Math.max(0, aforo.restante) }}</span>
-            <span class="tarjeta-aforo__kpi-subtexto">restantes</span>
-          </div>
+        <div class="indicador">
+          <dt class="indicador__etiqueta">Lugares disponibles</dt>
+          <dd :class="['indicador__valor', `indicador__valor--${tonoDisponibles}`]">{{ Math.max(0, aforo.restante) }}</dd>
         </div>
-
-        <!-- KPI 3: Capacidad máxima (Neutro) -->
-        <div class="tarjeta-aforo__kpi tarjeta-aforo__kpi--capacidad">
-          <span class="tarjeta-aforo__kpi-etiqueta">Capacidad máxima</span>
-          <div class="tarjeta-aforo__kpi-valor-grupo">
-            <span class="tarjeta-aforo__kpi-valor">{{ aforo.aforoMaximo }}</span>
-            <span class="tarjeta-aforo__kpi-subtexto">máximo permitido</span>
-          </div>
+        <div class="indicador">
+          <dt class="indicador__etiqueta">Capacidad máxima</dt>
+          <dd class="indicador__valor">{{ aforo.aforoMaximo }}</dd>
         </div>
-      </div>
+      </dl>
 
-      <AvisoFz v-if="estaLleno" variante="advertencia" class="tarjeta-aforo__aviso-lleno">
-        <strong>⚠️ Aforo completo:</strong> La sede ha alcanzado su capacidad máxima permitida. Los nuevos ingresos serán rechazados por el sistema hasta registrar egresos.
+      <AvisoFz v-if="estaLleno" variante="advertencia">
+        La sede alcanzó su capacidad máxima: los ingresos nuevos se rechazan hasta que alguien registre su egreso.
       </AvisoFz>
-    </div>
+    </template>
 
-    <div v-else-if="cargando" class="tarjeta-aforo__vacio">
-      Cargando información de aforo…
-    </div>
-    <div v-else class="tarjeta-aforo__vacio">
-      Seleccione una sede para consultar el aforo.
-    </div>
-  </div>
+    <p v-else-if="cargando" class="tarjeta__estado">Cargando el aforo…</p>
+    <p v-else class="tarjeta__estado">Elegí una sede para ver su aforo.</p>
+  </section>
 </template>
 
 <style scoped>
-.tarjeta-aforo {
-  background: var(--fz-color-superficie);
-  border: 1px solid var(--fz-color-borde);
-  border-radius: var(--fz-radio-tarjeta);
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fz-espaciado-base);
   padding: var(--fz-espaciado-amplio);
-  box-shadow: var(--fz-sombra-tarjeta);
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.tarjeta-aforo__cabecera {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--fz-espaciado-base);
-}
-
-.tarjeta-aforo__info-sede {
-  display: flex;
-  align-items: center;
-  gap: var(--fz-espaciado-medio);
-}
-
-.tarjeta-aforo__titulo {
-  margin: 0;
-  font-size: var(--fz-texto-titulo);
-  font-weight: 700;
-  color: var(--fz-color-texto);
-  letter-spacing: -0.015em;
-}
-
-.tarjeta-aforo__acciones-cabecera {
-  display: flex;
-  align-items: center;
-  gap: var(--fz-espaciado-medio);
-  flex-wrap: wrap;
-}
-
-.tarjeta-aforo__actualizando {
-  font-size: var(--fz-texto-pequeno);
-  color: var(--fz-color-texto-suave);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.tarjeta-aforo__spinner {
-  width: 0.75rem;
-  height: 0.75rem;
-  border: 2px solid var(--fz-color-borde);
-  border-top-color: var(--fz-color-primario);
-  border-radius: 50%;
-  animation: girar 0.6s linear infinite;
-}
-
-@keyframes girar {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.tarjeta-aforo__cuerpo {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-/* KPI Cards */
-.tarjeta-aforo__kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--fz-espaciado-base);
-}
-
-.tarjeta-aforo__kpi {
-  padding: var(--fz-espaciado-base);
+  border: 1px solid var(--fz-color-borde-marcado);
   border-radius: var(--fz-radio-control);
-  border: 1px solid var(--fz-color-borde);
-  background: var(--fz-color-hover);
+  background: var(--fz-color-fondo);
+}
+
+.tarjeta__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fz-espaciado-base);
+}
+
+.tarjeta__sede {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fz-espaciado-compacto);
+}
+
+.tarjeta__nombre {
+  margin: 0;
+  color: var(--fz-color-texto);
+  font-size: var(--fz-texto-subtitulo);
+  font-weight: var(--fz-peso-enfasis);
+}
+
+.tarjeta__actualizando,
+.tarjeta__estado {
+  margin: 0;
+  color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-pequeno);
+}
+
+/* Tres indicadores en una fila, separados por líneas finas (sin cajas de color). */
+.indicadores {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+  border-top: 1px solid var(--fz-color-borde);
+}
+
+.indicador {
   display: flex;
   flex-direction: column;
   gap: var(--fz-espaciado-minimo);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: var(--fz-espaciado-base) var(--fz-espaciado-base) 0;
 }
 
-.tarjeta-aforo__kpi:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--fz-sombra-tarjeta);
+.indicador + .indicador {
+  border-left: 1px solid var(--fz-color-borde);
 }
 
-.tarjeta-aforo__kpi-etiqueta {
-  font-size: var(--fz-texto-pequeno);
+.indicador:first-child {
+  padding-left: 0;
+}
+
+.indicador__etiqueta {
   color: var(--fz-color-texto-suave);
-  font-weight: var(--fz-peso-medio);
-}
-
-.tarjeta-aforo__kpi-valor-grupo {
-  display: flex;
-  align-items: baseline;
-  gap: 0.375rem;
-}
-
-.tarjeta-aforo__kpi-valor {
-  font-size: 1.75rem;
-  font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  color: var(--fz-color-texto);
-}
-
-.tarjeta-aforo__kpi-subtexto {
   font-size: var(--fz-texto-minimo);
-  color: var(--fz-color-texto-suave);
 }
 
-/* Variantes KPI */
-.tarjeta-aforo__kpi--normal .tarjeta-aforo__kpi-valor {
+.indicador__valor {
+  margin: 0;
   color: var(--fz-color-texto);
+  font-size: var(--fz-texto-titulo);
+  font-weight: var(--fz-peso-enfasis);
+  font-variant-numeric: tabular-nums;
 }
 
-.tarjeta-aforo__kpi--advertencia {
-  border-color: var(--fz-color-advertencia-borde);
-  background: var(--fz-color-advertencia-fondo);
-}
-.tarjeta-aforo__kpi--advertencia .tarjeta-aforo__kpi-valor {
+.indicador__valor--advertencia {
   color: var(--fz-color-advertencia);
 }
 
-.tarjeta-aforo__kpi--critico {
-  border-color: var(--fz-color-peligro-borde);
-  background: var(--fz-color-peligro-fondo);
-}
-.tarjeta-aforo__kpi--critico .tarjeta-aforo__kpi-valor {
+.indicador__valor--peligro {
   color: var(--fz-color-peligro);
 }
 
-.tarjeta-aforo__kpi--disponibles {
-  border-color: var(--fz-color-exito-borde);
-  background: var(--fz-color-exito-fondo);
-}
-.tarjeta-aforo__kpi--disponibles .tarjeta-aforo__kpi-valor {
-  color: var(--fz-color-exito);
-}
+@media (max-width: 40rem) {
+  .indicadores {
+    grid-template-columns: 1fr;
+  }
 
-.tarjeta-aforo__kpi--capacidad {
-  background: var(--fz-color-hover);
-}
+  .indicador,
+  .indicador:first-child {
+    padding-left: 0;
+  }
 
-.tarjeta-aforo__aviso-lleno {
-  margin-top: var(--fz-espaciado-minimo);
-}
-
-.tarjeta-aforo__vacio {
-  color: var(--fz-color-texto-suave);
-  padding: var(--fz-espaciado-amplio) 0;
-  text-align: center;
+  .indicador + .indicador {
+    border-top: 1px solid var(--fz-color-borde);
+    border-left: none;
+    margin-top: var(--fz-espaciado-base);
+  }
 }
 </style>

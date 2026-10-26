@@ -116,6 +116,21 @@
   --fz-selector-segmentado-foco-separacion: 2px;
   --fz-selector-segmentado-deshabilitado-opacidad: 0.6;
 
+  /* ---- Encabezado de página (molécula) ---- */
+  --fz-encabezado-pagina-separacion: var(--fz-espaciado-base);
+  --fz-encabezado-pagina-titulo-texto: var(--fz-texto-titulo);
+  --fz-encabezado-pagina-titulo-peso: var(--fz-peso-enfasis);
+  --fz-encabezado-pagina-titulo-color: var(--fz-color-texto);
+  --fz-encabezado-pagina-subtitulo-texto: var(--fz-texto-cuerpo);
+  --fz-encabezado-pagina-subtitulo-color: var(--fz-color-texto-suave);
+  --fz-encabezado-pagina-volver-texto: var(--fz-texto-pequeno);
+  --fz-encabezado-pagina-volver-color: var(--fz-color-texto-suave);
+  --fz-encabezado-pagina-volver-color-hover: var(--fz-color-texto);
+  --fz-encabezado-pagina-volver-alto: 1.5rem;
+  --fz-encabezado-pagina-foco-color: var(--fz-color-foco);
+  --fz-encabezado-pagina-foco-ancho: 2px;
+  --fz-encabezado-pagina-foco-separacion: 2px;
+
   /* ---- Campo de formulario (molécula) ---- */
   --fz-campo-formulario-separacion: var(--fz-espaciado-compacto);
   --fz-campo-formulario-etiqueta-texto: var(--fz-texto-pequeno);

@@ -56,7 +56,7 @@ const nivel = computed<'normal' | 'advertencia' | 'critico'>(() => {
 .medidor-fz {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: var(--fz-espaciado-compacto);
   width: 100%;
 }
 
@@ -69,7 +69,7 @@ const nivel = computed<'normal' | 'advertencia' | 'critico'>(() => {
 }
 
 .medidor-fz__etiqueta {
-  font-weight: var(--fz-peso-medio, 500);
+  font-weight: var(--fz-peso-medio);
 }
 
 .medidor-fz__texto {
@@ -80,7 +80,7 @@ const nivel = computed<'normal' | 'advertencia' | 'critico'>(() => {
 
 .medidor-fz__pista {
   width: 100%;
-  height: 10px;
+  height: 0.5rem;
   border-radius: var(--fz-radio-pildora);
   background: var(--fz-color-hover);
   overflow: hidden;

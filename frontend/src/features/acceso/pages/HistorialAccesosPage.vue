@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
-import { AvisoFz, BotonFz } from '@/ui'
+import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz } from '@/ui'
 import FiltrosHistorial from '../components/FiltrosHistorial.vue'
 import TablaHistorial from '../components/TablaHistorial.vue'
 import { useHistorialAccesos } from '../composables/useHistorialAccesos'
@@ -16,94 +16,61 @@ const { sedes, nombreDeSede } = useSedes()
 const {
   filtros,
   pagina,
+  porPagina,
   items,
   total,
   totalPaginas,
   cargando,
   error,
 } = useHistorialAccesos(esGerente.value ? null : sedeUsuario.value)
+
+// "Limpiar" deja los filtros vacíos; la sede del RECEPCION no es un filtro suyo y se conserva.
+function limpiarFiltros() {
+  filtros.fecha = ''
+  filtros.nombre = ''
+  filtros.socioId = ''
+  if (esGerente.value) filtros.sedeId = ''
+}
 </script>
 
 <template>
-  <div class="historial-accesos-page">
-    <header class="historial-accesos-page__encabezado">
-      <div>
-        <h1 class="historial-accesos-page__titulo">Historial de Accesos</h1>
-        <p class="historial-accesos-page__subtitulo">
-          Consultá los registros históricos de ingresos y egresos de los socios.
-        </p>
-      </div>
-
-      <div class="historial-accesos-page__acciones">
-        <RouterLink to="/acceso/aforo">
-          <BotonFz variante="secundario">Aforo y Ocupación</BotonFz>
+  <section class="historial-accesos">
+    <EncabezadoPaginaFz
+      titulo="Historial de accesos"
+      subtitulo="Ingresos y egresos registrados en las sedes."
+      :volver="{ texto: 'Volver al aforo', a: { name: 'acceso-aforo' } }"
+    >
+      <template #acciones>
+        <RouterLink v-slot="{ href, navigate }" :to="{ name: 'acceso-ingreso' }" custom>
+          <BotonFz como="a" :href="href" @click="navigate">
+            <IconoFz nombre="mas" tamano="sm" />
+            Registrar ingreso
+          </BotonFz>
         </RouterLink>
-        <RouterLink to="/acceso/ingreso">
-          <BotonFz variante="primario">Registrar Ingreso</BotonFz>
-        </RouterLink>
-      </div>
-    </header>
+      </template>
+    </EncabezadoPaginaFz>
 
-    <div v-if="error" class="historial-accesos-page__alerta">
-      <AvisoFz variante="peligro">{{ error }}</AvisoFz>
-    </div>
+    <FiltrosHistorial v-model:filtros="filtros" :sedes="sedes" :es-gerente="esGerente" @limpiar="limpiarFiltros" />
 
-    <!-- Filtros -->
-    <FiltrosHistorial
-      v-model:filtros="filtros"
-      :sedes="sedes"
-      :es-gerente="esGerente"
-    />
+    <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
 
-    <!-- Tabla -->
     <TablaHistorial
       v-model:pagina="pagina"
       :items="items"
       :total="total"
       :total-paginas="totalPaginas"
+      :por-pagina="porPagina"
       :cargando="cargando"
       :nombre-de-sede="nombreDeSede"
     />
-  </div>
+  </section>
 </template>
 
 <style scoped>
-.historial-accesos-page {
+.historial-accesos {
   display: flex;
   flex-direction: column;
-  gap: var(--fz-espaciado-amplio);
-  max-width: 64rem;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.historial-accesos-page__encabezado {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
   gap: var(--fz-espaciado-base);
-  flex-wrap: wrap;
-}
-
-.historial-accesos-page__titulo {
-  margin: 0;
-  font-size: var(--fz-texto-titulo);
-  font-weight: var(--fz-peso-enfasis);
-  color: var(--fz-color-texto);
-}
-
-.historial-accesos-page__subtitulo {
-  margin: var(--fz-espaciado-minimo) 0 0;
-  color: var(--fz-color-texto-suave);
-}
-
-.historial-accesos-page__acciones {
-  display: flex;
-  gap: var(--fz-espaciado-medio);
-  align-items: center;
-}
-
-.historial-accesos-page__alerta {
   width: 100%;
 }
 </style>

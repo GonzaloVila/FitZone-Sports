@@ -13,10 +13,18 @@ export type FiltrosUsuarios = Pick<QueryListarUsuarios, 'rol' | 'nombre' | 'emai
 export interface ServicioUsuarios {
   obtener(usuarioId: number, senal?: AbortSignal): Promise<Usuario>
   listar(filtros: FiltrosUsuarios, pagina: number, porPagina: number, senal?: AbortSignal): Promise<ListaUsuarios>
+  // Todas las filas de un rol (el contrato pagina): sirve para saber qué sedes
+  // ya tienen recepcionista sin depender de la página visible.
+  listarTodosPorRol(rol: Usuario['rol'], senal?: AbortSignal): Promise<Usuario[]>
   crear(usuario: UsuarioNuevo): Promise<Usuario>
   // Solo los campos que se mandan cambian; `telefono: null` lo borra. DNI y correo no se pueden modificar.
   modificar(usuarioId: number, cambios: UsuarioPatch): Promise<Usuario>
 }
+
+// perPage máximo del contrato (listarUsuarios).
+const POR_PAGINA_MAXIMO = 100
+// Tope de seguridad para no quedar en un bucle si el total viniera inconsistente.
+const MAXIMO_PAGINAS = 50
 
 export function crearServicioUsuarios(cliente: ClienteApi): ServicioUsuarios {
   return {
@@ -33,6 +41,16 @@ export function crearServicioUsuarios(cliente: ClienteApi): ServicioUsuarios {
           signal: senal,
         }),
       )
+    },
+
+    async listarTodosPorRol(rol, senal) {
+      const usuarios: Usuario[] = []
+      for (let pagina = 1; pagina <= MAXIMO_PAGINAS; pagina++) {
+        const lista = await this.listar({ rol }, pagina, POR_PAGINA_MAXIMO, senal)
+        usuarios.push(...lista.items)
+        if (lista.items.length === 0 || usuarios.length >= lista.total) break
+      }
+      return usuarios
     },
 
     async crear(usuario) {

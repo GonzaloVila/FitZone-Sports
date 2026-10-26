@@ -4003,3 +4003,89 @@ Al cancelar una reserva de cancha que ya estaba pagada, el `Pago` quedaba APROBA
 5. Backend, a coordinar con Santiago: DNI y correo editables en `PATCH /usuarios` (con 409 si el valor ya existe), guards de rol en `/usuarios`, el cambio de plan en una membresía vencida (cobra pero no cambia el estado, por eso el front envía `ACTIVA` al renovar) y una pantalla de cambio o recuperación de contraseña.
 6. ADR de la decisión de usar Reka UI (y revisar ADR-13 y ADR-15).
 7. Datos de prueba en la base compartida a limpiar al final.
+
+---
+
+## 2026-10-26 - M1: alta de recepcionista con sede de trabajo (`EmpleadoSede`)
+
+**Fecha:** 26/10/2026 · **Rama:** `main` · **Autor:** Exequiel Ansaldi
+
+### Problema
+
+`POST /usuarios` creaba RECEPCION sin sede de trabajo y la fila de `EmpleadoSede` solo se podía cargar por SQL. Un recepcionista sin esa fila queda sin `sede_id` en el JWT: el front no puede fijar su sede activa en Aforo/Historial y el backend no puede acotar su alcance. Además, el modelo 1:1 (`EmpleadoSede.usuario_id` y `sede_id` ambos `@unique`) no se estaba validando: dos recepcionistas podían quedar asignados a la misma sede.
+
+### Actividades
+
+1. `UsuarioIn.sedeId` (`integer`, mínimo 1, opcional en el esquema): obligatorio para RECEPCION y prohibido para EXTERNO y GERENTE.
+2. `UsuariosService.crear`: valida por rol (`422` por cada combinación inválida), duplicado de DNI/email, existencia de la sede (`404`) y que no tenga ya un recepcionista (`409`); recién después crea.
+3. `UsuarioRepository.crear`: nested create `empleado: { create: { sede_id } }`, atómico con el alta del usuario.
+4. `EmpleadoSedeRepository`: `buscarPorSedeId` y `existeSede` (consulta `Sede` desde M1 para no crear un ciclo con M2).
+5. `errors/usuarios.errors.ts`: `recepcionSinSede` y `sedeSoloParaRecepcion` (422), `sedeInexistente` (404), `sedeConRecepcionista` (409).
+6. `catch` de `P2002`: si el índice único es el de `EmpleadoSede.sede_id` responde `409` (carrera entre dos altas); cualquier otro `P2002` se re-lanza.
+7. Contrato: `docs/openapi.yaml` (`UsuarioIn.sedeId`, `404` en `POST /usuarios`, `409` ampliado y descripción de A3) y `frontend/src/types/api.d.ts` regenerado.
+8. Tests: DTO (`sedeId` válido, 0, negativo, decimal, string, `null`), 8 unitarios del service, e2e del alta con login y fila en `EmpleadoSede`, y `sedes-ingresos.e2e-spec.ts` ahora crea al recepcionista por API en lugar de insertarlo a mano.
+9. Datos: se borró el usuario `2033` (`test2.recepcion@fitzone.com.ar`, con sus refresh tokens en cascada) y se creó `prueba.recepcion@fitzone.com.ar` (usuario `2037`, DNI `29000001`, clave `password123`) en la sede `462` "SEDE PRUEBA".
+
+### Decisiones tomadas
+
+1. **Sin migración ni cambio de DBML:** el modelo ya expresaba el 1:1; faltaba escribirlo y validarlo desde el alta.
+2. **La sede no vive en `Usuario`:** se guarda solo en `EmpleadoSede`; `UsuarioOut` no la expone y se verifica por login/DB. No se agregó `PUT`/`PATCH` de sede ni cambio de rol.
+3. **Un recepcionista por sede:** se respeta el `@unique` del modelo; reasignar una sede existente queda fuera de este cambio.
+4. **Sin UI ni guards nuevos:** el alta se hace por API (el front de staff no está en el alcance) y `/usuarios` sigue como estaba.
+5. **Validar antes de escribir:** los 422/404/409 son chequeos previos; el `P2002` de la sede es solo la red de seguridad para la carrera.
+
+### Verificación
+
+- `npx tsc --noEmit` 0; `npm run test:unit` **302/302** (41 archivos); `npm run test:integration` **54/54** (11 archivos); `npm run test:e2e` **80/80** (20 archivos). `npm run build` 0.
+- `frontend`: `npm run types:api` y `npm run type-check` en verde.
+- La base de test local estaba atrasada: se aplicó `prisma migrate deploy` con el `DATABASE_URL` de `.env.test` (migración `20261018120000_refresh_token`) antes de correr e2e.
+- Prueba HTTP contra `:3000` (Supabase): alta de `2037` con `sedeId 462` → `201`; login → `{rol: RECEPCION, usuarioId: 2037, sedeId: 462}`; fila `EmpleadoSede` `{id: 136, usuario_id: 2037, sede_id: 462}`; `GET /ingresos` con su token → `200`; aforo de la sede 462 → `0/50`.
+- Casos negativos por HTTP: misma sede → `409`; RECEPCION sin sede → `422`; EXTERNO con sede → `422`; sede inexistente → `404`; ninguno creó usuario.
+
+### Pendientes que siguen abiertos
+
+1. Prueba manual en el navegador con `prueba.recepcion@fitzone.com.ar`: sidebar con "SEDE PRUEBA", aforo/historial acotados y egreso.
+2. Reasignación de sede de un recepcionista (hoy no hay API; requiere decidir si se libera la anterior).
+3. UI de alta de staff y guards de rol en `/usuarios` (hoy público).
+4. `test.recepcion@fitzone.com.ar` (usuario `2032`) sigue sin sede; limpiar junto con los demás datos de prueba al final.
+5. **B4:** re-pago tras anulación/rechazo (migración con `revocado` y unique parcial) y decisión del default de `/pagos`, para la reunión.
+
+---
+
+## 2026-10-26 - M1: UI de recepcionistas (vista del gerente central) con sede de trabajo
+
+**Fecha:** 26/10/2026 · **Rama:** `main` · **Autor:** Exequiel Ansaldi
+
+### Problema
+
+El alta de RECEPCION con sede (A3) solo existía por API: el front no tenía pantalla de staff, no mostraba la sede de trabajo y no ofrecía un alta guiada. Para completar el flujo, la UI necesitaba saber qué sede tiene cada recepcionista y cuáles están libres, pero `UsuarioOut` no exponía `sedeId`.
+
+### Actividades
+
+1. `UsuarioOut.sedeId` (`integer`, nullable, solo lectura): se mapea desde `EmpleadoSede.sede_id` en `UsuarioRepository` (include `empleado` en listar/crear/buscar/actualizar) y se documenta en `docs/openapi.yaml`; tipos del front regenerados.
+2. E2E de usuarios: se agregaron aserciones de `sedeId` en el alta, el detalle y el listado (`null` para quien no tiene sede).
+3. Pantalla `/staff` (`roles: ['GERENTE']`, navegación en Administración, ícono `equipo`): es la vista del gerente central sobre los recepcionistas, uno por sede. Búsqueda por nombre con debounce, tabla paginada y modal de alta; no hay pestañas de rol.
+4. Alta de recepcionista: la sede es obligatoria y solo se ofrecen las libres (se piden todos los recepcionistas con `perPage=100`). El gerente central no se crea desde esta pantalla. Errores 422 del contrato por campo, 422 de negocio y 409 (correo/DNI/sede) mapeados al campo correspondiente.
+5. `servicioUsuarios.listarTodosPorRol` recorre las páginas del contrato y se usa para calcular las sedes ocupadas.
+6. Tests nuevos: validación y reparto de errores, `useAltaStaff`, `useListaStaff` y `GestionStaffPage` (modal, sedes libres, alta y validación); `CampoContraseniaFz` acepta `obligatorio` y `etiquetaChica`.
+
+### Decisiones tomadas
+
+1. **`sedeId` en `UsuarioOut`:** es de solo lectura y nullable; el front lo necesita para la columna de sede y para no ofrecer sedes ocupadas. Reemplaza la decisión previa de no exponerlo.
+2. **La pantalla es de recepcionistas:** el gerente central es único y maneja todas las sedes, así que no se lista ni se da de alta acá; la consulta va siempre con `rol=RECEPCION`.
+3. **Sedes libres desde el listado:** se piden todos los recepcionistas (no la página visible) y se descartan del selector las sedes con `sedeId`.
+4. **El backend sigue siendo la autoridad:** la validación local solo evita viajes; el 409 de sede/correo/DNI se muestra en el campo. Tras un 409 de sede no se recarga el selector para no borrar el valor y el mensaje; la próxima apertura del modal refresca.
+5. **Sin cambios de permisos en `/usuarios`:** la pantalla es solo para GERENTE y reutiliza `POST /usuarios`; la UI no ofrece el alta de GERENTE aunque la API lo siga permitiendo.
+
+### Verificación
+
+- `frontend`: `npm run type-check` 0; `npm run test` **561/561** (61 archivos, +26 nuevos); `npm run build` 0.
+- `backend`: `npx tsc --noEmit` 0; e2e de usuarios **7/7**; `npm run build` 0.
+- API en vivo (`:3000`, build nuevo): login de `prueba.recepcion@fitzone.com.ar` y `GET /api/v1/usuarios?rol=RECEPCION` devuelve `sedeId: 1` (Lucas), `sedeId: null` (2032) y `sedeId: 462` (2037).
+- UI verificada con tests de componente y build; no hubo prueba manual en navegador con el gerente central.
+
+### Pendientes que siguen abiertos
+
+1. Prueba manual en navegador con el gerente central: `/staff` y alta de recepcionista en una sede libre.
+2. Reasignación de sede de un recepcionista (sigue sin API).
+3. Limpiar los datos de prueba (`test.recepcion@fitzone.com.ar` sin sede, `prueba.recepcion@fitzone.com.ar` en la sede 462).

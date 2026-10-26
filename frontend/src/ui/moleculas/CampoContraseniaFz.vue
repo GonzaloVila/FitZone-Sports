@@ -12,7 +12,11 @@ withDefaults(
     ayuda?: string
     error?: string
     id?: string
-    // Nombre accesible del botón. Es fijo (no cambia con el estado): el estado lo da aria-pressed.
+    // Mismo comportamiento que en CampoFormularioFz: asterisco decorativo y aria-required.
+    obligatorio?: boolean
+    // Etiqueta en el tama�o m�nimo, para formularios densos.
+    etiquetaChica?: boolean
+    // Nombre accesible del bot�n. Es fijo (no cambia con el estado): el estado lo da aria-pressed.
     etiquetaBoton?: string
   }>(),
   {
@@ -35,6 +39,8 @@ const visible = ref(false)
       :ayuda="ayuda"
       :error="error"
       :id="id"
+      :obligatorio="obligatorio"
+      :etiqueta-chica="etiquetaChica"
       :tipo="visible ? 'text' : 'password'"
     >
       <template #sufijo>

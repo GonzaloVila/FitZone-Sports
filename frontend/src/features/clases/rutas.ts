@@ -11,25 +11,14 @@ export const rutasClases: RouteRecordRaw[] = [
     },
   },
   {
-    // Estática: gana sobre /clases/:claseId, así que "nueva" nunca se interpreta como un id.
-    path: '/clases/nueva',
-    name: 'clases-nueva',
-    component: () => import('./pages/AltaClasePage.vue'),
-    meta: { roles: ['RECEPCION', 'GERENTE'] },
-  },
-  {
     path: '/clases/:claseId',
     name: 'clase-detalle',
     component: () => import('./pages/DetalleClasePage.vue'),
     meta: { roles: ['SOCIO', 'RECEPCION', 'GERENTE'] },
   },
   {
+    // "Mis clases" es una vista de /clases: el enlace viejo sigue funcionando.
     path: '/mis-clases',
-    name: 'mis-clases',
-    component: () => import('./pages/MisClasesPage.vue'),
-    meta: {
-      roles: ['SOCIO'],
-      navegacion: { etiqueta: 'Mis clases', orden: 5, icono: 'clases', seccion: 'actividades' },
-    },
+    redirect: { name: 'clases', query: { vista: 'mis-clases' } },
   },
 ]

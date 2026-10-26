@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { BotonFz, InsigniaFz, TablaFz, type ColumnaTabla } from '@/ui'
+import { PARAMETROS_DESDE_MIS_CLASES } from '../direccion'
 import { ETIQUETAS_ESTADO_ESPERA, VARIANTES_ESTADO_ESPERA, formatearHorario } from '../presentacion'
 import type { FilaEspera } from '../tipos'
 
@@ -17,9 +18,9 @@ defineEmits<{
 const columnas: ColumnaTabla[] = [
   { clave: 'clase', etiqueta: 'Clase', encabezadoFila: true },
   { clave: 'horario', etiqueta: 'Horario' },
-  { clave: 'posicion', etiqueta: 'Posición' },
-  { clave: 'estado', etiqueta: 'Estado' },
-  { clave: 'acciones', etiqueta: 'Acciones' },
+  { clave: 'posicion', etiqueta: 'Posición', ajustada: true },
+  { clave: 'estado', etiqueta: 'Estado', ajustada: true },
+  { clave: 'acciones', etiqueta: 'Acciones', ajustada: true, alineacion: 'fin' },
 ]
 
 const claveFila = (fila: FilaEspera) => fila.espera.id
@@ -28,37 +29,32 @@ const claveFila = (fila: FilaEspera) => fila.espera.id
 <template>
   <TablaFz titulo="Mis listas de espera" ocultar-titulo :columnas="columnas" :filas="filas" :clave-fila="claveFila" :ocupada="ocupada">
     <template #celda-clase="{ fila }">
-      <RouterLink :to="{ name: 'clase-detalle', params: { claseId: (fila as FilaEspera).espera.claseId } }" class="tabla-esperas__enlace">
-        {{ (fila as FilaEspera).clase?.tipo ?? `Clase #${(fila as FilaEspera).espera.claseId}` }}
+      <RouterLink
+        :to="{ name: 'clase-detalle', params: { claseId: fila.espera.claseId }, query: PARAMETROS_DESDE_MIS_CLASES }"
+        class="tabla-esperas__enlace"
+      >
+        {{ fila.clase?.tipo ?? `Clase #${fila.espera.claseId}` }}
       </RouterLink>
     </template>
     <template #celda-horario="{ fila }">
-      <template v-if="(fila as FilaEspera).clase">{{ formatearHorario((fila as FilaEspera).clase!) }}</template>
+      <template v-if="fila.clase">{{ formatearHorario(fila.clase) }}</template>
       <span v-else class="tabla-esperas__tenue">No disponible</span>
     </template>
     <template #celda-posicion="{ fila }">
-      <template v-if="(fila as FilaEspera).posicion !== null">Lugar {{ (fila as FilaEspera).posicion }}</template>
+      <template v-if="fila.posicion !== null">Lugar {{ fila.posicion }}</template>
       <span v-else class="tabla-esperas__tenue">—</span>
     </template>
     <template #celda-estado="{ fila }">
-      <InsigniaFz :variante="VARIANTES_ESTADO_ESPERA[(fila as FilaEspera).espera.estado]">
-        {{ ETIQUETAS_ESTADO_ESPERA[(fila as FilaEspera).espera.estado] }}
+      <InsigniaFz :variante="VARIANTES_ESTADO_ESPERA[fila.espera.estado]">
+        {{ ETIQUETAS_ESTADO_ESPERA[fila.espera.estado] }}
       </InsigniaFz>
     </template>
     <template #celda-acciones="{ fila }">
       <div class="tabla-esperas__acciones">
-        <BotonFz
-          v-if="(fila as FilaEspera).espera.estado === 'NOTIFICADO'"
-          variante="primario"
-          tamano="sm"
-          :disabled="ocupada"
-          @click="$emit('confirmar', fila as FilaEspera)"
-        >
+        <BotonFz v-if="fila.espera.estado === 'NOTIFICADO'" variante="primario" tamano="sm" :disabled="ocupada" @click="$emit('confirmar', fila)">
           Confirmar cupo
         </BotonFz>
-        <BotonFz variante="secundario" tamano="sm" :disabled="ocupada" @click="$emit('salir', fila as FilaEspera)">
-          Salir
-        </BotonFz>
+        <BotonFz variante="secundario" tamano="sm" :disabled="ocupada" @click="$emit('salir', fila)">Salir</BotonFz>
       </div>
     </template>
   </TablaFz>
@@ -66,8 +62,13 @@ const claveFila = (fila: FilaEspera) => fila.espera.id
 
 <style scoped>
 .tabla-esperas__enlace {
-  color: var(--fz-color-primario);
+  color: var(--fz-color-texto);
   font-weight: var(--fz-peso-enfasis);
+  text-decoration: none;
+}
+
+.tabla-esperas__enlace:hover {
+  text-decoration: underline;
 }
 
 .tabla-esperas__enlace:focus-visible {
@@ -82,6 +83,7 @@ const claveFila = (fila: FilaEspera) => fila.espera.id
 .tabla-esperas__acciones {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--fz-espaciado-compacto);
 }
 </style>

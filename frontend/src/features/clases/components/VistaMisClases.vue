@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useSedes } from '@/features/sedes/composables/useSedes'
-import { AvisoFz, BotonFz, PestanasFz } from '@/ui'
-import ModalCancelarClase from '../components/ModalCancelarClase.vue'
-import TablaMisEsperas from '../components/TablaMisEsperas.vue'
-import TablaMisReservas from '../components/TablaMisReservas.vue'
+import { AvisoFz, PestanasFz } from '@/ui'
 import { useMisClases } from '../composables/useMisClases'
 import type { FilaReserva } from '../tipos'
+import ModalCancelarClase from './ModalCancelarClase.vue'
+import TablaMisEsperas from './TablaMisEsperas.vue'
+import TablaMisReservas from './TablaMisReservas.vue'
 
+// Reservas y lista de espera del socio. Se monta solo mientras la vista está activa: la actualización periódica de
+// useMisClases se corta al volver a la agenda.
 const {
   proximas,
   pasadas,
@@ -18,12 +20,8 @@ const {
   accionando,
   errorAccion,
   exitoAccion,
-  pagoPenalidad,
-  descargandoComprobante,
-  errorDescarga,
   sinSocio,
   cancelarReserva,
-  descargarComprobantePenalidad,
   confirmarCupo,
   salirDeEspera,
 } = useMisClases()
@@ -53,29 +51,13 @@ async function confirmarCancelacion() {
 </script>
 
 <template>
-  <section class="mis-clases">
-    <header class="mis-clases__encabezado">
-      <h1 class="mis-clases__titulo">Mis clases</h1>
-      <p class="mis-clases__subtitulo">Tus reservas y tus anotaciones en listas de espera.</p>
-    </header>
-
+  <div class="mis-clases">
     <AvisoFz v-if="sinSocio" variante="advertencia">
       Tu usuario no está asociado a un socio, así que no tiene reservas.
     </AvisoFz>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
     <AvisoFz v-if="errorAccion && !modalCancelar" variante="peligro">{{ errorAccion }}</AvisoFz>
     <AvisoFz v-if="exitoAccion" variante="exito">{{ exitoAccion }}</AvisoFz>
-    <div v-if="pagoPenalidad" class="mis-clases__acciones">
-      <BotonFz
-        variante="secundario"
-        :cargando="descargandoComprobante"
-        :disabled="descargandoComprobante"
-        @click="descargarComprobantePenalidad"
-      >
-        Descargar comprobante
-      </BotonFz>
-    </div>
-    <AvisoFz v-if="errorDescarga" variante="peligro">{{ errorDescarga }}</AvisoFz>
 
     <p v-if="cargando" class="mis-clases__estado" role="status">Cargando tus clases…</p>
 
@@ -90,31 +72,34 @@ async function confirmarCancelacion() {
         />
       </section>
 
-      <PestanasFz v-model="pestanaActiva" :pestanas="pestanas" etiqueta="Mis reservas de clases">
-        <template #panel-proximas>
-          <TablaMisReservas
-            v-if="proximas.length > 0"
-            titulo="Reservas próximas"
-            :filas="proximas"
-            :nombre-sede="nombreDeSede"
-            :ahora="ahora"
-            con-acciones
-            :ocupada="accionando"
-            @cancelar="pedirCancelacion"
-          />
-          <p v-else class="mis-clases__vacio">No tenés reservas próximas. Mirá la agenda para reservar una clase.</p>
-        </template>
-        <template #panel-pasadas>
-          <TablaMisReservas
-            v-if="pasadas.length > 0"
-            titulo="Reservas pasadas"
-            :filas="pasadas"
-            :nombre-sede="nombreDeSede"
-            :ahora="ahora"
-          />
-          <p v-else class="mis-clases__vacio">Todavía no tenés reservas pasadas.</p>
-        </template>
-      </PestanasFz>
+      <section class="mis-clases__seccion" aria-labelledby="titulo-reservas">
+        <h2 id="titulo-reservas" class="mis-clases__seccion-titulo">Reservas</h2>
+        <PestanasFz v-model="pestanaActiva" :pestanas="pestanas" etiqueta="Mis reservas de clases">
+          <template #panel-proximas>
+            <TablaMisReservas
+              v-if="proximas.length > 0"
+              titulo="Reservas próximas"
+              :filas="proximas"
+              :nombre-sede="nombreDeSede"
+              :ahora="ahora"
+              con-acciones
+              :ocupada="accionando"
+              @cancelar="pedirCancelacion"
+            />
+            <p v-else class="mis-clases__vacio">No tenés reservas próximas. Mirá la agenda para reservar una clase.</p>
+          </template>
+          <template #panel-pasadas>
+            <TablaMisReservas
+              v-if="pasadas.length > 0"
+              titulo="Reservas pasadas"
+              :filas="pasadas"
+              :nombre-sede="nombreDeSede"
+              :ahora="ahora"
+            />
+            <p v-else class="mis-clases__vacio">Todavía no tenés reservas pasadas.</p>
+          </template>
+        </PestanasFz>
+      </section>
     </template>
 
     <ModalCancelarClase
@@ -125,60 +110,34 @@ async function confirmarCancelacion() {
       :error="errorAccion"
       @confirmar="confirmarCancelacion"
     />
-  </section>
+  </div>
 </template>
 
 <style scoped>
 .mis-clases {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  max-width: 64rem;
-  margin: 0 auto;
+  gap: var(--fz-espaciado-base);
   width: 100%;
-}
-
-.mis-clases__encabezado {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.mis-clases__titulo {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--fz-color-texto);
-}
-
-.mis-clases__subtitulo {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--fz-color-texto-suave);
 }
 
 .mis-clases__estado,
 .mis-clases__vacio {
   margin: 0;
   color: var(--fz-color-texto-suave);
-}
-
-.mis-clases__acciones {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--fz-espaciado-compacto);
+  font-size: var(--fz-texto-pequeno);
 }
 
 .mis-clases__seccion {
   display: flex;
   flex-direction: column;
-  gap: var(--fz-espaciado-base);
+  gap: var(--fz-espaciado-compacto);
 }
 
 .mis-clases__seccion-titulo {
   margin: 0;
-  font-size: 1.125rem;
   color: var(--fz-color-texto);
+  font-size: var(--fz-texto-subtitulo);
+  font-weight: var(--fz-peso-enfasis);
 }
 </style>

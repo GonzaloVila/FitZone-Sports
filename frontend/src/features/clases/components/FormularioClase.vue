@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { BotonFz, CampoFormularioFz, SelectFz } from '@/ui'
+import { CampoFormularioFz, SelectFz } from '@/ui'
 import type { Sede } from '@/features/sedes/services/servicioSedes'
+import { diaLocal } from '../reglas'
 import type { FormularioClaseDatos } from '../tipos'
 
 defineProps<{
@@ -10,79 +11,92 @@ defineProps<{
   errores: Record<string, string>
   // RECEPCION trabaja en su sede: el select queda fijo.
   sedeBloqueada?: boolean
+  // Id del <form>: los botones del pie del modal lo envían con el atributo `form`.
+  idFormulario: string
 }>()
 
 defineEmits<{
   (e: 'guardar'): void
 }>()
+
+// El selector de día no ofrece fechas anteriores a hoy (la validación del alta lo repite por si se escribe una a mano).
+const hoy = diaLocal(Date.now())
 </script>
 
 <template>
-  <form class="formulario-clase" novalidate @submit.prevent="$emit('guardar')">
-    <div class="formulario-clase__campo">
-      <label for="clase-sede" class="formulario-clase__etiqueta">Sede</label>
-      <SelectFz
-        id="clase-sede"
-        v-model="form.sedeId"
-        name="sedeId"
-        :invalido="Boolean(errores.sedeId)"
-        :aria-describedby="errores.sedeId ? 'clase-sede-error' : undefined"
-        :disabled="guardando || sedeBloqueada"
-        required
-      >
-        <option value="" disabled>Elegí una sede</option>
-        <option v-for="sede in sedes" :key="sede.id" :value="String(sede.id)">{{ sede.nombre }}</option>
-      </SelectFz>
-      <p v-if="errores.sedeId" id="clase-sede-error" class="formulario-clase__error" role="alert">{{ errores.sedeId }}</p>
-    </div>
+  <form :id="idFormulario" class="formulario-clase" novalidate @submit.prevent="$emit('guardar')">
+    <CampoFormularioFz etiqueta="Sede" etiqueta-chica obligatorio :error="errores.sedeId">
+      <template #default="{ id, describedby, invalido }">
+        <SelectFz
+          :id="id"
+          v-model="form.sedeId"
+          name="sedeId"
+          aria-required="true"
+          :invalido="invalido"
+          :aria-describedby="describedby"
+          :disabled="guardando || sedeBloqueada"
+        >
+          <option value="" disabled>Elegí una sede</option>
+          <option v-for="sede in sedes" :key="sede.id" :value="String(sede.id)">{{ sede.nombre }}</option>
+        </SelectFz>
+      </template>
+    </CampoFormularioFz>
 
     <CampoFormularioFz
       v-model="form.tipo"
       etiqueta="Disciplina"
+      etiqueta-chica
+      obligatorio
       name="tipo"
-      ayuda="Ej: Spinning, Yoga"
+      placeholder="Ej: Spinning, Yoga"
+      autocomplete="off"
       :error="errores.tipo"
       :disabled="guardando"
-      required
     />
 
     <CampoFormularioFz
       v-model="form.instructor"
       etiqueta="Instructor"
+      etiqueta-chica
+      obligatorio
       name="instructor"
+      autocomplete="off"
       :error="errores.instructor"
       :disabled="guardando"
-      required
     />
 
     <CampoFormularioFz
       v-model="form.dia"
       etiqueta="Día"
+      etiqueta-chica
+      obligatorio
       tipo="date"
       name="dia"
+      :min="hoy"
       :error="errores.dia"
       :disabled="guardando"
-      required
     />
 
     <div class="formulario-clase__horario">
       <CampoFormularioFz
         v-model="form.horaInicio"
         etiqueta="Hora de inicio"
+        etiqueta-chica
+        obligatorio
         tipo="time"
         name="horaInicio"
         :error="errores.horaInicio"
         :disabled="guardando"
-        required
       />
       <CampoFormularioFz
         v-model="form.horaFin"
         etiqueta="Hora de fin"
+        etiqueta-chica
+        obligatorio
         tipo="time"
         name="horaFin"
         :error="errores.horaFin"
         :disabled="guardando"
-        required
       />
     </div>
     <!-- El 409 "fuera de horario" del servidor se muestra junto a los campos de horario. -->
@@ -91,21 +105,16 @@ defineEmits<{
     <CampoFormularioFz
       v-model="form.capacidad"
       etiqueta="Cupo"
+      etiqueta-chica
+      obligatorio
       tipo="number"
       name="capacidad"
       min="1"
       step="1"
-      ayuda="Cantidad máxima de socios en la clase"
+      ayuda="Cantidad máxima de socios en la clase."
       :error="errores.capacidad"
       :disabled="guardando"
-      required
     />
-
-    <div class="formulario-clase__acciones">
-      <BotonFz variante="primario" tipo="submit" :cargando="guardando">
-        {{ guardando ? 'Creando clase…' : 'Crear clase' }}
-      </BotonFz>
-    </div>
   </form>
 </template>
 
@@ -114,40 +123,17 @@ defineEmits<{
   display: flex;
   flex-direction: column;
   gap: var(--fz-espaciado-base);
-  padding: var(--fz-espaciado-amplio);
-  max-width: 32rem;
-  background: var(--fz-color-superficie);
-  border: 1px solid var(--fz-color-borde);
-  border-radius: var(--fz-radio-tarjeta);
-  box-shadow: var(--fz-sombra-tarjeta);
-}
-
-.formulario-clase__campo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.formulario-clase__etiqueta {
-  font-size: var(--fz-texto-pequeno);
-  font-weight: var(--fz-peso-enfasis);
-  color: var(--fz-color-texto);
 }
 
 .formulario-clase__horario {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--fz-espaciado-base);
 }
 
 .formulario-clase__error {
   margin: 0;
-  font-size: var(--fz-texto-pequeno);
   color: var(--fz-color-peligro);
-}
-
-.formulario-clase__acciones {
-  display: flex;
-  justify-content: flex-end;
+  font-size: var(--fz-texto-pequeno);
 }
 </style>

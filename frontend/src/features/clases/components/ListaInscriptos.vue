@@ -9,8 +9,8 @@ defineProps<{
 
 const columnas: ColumnaTabla[] = [
   { clave: 'socio', etiqueta: 'Socio', encabezadoFila: true },
-  { clave: 'reserva', etiqueta: 'Reserva' },
-  { clave: 'estado', etiqueta: 'Estado' },
+  { clave: 'reserva', etiqueta: 'Reserva', ajustada: true },
+  { clave: 'estado', etiqueta: 'Estado', ajustada: true },
 ]
 
 const claveFila = (fila: ReservaClase) => fila.id
@@ -18,13 +18,11 @@ const claveFila = (fila: ReservaClase) => fila.id
 
 <template>
   <p v-if="inscriptos.length === 0" class="lista-vacia">Todavía no hay socios inscriptos en esta clase.</p>
-  <TablaFz v-else titulo="Socios inscriptos" :columnas="columnas" :filas="inscriptos" :clave-fila="claveFila">
-    <template #celda-socio="{ fila }">Socio #{{ (fila as ReservaClase).socioId }}</template>
-    <template #celda-reserva="{ fila }">#{{ (fila as ReservaClase).id }}</template>
+  <TablaFz v-else titulo="Socios inscriptos" ocultar-titulo :columnas="columnas" :filas="inscriptos" :clave-fila="claveFila">
+    <template #celda-socio="{ fila }">Socio #{{ fila.socioId }}</template>
+    <template #celda-reserva="{ fila }">#{{ fila.id }}</template>
     <template #celda-estado="{ fila }">
-      <InsigniaFz :variante="VARIANTES_ESTADO_RESERVA[(fila as ReservaClase).estado]">
-        {{ ETIQUETAS_ESTADO_RESERVA[(fila as ReservaClase).estado] }}
-      </InsigniaFz>
+      <InsigniaFz :variante="VARIANTES_ESTADO_RESERVA[fila.estado]">{{ ETIQUETAS_ESTADO_RESERVA[fila.estado] }}</InsigniaFz>
     </template>
   </TablaFz>
 </template>
@@ -33,5 +31,6 @@ const claveFila = (fila: ReservaClase) => fila.id
 .lista-vacia {
   margin: 0;
   color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-pequeno);
 }
 </style>

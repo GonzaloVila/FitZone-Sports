@@ -1,11 +1,9 @@
-import { computed, onScopeDispose, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref } from 'vue'
 import { esErrorApi, mensajeDeError } from '@/compartido/http/errores'
 import { useActualizacionPeriodica } from '@/compartido/composables/useActualizacionPeriodica'
 import { useServicios } from '@/compartido/servicios'
-import { useDescargaPdf } from '@/features/pagos/composables/useDescargaPdf'
-import type { Pago } from '@/features/pagos/services/servicioPagos'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
-import { formatearMonto } from '../presentacion'
+import { esperasVigentes, esperaVigente, inscriptosVigentes, reservaVigente } from '../reglas'
 import {
   traducirErrorCancelacion,
   traducirErrorConfirmacion,
@@ -14,10 +12,13 @@ import {
   traducirErrorSalidaDeEspera,
 } from '../errores'
 import type { Clase, EsperaClase, ReservaClase } from '../services/servicioClases'
+import { useRegistroPenalidad } from './useAvisoPenalidad'
 
 // Actualización cada pocos segundos mientras la pantalla está abierta (el servidor notifica la espera, el front no).
 const INTERVALO_ACTUALIZACION_MS = 5000
 const POR_PAGINA_OCUPACION = 100
+// Reservas y esperas de un mismo socio en una misma clase: pocas, aunque cada recorrido (reservar, cancelar) agrega una.
+const POR_PAGINA_PROPIAS = 100
 
 // Un id inválido (null) se trata como clase inexistente, sin pedir nada a la API.
 export function useDetalleClase(claseId: () => number | null) {
@@ -40,19 +41,8 @@ export function useDetalleClase(claseId: () => number | null) {
   const accionando = ref(false)
   const errorAccion = ref<string | null>(null)
   const exitoAccion = ref<string | null>(null)
-  const reservaCancelada = ref(false)
 
-  // Al cambiar de clase (otro recorrido) se vuelve a habilitar "Reservar".
-  watch(claseId, () => {
-    reservaCancelada.value = false
-  })
-
-  const pagoPenalidad = ref<Pago | null>(null)
-  const {
-    descargando: descargandoComprobante,
-    error: errorDescarga,
-    descargar,
-  } = useDescargaPdf()
+  const registrarPenalidad = useRegistroPenalidad()
 
   const esSocio = computed(() => rol.value === 'SOCIO')
   const esPersonal = computed(() => rol.value === 'RECEPCION' || rol.value === 'GERENTE')
@@ -82,15 +72,17 @@ export function useDetalleClase(claseId: () => number | null) {
       let colaActual: EsperaClase[] = []
 
       if (esSocio.value && socioId.value !== null) {
+        // El listado puede traer también las anteriores (canceladas): se pide una página grande y se elige la vigente.
         const [reservas, esperas] = await Promise.all([
-          servicio.listarReservas({ claseId: id, socioId: socioId.value }, 1, 1, signal),
-          servicio.listarEsperas({ claseId: id, socioId: socioId.value }, 1, 1, signal),
+          servicio.listarReservas({ claseId: id, socioId: socioId.value }, 1, POR_PAGINA_PROPIAS, signal),
+          servicio.listarEsperas({ claseId: id, socioId: socioId.value }, 1, POR_PAGINA_PROPIAS, signal),
         ])
-        reservaActual = reservas.items[0] ?? null
-        esperaActual = esperas.items[0] ?? null
+        reservaActual = reservaVigente(reservas.items)
+        esperaActual = esperaVigente(esperas.items)
         if (esperaActual) {
-          const cola = await servicio.listarEsperaDeClase(id, 1, POR_PAGINA_OCUPACION, signal)
-          const lugar = cola.items.findIndex((item) => item.id === esperaActual?.id)
+          // El lugar se cuenta entre las esperas vivas: una cancelada que sigue en el listado no ocupa un lugar.
+          const cola = esperasVigentes((await servicio.listarEsperaDeClase(id, 1, POR_PAGINA_OCUPACION, signal)).items)
+          const lugar = cola.findIndex((item) => item.id === esperaActual?.id)
           posicion = lugar >= 0 ? lugar + 1 : null
         }
       } else if (esPersonal.value) {
@@ -98,8 +90,9 @@ export function useDetalleClase(claseId: () => number | null) {
           servicio.listarInscriptos(id, 1, POR_PAGINA_OCUPACION, signal),
           servicio.listarEsperaDeClase(id, 1, POR_PAGINA_OCUPACION, signal),
         ])
-        inscriptosActuales = ocupacion.items
-        colaActual = cola.items
+        // Los dos listados traen también las canceladas aunque el contrato diga que no.
+        inscriptosActuales = inscriptosVigentes(ocupacion.items)
+        colaActual = esperasVigentes(cola.items)
       }
 
       if (carga !== ultimaCarga) return
@@ -138,7 +131,6 @@ export function useDetalleClase(claseId: () => number | null) {
     accionando.value = true
     errorAccion.value = null
     exitoAccion.value = null
-    pagoPenalidad.value = null
     let ok = false
     try {
       await accion()
@@ -173,26 +165,9 @@ export function useDetalleClase(claseId: () => number | null) {
     const ok = await ejecutar(() => servicio.cancelarReserva(actual.id), 'Reserva cancelada.', traducirErrorCancelacion)
     if (!ok) return false
 
-    // En esta pantalla ya no se ofrece reservar de nuevo: solo se puede volver y rehacer el recorrido.
-    reservaCancelada.value = true
-
-    try {
-      const pagos = await servicios.pagos.listar({ reservaClaseId: actual.id }, 1, 1)
-      const pago = pagos.items[0] ?? null
-      pagoPenalidad.value = pago
-      if (pago) {
-        exitoAccion.value = `Reserva cancelada. Se cobró una penalidad de ${formatearMonto(pago.monto)}.`
-      }
-    } catch {
-      pagoPenalidad.value = null
-    }
+    // Con penalidad, el aviso persistente (monto y comprobante) reemplaza al mensaje simple.
+    if ((await registrarPenalidad(actual.id, clase.value)) !== null) exitoAccion.value = null
     return true
-  }
-
-  function descargarComprobantePenalidad(): Promise<boolean> {
-    const pago = pagoPenalidad.value
-    if (!pago) return Promise.resolve(false)
-    return descargar(`comprobante-penalidad-${pago.id}.pdf`, () => servicios.pagos.descargarComprobante(pago.id))
   }
 
   async function anotarseEnEspera() {
@@ -240,15 +215,10 @@ export function useDetalleClase(claseId: () => number | null) {
     accionando,
     errorAccion,
     exitoAccion,
-    reservaCancelada,
-    pagoPenalidad,
-    descargandoComprobante,
-    errorDescarga,
     esSocio,
     esPersonal,
     reservar,
     cancelarReserva,
-    descargarComprobantePenalidad,
     anotarseEnEspera,
     confirmarCupo,
     salirDeEspera,

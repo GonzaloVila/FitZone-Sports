@@ -20,7 +20,6 @@ src/features/acceso/
 │   ├── useHistorialAccesos.ts      # Consulta paginada con debounce y descarte de respuestas viejas
 │   ├── usePersonasDentro.ts        # Consulta de ingresos abiertos y acción de egreso
 │   ├── useRegistroIngreso.ts       # Envío y traducción de errores según RFC 9457 problem+json
-│   ├── useSedeActiva.ts            # Sede que se mira en el módulo, compartida entre pantallas (estado de módulo)
 │   └── useSincronizacionOffline.ts # Cola offline y sincronización en lote (RNF-01)
 ├── ocupacion.ts                    # estadoDeOcupacion: disponible, casi lleno o lleno (única regla de ocupación)
 ├── pages/
@@ -49,6 +48,7 @@ src/features/acceso/
    - `409` con `type: 'https://fitzone.app/errores/egreso-duplicado'` -> Ingreso ya egresado (refresca automáticamente la lista de personas dentro).
 3. **Seguridad y privacidad**: El código TOTP se limpia inmediatamente del formulario y nunca se persiste ni se imprime en logs.
 4. **Actualización periódica**: Implementada con el composable compartido `useActualizacionPeriodica` (cada 10 segundos). Se suspende automáticamente cuando la pestaña está oculta (`document.visibilityState === 'hidden'`) para no generar tráfico ocioso.
-5. **Accesibilidad WCAG 2.2 AA**:
+5. **Sede activa compartida**: el aforo y el historial leen `useSedeActiva` (`compartido/composables/`), que también usan Clases y Canchas. Es estado de módulo, sin `localStorage`.
+6. **Accesibilidad WCAG 2.2 AA**:
    - Componente `MedidorFz` utilizando el elemento nativo `<meter>` con atributos ARIA completos (`aria-valuenow`, `aria-valuetext`).
    - Los mensajes de resultado y rechazos emplean íconos y textos explicativos explícitos, no dependiendo exclusivamente de colores.

@@ -1,4 +1,5 @@
 import type { components } from '@/types/api'
+import { sinCodigosDeRequisito } from '../sinCodigosDeRequisito'
 
 // Cuerpo de error según RFC 9457 (application/problem+json), tal como lo define el contrato.
 export type Problema = components['schemas']['Problem']
@@ -55,5 +56,13 @@ export function crearErrorDeRespuesta(status: number, cuerpo: unknown, textoEsta
         status,
         detail: typeof cuerpo === 'string' ? cuerpo : '',
       }
-  return new ErrorApi(status, problema.detail || problema.title, problema)
+  // Único lugar donde los mensajes de la API pasan a ser texto para mostrar: salen sin las referencias a requisitos
+  // ("(RN-01)"). El `problema` también queda limpio, porque varias pantallas leen su detail, title y errors directo.
+  const limpio: Problema = {
+    ...problema,
+    title: sinCodigosDeRequisito(problema.title),
+    detail: sinCodigosDeRequisito(problema.detail),
+    ...(problema.errors ? { errors: problema.errors.map(sinCodigosDeRequisito) } : {}),
+  }
+  return new ErrorApi(status, limpio.detail || limpio.title, limpio)
 }

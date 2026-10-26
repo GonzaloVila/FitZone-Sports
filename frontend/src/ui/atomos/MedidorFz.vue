@@ -6,22 +6,19 @@ const props = withDefaults(
     valor: number
     maximo: number
     etiqueta?: string
+    // Color del llenado, ya decidido por quien lo usa (el kit no conoce las reglas de cada dominio):
+    // 'normal' verde, 'advertencia' ámbar, 'critico' rojo.
+    nivel?: 'normal' | 'advertencia' | 'critico'
   }>(),
   {
     etiqueta: 'Ocupación',
+    nivel: 'normal',
   },
 )
 
 const porcentaje = computed(() => {
   if (props.maximo <= 0) return 0
   return Math.min(100, Math.max(0, Math.round((props.valor / props.maximo) * 100)))
-})
-
-// Dinamismo semántico: <70% verde, 70-90% ámbar, >90% rojo
-const nivel = computed<'normal' | 'advertencia' | 'critico'>(() => {
-  if (porcentaje.value >= 90) return 'critico'
-  if (porcentaje.value >= 70) return 'advertencia'
-  return 'normal'
 })
 </script>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { AvisoFz, InsigniaFz, MedidorFz } from '@/ui'
+import { estadoDeOcupacion, type EstadoOcupacion } from '../ocupacion'
 import type { Aforo } from '../services/servicioAcceso'
 
 const props = defineProps<{
@@ -9,30 +10,27 @@ const props = defineProps<{
   cargando?: boolean
 }>()
 
-const estaLleno = computed(() => {
-  if (!props.aforo) return false
-  return props.aforo.restante <= 0 || props.aforo.aforoActual >= props.aforo.aforoMaximo
-})
-
-const ocupacionPorcentaje = computed(() => {
-  if (!props.aforo || props.aforo.aforoMaximo <= 0) return 0
-  return Math.round((props.aforo.aforoActual / props.aforo.aforoMaximo) * 100)
-})
-
-const casiLleno = computed(() => !estaLleno.value && ocupacionPorcentaje.value >= 80)
-
-// Estado de la sede para la insignia: Disponible, Casi lleno o Lleno.
-const estado = computed(() => {
-  if (estaLleno.value) return { texto: 'Lleno', variante: 'peligro' as const }
-  if (casiLleno.value) return { texto: 'Casi lleno', variante: 'advertencia' as const }
-  return { texto: 'Disponible', variante: 'exito' as const }
-})
-
-// Solo el número lleva color, y solo cuando el estado lo pide: los mismos umbrales que cambian el color de la barra
-// (70 % ámbar, 90 % rojo).
-const tonoOcupacion = computed(() =>
-  ocupacionPorcentaje.value >= 90 ? 'peligro' : ocupacionPorcentaje.value >= 70 ? 'advertencia' : 'normal',
+// Una sola regla (estadoDeOcupacion) decide la insignia, el color del número y el de la barra.
+const ocupacion = computed<EstadoOcupacion | null>(() =>
+  props.aforo ? estadoDeOcupacion(props.aforo.aforoActual, props.aforo.aforoMaximo) : null,
 )
+const estaLleno = computed(() => ocupacion.value === 'lleno')
+
+const INSIGNIAS = {
+  disponible: { texto: 'Disponible', variante: 'exito' },
+  'casi-lleno': { texto: 'Casi lleno', variante: 'advertencia' },
+  lleno: { texto: 'Lleno', variante: 'peligro' },
+} as const
+
+// El color de la barra, en los términos del kit (verde, ámbar, rojo).
+const NIVELES_BARRA = { disponible: 'normal', 'casi-lleno': 'advertencia', lleno: 'critico' } as const
+
+// Solo el número lleva color, y solo cuando el estado lo pide (neutro si hay lugar, ámbar si queda poco, rojo si no hay).
+const TONOS_NUMERO = { disponible: 'normal', 'casi-lleno': 'advertencia', lleno: 'peligro' } as const
+
+const insignia = computed(() => (ocupacion.value ? INSIGNIAS[ocupacion.value] : null))
+const nivelBarra = computed(() => (ocupacion.value ? NIVELES_BARRA[ocupacion.value] : 'normal'))
+const tonoOcupacion = computed(() => (ocupacion.value ? TONOS_NUMERO[ocupacion.value] : 'normal'))
 const tonoDisponibles = computed(() => (estaLleno.value ? 'peligro' : 'normal'))
 </script>
 
@@ -41,7 +39,7 @@ const tonoDisponibles = computed(() => (estaLleno.value ? 'peligro' : 'normal'))
     <div class="tarjeta__cabecera">
       <div class="tarjeta__sede">
         <h2 class="tarjeta__nombre">{{ nombreSede ?? 'Aforo de la sede' }}</h2>
-        <InsigniaFz v-if="aforo" :variante="estado.variante">{{ estado.texto }}</InsigniaFz>
+        <InsigniaFz v-if="insignia" :variante="insignia.variante">{{ insignia.texto }}</InsigniaFz>
         <span v-if="cargando" class="tarjeta__actualizando" aria-live="polite">Actualizando…</span>
       </div>
 
@@ -49,7 +47,7 @@ const tonoDisponibles = computed(() => (estaLleno.value ? 'peligro' : 'normal'))
     </div>
 
     <template v-if="aforo">
-      <MedidorFz :valor="aforo.aforoActual" :maximo="aforo.aforoMaximo" etiqueta="Nivel de ocupación" />
+      <MedidorFz :valor="aforo.aforoActual" :maximo="aforo.aforoMaximo" :nivel="nivelBarra" etiqueta="Nivel de ocupación" />
 
       <dl class="indicadores">
         <div class="indicador">

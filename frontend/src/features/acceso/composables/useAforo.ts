@@ -2,6 +2,7 @@ import { computed, ref, watch, type Ref } from 'vue'
 import { useActualizacionPeriodica } from '@/compartido/composables/useActualizacionPeriodica'
 import { mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
+import { estadoDeOcupacion } from '../ocupacion'
 import type { Aforo } from '../services/servicioAcceso'
 
 export function useAforo(sedeId: Ref<number | null | undefined>) {
@@ -11,10 +12,9 @@ export function useAforo(sedeId: Ref<number | null | undefined>) {
   const cargando = ref(false)
   const error = ref<string | null>(null)
 
-  const estaLleno = computed(() => {
-    if (!aforo.value) return false
-    return aforo.value.restante <= 0 || aforo.value.aforoActual >= aforo.value.aforoMaximo
-  })
+  const estaLleno = computed(
+    () => aforo.value !== null && estadoDeOcupacion(aforo.value.aforoActual, aforo.value.aforoMaximo) === 'lleno',
+  )
 
   let controlador: AbortController | undefined
 

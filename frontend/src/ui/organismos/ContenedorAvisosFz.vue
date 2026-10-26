@@ -86,20 +86,19 @@ function alCambiarApertura(id: number, abierto: boolean) {
   animation: aviso-flotante-entrada var(--fz-aviso-flotante-animacion-duracion) ease-out;
 }
 
-.aviso-flotante--exito {
-  --fz-aviso-flotante-acento: var(--fz-aviso-flotante-exito-color);
+.aviso-flotante--exito .aviso-flotante__icono {
+  color: var(--fz-aviso-flotante-exito-color);
 }
 
-.aviso-flotante--error {
-  --fz-aviso-flotante-acento: var(--fz-aviso-flotante-error-color);
+.aviso-flotante--error .aviso-flotante__icono {
+  color: var(--fz-aviso-flotante-error-color);
 }
 
-.aviso-flotante--info {
-  --fz-aviso-flotante-acento: var(--fz-aviso-flotante-info-color);
+.aviso-flotante--info .aviso-flotante__icono {
+  color: var(--fz-aviso-flotante-info-color);
 }
 
 .aviso-flotante__icono {
-  color: var(--fz-aviso-flotante-acento);
   /* Alinea el ícono con la primera línea del título. */
   margin-top: 0.0625rem;
 }

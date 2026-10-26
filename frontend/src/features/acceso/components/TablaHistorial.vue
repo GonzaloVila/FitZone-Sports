@@ -91,7 +91,7 @@ function formatearFechaHora(iso: string | null | undefined) {
 .tabla-historial {
   display: flex;
   flex-direction: column;
-  gap: var(--fz-espacio-4, 1rem);
+  gap: var(--fz-espaciado-base);
   width: 100%;
 }
 
@@ -101,13 +101,13 @@ function formatearFechaHora(iso: string | null | undefined) {
 }
 
 .tabla-historial__id {
-  font-size: var(--fz-texto-xs, 0.75rem);
-  color: var(--fz-color-texto-atenuado, #6b7280);
+  font-size: var(--fz-texto-minimo);
+  color: var(--fz-color-texto-suave);
 }
 
 .tabla-historial__paginacion {
   display: flex;
   justify-content: center;
-  padding: var(--fz-espacio-2, 0.5rem) 0;
+  padding: var(--fz-espaciado-compacto) 0;
 }
 </style>

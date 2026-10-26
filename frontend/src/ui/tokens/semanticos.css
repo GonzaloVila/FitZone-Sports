@@ -58,7 +58,9 @@
   --fz-radio-pildora: var(--fz-prim-radio-completo);
 
   /* Espaciado */
+  --fz-espaciado-minimo: var(--fz-prim-esp-1);
   --fz-espaciado-compacto: var(--fz-prim-esp-2);
+  --fz-espaciado-medio: var(--fz-prim-esp-3);
   --fz-espaciado-base: var(--fz-prim-esp-4);
   --fz-espaciado-amplio: var(--fz-prim-esp-6);
 

@@ -79,11 +79,11 @@ const emit = defineEmits<{
 .filtros-historial {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--fz-espacio-4, 1rem);
-  background: var(--fz-color-fondo, #ffffff);
-  border: 1px solid var(--fz-color-borde, #e5e7eb);
-  border-radius: var(--fz-radio-lg, 0.5rem);
-  padding: var(--fz-espacio-4, 1rem);
+  gap: var(--fz-espaciado-base);
+  background: var(--fz-color-fondo);
+  border: 1px solid var(--fz-color-borde);
+  border-radius: var(--fz-radio-control);
+  padding: var(--fz-espaciado-base);
 }
 
 .filtros-historial__campo {

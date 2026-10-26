@@ -105,7 +105,7 @@ const colorOcupacion = computed(() => {
   background: var(--fz-color-superficie);
   border: 1px solid var(--fz-color-borde);
   border-radius: var(--fz-radio-tarjeta);
-  padding: 1.5rem;
+  padding: var(--fz-espaciado-amplio);
   box-shadow: var(--fz-sombra-tarjeta);
   display: flex;
   flex-direction: column;
@@ -117,18 +117,18 @@ const colorOcupacion = computed(() => {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--fz-espaciado-base);
 }
 
 .tarjeta-aforo__info-sede {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--fz-espaciado-medio);
 }
 
 .tarjeta-aforo__titulo {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--fz-texto-titulo);
   font-weight: 700;
   color: var(--fz-color-texto);
   letter-spacing: -0.015em;
@@ -137,7 +137,7 @@ const colorOcupacion = computed(() => {
 .tarjeta-aforo__acciones-cabecera {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--fz-espaciado-medio);
   flex-wrap: wrap;
 }
 
@@ -174,17 +174,17 @@ const colorOcupacion = computed(() => {
 .tarjeta-aforo__kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
+  gap: var(--fz-espaciado-base);
 }
 
 .tarjeta-aforo__kpi {
-  padding: 1rem;
+  padding: var(--fz-espaciado-base);
   border-radius: var(--fz-radio-control);
   border: 1px solid var(--fz-color-borde);
   background: var(--fz-color-hover);
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--fz-espaciado-minimo);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -194,9 +194,9 @@ const colorOcupacion = computed(() => {
 }
 
 .tarjeta-aforo__kpi-etiqueta {
-  font-size: 0.8125rem;
+  font-size: var(--fz-texto-pequeno);
   color: var(--fz-color-texto-suave);
-  font-weight: var(--fz-peso-medio, 500);
+  font-weight: var(--fz-peso-medio);
 }
 
 .tarjeta-aforo__kpi-valor-grupo {
@@ -214,7 +214,7 @@ const colorOcupacion = computed(() => {
 }
 
 .tarjeta-aforo__kpi-subtexto {
-  font-size: 0.75rem;
+  font-size: var(--fz-texto-minimo);
   color: var(--fz-color-texto-suave);
 }
 
@@ -252,12 +252,12 @@ const colorOcupacion = computed(() => {
 }
 
 .tarjeta-aforo__aviso-lleno {
-  margin-top: 0.25rem;
+  margin-top: var(--fz-espaciado-minimo);
 }
 
 .tarjeta-aforo__vacio {
   color: var(--fz-color-texto-suave);
-  padding: 1.5rem 0;
+  padding: var(--fz-espaciado-amplio) 0;
   text-align: center;
 }
 </style>

@@ -119,7 +119,7 @@ const tituloEstado = computed(() => {
 .resultado-ingreso__titulos {
   display: flex;
   flex-direction: column;
-  gap: var(--fz-prim-esp-1);
+  gap: var(--fz-espaciado-minimo);
 }
 
 .resultado-ingreso__titulo {
@@ -142,7 +142,7 @@ const tituloEstado = computed(() => {
 .resultado-ingreso__socio {
   display: flex;
   flex-direction: column;
-  gap: var(--fz-prim-esp-1);
+  gap: var(--fz-espaciado-minimo);
   background: var(--fz-color-fondo);
   padding: var(--fz-espaciado-compacto);
   border-radius: var(--fz-radio-control);

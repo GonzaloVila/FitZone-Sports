@@ -74,17 +74,17 @@ const aforoMaximoTexto = computed({
 .formulario-sede {
   display: flex;
   flex-direction: column;
-  gap: var(--fz-espacio-4, 1rem);
-  background: var(--fz-color-fondo, #ffffff);
-  border: 1px solid var(--fz-color-borde, #e5e7eb);
-  border-radius: var(--fz-radio-lg, 0.5rem);
-  padding: var(--fz-espacio-6, 1.5rem);
+  gap: var(--fz-espaciado-base);
+  background: var(--fz-color-fondo);
+  border: 1px solid var(--fz-color-borde);
+  border-radius: var(--fz-radio-control);
+  padding: var(--fz-espaciado-amplio);
   max-width: 32rem;
 }
 
 .formulario-sede__acciones {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--fz-espacio-2, 0.5rem);
+  margin-top: var(--fz-espaciado-compacto);
 }
 </style>

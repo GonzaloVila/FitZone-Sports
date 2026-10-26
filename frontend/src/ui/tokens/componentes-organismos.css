@@ -1,0 +1,105 @@
+/*
+ * Tokens de componente: organismos (avisos flotantes, tabla, modal).
+ * Referencian SOLO tokens semánticos. Los valores sueltos de dimensión
+ * (alturas, anchos de borde) pueden ser literales; los colores nunca.
+ */
+:root {
+  /* ---- Avisos flotantes / toasts (organismo) ---- */
+  --fz-aviso-flotante-capa: var(--fz-capa-aviso);
+  --fz-aviso-flotante-margen: var(--fz-espaciado-base);
+  --fz-aviso-flotante-separacion: var(--fz-espaciado-compacto);
+  --fz-aviso-flotante-ancho-max: 22rem;
+  --fz-aviso-flotante-fondo: var(--fz-color-fondo);
+  --fz-aviso-flotante-borde: var(--fz-color-borde-marcado);
+  --fz-aviso-flotante-borde-ancho: 1px;
+  --fz-aviso-flotante-radio: var(--fz-radio-control);
+  --fz-aviso-flotante-sombra: var(--fz-sombra-elevada);
+  --fz-aviso-flotante-relleno-x: var(--fz-espaciado-base);
+  --fz-aviso-flotante-relleno-y: 0.75rem;
+  --fz-aviso-flotante-contenido-separacion: var(--fz-espaciado-compacto);
+  --fz-aviso-flotante-titulo-texto: var(--fz-texto-pequeno);
+  --fz-aviso-flotante-titulo-peso: var(--fz-peso-medio);
+  --fz-aviso-flotante-titulo-color: var(--fz-color-texto);
+  --fz-aviso-flotante-descripcion-texto: var(--fz-texto-pequeno);
+  --fz-aviso-flotante-descripcion-color: var(--fz-color-texto-suave);
+  --fz-aviso-flotante-exito-color: var(--fz-color-exito);
+  --fz-aviso-flotante-error-color: var(--fz-color-peligro);
+  --fz-aviso-flotante-info-color: var(--fz-color-info);
+  --fz-aviso-flotante-cerrar-tamano: 1.75rem;
+  --fz-aviso-flotante-cerrar-color: var(--fz-color-texto-suave);
+  --fz-aviso-flotante-cerrar-color-hover: var(--fz-color-texto);
+  --fz-aviso-flotante-cerrar-fondo-hover: var(--fz-color-hover);
+  --fz-aviso-flotante-foco-color: var(--fz-color-foco);
+  --fz-aviso-flotante-foco-ancho: 2px;
+  --fz-aviso-flotante-foco-separacion: 2px;
+  --fz-aviso-flotante-animacion-duracion: var(--fz-duracion-media);
+  --fz-aviso-flotante-animacion-desplazamiento: 1rem;
+
+  /* ---- Tabla (organismo) ---- */
+  --fz-tabla-fondo: var(--fz-color-fondo);
+  --fz-tabla-borde: var(--fz-color-borde-marcado);
+  --fz-tabla-borde-ancho: 1px;
+  --fz-tabla-radio: var(--fz-radio-control);
+  --fz-tabla-sombra: none;
+  --fz-tabla-texto: var(--fz-texto-pequeno);
+  --fz-tabla-celda-texto: var(--fz-color-texto);
+  --fz-tabla-celda-relleno-x: var(--fz-espaciado-base);
+  --fz-tabla-celda-relleno-y: var(--fz-espaciado-compacto);
+  --fz-tabla-celda-encabezado-peso: var(--fz-peso-enfasis);
+  --fz-tabla-fila-fondo-hover: var(--fz-color-superficie);
+  --fz-tabla-encabezado-fondo: var(--fz-color-superficie);
+  --fz-tabla-encabezado-texto: var(--fz-color-texto-suave);
+  --fz-tabla-encabezado-tamano: var(--fz-texto-pequeno);
+  --fz-tabla-encabezado-peso: var(--fz-peso-medio);
+  --fz-tabla-encabezado-relleno-x: var(--fz-espaciado-base);
+  --fz-tabla-encabezado-relleno-y: 0.625rem;
+  --fz-tabla-titulo-color: var(--fz-color-texto-suave);
+  --fz-tabla-foco-color: var(--fz-color-foco);
+  --fz-tabla-foco-ancho: 2px;
+  --fz-tabla-foco-separacion: 2px;
+
+  /* ---- Modal (organismo) ---- */
+  --fz-modal-fondo: var(--fz-color-fondo);
+  --fz-modal-texto: var(--fz-color-texto);
+  --fz-modal-borde: var(--fz-color-borde-marcado);
+  --fz-modal-borde-ancho: 1px;
+  --fz-modal-radio: var(--fz-radio-control);
+  --fz-modal-sombra: var(--fz-sombra-suave);
+  --fz-modal-separacion: var(--fz-espaciado-base);
+  --fz-modal-margen: var(--fz-espaciado-base);
+  --fz-modal-ancho-angosto: 24rem;
+  --fz-modal-ancho-normal: 32rem;
+  --fz-modal-ancho-amplio: 40rem;
+  --fz-modal-velo: var(--fz-color-texto);
+  --fz-modal-velo-opacidad: 30%;
+  --fz-modal-desenfoque: 2px;
+  /* Encabezado */
+  --fz-modal-encabezado-relleno-x: var(--fz-espaciado-amplio);
+  --fz-modal-encabezado-relleno-y: var(--fz-espaciado-base);
+  --fz-modal-encabezado-separacion: var(--fz-espaciado-compacto);
+  --fz-modal-encabezado-borde: var(--fz-color-borde);
+  --fz-modal-encabezado-borde-ancho: 1px;
+  --fz-modal-titulo-texto: var(--fz-texto-subtitulo);
+  --fz-modal-titulo-peso: var(--fz-peso-enfasis);
+  --fz-modal-titulo-letras: var(--fz-letras-apretado);
+  --fz-modal-descripcion-texto: var(--fz-texto-minimo);
+  --fz-modal-descripcion-color: var(--fz-color-texto-suave);
+  --fz-modal-icono-tamano: 1.75rem;
+  --fz-modal-icono-radio: var(--fz-radio-control);
+  --fz-modal-tono-neutro-fondo: var(--fz-color-hover);
+  --fz-modal-tono-neutro-icono: var(--fz-color-texto);
+  --fz-modal-tono-primario-fondo: var(--fz-color-primario-fondo);
+  --fz-modal-tono-primario-icono: var(--fz-color-primario);
+  --fz-modal-tono-advertencia-fondo: var(--fz-color-advertencia-fondo);
+  --fz-modal-tono-advertencia-icono: var(--fz-color-advertencia);
+  --fz-modal-tono-peligro-fondo: var(--fz-color-peligro-fondo);
+  --fz-modal-tono-peligro-icono: var(--fz-color-peligro);
+  /* Cuerpo y pie */
+  --fz-modal-relleno: var(--fz-espaciado-amplio);
+  --fz-modal-pie-fondo: var(--fz-color-superficie);
+  --fz-modal-pie-borde: var(--fz-color-borde);
+  --fz-modal-pie-borde-ancho: 1px;
+  --fz-modal-pie-relleno-x: var(--fz-espaciado-amplio);
+  --fz-modal-pie-relleno-y: var(--fz-espaciado-compacto);
+  --fz-modal-pie-separacion: var(--fz-espaciado-compacto);
+}

@@ -185,13 +185,13 @@ async function refrescarTodo() {
   align-items: center;
   gap: 1.25rem;
   flex-wrap: wrap;
-  padding-bottom: 0.5rem;
+  padding-bottom: var(--fz-espaciado-compacto);
 }
 
 .aforo-page__titulos {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--fz-espaciado-minimo);
 }
 
 .aforo-page__titulo {
@@ -204,13 +204,13 @@ async function refrescarTodo() {
 
 .aforo-page__subtitulo {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--fz-texto-cuerpo);
   color: var(--fz-color-texto-suave);
 }
 
 .aforo-page__acciones {
   display: flex;
-  gap: 0.75rem;
+  gap: var(--fz-espaciado-medio);
   align-items: center;
   flex-wrap: wrap;
 }
@@ -218,12 +218,12 @@ async function refrescarTodo() {
 .aforo-page__selector-integrado {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--fz-espaciado-compacto);
 }
 
 .aforo-page__selector-label {
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: var(--fz-texto-pequeno);
+  font-weight: var(--fz-peso-enfasis);
   color: var(--fz-color-texto-suave);
 }
 
@@ -234,7 +234,7 @@ async function refrescarTodo() {
 .aforo-page__seccion-egreso {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--fz-espaciado-medio);
 }
 
 .aforo-page__cabecera-seccion {
@@ -245,15 +245,15 @@ async function refrescarTodo() {
 
 .aforo-page__titulo-seccion {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
+  font-size: var(--fz-texto-titulo);
+  font-weight: var(--fz-peso-enfasis);
   letter-spacing: -0.015em;
   color: var(--fz-color-texto);
 }
 
 .aforo-page__subtitulo-seccion {
   margin: 0.125rem 0 0;
-  font-size: 0.8125rem;
+  font-size: var(--fz-texto-pequeno);
   color: var(--fz-color-texto-suave);
 }
 

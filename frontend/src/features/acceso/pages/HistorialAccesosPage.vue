@@ -71,7 +71,7 @@ const {
 .historial-accesos-page {
   display: flex;
   flex-direction: column;
-  gap: var(--fz-espacio-6, 1.5rem);
+  gap: var(--fz-espaciado-amplio);
   max-width: 64rem;
   margin: 0 auto;
   width: 100%;
@@ -81,25 +81,25 @@ const {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: var(--fz-espacio-4, 1rem);
+  gap: var(--fz-espaciado-base);
   flex-wrap: wrap;
 }
 
 .historial-accesos-page__titulo {
   margin: 0;
-  font-size: var(--fz-texto-2xl, 1.5rem);
-  font-weight: 700;
-  color: var(--fz-color-texto, #111827);
+  font-size: var(--fz-texto-titulo);
+  font-weight: var(--fz-peso-enfasis);
+  color: var(--fz-color-texto);
 }
 
 .historial-accesos-page__subtitulo {
-  margin: 0.25rem 0 0;
-  color: var(--fz-color-texto-atenuado, #6b7280);
+  margin: var(--fz-espaciado-minimo) 0 0;
+  color: var(--fz-color-texto-suave);
 }
 
 .historial-accesos-page__acciones {
   display: flex;
-  gap: var(--fz-espacio-3, 0.75rem);
+  gap: var(--fz-espaciado-medio);
   align-items: center;
 }
 

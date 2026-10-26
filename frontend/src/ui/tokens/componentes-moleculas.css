@@ -1,0 +1,131 @@
+/*
+ * Tokens de componente: moléculas (menú de acciones, marca, campo de contraseña, paginación, opción en tarjeta,
+ * selector segmentado, campo de formulario).
+ * Referencian SOLO tokens semánticos. Los valores sueltos de dimensión
+ * (alturas, anchos de borde) pueden ser literales; los colores nunca.
+ */
+:root {
+  /* ---- Menú de acciones (molécula) ---- */
+  --fz-menu-acciones-disparador-alto: 1.75rem;
+  --fz-menu-acciones-disparador-color: var(--fz-color-texto);
+  --fz-menu-acciones-disparador-fondo-hover: var(--fz-color-hover);
+  --fz-menu-acciones-disparador-radio: var(--fz-radio-control);
+  --fz-menu-acciones-foco-color: var(--fz-color-foco);
+  --fz-menu-acciones-foco-ancho: 2px;
+  --fz-menu-acciones-foco-separacion: 2px;
+  --fz-menu-acciones-capa: var(--fz-capa-menu);
+  --fz-menu-acciones-fondo: var(--fz-color-fondo);
+  --fz-menu-acciones-borde: var(--fz-color-borde-marcado);
+  --fz-menu-acciones-borde-ancho: 1px;
+  --fz-menu-acciones-radio: var(--fz-radio-control);
+  --fz-menu-acciones-sombra: var(--fz-sombra-elevada);
+  --fz-menu-acciones-relleno: 0.25rem;
+  --fz-menu-acciones-ancho-min: 10rem;
+  --fz-menu-acciones-item-alto: 1.75rem;
+  --fz-menu-acciones-item-relleno-x: var(--fz-espaciado-compacto);
+  --fz-menu-acciones-item-separacion: var(--fz-espaciado-compacto);
+  --fz-menu-acciones-item-radio: var(--fz-radio-control);
+  --fz-menu-acciones-item-texto: var(--fz-texto-pequeno);
+  --fz-menu-acciones-item-color: var(--fz-color-texto);
+  --fz-menu-acciones-item-fondo-resaltado: var(--fz-color-hover);
+  --fz-menu-acciones-item-peligro-color: var(--fz-color-peligro);
+  --fz-menu-acciones-item-deshabilitado-color: var(--fz-color-texto-suave);
+  --fz-menu-acciones-item-deshabilitado-opacidad: 0.6;
+  --fz-menu-acciones-separador-color: var(--fz-color-borde);
+  --fz-menu-acciones-separador-alto: 1px;
+  --fz-menu-acciones-separador-margen: 0.25rem;
+  --fz-menu-acciones-animacion-duracion: var(--fz-duracion-breve);
+  --fz-menu-acciones-animacion-desplazamiento: 0.25rem;
+
+  /* ---- Marca (molécula) ---- */
+  --fz-marca-separacion: var(--fz-espaciado-compacto);
+  --fz-marca-logo-tamano: 1.25rem;
+  --fz-marca-logo-fondo: var(--fz-color-texto);
+  --fz-marca-logo-texto: var(--fz-color-fondo);
+  --fz-marca-logo-texto-tamano: var(--fz-texto-minimo);
+  --fz-marca-logo-peso: var(--fz-peso-enfasis);
+  --fz-marca-logo-radio: var(--fz-radio-control);
+  --fz-marca-nombre-texto: var(--fz-texto-cuerpo);
+  --fz-marca-nombre-peso: var(--fz-peso-enfasis);
+  --fz-marca-nombre-color: var(--fz-color-texto);
+  --fz-marca-descripcion-texto: var(--fz-texto-minimo);
+  --fz-marca-descripcion-peso: var(--fz-peso-normal);
+  --fz-marca-descripcion-color: var(--fz-color-texto-suave);
+
+  /* ---- Campo de contraseña (molécula) ---- */
+  --fz-campo-contrasenia-boton-tamano: 1.75rem;
+  --fz-campo-contrasenia-boton-radio: var(--fz-radio-control);
+  --fz-campo-contrasenia-icono-color: var(--fz-color-texto-suave);
+  --fz-campo-contrasenia-icono-color-hover: var(--fz-color-texto);
+  --fz-campo-contrasenia-boton-fondo-hover: var(--fz-color-hover);
+  --fz-campo-contrasenia-foco-color: var(--fz-color-foco);
+  --fz-campo-contrasenia-foco-ancho: 2px;
+
+  /* ---- Paginación (molécula) ---- */
+  --fz-paginacion-separacion: var(--fz-espaciado-base);
+  --fz-paginacion-texto: var(--fz-texto-pequeno);
+  --fz-paginacion-color: var(--fz-color-texto-suave);
+
+  /* ---- Opción en tarjeta (molécula) ---- */
+  --fz-opcion-tarjeta-separacion: var(--fz-espaciado-compacto);
+  --fz-opcion-tarjeta-relleno-x: var(--fz-espaciado-base);
+  --fz-opcion-tarjeta-relleno-y: var(--fz-espaciado-compacto);
+  --fz-opcion-tarjeta-contenido-separacion: var(--fz-espaciado-base);
+  --fz-opcion-tarjeta-radio: var(--fz-radio-control);
+  --fz-opcion-tarjeta-borde-ancho: 1px;
+  --fz-opcion-tarjeta-fondo: var(--fz-color-fondo);
+  --fz-opcion-tarjeta-borde: var(--fz-color-borde-marcado);
+  --fz-opcion-tarjeta-borde-hover: var(--fz-color-borde-control);
+  --fz-opcion-tarjeta-fondo-hover: var(--fz-color-superficie);
+  --fz-opcion-tarjeta-elegida-borde: var(--fz-color-primario);
+  --fz-opcion-tarjeta-elegida-fondo: var(--fz-color-primario-fondo);
+  --fz-opcion-tarjeta-indicador-tamano: 1rem;
+  --fz-opcion-tarjeta-indicador-borde: var(--fz-color-borde-control);
+  --fz-opcion-tarjeta-indicador-elegido: var(--fz-color-primario);
+  --fz-opcion-tarjeta-indicador-hueco: var(--fz-color-fondo);
+  --fz-opcion-tarjeta-indicador-hueco-ancho: 0.1875rem;
+  --fz-opcion-tarjeta-titulo-texto: var(--fz-texto-cuerpo);
+  --fz-opcion-tarjeta-titulo-peso: var(--fz-peso-enfasis);
+  --fz-opcion-tarjeta-titulo-color: var(--fz-color-texto);
+  --fz-opcion-tarjeta-descripcion-texto: var(--fz-texto-minimo);
+  --fz-opcion-tarjeta-descripcion-color: var(--fz-color-texto-suave);
+  --fz-opcion-tarjeta-deshabilitada-opacidad: 0.6;
+  --fz-opcion-tarjeta-foco-color: var(--fz-color-foco);
+  --fz-opcion-tarjeta-foco-ancho: 2px;
+  --fz-opcion-tarjeta-foco-separacion: 2px;
+  --fz-opcion-tarjeta-compacta-borde: var(--fz-color-borde-marcado);
+  --fz-opcion-tarjeta-compacta-separador: var(--fz-color-borde);
+  --fz-opcion-tarjeta-compacta-relleno-y: var(--fz-espaciado-compacto);
+  --fz-opcion-tarjeta-compacta-titulo-texto: var(--fz-texto-cuerpo);
+
+  /* ---- Selector segmentado (molécula) ---- */
+  --fz-selector-segmentado-fondo: var(--fz-color-hover);
+  --fz-selector-segmentado-radio: var(--fz-radio-control);
+  --fz-selector-segmentado-relleno: 0.125rem;
+  --fz-selector-segmentado-alto: 1.75rem;
+  --fz-selector-segmentado-borde-ancho: 1px;
+  --fz-selector-segmentado-texto: var(--fz-texto-pequeno);
+  --fz-selector-segmentado-peso: var(--fz-peso-enfasis);
+  --fz-selector-segmentado-color: var(--fz-color-texto-suave);
+  --fz-selector-segmentado-color-hover: var(--fz-color-texto);
+  --fz-selector-segmentado-elegida-fondo: var(--fz-color-fondo);
+  --fz-selector-segmentado-elegida-color: var(--fz-color-texto);
+  --fz-selector-segmentado-elegida-borde: var(--fz-color-borde-control);
+  --fz-selector-segmentado-foco-color: var(--fz-color-foco);
+  --fz-selector-segmentado-foco-ancho: 2px;
+  --fz-selector-segmentado-foco-separacion: 2px;
+  --fz-selector-segmentado-deshabilitado-opacidad: 0.6;
+
+  /* ---- Campo de formulario (molécula) ---- */
+  --fz-campo-formulario-separacion: var(--fz-espaciado-compacto);
+  --fz-campo-formulario-etiqueta-texto: var(--fz-texto-pequeno);
+  --fz-campo-formulario-etiqueta-peso: var(--fz-peso-enfasis);
+  --fz-campo-formulario-etiqueta-color: var(--fz-color-texto);
+  --fz-campo-formulario-ayuda-texto: var(--fz-texto-pequeno);
+  --fz-campo-formulario-ayuda-color: var(--fz-color-texto-suave);
+  --fz-campo-formulario-error-texto: var(--fz-texto-pequeno);
+  --fz-campo-formulario-error-color: var(--fz-color-peligro);
+  --fz-campo-formulario-sufijo-margen: 0.25rem;
+  --fz-campo-formulario-etiqueta-texto-chica: var(--fz-texto-minimo);
+  --fz-campo-formulario-obligatorio-color: var(--fz-color-peligro);
+}

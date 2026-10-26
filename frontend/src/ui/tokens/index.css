@@ -1,3 +1,6 @@
 @import './primitivos.css';
 @import './semanticos.css';
-@import './componentes.css';
+@import './componentes-atomos.css';
+@import './componentes-moleculas.css';
+@import './componentes-organismos.css';
+@import './componentes-plantillas.css';

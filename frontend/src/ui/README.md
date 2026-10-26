@@ -355,6 +355,14 @@ La interfaz es compacta. Se cambia solo en los tokens; las pantallas la heredan.
 | `md` (estándar) | 2rem (32 px) | `texto-pequeno` |
 | `lg` | 2.25rem (36 px) | `texto-cuerpo` |
 
+| Espaciado semántico | Valor | Para qué |
+| --- | --- | --- |
+| `--fz-espaciado-minimo` | 0.25rem (4 px) | Separaciones mínimas: entre líneas de un mismo bloque |
+| `--fz-espaciado-compacto` | 0.5rem (8 px) | Separación entre elementos vecinos |
+| `--fz-espaciado-medio` | 0.75rem (12 px) | Separación intermedia entre grupos de controles |
+| `--fz-espaciado-base` | 1rem (16 px) | Relleno y separación estándar |
+| `--fz-espaciado-amplio` | 1.5rem (24 px) | Relleno de tarjetas y separación entre secciones |
+
 Reglas:
 
 - **Ningún texto legible por debajo de 12 px** (`0.75rem`).
@@ -369,7 +377,9 @@ Viven en `ui/tokens/` y tienen tres niveles:
 2. **Semánticos** (`--fz-color-*`, `--fz-fuente-*`...): significado de cada valor. Referencian solo primitivos. Un modo oscuro se hace reasignando esta capa.
 3. **De componente** (`--fz-boton-*`...): decisiones por átomo. Referencian solo semánticos.
 
-Un componente **nunca** usa primitivos ni colores literales: solo tokens de componente o semánticos.
+Archivos: `primitivos.css`, `semanticos.css` y los de componente, partidos por nivel (cada uno por debajo de 300 líneas): `componentes-atomos.css` (botón, campos, insignia, aviso, ícono, avatar, interruptor, select, QR), `componentes-moleculas.css` (menú de acciones, marca, campo de contraseña, paginación, opción en tarjeta, selector segmentado, campo de formulario), `componentes-organismos.css` (avisos flotantes, tabla, modal) y `componentes-plantillas.css` (armazón de la app y plantilla centrada). `index.css` los importa en ese orden. Un token nuevo va en el archivo de su nivel.
+
+Un componente **nunca** usa primitivos ni colores literales: solo tokens de componente o semánticos. Tampoco se escriben valores de respaldo dentro de `var()` (`var(--fz-color-fondo, #fff)`): si el token no existe, hay que definirlo.
 
 Pares de color con poco margen (no tocar uno de los dos sin volver a medir): el texto de `AvisoFz` y de `InsigniaFz` en `peligro` es `--fz-color-peligro` sobre `--fz-color-peligro-fondo` (`#c53b32` sobre `#fdebec`, **4.52:1**, el mínimo de AA es 4.5:1); el de `advertencia` es `#9a610f` sobre `#fdf5e8` (4.74:1). Aclarar el rojo del texto o oscurecer el fondo rosado lo deja por debajo.
 

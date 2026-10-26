@@ -1,0 +1,87 @@
+/*
+ * Tokens de componente: plantillas (armazón de la app y plantilla centrada).
+ * Referencian SOLO tokens semánticos. Los valores sueltos de dimensión
+ * (alturas, anchos de borde) pueden ser literales; los colores nunca.
+ */
+:root {
+  /* ---- Armazón de la app (plantilla) ---- */
+  --fz-armazon-fondo: var(--fz-color-fondo);
+  --fz-armazon-encabezado-fondo: var(--fz-color-fondo);
+  --fz-armazon-encabezado-borde: var(--fz-color-borde);
+  --fz-armazon-borde-ancho: 1px;
+  --fz-armazon-relleno-x: var(--fz-espaciado-base);
+  --fz-armazon-relleno-y: var(--fz-espaciado-compacto);
+  --fz-armazon-separacion: var(--fz-espaciado-base);
+  --fz-armazon-contenido-ancho-max: 72rem;
+  --fz-armazon-contenido-relleno: var(--fz-espaciado-amplio);
+  --fz-armazon-marca-texto: var(--fz-texto-cuerpo);
+  --fz-armazon-marca-peso: var(--fz-peso-enfasis);
+  --fz-armazon-marca-color: var(--fz-color-texto);
+  --fz-armazon-enlace-separacion: var(--fz-espaciado-compacto);
+  --fz-armazon-enlace-alto-min: 1.75rem;
+  --fz-armazon-enlace-separacion-vertical: 0.125rem;
+  --fz-armazon-enlace-relleno-x: var(--fz-espaciado-compacto);
+  --fz-armazon-enlace-radio: var(--fz-radio-control);
+  --fz-armazon-enlace-texto: var(--fz-texto-pequeno);
+  --fz-armazon-enlace-color: var(--fz-color-texto);
+  --fz-armazon-enlace-fondo-hover: var(--fz-color-hover);
+  --fz-armazon-enlace-peso-activo: var(--fz-peso-enfasis);
+  --fz-armazon-foco-color: var(--fz-color-foco);
+  --fz-armazon-foco-ancho: 2px;
+  --fz-armazon-foco-separacion: 2px;
+  --fz-armazon-saltar-fondo: var(--fz-color-primario);
+  --fz-armazon-saltar-texto: var(--fz-color-texto-sobre-primario);
+  --fz-armazon-saltar-relleno: var(--fz-espaciado-compacto);
+  /* Barra lateral (disposición 'barra-lateral') */
+  --fz-armazon-barra-ancho: 15rem;
+  --fz-armazon-barra-fondo: var(--fz-color-superficie);
+  --fz-armazon-barra-borde: var(--fz-color-borde);
+  --fz-armazon-barra-relleno: var(--fz-espaciado-base);
+  --fz-armazon-barra-separacion: var(--fz-espaciado-amplio);
+  --fz-armazon-enlace-activo-fondo: var(--fz-color-seleccionado);
+  --fz-armazon-enlace-icono-color: var(--fz-color-texto-suave);
+  --fz-armazon-enlace-icono-activo: var(--fz-color-primario);
+  --fz-armazon-grupo-separacion: var(--fz-espaciado-base);
+  --fz-armazon-seccion-titulo-texto: var(--fz-texto-minimo);
+  --fz-armazon-seccion-titulo-peso: var(--fz-peso-enfasis);
+  --fz-armazon-seccion-titulo-color: var(--fz-color-texto-suave);
+  --fz-armazon-seccion-titulo-espaciado: 0.06em;
+  --fz-armazon-seccion-titulo-relleno-x: var(--fz-espaciado-compacto);
+  --fz-armazon-menu-borde: var(--fz-color-borde-control);
+  --fz-armazon-menu-fondo: var(--fz-color-fondo);
+  --fz-armazon-menu-texto: var(--fz-color-texto);
+  --fz-armazon-menu-fondo-hover: var(--fz-color-hover);
+  /* Bloque de usuario (pie de la barra lateral / acciones de la barra superior) */
+  --fz-armazon-usuario-separacion: var(--fz-espaciado-compacto);
+  --fz-armazon-avatar-tamano: 1.75rem;
+  --fz-armazon-avatar-fondo: var(--fz-color-seleccionado);
+  --fz-armazon-avatar-texto: var(--fz-color-texto);
+  --fz-armazon-avatar-radio: var(--fz-radio-control);
+  --fz-armazon-usuario-nombre-texto: var(--fz-texto-pequeno);
+  --fz-armazon-usuario-nombre-peso: var(--fz-peso-enfasis);
+  --fz-armazon-usuario-detalle-texto: var(--fz-texto-minimo);
+  --fz-armazon-usuario-detalle-color: var(--fz-color-texto-suave);
+  --fz-armazon-salir-tamano: 1.75rem;
+  --fz-armazon-salir-color: var(--fz-color-texto);
+  --fz-armazon-salir-fondo-hover: var(--fz-color-hover);
+  --fz-armazon-salir-color-hover: var(--fz-color-peligro);
+
+  /* ---- Plantilla centrada ---- */
+  --fz-plantilla-centrada-fondo: var(--fz-color-superficie);
+  --fz-plantilla-centrada-relleno: var(--fz-espaciado-base);
+  --fz-plantilla-centrada-tarjeta-ancho-max: 24rem;
+  --fz-plantilla-centrada-tarjeta-fondo: var(--fz-color-fondo);
+  --fz-plantilla-centrada-tarjeta-borde: var(--fz-color-borde-marcado);
+  --fz-plantilla-centrada-tarjeta-borde-ancho: 1px;
+  --fz-plantilla-centrada-tarjeta-radio: var(--fz-radio-control);
+  --fz-plantilla-centrada-tarjeta-sombra: none;
+  --fz-plantilla-centrada-tarjeta-relleno: var(--fz-espaciado-amplio);
+  --fz-plantilla-centrada-encabezado-separacion: var(--fz-espaciado-compacto);
+  --fz-plantilla-centrada-marca-margen: var(--fz-espaciado-amplio);
+  --fz-plantilla-centrada-encabezado-margen: var(--fz-espaciado-amplio);
+  --fz-plantilla-centrada-titulo-texto: var(--fz-texto-titulo);
+  --fz-plantilla-centrada-titulo-peso: var(--fz-peso-enfasis);
+  --fz-plantilla-centrada-titulo-color: var(--fz-color-texto);
+  --fz-plantilla-centrada-subtitulo-texto: var(--fz-texto-pequeno);
+  --fz-plantilla-centrada-subtitulo-color: var(--fz-color-texto-suave);
+}

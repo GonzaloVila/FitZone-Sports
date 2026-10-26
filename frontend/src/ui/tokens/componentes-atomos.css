@@ -1,0 +1,208 @@
+/*
+ * Tokens de componente: átomos (botón, campos, insignia, aviso, ícono, avatar, interruptor, select, QR).
+ * Referencian SOLO tokens semánticos. Los valores sueltos de dimensión
+ * (alturas, anchos de borde) pueden ser literales; los colores nunca.
+ */
+:root {
+  /* ---- Botón ---- */
+  --fz-boton-alto-sm: 1.75rem;
+  --fz-boton-alto-md: 2rem;
+  --fz-boton-alto-lg: 2.25rem;
+  --fz-boton-relleno-x-sm: var(--fz-espaciado-compacto);
+  --fz-boton-relleno-x-md: var(--fz-espaciado-base);
+  --fz-boton-relleno-x-lg: var(--fz-espaciado-amplio);
+  --fz-boton-texto-sm: var(--fz-texto-minimo);
+  --fz-boton-texto-md: var(--fz-texto-pequeno);
+  --fz-boton-texto-lg: var(--fz-texto-cuerpo);
+  --fz-boton-separacion: var(--fz-espaciado-compacto);
+  --fz-boton-radio: var(--fz-radio-control);
+  --fz-boton-peso: var(--fz-peso-enfasis);
+  --fz-boton-borde-ancho: 1px;
+  --fz-boton-foco-color: var(--fz-color-foco);
+  --fz-boton-foco-ancho: 2px;
+  --fz-boton-foco-separacion: 2px;
+
+  --fz-boton-primario-fondo: var(--fz-color-primario);
+  --fz-boton-primario-fondo-hover: var(--fz-color-primario-hover);
+  --fz-boton-primario-texto: var(--fz-color-texto-sobre-primario);
+  --fz-boton-primario-borde: var(--fz-color-primario);
+  --fz-boton-primario-borde-hover: var(--fz-color-primario-hover);
+
+  --fz-boton-secundario-fondo: var(--fz-color-fondo);
+  --fz-boton-secundario-fondo-hover: var(--fz-color-hover);
+  --fz-boton-secundario-texto: var(--fz-color-texto);
+  --fz-boton-secundario-borde: var(--fz-color-borde-control);
+  --fz-boton-secundario-borde-hover: var(--fz-color-borde-control);
+
+  --fz-boton-peligro-fondo: var(--fz-color-peligro);
+  --fz-boton-peligro-fondo-hover: var(--fz-color-peligro-hover);
+  --fz-boton-peligro-texto: var(--fz-color-texto-sobre-primario);
+  --fz-boton-peligro-borde: var(--fz-color-peligro);
+  --fz-boton-peligro-borde-hover: var(--fz-color-peligro-hover);
+
+  --fz-boton-advertencia-fondo: var(--fz-color-advertencia);
+  --fz-boton-advertencia-fondo-hover: var(--fz-color-advertencia-hover);
+  --fz-boton-advertencia-texto: var(--fz-color-texto-sobre-primario);
+  --fz-boton-advertencia-borde: var(--fz-color-advertencia);
+  --fz-boton-advertencia-borde-hover: var(--fz-color-advertencia-hover);
+
+  --fz-boton-fantasma-fondo: transparent;
+  --fz-boton-fantasma-fondo-hover: var(--fz-color-hover);
+  --fz-boton-fantasma-texto: var(--fz-color-texto);
+  --fz-boton-fantasma-borde: transparent;
+  --fz-boton-fantasma-borde-hover: transparent;
+  /* Fantasma deshabilitado: sin fondo ni borde, solo atenuado (a diferencia del resto, que se rellena de gris). */
+  --fz-boton-fantasma-deshabilitado-fondo: transparent;
+  --fz-boton-fantasma-deshabilitado-borde: transparent;
+  --fz-boton-fantasma-deshabilitado-texto: var(--fz-color-texto-suave);
+  --fz-boton-fantasma-deshabilitado-opacidad: 0.6;
+
+  --fz-boton-deshabilitado-fondo: var(--fz-color-hover);
+  --fz-boton-deshabilitado-texto: var(--fz-color-texto-suave);
+  --fz-boton-deshabilitado-borde: var(--fz-color-borde);
+
+  /* ---- Campo de texto ---- */
+  --fz-campo-alto-sm: 1.75rem;
+  --fz-campo-alto-md: 2rem;
+  --fz-campo-alto-lg: 2.25rem;
+  --fz-campo-relleno-x-sm: var(--fz-espaciado-compacto);
+  --fz-campo-relleno-x-md: var(--fz-espaciado-base);
+  --fz-campo-relleno-x-lg: var(--fz-espaciado-base);
+  --fz-campo-texto-sm: var(--fz-texto-minimo);
+  --fz-campo-texto-md: var(--fz-texto-pequeno);
+  --fz-campo-texto-lg: var(--fz-texto-cuerpo);
+  --fz-campo-radio: var(--fz-radio-control);
+  --fz-campo-borde-ancho: 1px;
+  --fz-campo-fondo: var(--fz-color-fondo);
+  --fz-campo-texto: var(--fz-color-texto);
+  --fz-campo-placeholder: var(--fz-color-texto-suave);
+  --fz-campo-borde: var(--fz-color-borde-control);
+  --fz-campo-borde-hover: var(--fz-color-texto-suave);
+  --fz-campo-borde-foco: var(--fz-color-foco);
+  --fz-campo-borde-invalido: var(--fz-color-peligro);
+  --fz-campo-foco-color: var(--fz-color-foco);
+  --fz-campo-foco-ancho: 2px;
+  --fz-campo-foco-separacion: 2px;
+  --fz-campo-deshabilitado-fondo: var(--fz-color-hover);
+  --fz-campo-deshabilitado-texto: var(--fz-color-texto-suave);
+  /* Ícono dentro del campo (tamaño sm de IconoFz, 1rem): posición desde el borde y relleno que deja lugar al texto. */
+  --fz-campo-icono-color: var(--fz-color-texto-suave);
+  --fz-campo-icono-tamano: 1rem;
+  --fz-campo-icono-posicion: var(--fz-espaciado-compacto);
+  --fz-campo-icono-relleno: calc(var(--fz-espaciado-compacto) + var(--fz-campo-icono-tamano) + var(--fz-espaciado-compacto));
+
+  /* ---- Insignia ---- */
+  --fz-insignia-relleno-x: var(--fz-espaciado-compacto);
+  --fz-insignia-relleno-y: 0.1875rem;
+  --fz-insignia-texto: var(--fz-texto-minimo);
+  --fz-insignia-peso: var(--fz-peso-enfasis);
+  --fz-insignia-radio: var(--fz-radio-pildora);
+  --fz-insignia-borde-ancho: 1px;
+
+  --fz-insignia-neutra-fondo: var(--fz-color-hover);
+  --fz-insignia-neutra-borde: var(--fz-color-borde);
+  --fz-insignia-neutra-texto: var(--fz-color-texto);
+
+  --fz-insignia-exito-fondo: var(--fz-color-exito-fondo);
+  --fz-insignia-exito-borde: var(--fz-color-exito-borde);
+  --fz-insignia-exito-texto: var(--fz-color-exito);
+
+  --fz-insignia-peligro-fondo: var(--fz-color-peligro-fondo);
+  --fz-insignia-peligro-borde: var(--fz-color-peligro-borde);
+  --fz-insignia-peligro-texto: var(--fz-color-peligro);
+
+  --fz-insignia-advertencia-fondo: var(--fz-color-advertencia-fondo);
+  --fz-insignia-advertencia-borde: var(--fz-color-advertencia-borde);
+  --fz-insignia-advertencia-texto: var(--fz-color-advertencia);
+
+  /* ---- Aviso ---- */
+  --fz-aviso-relleno-x: var(--fz-espaciado-base);
+  --fz-aviso-relleno-y: var(--fz-espaciado-compacto);
+  --fz-aviso-texto: var(--fz-texto-pequeno);
+  --fz-aviso-radio: var(--fz-radio-control);
+  --fz-aviso-borde-ancho: 1px;
+
+  --fz-aviso-peligro-fondo: var(--fz-color-peligro-fondo);
+  --fz-aviso-peligro-borde: var(--fz-color-peligro-borde);
+  --fz-aviso-peligro-texto: var(--fz-color-peligro);
+
+  --fz-aviso-exito-fondo: var(--fz-color-exito-fondo);
+  --fz-aviso-exito-borde: var(--fz-color-exito-borde);
+  --fz-aviso-exito-texto: var(--fz-color-exito);
+
+  --fz-aviso-advertencia-fondo: var(--fz-color-advertencia-fondo);
+  --fz-aviso-advertencia-borde: var(--fz-color-advertencia-borde);
+  --fz-aviso-advertencia-texto: var(--fz-color-advertencia);
+
+  /* ---- Ícono ---- */
+  --fz-icono-tamano-sm: 1rem;
+  --fz-icono-tamano-md: 1.25rem;
+  --fz-icono-tamano-lg: 1.5rem;
+  --fz-icono-trazo: 1.75;
+
+  /* ---- Avatar ---- */
+  --fz-avatar-tamano-sm: 1.5rem;
+  --fz-avatar-tamano-md: 2rem;
+  --fz-avatar-tamano-lg: 3.5rem;
+  --fz-avatar-texto-tamano-lg: var(--fz-texto-subtitulo);
+  --fz-avatar-fondo: var(--fz-color-hover);
+  --fz-avatar-texto: var(--fz-color-texto);
+  --fz-avatar-texto-tamano: var(--fz-texto-minimo);
+  --fz-avatar-peso: var(--fz-peso-enfasis);
+  --fz-avatar-radio: var(--fz-radio-control);
+
+  /* ---- Interruptor ---- */
+  --fz-interruptor-ancho: 2rem;
+  --fz-interruptor-alto: 1.25rem;
+  /* Área clickeable: más alta que la pista (WCAG 2.5.8 pide al menos 24 px). */
+  --fz-interruptor-area-alto: 1.5rem;
+  --fz-interruptor-perilla-tamano: 1rem;
+  --fz-interruptor-perilla-margen: 0.125rem;
+  --fz-interruptor-perilla-desplazamiento: calc(
+    var(--fz-interruptor-ancho) - var(--fz-interruptor-perilla-tamano) - 2 * var(--fz-interruptor-perilla-margen)
+  );
+  --fz-interruptor-perilla-color: var(--fz-color-texto-sobre-primario);
+  --fz-interruptor-apagado-fondo: var(--fz-color-borde-control);
+  --fz-interruptor-apagado-fondo-hover: var(--fz-color-texto-suave);
+  --fz-interruptor-encendido-fondo: var(--fz-color-primario);
+  --fz-interruptor-encendido-fondo-hover: var(--fz-color-primario-hover);
+  --fz-interruptor-transicion: var(--fz-duracion-breve);
+  --fz-interruptor-ocupado-opacidad: 0.6;
+  --fz-interruptor-deshabilitado-opacidad: 0.5;
+  --fz-interruptor-foco-color: var(--fz-color-foco);
+  --fz-interruptor-foco-ancho: 2px;
+  --fz-interruptor-foco-separacion: 2px;
+
+  /* ---- Select ---- */
+  --fz-select-alto-sm: 1.75rem;
+  --fz-select-alto-md: 2rem;
+  --fz-select-alto-lg: 2.25rem;
+  --fz-select-relleno-x-sm: var(--fz-espaciado-compacto);
+  --fz-select-relleno-x-md: var(--fz-espaciado-compacto);
+  --fz-select-relleno-x-lg: var(--fz-espaciado-base);
+  --fz-select-texto-sm: var(--fz-texto-minimo);
+  --fz-select-texto-md: var(--fz-texto-pequeno);
+  --fz-select-texto-lg: var(--fz-texto-cuerpo);
+  --fz-select-radio: var(--fz-radio-control);
+  --fz-select-borde-ancho: 1px;
+  --fz-select-fondo: var(--fz-color-fondo);
+  --fz-select-texto: var(--fz-color-texto);
+  --fz-select-borde: var(--fz-color-borde-control);
+  --fz-select-borde-hover: var(--fz-color-texto-suave);
+  --fz-select-borde-foco: var(--fz-color-foco);
+  --fz-select-borde-invalido: var(--fz-color-peligro);
+  --fz-select-foco-color: var(--fz-color-foco);
+  --fz-select-foco-ancho: 2px;
+  --fz-select-foco-separacion: 2px;
+  --fz-select-deshabilitado-fondo: var(--fz-color-hover);
+  --fz-select-deshabilitado-texto: var(--fz-color-texto-suave);
+
+  /* ---- QR ---- */
+  --fz-qr-fondo: var(--fz-color-fondo);
+  --fz-qr-borde: var(--fz-color-borde);
+  --fz-qr-borde-ancho: 1px;
+  --fz-qr-relleno: var(--fz-espaciado-compacto);
+  --fz-qr-radio: var(--fz-radio-control);
+  --fz-qr-error-texto: var(--fz-texto-pequeno);
+  --fz-qr-error-color: var(--fz-color-peligro);
+}

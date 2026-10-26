@@ -4,6 +4,7 @@ import { AvisoFz, BotonFz, ModalFz } from '@/ui'
 import { cancelacionConPenalidad } from '../reglas'
 import { formatearHorario } from '../presentacion'
 import type { Clase } from '../services/servicioClases'
+import { TEXTO_ADVERTENCIA_PENALIDAD } from '../textosPenalidad'
 
 const props = defineProps<{
   clase: Clase | null
@@ -26,9 +27,7 @@ const conPenalidad = computed(() => (props.clase ? cancelacionConPenalidad(props
     <p v-if="clase" class="modal-cancelar__texto">
       ¿Querés cancelar tu cupo en <strong>{{ clase.tipo }}</strong> ({{ formatearHorario(clase) }})?
     </p>
-    <AvisoFz v-if="conPenalidad" variante="advertencia">
-      Se cobrará una penalidad del 50 % del valor de la clase.
-    </AvisoFz>
+    <AvisoFz v-if="conPenalidad" variante="advertencia">{{ TEXTO_ADVERTENCIA_PENALIDAD }}</AvisoFz>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
     <template #acciones="{ cerrar }">
       <BotonFz variante="secundario" :disabled="cargando" @click="cerrar">Volver</BotonFz>

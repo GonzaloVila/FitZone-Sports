@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CampoFormularioFz, SelectFz } from '@/ui'
 import type { Sede } from '@/features/sedes/services/servicioSedes'
+import { diaLocal } from '../reglas'
 import type { FormularioClaseDatos } from '../tipos'
 
 defineProps<{
@@ -17,6 +18,9 @@ defineProps<{
 defineEmits<{
   (e: 'guardar'): void
 }>()
+
+// El selector de día no ofrece fechas anteriores a hoy (la validación del alta lo repite por si se escribe una a mano).
+const hoy = diaLocal(Date.now())
 </script>
 
 <template>
@@ -68,6 +72,7 @@ defineEmits<{
       obligatorio
       tipo="date"
       name="dia"
+      :min="hoy"
       :error="errores.dia"
       :disabled="guardando"
     />

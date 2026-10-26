@@ -2,6 +2,7 @@ import { reactive, ref } from 'vue'
 import { esErrorApi, mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
+import { MENSAJE_FECHA_PASADA, campoConInicioPasado } from '../reglas'
 import type { Clase } from '../services/servicioClases'
 import type { FormularioClaseDatos } from '../tipos'
 
@@ -64,6 +65,9 @@ export function useAltaClase(opciones?: { alExito?: (clase: Clase) => void }) {
     if (form.horaInicio && form.horaFin && form.horaFin <= form.horaInicio) {
       nuevos.horaFin = 'La hora de fin tiene que ser posterior a la de inicio.'
     }
+    // Fecha pasada según el reloj del navegador, junto con los demás errores; sin pisar uno más básico del mismo campo.
+    const pasado = campoConInicioPasado(form.dia, form.horaInicio, Date.now())
+    if (pasado && !nuevos[pasado]) nuevos[pasado] = MENSAJE_FECHA_PASADA
     const capacidad = Number(form.capacidad)
     if (form.capacidad === '' || !Number.isInteger(capacidad) || capacidad <= 0) {
       nuevos.capacidad = 'La capacidad debe ser un número entero mayor a cero.'
@@ -94,7 +98,8 @@ export function useAltaClase(opciones?: { alExito?: (clase: Clase) => void }) {
       return creada
     } catch (e) {
       if (esErrorApi(e) && e.status === 409) {
-        // La clase cae fuera del horario de la sede (o en el pasado): se muestra junto al campo de horario.
+        // La clase cae fuera del horario de la sede (o en el pasado según el reloj del servidor, que puede diferir del del
+        // navegador): se muestra junto al campo de horario.
         errores.value = {
           ...errores.value,
           horario: e.problema?.detail || 'La clase queda fuera del horario de la sede.',

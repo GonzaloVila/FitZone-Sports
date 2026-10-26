@@ -2,13 +2,12 @@ import { computed, onScopeDispose, ref } from 'vue'
 import { mensajeDeError } from '@/compartido/http/errores'
 import { useActualizacionPeriodica } from '@/compartido/composables/useActualizacionPeriodica'
 import { useServicios } from '@/compartido/servicios'
-import { useDescargaPdf } from '@/features/pagos/composables/useDescargaPdf'
-import type { Pago } from '@/features/pagos/services/servicioPagos'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
-import { formatearMonto } from '../presentacion'
 import { traducirErrorCancelacion, traducirErrorConfirmacion, traducirErrorSalidaDeEspera } from '../errores'
+import { esperasVigentes } from '../reglas'
 import type { Clase, EsperaClase, ReservaClase } from '../services/servicioClases'
 import type { FilaEspera, FilaReserva } from '../tipos'
+import { useRegistroPenalidad } from './useAvisoPenalidad'
 
 // Actualización cada pocos segundos mientras la pantalla está abierta (el front no tiene canal de notificaciones).
 const INTERVALO_ACTUALIZACION_MS = 5000
@@ -31,12 +30,7 @@ export function useMisClases() {
   const errorAccion = ref<string | null>(null)
   const exitoAccion = ref<string | null>(null)
 
-  const pagoPenalidad = ref<Pago | null>(null)
-  const {
-    descargando: descargandoComprobante,
-    error: errorDescarga,
-    descargar,
-  } = useDescargaPdf()
+  const registrarPenalidad = useRegistroPenalidad()
 
   // Descarte de respuestas viejas.
   let ultimaCarga = 0
@@ -60,8 +54,9 @@ export function useMisClases() {
 
   async function posicionDe(espera: EsperaClase, signal: AbortSignal): Promise<number | null> {
     try {
-      const cola = await servicio.listarEsperaDeClase(espera.claseId, 1, POR_PAGINA, signal)
-      const lugar = cola.items.findIndex((item) => item.id === espera.id)
+      // El lugar se cuenta entre las esperas vivas: una cancelada que sigue en el listado no ocupa un lugar.
+      const cola = esperasVigentes((await servicio.listarEsperaDeClase(espera.claseId, 1, POR_PAGINA, signal)).items)
+      const lugar = cola.findIndex((item) => item.id === espera.id)
       return lugar >= 0 ? lugar + 1 : null
     } catch (e) {
       if (signal.aborted) throw e
@@ -87,13 +82,19 @@ export function useMisClases() {
         servicio.listarReservas({ socioId: id, estado: 'CANCELADA' }, 1, POR_PAGINA, signal),
         servicio.listarEsperas({ socioId: id }, 1, POR_PAGINA, signal),
       ])
-      const reservas: ReservaClase[] = [...confirmadas.items, ...canceladas.items]
+      // El servidor puede devolver también las canceladas en la consulta sin estado: ni se repiten ni se muestran esperas
+      // que ya no están vivas.
+      const reservas: ReservaClase[] = [
+        ...confirmadas.items.filter((r) => r.estado !== 'CANCELADA'),
+        ...canceladas.items,
+      ]
+      const esperasVivas = esperasVigentes(listaEsperas.items)
       const clases = await cargarClases(
-        [...reservas.map((r) => r.claseId), ...listaEsperas.items.map((e) => e.claseId)],
+        [...reservas.map((r) => r.claseId), ...esperasVivas.map((e) => e.claseId)],
         signal,
       )
       const filasEspera: FilaEspera[] = await Promise.all(
-        listaEsperas.items.map(async (espera) => ({
+        esperasVivas.map(async (espera) => ({
           espera,
           clase: clases.get(espera.claseId) ?? null,
           posicion: await posicionDe(espera, signal),
@@ -129,7 +130,6 @@ export function useMisClases() {
     accionando.value = true
     errorAccion.value = null
     exitoAccion.value = null
-    pagoPenalidad.value = null
     let ok = false
     try {
       await accion()
@@ -145,26 +145,14 @@ export function useMisClases() {
   }
 
   async function cancelarReserva(reservaId: number): Promise<boolean> {
+    // La clase se toma antes: al terminar, la recarga ya no trae esta reserva entre las próximas.
+    const clase = proximas.value.find((fila) => fila.reserva.id === reservaId)?.clase ?? null
     const ok = await ejecutar(() => servicio.cancelarReserva(reservaId), 'Reserva cancelada.', traducirErrorCancelacion)
     if (!ok) return false
 
-    try {
-      const pagos = await servicios.pagos.listar({ reservaClaseId: reservaId }, 1, 1)
-      const pago = pagos.items[0] ?? null
-      pagoPenalidad.value = pago
-      if (pago) {
-        exitoAccion.value = `Reserva cancelada. Se cobró una penalidad de ${formatearMonto(pago.monto)}.`
-      }
-    } catch {
-      pagoPenalidad.value = null
-    }
+    // Con penalidad, el aviso persistente (monto, clase y comprobante) reemplaza al mensaje simple.
+    if ((await registrarPenalidad(reservaId, clase)) !== null) exitoAccion.value = null
     return true
-  }
-
-  function descargarComprobantePenalidad(): Promise<boolean> {
-    const pago = pagoPenalidad.value
-    if (!pago) return Promise.resolve(false)
-    return descargar(`comprobante-penalidad-${pago.id}.pdf`, () => servicios.pagos.descargarComprobante(pago.id))
   }
 
   const confirmarCupo = (esperaId: number) =>
@@ -191,12 +179,8 @@ export function useMisClases() {
     accionando,
     errorAccion,
     exitoAccion,
-    pagoPenalidad,
-    descargandoComprobante,
-    errorDescarga,
     sinSocio,
     cancelarReserva,
-    descargarComprobantePenalidad,
     confirmarCupo,
     salirDeEspera,
   }

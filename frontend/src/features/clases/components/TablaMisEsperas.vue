@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { BotonFz, InsigniaFz, TablaFz, type ColumnaTabla } from '@/ui'
+import { PARAMETROS_DESDE_MIS_CLASES } from '../direccion'
 import { ETIQUETAS_ESTADO_ESPERA, VARIANTES_ESTADO_ESPERA, formatearHorario } from '../presentacion'
 import type { FilaEspera } from '../tipos'
 
@@ -28,7 +29,10 @@ const claveFila = (fila: FilaEspera) => fila.espera.id
 <template>
   <TablaFz titulo="Mis listas de espera" ocultar-titulo :columnas="columnas" :filas="filas" :clave-fila="claveFila" :ocupada="ocupada">
     <template #celda-clase="{ fila }">
-      <RouterLink :to="{ name: 'clase-detalle', params: { claseId: fila.espera.claseId } }" class="tabla-esperas__enlace">
+      <RouterLink
+        :to="{ name: 'clase-detalle', params: { claseId: fila.espera.claseId }, query: PARAMETROS_DESDE_MIS_CLASES }"
+        class="tabla-esperas__enlace"
+      >
         {{ fila.clase?.tipo ?? `Clase #${fila.espera.claseId}` }}
       </RouterLink>
     </template>

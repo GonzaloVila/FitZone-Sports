@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useSedes } from '@/features/sedes/composables/useSedes'
-import { AvisoFz, BotonFz, EncabezadoPaginaFz, PestanasFz } from '@/ui'
-import ModalCancelarClase from '../components/ModalCancelarClase.vue'
-import TablaMisEsperas from '../components/TablaMisEsperas.vue'
-import TablaMisReservas from '../components/TablaMisReservas.vue'
+import { AvisoFz, PestanasFz } from '@/ui'
 import { useMisClases } from '../composables/useMisClases'
 import type { FilaReserva } from '../tipos'
+import ModalCancelarClase from './ModalCancelarClase.vue'
+import TablaMisEsperas from './TablaMisEsperas.vue'
+import TablaMisReservas from './TablaMisReservas.vue'
 
+// Reservas y lista de espera del socio. Se monta solo mientras la vista está activa: la actualización periódica de
+// useMisClases se corta al volver a la agenda.
 const {
   proximas,
   pasadas,
@@ -18,12 +20,8 @@ const {
   accionando,
   errorAccion,
   exitoAccion,
-  pagoPenalidad,
-  descargandoComprobante,
-  errorDescarga,
   sinSocio,
   cancelarReserva,
-  descargarComprobantePenalidad,
   confirmarCupo,
   salirDeEspera,
 } = useMisClases()
@@ -53,27 +51,13 @@ async function confirmarCancelacion() {
 </script>
 
 <template>
-  <section class="mis-clases">
-    <EncabezadoPaginaFz titulo="Mis clases" subtitulo="Tus reservas y tus anotaciones en listas de espera.">
-      <template v-if="pagoPenalidad" #acciones>
-        <BotonFz
-          variante="secundario"
-          :cargando="descargandoComprobante"
-          :disabled="descargandoComprobante"
-          @click="descargarComprobantePenalidad"
-        >
-          Descargar comprobante
-        </BotonFz>
-      </template>
-    </EncabezadoPaginaFz>
-
+  <div class="mis-clases">
     <AvisoFz v-if="sinSocio" variante="advertencia">
       Tu usuario no está asociado a un socio, así que no tiene reservas.
     </AvisoFz>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
     <AvisoFz v-if="errorAccion && !modalCancelar" variante="peligro">{{ errorAccion }}</AvisoFz>
     <AvisoFz v-if="exitoAccion" variante="exito">{{ exitoAccion }}</AvisoFz>
-    <AvisoFz v-if="errorDescarga" variante="peligro">{{ errorDescarga }}</AvisoFz>
 
     <p v-if="cargando" class="mis-clases__estado" role="status">Cargando tus clases…</p>
 
@@ -126,7 +110,7 @@ async function confirmarCancelacion() {
       :error="errorAccion"
       @confirmar="confirmarCancelacion"
     />
-  </section>
+  </div>
 </template>
 
 <style scoped>

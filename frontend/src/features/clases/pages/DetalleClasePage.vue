@@ -2,13 +2,15 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSedes } from '@/features/sedes/composables/useSedes'
-import { AvisoFz, BotonFz, EncabezadoPaginaFz, InsigniaFz } from '@/ui'
+import { AvisoFz, EncabezadoPaginaFz, InsigniaFz } from '@/ui'
 import AccionesClase from '../components/AccionesClase.vue'
+import AvisoPenalidad from '../components/AvisoPenalidad.vue'
 import DatosClase from '../components/DatosClase.vue'
 import ListaEsperaClase from '../components/ListaEsperaClase.vue'
 import ListaInscriptos from '../components/ListaInscriptos.vue'
 import ModalCancelarClase from '../components/ModalCancelarClase.vue'
 import { useDetalleClase } from '../composables/useDetalleClase'
+import { destinoVolver } from '../direccion'
 import { estadoDeClase, formatearHorario } from '../presentacion'
 
 const route = useRoute()
@@ -35,23 +37,20 @@ const {
   accionando,
   errorAccion,
   exitoAccion,
-  reservaCancelada,
-  pagoPenalidad,
-  descargandoComprobante,
-  errorDescarga,
   esSocio,
   esPersonal,
   reservar,
   cancelarReserva,
-  descargarComprobantePenalidad,
   anotarseEnEspera,
   confirmarCupo,
   salirDeEspera,
 } = useDetalleClase(() => claseId.value)
 const { nombreDeSede } = useSedes()
 
+// "Volver" se arma con la dirección (de dónde se vino y con qué filtros), no con el historial: sirve igual al recargar.
+const volver = computed(() => destinoVolver(route.query, esSocio.value))
+
 const estado = computed(() => (clase.value ? estadoDeClase(clase.value, ahora.value) : null))
-const conAcciones = computed(() => Boolean(clase.value) && ((esSocio.value && !reservaCancelada.value) || Boolean(pagoPenalidad.value)))
 
 const modalCancelar = ref(false)
 
@@ -72,14 +71,13 @@ function abrirCancelacion() {
     <EncabezadoPaginaFz
       :titulo="clase?.tipo ?? 'Clase'"
       :subtitulo="clase ? formatearHorario(clase) : undefined"
-      :volver="{ texto: 'Volver a la agenda', a: { name: 'clases' } }"
+      :volver="volver"
     >
       <template v-if="estado" #insignia>
         <InsigniaFz :variante="estado.variante">{{ estado.etiqueta }}</InsigniaFz>
       </template>
-      <template v-if="clase && conAcciones" #acciones>
+      <template v-if="clase && esSocio" #acciones>
         <AccionesClase
-          v-if="esSocio && !reservaCancelada"
           :clase="clase"
           :reserva="reserva"
           :espera="espera"
@@ -92,17 +90,10 @@ function abrirCancelacion() {
           @confirmar="confirmarCupo"
           @salir="salirDeEspera"
         />
-        <BotonFz
-          v-if="pagoPenalidad"
-          variante="secundario"
-          :cargando="descargandoComprobante"
-          :disabled="descargandoComprobante"
-          @click="descargarComprobantePenalidad"
-        >
-          Descargar comprobante
-        </BotonFz>
       </template>
     </EncabezadoPaginaFz>
+
+    <AvisoPenalidad v-if="clase" :clase="clase" :ahora="ahora" />
 
     <p v-if="cargando" class="detalle__estado" role="status">Cargando clase…</p>
 
@@ -113,7 +104,6 @@ function abrirCancelacion() {
       <AvisoFz v-if="error" variante="advertencia">{{ error }}</AvisoFz>
       <AvisoFz v-if="errorAccion && !modalCancelar" variante="peligro">{{ errorAccion }}</AvisoFz>
       <AvisoFz v-if="exitoAccion" variante="exito">{{ exitoAccion }}</AvisoFz>
-      <AvisoFz v-if="errorDescarga" variante="peligro">{{ errorDescarga }}</AvisoFz>
 
       <DatosClase :clase="clase" :nombre-sede="nombreDeSede(clase.sedeId)" />
 

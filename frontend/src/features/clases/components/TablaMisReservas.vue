@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import { BotonFz, InsigniaFz, TablaFz, type ColumnaTabla } from '@/ui'
+import { PARAMETROS_DESDE_MIS_CLASES } from '../direccion'
 import { ETIQUETAS_ESTADO_RESERVA, VARIANTES_ESTADO_RESERVA, formatearHorario } from '../presentacion'
 import { momentoDeClase } from '../reglas'
 import type { FilaReserva } from '../tipos'
@@ -37,7 +38,10 @@ function puedeCancelar(fila: FilaReserva): boolean {
 <template>
   <TablaFz :titulo="titulo" ocultar-titulo :columnas="columnas" :filas="filas" :clave-fila="claveFila" :ocupada="ocupada">
     <template #celda-clase="{ fila }">
-      <RouterLink :to="{ name: 'clase-detalle', params: { claseId: fila.reserva.claseId } }" class="tabla-reservas__enlace">
+      <RouterLink
+        :to="{ name: 'clase-detalle', params: { claseId: fila.reserva.claseId }, query: PARAMETROS_DESDE_MIS_CLASES }"
+        class="tabla-reservas__enlace"
+      >
         {{ fila.clase?.tipo ?? `Clase #${fila.reserva.claseId}` }}
       </RouterLink>
     </template>

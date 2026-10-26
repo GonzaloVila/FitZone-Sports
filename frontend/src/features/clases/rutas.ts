@@ -17,12 +17,8 @@ export const rutasClases: RouteRecordRaw[] = [
     meta: { roles: ['SOCIO', 'RECEPCION', 'GERENTE'] },
   },
   {
+    // "Mis clases" es una vista de /clases: el enlace viejo sigue funcionando.
     path: '/mis-clases',
-    name: 'mis-clases',
-    component: () => import('./pages/MisClasesPage.vue'),
-    meta: {
-      roles: ['SOCIO'],
-      navegacion: { etiqueta: 'Mis clases', orden: 5, icono: 'clases', seccion: 'actividades' },
-    },
+    redirect: { name: 'clases', query: { vista: 'mis-clases' } },
   },
 ]

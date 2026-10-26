@@ -65,12 +65,9 @@ const motivo = computed(() => {
     <!-- Sin reserva ni espera -->
     <template v-else>
       <p v-if="motivo" class="acciones-clase__motivo">{{ motivo }}</p>
-      <template v-else-if="sinCupos">
-        <InsigniaFz variante="peligro">Sin cupos</InsigniaFz>
-        <BotonFz variante="secundario" :disabled="ocupado" @click="$emit('anotarse')">
-          Anotarme en lista de espera
-        </BotonFz>
-      </template>
+      <BotonFz v-else-if="sinCupos" variante="secundario" :disabled="ocupado" @click="$emit('anotarse')">
+        Anotarme en lista de espera
+      </BotonFz>
       <BotonFz v-else variante="primario" :disabled="ocupado" @click="$emit('reservar')">Reservar</BotonFz>
     </template>
   </div>

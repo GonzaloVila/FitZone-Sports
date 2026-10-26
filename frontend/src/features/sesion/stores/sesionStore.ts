@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { limpiarPenalidadCobrada } from '@/compartido/composables/usePenalidadCobrada'
 import { useServicios } from '@/compartido/servicios'
 import type { Credenciales } from '../services/servicioSesion'
 import { usuarioDesdeSesion, type UsuarioSesion } from '../tipos'
@@ -37,12 +38,14 @@ export const useSesionStore = defineStore('sesion', () => {
       await servicios.sesion.cerrarSesion()
     } finally {
       usuario.value = null
+      limpiarPenalidadCobrada()
     }
   }
 
   // Solo borra el usuario (sin llamar a la API): la usa alExpirarSesion.
   function limpiar() {
     usuario.value = null
+    limpiarPenalidadCobrada()
   }
 
   return { usuario, restaurada, estaAutenticado, iniciarSesion, restaurar, cerrarSesion, limpiar }

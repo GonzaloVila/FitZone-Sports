@@ -1,11 +1,5 @@
 import type { Clase, EsperaClase, ReservaClase } from './services/servicioClases'
 
-export interface FiltrosAgendaClases {
-  tipo: string
-  // Id de sede como texto (valor del select); vacío = todas.
-  sede: string
-}
-
 // Reserva del socio con los datos de su clase (null si la clase no se pudo cargar).
 export interface FilaReserva {
   reserva: ReservaClase

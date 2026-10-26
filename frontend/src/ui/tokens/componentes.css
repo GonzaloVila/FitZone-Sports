@@ -448,6 +448,28 @@
   --fz-opcion-tarjeta-foco-color: var(--fz-color-foco);
   --fz-opcion-tarjeta-foco-ancho: 2px;
   --fz-opcion-tarjeta-foco-separacion: 2px;
+  --fz-opcion-tarjeta-compacta-borde: var(--fz-color-borde-marcado);
+  --fz-opcion-tarjeta-compacta-separador: var(--fz-color-borde);
+  --fz-opcion-tarjeta-compacta-relleno-y: var(--fz-espaciado-compacto);
+  --fz-opcion-tarjeta-compacta-titulo-texto: var(--fz-texto-cuerpo);
+
+  /* ---- Selector segmentado (molécula) ---- */
+  --fz-selector-segmentado-fondo: var(--fz-color-hover);
+  --fz-selector-segmentado-radio: var(--fz-radio-control);
+  --fz-selector-segmentado-relleno: 0.125rem;
+  --fz-selector-segmentado-alto: 1.75rem;
+  --fz-selector-segmentado-borde-ancho: 1px;
+  --fz-selector-segmentado-texto: var(--fz-texto-pequeno);
+  --fz-selector-segmentado-peso: var(--fz-peso-enfasis);
+  --fz-selector-segmentado-color: var(--fz-color-texto-suave);
+  --fz-selector-segmentado-color-hover: var(--fz-color-texto);
+  --fz-selector-segmentado-elegida-fondo: var(--fz-color-fondo);
+  --fz-selector-segmentado-elegida-color: var(--fz-color-texto);
+  --fz-selector-segmentado-elegida-borde: var(--fz-color-borde-control);
+  --fz-selector-segmentado-foco-color: var(--fz-color-foco);
+  --fz-selector-segmentado-foco-ancho: 2px;
+  --fz-selector-segmentado-foco-separacion: 2px;
+  --fz-selector-segmentado-deshabilitado-opacidad: 0.6;
 
   /* ---- QR ---- */
   --fz-qr-fondo: var(--fz-color-fondo);
@@ -468,6 +490,8 @@
   --fz-campo-formulario-error-texto: var(--fz-texto-pequeno);
   --fz-campo-formulario-error-color: var(--fz-color-peligro);
   --fz-campo-formulario-sufijo-margen: 0.25rem;
+  --fz-campo-formulario-etiqueta-texto-chica: var(--fz-texto-minimo);
+  --fz-campo-formulario-obligatorio-color: var(--fz-color-peligro);
 
   /* ---- Plantilla centrada ---- */
   --fz-plantilla-centrada-fondo: var(--fz-color-superficie);

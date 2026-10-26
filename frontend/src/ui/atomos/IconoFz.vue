@@ -29,6 +29,8 @@ export type NombreIconoFz =
   | 'correo'
   | 'telefono'
   | 'identificador'
+  | 'editar'
+  | 'flecha-derecha'
 </script>
 
 <script setup lang="ts">
@@ -120,6 +122,10 @@ const TRAZOS: Record<NombreIconoFz, readonly string[]> = {
   telefono: ['M6.5 3.5h3l1.5 4-2 1.3a10 10 0 0 0 5.2 5.2l1.3-2 4 1.5v3a2 2 0 0 1-2 2A15.5 15.5 0 0 1 4.5 5.5a2 2 0 0 1 2-2z'],
   // Numeral: dos barras verticales y dos horizontales.
   identificador: ['M9 4L7 20', 'M17 4l-2 16', 'M4.5 9h16', 'M3.5 15h16'],
+  // Lápiz en diagonal, con la línea de la punta.
+  editar: ['M4 20v-4l11-11a2.8 2.8 0 0 1 4 4L8 20z', 'M13.5 6.5l4 4'],
+  // Flecha hacia la derecha: línea y punta.
+  'flecha-derecha': ['M5 12h14', 'M13 6l6 6-6 6'],
 }
 
 const trazos = computed(() => TRAZOS[props.nombre])

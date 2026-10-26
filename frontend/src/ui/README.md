@@ -41,7 +41,7 @@ Reglas centrales:
 | `nombre` | `NombreIconoFz` (unión cerrada, se exporta desde `ui/index.ts`) | requerida |
 | `tamano` | `'sm' \| 'md' \| 'lg'` (1 / 1.25 / 1.5 rem, por token `--fz-icono-tamano-*`) | `'md'` |
 
-Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`, `advertencia` (triángulo con exclamación), `tilde` (check simple, sin círculo), `flecha-izquierda`, `lugar` (marcador de mapa, para sedes), `correo` (sobre), `telefono` (auricular), `identificador` (numeral `#`). Para fechas y calendarios se reutiliza `clases`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
+Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`, `advertencia` (triángulo con exclamación), `tilde` (check simple, sin círculo), `flecha-izquierda`, `lugar` (marcador de mapa, para sedes), `correo` (sobre), `telefono` (auricular), `identificador` (numeral `#`), `editar` (lápiz), `flecha-derecha`. Para fechas y calendarios se reutiliza `clases`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
 
 ## Interruptor y avatar (átomos)
 
@@ -125,8 +125,52 @@ Grupo de opciones como tarjetas, una por fila. Es un `<fieldset>` con un `<legen
 | `nombre` | `string` | `name` de los radios |
 | `leyenda` | `string` | Nombre accesible del grupo |
 | `deshabilitado` | `boolean` | Deshabilita todos los radios |
+| `compacta` | `boolean` | Opcional. Filas compactas (ver abajo) |
 
 Elegida: borde primario y fondo primario muy claro. Tokens `--fz-opcion-tarjeta-*`.
+
+**Variante `compacta`** (para listas de resultados): un solo recuadro de borde marcado, con una fila por opción sin borde propio, separadas por una línea fina; el título (14 px) y la descripción (gris, por ejemplo un correo) van en la misma línea y la fila elegida toma el fondo primario muy claro. Es la misma estructura de radios nativos: lo único que cambia es el aspecto. Tokens `--fz-opcion-tarjeta-compacta-*`.
+
+### `SelectorSegmentadoFz` (molécula)
+
+Control segmentado de pocas opciones excluyentes (un "interruptor de modo"), siempre visible. Es un `<fieldset>` con un `<legend>` oculto a la vista (el nombre accesible del grupo) y un `<input type="radio">` nativo por opción dentro de su `<label>`; las flechas las da el navegador y el foco de teclado dibuja un anillo sobre el segmento.
+
+| Prop | Tipo | |
+| --- | --- | --- |
+| `v-model` | `string` | Valor elegido |
+| `opciones` | `OpcionSegmentadaFz[]` | `{ valor, etiqueta }` |
+| `nombre` | `string` | `name` de los radios |
+| `leyenda` | `string` | Nombre accesible del grupo |
+| `deshabilitado` | `boolean` | Deshabilita el grupo entero (`fieldset disabled`) |
+
+Los segmentos comparten el ancho. El elegido se dibuja como una pastilla blanca con el borde de los controles (`--fz-color-borde-control`, 3.3:1 contra el blanco y 3.0:1 contra la pista) sobre la pista gris; el resto va en gris suave. Tokens `--fz-selector-segmentado-*`.
+
+```vue
+<SelectorSegmentadoFz
+  v-model="modo"
+  nombre="modo"
+  leyenda="¿El socio ya tiene cuenta?"
+  :opciones="[{ valor: 'nuevo', etiqueta: 'No tiene cuenta' }, { valor: 'existente', etiqueta: 'Ya tiene cuenta' }]"
+/>
+```
+
+### `CampoFormularioFz`: obligatorio, etiqueta chica y contenido propio
+
+Todo opcional y aditivo: sin las props nuevas el campo se ve y se comporta como siempre.
+
+| Prop / slot | |
+| --- | --- |
+| `obligatorio` | Agrega un asterisco decorativo (`aria-hidden`, `--fz-campo-formulario-obligatorio-color`) a la etiqueta y `aria-required` al campo |
+| `etiquetaChica` | Etiqueta en el tamaño mínimo (12 px, `--fz-campo-formulario-etiqueta-texto-chica`), para formularios densos |
+| slot por defecto | Reemplaza el campo de texto por contenido propio (un `SelectFz`, por ejemplo). Recibe `{ id, describedby, invalido }` para enlazar la etiqueta, la ayuda y el error |
+
+```vue
+<CampoFormularioFz etiqueta="Sede de origen" obligatorio etiqueta-chica :error="errores.sede">
+  <template #default="{ id, describedby, invalido }">
+    <SelectFz :id="id" v-model="sede" :aria-describedby="describedby" :invalido="invalido" aria-required="true">…</SelectFz>
+  </template>
+</CampoFormularioFz>
+```
 
 ### `BotonFz` con `variante="advertencia"`
 
@@ -146,8 +190,8 @@ Dos adiciones que no cambian el uso existente.
 Para navegar sin poner un botón dentro de un enlace (HTML inválido y dos paradas de tabulación). Con `como="a"` el componente dibuja un `<a class="boton ...">` con el mismo aspecto, sin `type` ni `disabled`; el `href` y el resto de los atributos llegan por atributos. El kit no conoce el router: quien lo usa le pasa el destino. Con `RouterLink` en modo `custom`:
 
 ```vue
-<RouterLink v-slot="{ href, navigate }" :to="{ name: 'socios-nuevo' }" custom>
-  <BotonFz como="a" :href="href" @click="navigate">Nuevo socio</BotonFz>
+<RouterLink v-slot="{ href, navigate }" :to="{ name: 'socios' }" custom>
+  <BotonFz como="a" :href="href" @click="navigate">Ver socios</BotonFz>
 </RouterLink>
 ```
 
@@ -330,6 +374,8 @@ Un componente **nunca** usa primitivos ni colores literales: solo tokens de comp
 Pares de color con poco margen (no tocar uno de los dos sin volver a medir): el texto de `AvisoFz` y de `InsigniaFz` en `peligro` es `--fz-color-peligro` sobre `--fz-color-peligro-fondo` (`#c53b32` sobre `#fdebec`, **4.52:1**, el mínimo de AA es 4.5:1); el de `advertencia` es `#9a610f` sobre `#fdf5e8` (4.74:1). Aclarar el rojo del texto o oscurecer el fondo rosado lo deja por debajo.
 
 Otros pares medidos con poco margen (valores de la ficha del socio y del menú de acciones): el ítem de menú en `peligro` sobre su fondo de resaltado es `#c53b32` sobre `#f1f1ef` (**4.59:1**: no tocar el rojo ni `--fz-color-hover`); el botón sólido dentro de un `AvisoFz` se separa del fondo del aviso con 4.52:1 (`primario` sobre el rosado de `peligro`) y 4.74:1 (`advertencia` sobre el ámbar; mínimo 3:1 para elementos no textuales). El texto de vigencia en rojo (`#c53b32`) o ámbar (`#9a610f`) sobre el fondo blanco de la tarjeta da 5.19:1 y 5.13:1; el gris suave de etiquetas e íconos, 5.41:1.
+
+Pares medidos en el selector segmentado y las opciones compactas (no tocar uno de los dos sin volver a medir): el borde de la pastilla elegida (`#8c8b87`) contra la pista gris (`#f1f1ef`) da **3.02:1**, justo el mínimo de 3:1 para un indicador de estado; el texto del segmento sin elegir (gris suave sobre la pista), 4.79:1; y el correo gris de una fila elegida (`#6b6a66` sobre el primario muy claro `#eef5fc`), **4.92:1**. El asterisco de campo obligatorio (rojo de peligro, 12 px) sobre blanco da 5.19:1.
 
 Los tokens los cambia solo quien lleva el kit; los demás piden el cambio.
 

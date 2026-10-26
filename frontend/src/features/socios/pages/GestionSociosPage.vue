@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, useTemplateRef, watch } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { AvisoFz, BotonFz, IconoFz, InsigniaFz, PaginacionFz } from '@/ui'
 import FiltrosSocios from '../components/FiltrosSocios.vue'
+import ModalAltaSocio from '../components/modales/alta/ModalAltaSocio.vue'
 import ModalesAccionSocio from '../components/modales/ModalesAccionSocio.vue'
 import TablaSocios from '../components/TablaSocios.vue'
 import { useAccionesSocio } from '../composables/useAccionesSocio'
@@ -47,6 +48,10 @@ const textoRango = computed(() => {
 
 const titulo = useTemplateRef<HTMLElement>('titulo')
 
+// Al cerrarse el modal de alta el foco vuelve solo al botón "Nuevo socio" (el modal recuerda quién lo abrió); si el
+// alta salió bien, antes se vuelve a consultar la lista.
+const altaAbierta = ref(false)
+
 // Las acciones con modal se resuelven acá mismo: al terminar bien, la fila se actualiza con lo que devolvió el
 // servidor y, si fue una baja, se vuelve a consultar la página (la fila ya no existe).
 const acciones = useAccionesSocio(async (resultado) => {
@@ -85,12 +90,10 @@ watch(acciones.pedido, async (nuevo, previo) => {
         <p class="socios__subtitulo">Gestión de membresías, altas y consulta de socios.</p>
       </div>
 
-      <RouterLink v-slot="{ href, navigate }" :to="{ name: 'socios-nuevo' }" custom>
-        <BotonFz como="a" :href="href" @click="navigate">
-          <IconoFz nombre="mas" tamano="sm" />
-          Nuevo socio
-        </BotonFz>
-      </RouterLink>
+      <BotonFz @click="altaAbierta = true">
+        <IconoFz nombre="mas" tamano="sm" />
+        Nuevo socio
+      </BotonFz>
     </header>
 
     <FiltrosSocios
@@ -121,6 +124,8 @@ watch(acciones.pedido, async (nuevo, previo) => {
     <p v-else-if="vacio" class="socios__estado socios__vacio">
       {{ hayFiltrosActivos ? 'No se encontraron socios con los filtros aplicados.' : 'Todavía no hay socios.' }}
     </p>
+
+    <ModalAltaSocio v-model:abierto="altaAbierta" :sedes="sedes" @creado="recargar" />
 
     <ModalesAccionSocio
       :accion="acciones.accion.value"

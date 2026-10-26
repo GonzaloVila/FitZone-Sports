@@ -3,6 +3,7 @@ import { desenvolver, type ClienteApi } from '@/compartido/http/clienteApi'
 
 export type Usuario = components['schemas']['UsuarioOut']
 export type UsuarioNuevo = components['schemas']['UsuarioIn']
+export type UsuarioPatch = components['schemas']['UsuarioPatch']
 export type ListaUsuarios = components['schemas']['ListaUsuarios']
 
 // Filtros del listado, con los nombres exactos de los parámetros del contrato (listarUsuarios).
@@ -13,6 +14,8 @@ export interface ServicioUsuarios {
   obtener(usuarioId: number, senal?: AbortSignal): Promise<Usuario>
   listar(filtros: FiltrosUsuarios, pagina: number, porPagina: number, senal?: AbortSignal): Promise<ListaUsuarios>
   crear(usuario: UsuarioNuevo): Promise<Usuario>
+  // Solo los campos que se mandan cambian; `telefono: null` lo borra. DNI y correo no se pueden modificar.
+  modificar(usuarioId: number, cambios: UsuarioPatch): Promise<Usuario>
 }
 
 export function crearServicioUsuarios(cliente: ClienteApi): ServicioUsuarios {
@@ -34,6 +37,12 @@ export function crearServicioUsuarios(cliente: ClienteApi): ServicioUsuarios {
 
     async crear(usuario) {
       return desenvolver(await cliente.POST('/usuarios', { body: usuario }))
+    },
+
+    async modificar(usuarioId, cambios) {
+      return desenvolver(
+        await cliente.PATCH('/usuarios/{id}', { params: { path: { id: usuarioId } }, body: cambios }),
+      )
     },
   }
 }

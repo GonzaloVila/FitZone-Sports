@@ -18,13 +18,15 @@ defineProps<{
   // Nombre accesible del grupo: va en un <legend> oculto a la vista.
   leyenda: string
   deshabilitado?: boolean
+  // Filas compactas en un solo recuadro, separadas por una línea fina; título y descripción en una misma línea.
+  compacta?: boolean
 }>()
 
 const modelo = defineModel<string>({ required: true })
 </script>
 
 <template>
-  <fieldset class="opciones">
+  <fieldset :class="['opciones', { 'opciones--compacta': compacta }]">
     <legend class="opciones__leyenda">{{ leyenda }}</legend>
     <label
       v-for="opcion in opciones"
@@ -148,5 +150,42 @@ const modelo = defineModel<string>({ required: true })
 .opcion__descripcion {
   color: var(--fz-opcion-tarjeta-descripcion-color);
   font-size: var(--fz-opcion-tarjeta-descripcion-texto);
+}
+
+/* Compacta: un solo recuadro; cada opción es una fila sin borde propio, separada de la anterior por una línea. */
+.opciones--compacta {
+  gap: 0;
+  overflow: hidden;
+  border: var(--fz-opcion-tarjeta-borde-ancho) solid var(--fz-opcion-tarjeta-compacta-borde);
+  border-radius: var(--fz-opcion-tarjeta-radio);
+}
+
+.opciones--compacta .opcion {
+  padding: var(--fz-opcion-tarjeta-compacta-relleno-y) var(--fz-opcion-tarjeta-relleno-x);
+  border: none;
+  border-radius: 0;
+}
+
+.opciones--compacta .opcion + .opcion {
+  border-top: var(--fz-opcion-tarjeta-borde-ancho) solid var(--fz-opcion-tarjeta-compacta-separador);
+}
+
+.opciones--compacta .opcion--elegida {
+  background: var(--fz-opcion-tarjeta-elegida-fondo);
+}
+
+/* El anillo de foco queda por dentro de la fila: el recuadro recortaría uno exterior. */
+.opciones--compacta .opcion:has(.opcion__radio:focus-visible) {
+  outline-offset: calc(-1 * var(--fz-opcion-tarjeta-foco-ancho));
+}
+
+.opciones--compacta .opcion__texto {
+  flex-flow: row wrap;
+  align-items: baseline;
+  gap: 0 var(--fz-opcion-tarjeta-contenido-separacion);
+}
+
+.opciones--compacta .opcion__titulo {
+  font-size: var(--fz-opcion-tarjeta-compacta-titulo-texto);
 }
 </style>

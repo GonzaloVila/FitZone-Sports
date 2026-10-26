@@ -1,8 +1,9 @@
 import { onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { esErrorApiConEstado, mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
-import type { Usuario } from '@/features/usuarios/services/servicioUsuarios'
+import type { Usuario, UsuarioPatch } from '@/features/usuarios/services/servicioUsuarios'
 import { useAvisosFz } from '@/ui'
+import { repartirErroresEdicion, type ErroresEdicion } from '../edicionDatos'
 import type { Membresia, Socio } from '../services/servicioSocios'
 import { mensajeDeErrorDeMembresia } from '../presentacion'
 import type { AccionSocio, Opcional } from '../tipos'
@@ -18,7 +19,7 @@ interface ResultadoAccion {
 
 // `socioId` es null cuando el id de la ruta no es un entero positivo: se trata como socio inexistente sin pedir nada.
 // Las acciones con modal (cambiar plan, suspender, reactivar, dejar de ser socio) las maneja useAccionesSocio; acá
-// quedan las que no lo usan: la renovación automática y el cambio de sede.
+// quedan las que no lo usan: la renovación automática, el cambio de sede y la edición de datos.
 export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
   const servicios = useServicios()
   const avisos = useAvisosFz()
@@ -32,6 +33,8 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
   const ejecutando = ref<AccionSocio | null>(null)
   // Error de la última acción que se muestra dentro de su modal (la renovación automática avisa con un aviso flotante).
   const errorAccion = ref<string | null>(null)
+  // Errores por campo de la edición de datos (un 422 del servidor), también para mostrar dentro del modal.
+  const erroresCampos = ref<ErroresEdicion>({})
 
   // Descarte de respuestas viejas: cada carga tiene un número y su propio AbortController.
   // Al cambiar el id o salir de la página el número avanza y todo lo pendiente queda descartado.
@@ -50,6 +53,7 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
     usuario.value = { situacion: 'cargando' }
     ejecutando.value = null
     errorAccion.value = null
+    erroresCampos.value = {}
     error.value = null
 
     if (id === null) {
@@ -96,17 +100,18 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
 
   // ---- Acciones ----
   // Sin doble disparo: mientras hay una acción en curso no se ejecuta otra. Devuelve true si salió bien.
-  // El error va a `errorAccion` (para el modal) o, con `flotante`, a un aviso flotante.
+  // El error va a `errorAccion` (para el modal), a un aviso flotante (con `flotante`) o a `alFallar`, que lo reparte.
   async function ejecutar(
     accion: AccionSocio,
     tarea: (id: number) => Promise<ResultadoAccion>,
-    flotante = false,
+    { flotante = false, alFallar }: { flotante?: boolean; alFallar?: (e: unknown) => void } = {},
   ): Promise<boolean> {
     const id = toValue(socioId)
     if (ejecutando.value || id === null || estado.value !== 'listo') return false
     const carga = ultimaCarga
     ejecutando.value = accion
     errorAccion.value = null
+    erroresCampos.value = {}
     try {
       const { mensaje, aplicar } = await tarea(id)
       // Si mientras tanto se cambió de socio o se salió de la página, el resultado ya no aplica.
@@ -116,9 +121,13 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
       return true
     } catch (e) {
       if (carga === ultimaCarga) {
-        const mensaje = mensajeDeErrorDeMembresia(e, 'No se pudo completar la acción.')
-        if (flotante) avisos.error(mensaje)
-        else errorAccion.value = mensaje
+        if (alFallar) {
+          alFallar(e)
+        } else {
+          const mensaje = mensajeDeErrorDeMembresia(e, 'No se pudo completar la acción.')
+          if (flotante) avisos.error(mensaje)
+          else errorAccion.value = mensaje
+        }
       }
       return false
     } finally {
@@ -136,7 +145,36 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
         const actualizada = await servicios.socios.modificarMembresia(id, { renuevaAutomatica: activar })
         return { aplicar: () => reemplazarMembresia(actualizada) }
       },
-      true,
+      { flotante: true },
+    )
+  }
+
+  // Cambia el nombre y/o el teléfono del usuario del socio. Con lo que devuelve el servidor se actualiza el usuario y
+  // se vuelve a pedir el socio (su nombre sale del usuario); si esa segunda consulta falla, se corrige el nombre a mano.
+  // Los errores se reparten por campo (un 422) o quedan como error general, siempre para mostrar dentro del modal.
+  function editarDatos(cambios: UsuarioPatch) {
+    return ejecutar(
+      'editar-datos',
+      async (id) => {
+        const actual = socio.value
+        if (!actual) throw new Error('No hay socio cargado.')
+        const usuarioNuevo = await servicios.usuarios.modificar(actual.usuarioId, cambios)
+        const socioNuevo = await servicios.socios.obtener(id).catch((): Socio => ({ ...actual, nombre: usuarioNuevo.nombre }))
+        return {
+          mensaje: 'Datos actualizados',
+          aplicar: () => {
+            usuario.value = { situacion: 'disponible', valor: usuarioNuevo }
+            socio.value = socioNuevo
+          },
+        }
+      },
+      {
+        alFallar: (e) => {
+          const { campos, general } = repartirErroresEdicion(e, 'No se pudieron guardar los datos.')
+          erroresCampos.value = campos
+          errorAccion.value = general
+        },
+      },
     )
   }
 
@@ -154,6 +192,7 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
 
   function limpiarErrorAccion() {
     errorAccion.value = null
+    erroresCampos.value = {}
   }
 
   watch(
@@ -175,9 +214,11 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
     usuario,
     ejecutando,
     errorAccion,
+    erroresCampos,
     reemplazarMembresia,
     alternarRenovacion,
     cambiarSede,
+    editarDatos,
     limpiarErrorAccion,
   }
 }

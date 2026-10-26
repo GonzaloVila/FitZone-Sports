@@ -1,5 +1,5 @@
 import { esErrorApiConEstado, mensajeDeError } from '@/compartido/http/errores'
-import type { AccionMenuFz } from '@/ui'
+import type { AccionMenuFz, OpcionTarjetaFz } from '@/ui'
 import type { EstadoMembresia, Membresia, MembresiaPatch, Plan, Socio } from './services/servicioSocios'
 import type {
   AccionConModal,
@@ -67,16 +67,28 @@ export function esAccionFila(valor: unknown): valor is AccionFila {
   return ACCIONES_FILA.some((accion) => accion === valor)
 }
 
-const ACCIONES_FICHA = ['cambiar-plan', 'suspender', 'reactivar', 'dejar-de-ser-socio', 'cambiar-sede'] as const satisfies readonly AccionFicha[]
+const ACCIONES_FICHA = [
+  'editar-datos',
+  'cambiar-plan',
+  'suspender',
+  'reactivar',
+  'cambiar-sede',
+  'dejar-de-ser-socio',
+] as const satisfies readonly AccionFicha[]
 
 export function esAccionFicha(valor: unknown): valor is AccionFicha {
   return ACCIONES_FICHA.some((accion) => accion === valor)
 }
 
 // Ítems del menú "···" de un socio, con las reglas de habilitación de `accionPermitida`. La lista abre con "Ver ficha";
-// la ficha, que ya está en ella, ofrece en cambio "Cambiar sede de origen" y separa "Dejar de ser socio" del resto.
+// la ficha, que ya está en ella, ofrece en cambio "Editar datos" (primero, deshabilitada si todavía no se conocen los
+// datos del usuario) y "Cambiar sede de origen", y separa "Dejar de ser socio" del resto.
 // `estado` es null si la membresía no está disponible.
-export function accionesDeMenuSocio(estado: EstadoMembresia | null, contexto: ContextoMenuSocio): AccionMenuFz[] {
+export function accionesDeMenuSocio(
+  estado: EstadoMembresia | null,
+  contexto: ContextoMenuSocio,
+  { datosEditables = true }: { datosEditables?: boolean } = {},
+): AccionMenuFz[] {
   const cambiarPlan: AccionMenuFz = {
     clave: 'cambiar-plan',
     etiqueta: estado === 'VENCIDA' ? 'Renovar' : 'Cambiar plan',
@@ -90,7 +102,13 @@ export function accionesDeMenuSocio(estado: EstadoMembresia | null, contexto: Co
   const baja: AccionMenuFz = { clave: 'dejar-de-ser-socio', etiqueta: 'Dejar de ser socio', icono: 'quitar-usuario', peligro: true }
 
   if (contexto === 'lista') return [{ clave: 'ver-ficha', etiqueta: 'Ver ficha', icono: 'ojo' }, cambiarPlan, alternaEstado, baja]
-  return [cambiarPlan, alternaEstado, { clave: 'cambiar-sede', etiqueta: 'Cambiar sede de origen', icono: 'lugar' }, { ...baja, separada: true }]
+  return [
+    { clave: 'editar-datos', etiqueta: 'Editar datos', icono: 'editar', deshabilitada: !datosEditables },
+    cambiarPlan,
+    alternaEstado,
+    { clave: 'cambiar-sede', etiqueta: 'Cambiar sede de origen', icono: 'lugar' },
+    { ...baja, separada: true },
+  ]
 }
 
 export interface AvisoMembresia {
@@ -143,6 +161,7 @@ export function accionPermitida(accion: AccionSocio, estadoMembresia: EstadoMemb
     case 'renovacion-automatica':
       return estadoMembresia !== null
     case 'cambiar-sede':
+    case 'editar-datos':
     case 'dejar-de-ser-socio':
       return true
   }
@@ -167,6 +186,13 @@ export const DURACION_PLAN: Record<Plan, string> = {
   TRIMESTRAL: '3 meses',
   ANUAL: '12 meses',
 }
+
+// Sin precios: el front no los conoce. Cada tarjeta dice el nombre del plan y cuánto dura.
+export const OPCIONES_PLAN: OpcionTarjetaFz[] = PLANES.map((plan) => ({
+  valor: plan,
+  titulo: ETIQUETAS_PLAN[plan],
+  descripcion: DURACION_PLAN[plan],
+}))
 
 export const MENSAJE_COBRO_RECHAZADO = 'El cobro fue rechazado, no se hicieron cambios.'
 

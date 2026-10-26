@@ -32,7 +32,10 @@ const emit = defineEmits<{
 
 const datos = computed(() => (props.membresia.situacion === 'disponible' ? props.membresia.valor : null))
 const aviso = computed(() => (datos.value ? avisoDeMembresia(datos.value) : null))
-const acciones = computed(() => accionesDeMenuSocio(datos.value?.estado ?? null, 'ficha'))
+// Editar datos necesita los del usuario (el teléfono actual): mientras no estén, la opción queda deshabilitada.
+const acciones = computed(() =>
+  accionesDeMenuSocio(datos.value?.estado ?? null, 'ficha', { datosEditables: props.usuario.situacion === 'disponible' }),
+)
 
 // Dato que se pidió aparte y todavía no está: se dice si falta o si no se pudo obtener.
 const pendiente = (dato: Opcional<unknown>) => (dato.situacion === 'cargando' ? 'Cargando…' : 'No disponible')

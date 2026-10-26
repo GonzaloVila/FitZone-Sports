@@ -9,6 +9,10 @@ const props = defineProps<{
   ayuda?: string
   error?: string
   id?: string
+  // Marca la etiqueta con un asterisco (decorativo) y el campo con aria-required.
+  obligatorio?: boolean
+  // Etiqueta en el tamaño mínimo (12 px), para formularios densos como los de un modal.
+  etiquetaChica?: boolean
 }>()
 
 const modelo = defineModel<string>()
@@ -32,13 +36,19 @@ const describedby = computed(() => {
 
 <template>
   <div class="campo-formulario">
-    <label :for="idCampo" class="campo-formulario__etiqueta">{{ etiqueta }}</label>
-    <div v-if="$slots.sufijo" class="campo-formulario__control">
+    <label :for="idCampo" :class="['campo-formulario__etiqueta', { 'campo-formulario__etiqueta--chica': etiquetaChica }]">
+      {{ etiqueta }}
+      <span v-if="obligatorio" class="campo-formulario__asterisco" aria-hidden="true">*</span>
+    </label>
+    <!-- Con contenido propio (un select, por ejemplo) el campo de texto no se dibuja: el contenido recibe el id y el aria-describedby. -->
+    <slot v-if="$slots.default" :id="idCampo" :describedby="describedby" :invalido="Boolean(error)" />
+    <div v-else-if="$slots.sufijo" class="campo-formulario__control">
       <CampoTextoFz
         v-bind="attrs"
         :id="idCampo"
         v-model="modelo"
         :invalido="Boolean(error)"
+        :aria-required="obligatorio || undefined"
         :aria-describedby="describedby"
       />
       <div class="campo-formulario__sufijo"><slot name="sufijo" /></div>
@@ -49,6 +59,7 @@ const describedby = computed(() => {
       :id="idCampo"
       v-model="modelo"
       :invalido="Boolean(error)"
+      :aria-required="obligatorio || undefined"
       :aria-describedby="describedby"
     />
     <p v-if="ayuda" :id="idAyuda" class="campo-formulario__ayuda">{{ ayuda }}</p>
@@ -67,6 +78,14 @@ const describedby = computed(() => {
   font-size: var(--fz-campo-formulario-etiqueta-texto);
   font-weight: var(--fz-campo-formulario-etiqueta-peso);
   color: var(--fz-campo-formulario-etiqueta-color);
+}
+
+.campo-formulario__etiqueta--chica {
+  font-size: var(--fz-campo-formulario-etiqueta-texto-chica);
+}
+
+.campo-formulario__asterisco {
+  color: var(--fz-campo-formulario-obligatorio-color);
 }
 
 /* Con slot `sufijo`: el contenido se apoya sobre el borde derecho del campo (el campo reserva su lugar). */

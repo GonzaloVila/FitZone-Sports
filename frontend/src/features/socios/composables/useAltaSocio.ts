@@ -1,110 +1,48 @@
-import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
-import { esErrorApi, mensajeDeError } from '@/compartido/http/errores'
+import { computed, onScopeDispose, reactive, ref, watch, type UnwrapNestedRefs } from 'vue'
 import { useServicios } from '@/compartido/servicios'
-import type { FiltrosUsuarios, Usuario } from '@/features/usuarios/services/servicioUsuarios'
+import type { Usuario } from '@/features/usuarios/services/servicioUsuarios'
 import { PLANES } from '../presentacion'
+import type { Socio } from '../services/servicioSocios'
+import {
+  datosUsuarioVacios,
+  erroresDeDatos,
+  erroresDePlan,
+  hayErrores,
+  pasoConErrores,
+  repartirErroresAlta,
+  type CampoAlta,
+  type ErroresAlta,
+  type ModoUsuario,
+  type PasoAlta,
+} from '../validacionAlta'
+import { useBusquedaUsuarios } from './useBusquedaUsuarios'
 
-export type ModoUsuario = 'existente' | 'nuevo'
+export type { ModoUsuario, PasoAlta } from '../validacionAlta'
 
-type Campo = 'dni' | 'nombre' | 'email' | 'contrasenia' | 'telefono' | 'usuario' | 'sede' | 'plan'
-
-const ESPERA_BUSQUEDA_MS = 300
-const MINIMO_BUSQUEDA = 2
-const RESULTADOS_POR_BUSQUEDA = 10
-
-// Validación de ayuda para el usuario: la validación real la hace el backend.
-const FORMATO_DNI = /^\d{7,20}$/
-const FORMATO_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const LARGO_MINIMO_CONTRASENIA = 8
-
-// Nombre de la propiedad del contrato (en los 422 y en los 409) -> campo del formulario.
-const CAMPOS_DEL_CONTRATO: Record<string, Campo> = {
-  dni: 'dni',
-  nombre: 'nombre',
-  email: 'email',
-  contrasenia: 'contrasenia',
-  telefono: 'telefono',
-  usuarioId: 'usuario',
-  sedeOrigenId: 'sede',
-  plan: 'plan',
-}
-
+// El alta de un socio en dos pasos: 1) el usuario (nuevo o ya existente) y la sede; 2) el plan de la membresía.
 export function useAltaSocio() {
   const servicios = useServicios()
+  const busqueda = useBusquedaUsuarios()
 
-  const modo = ref<ModoUsuario>('existente')
-
-  // ---- Paso A: elegir usuario ----
-  const busqueda = ref('')
-  const textoAplicado = ref('')
-  const resultados = ref<Usuario[]>([])
-  const hayMasResultados = ref(false)
-  const buscando = ref(false)
-  const busquedaHecha = ref(false)
-  const errorBusqueda = ref<string | null>(null)
+  const paso = ref<PasoAlta>('datos')
+  const modo = ref<ModoUsuario>('nuevo')
+  // Lo escrito en cada modo se conserva al cambiar de uno al otro.
+  const datosNuevo = reactive(datosUsuarioVacios())
   const seleccionado = ref<Usuario | null>(null)
   // true si el usuario seleccionado lo creó este formulario (para avisarlo y no recrearlo al reintentar).
   const creadoAhora = ref(false)
-
-  const datosNuevo = reactive({ dni: '', nombre: '', email: '', contrasenia: '', telefono: '' })
-
-  // ---- Paso B: membresía ----
   const sede = ref('')
   const plan = ref('')
 
-  // ---- Envío ----
   const enviando = ref(false)
-  const intentado = ref(false)
+  // Los errores de ayuda de un paso aparecen recién cuando se intentó avanzar o enviar.
+  const intentadoDatos = ref(false)
+  const intentadoPlan = ref(false)
   const errorGeneral = ref<string | null>(null)
-  const erroresServidor = reactive<Partial<Record<Campo, string>>>({})
+  const erroresServidor = reactive<ErroresAlta>({})
   let desmontado = false
 
-  // ---- Búsqueda de usuarios existentes (con debounce y descarte de respuestas viejas) ----
-  let temporizador: ReturnType<typeof setTimeout> | undefined
-  watch(busqueda, (texto) => {
-    clearTimeout(temporizador)
-    temporizador = setTimeout(() => {
-      textoAplicado.value = texto.trim()
-    }, ESPERA_BUSQUEDA_MS)
-  })
-
-  let ultimaBusqueda = 0
-  let controlador: AbortController | undefined
-
-  async function buscar() {
-    const numero = ++ultimaBusqueda
-    controlador?.abort()
-    controlador = new AbortController()
-    const texto = textoAplicado.value
-
-    errorBusqueda.value = null
-    if (texto.length < MINIMO_BUSQUEDA) {
-      resultados.value = []
-      hayMasResultados.value = false
-      busquedaHecha.value = false
-      buscando.value = false
-      return
-    }
-
-    buscando.value = true
-    // Solo usuarios EXTERNO: un SOCIO ya es socio. El contrato filtra por email exacto o por nombre parcial.
-    const filtros: FiltrosUsuarios = texto.includes('@') ? { rol: 'EXTERNO', email: texto } : { rol: 'EXTERNO', nombre: texto }
-    try {
-      const lista = await servicios.usuarios.listar(filtros, 1, RESULTADOS_POR_BUSQUEDA, controlador.signal)
-      if (numero !== ultimaBusqueda) return
-      resultados.value = lista.items
-      hayMasResultados.value = lista.total > lista.items.length
-      busquedaHecha.value = true
-    } catch (e) {
-      if (numero !== ultimaBusqueda) return
-      resultados.value = []
-      hayMasResultados.value = false
-      errorBusqueda.value = mensajeDeError(e, 'No se pudo buscar usuarios.')
-    } finally {
-      if (numero === ultimaBusqueda) buscando.value = false
-    }
-  }
-  watch(textoAplicado, () => void buscar())
+  const nombreDelSocio = computed(() => (modo.value === 'existente' ? seleccionado.value?.nombre : datosNuevo.nombre.trim()) ?? '')
 
   function seleccionar(usuario: Usuario) {
     seleccionado.value = usuario
@@ -117,70 +55,82 @@ export function useAltaSocio() {
     creadoAhora.value = false
   }
 
-  // ---- Validación de ayuda ----
-  const erroresDeAyuda = computed<Partial<Record<Campo, string>>>(() => {
-    if (!intentado.value) return {}
-    const errores: Partial<Record<Campo, string>> = {}
-    if (modo.value === 'existente') {
-      if (!seleccionado.value) errores.usuario = 'Elegí un usuario.'
-    } else {
-      if (!FORMATO_DNI.test(datosNuevo.dni.trim())) errores.dni = 'El DNI tiene entre 7 y 20 dígitos, sin puntos ni espacios.'
-      if (!datosNuevo.nombre.trim()) errores.nombre = 'Ingresá el nombre.'
-      if (!FORMATO_EMAIL.test(datosNuevo.email.trim())) errores.email = 'Ingresá un email válido.'
-      if (datosNuevo.contrasenia.length < LARGO_MINIMO_CONTRASENIA) {
-        errores.contrasenia = `La contraseña tiene al menos ${LARGO_MINIMO_CONTRASENIA} caracteres.`
-      }
+  const erroresDeAyudaDatos = computed(() =>
+    erroresDeDatos({ modo: modo.value, datos: datosNuevo, hayUsuario: seleccionado.value !== null, sede: sede.value }),
+  )
+  // La contraseña se vacía sola después de cada envío. Ese vacío no lo causó la persona: no se marca como error
+  // (solo se ve la ayuda neutra) hasta que vuelva a intentar continuar o enviar, o escriba algo en el campo.
+  const contraseniaBorrada = ref(false)
+  const erroresDeAyuda = computed<ErroresAlta>(() => {
+    const errores: ErroresAlta = {
+      ...(intentadoDatos.value ? erroresDeAyudaDatos.value : {}),
+      ...(intentadoPlan.value ? erroresDePlan(plan.value) : {}),
     }
-    if (!sede.value) errores.sede = 'Elegí la sede de origen.'
-    if (!PLANES.some((valor) => valor === plan.value)) errores.plan = 'Elegí un plan.'
+    if (contraseniaBorrada.value && datosNuevo.contrasenia === '') delete errores.contrasenia
     return errores
   })
 
   // Un error del servidor tiene prioridad sobre la ayuda, y se borra cuando el usuario corrige el campo.
-  const errores = computed<Partial<Record<Campo, string>>>(() => ({ ...erroresDeAyuda.value, ...erroresServidor }))
+  const errores = computed<ErroresAlta>(() => ({ ...erroresDeAyuda.value, ...erroresServidor }))
 
-  const camposEditables = ['dni', 'nombre', 'email', 'contrasenia', 'telefono'] as const
-  for (const campo of camposEditables) {
+  for (const campo of ['dni', 'nombre', 'email', 'contrasenia', 'telefono'] as const) {
     watch(
       () => datosNuevo[campo],
-      () => delete erroresServidor[campo],
+      (valor) => {
+        if (campo === 'contrasenia') {
+          // Vaciarla por código tras el envío no es "corregir" el campo: el error del servidor sobre ella sigue a la vista.
+          if (valor === '') return
+          contraseniaBorrada.value = false
+        }
+        delete erroresServidor[campo]
+      },
     )
   }
   watch(sede, () => delete erroresServidor.sede)
   watch(plan, () => delete erroresServidor.plan)
 
-  // Reparte los errores del contrato: 409 nombra el campo en `detail`; 422 trae `errors` ("campo must be ...").
-  function repartirErrores(e: unknown, porDefecto: string) {
-    if (!esErrorApi(e)) {
-      errorGeneral.value = porDefecto
-      return
-    }
-    const sinCampo: string[] = []
-    if (e.status === 409) {
-      const detalle = e.message.toLowerCase()
-      const campo: Campo | null = detalle.includes('email') ? 'email' : detalle.includes('dni') ? 'dni' : null
-      if (campo && modo.value === 'nuevo') erroresServidor[campo] = e.message
-      else sinCampo.push(e.message)
-    } else if (e.status === 422 && e.problema?.errors?.length) {
-      for (const mensaje of e.problema.errors) {
-        const campo = CAMPOS_DEL_CONTRATO[mensaje.split(' ')[0] ?? '']
-        if (campo) erroresServidor[campo] = mensaje
-        else sinCampo.push(mensaje)
-      }
-    } else {
-      sinCampo.push(e.message)
-    }
-    errorGeneral.value = sinCampo.length ? sinCampo.join(' ') : 'Revisá los datos marcados.'
+  // "Continuar al plan": valida el paso 1 y avanza solo si está bien. Devuelve si avanzó.
+  function continuar(): boolean {
+    intentadoDatos.value = true
+    contraseniaBorrada.value = false
+    errorGeneral.value = null
+    // Un error del servidor sobre un campo del paso 1 sigue vigente hasta que se corrige ese campo.
+    if (hayErrores(erroresDeAyudaDatos.value) || pasoConErrores(erroresServidor) === 'datos') return false
+    paso.value = 'plan'
+    return true
   }
 
-  // Devuelve el id del socio creado, o null si no se pudo (el error queda en el estado).
-  async function enviar(): Promise<number | null> {
-    if (enviando.value) return null
-    intentado.value = true
-    errorGeneral.value = null
-    for (const campo of Object.keys(erroresServidor) as Campo[]) delete erroresServidor[campo]
-    if (Object.keys(erroresDeAyuda.value).length > 0) return null
+  // Volver al paso 1 es libre y no pierde nada de lo cargado.
+  function volver() {
+    paso.value = 'datos'
+  }
 
+  // Las pestañas piden un paso: el 2 pasa por la misma validación que "Continuar", el 1 siempre se puede.
+  function irAPaso(destino: PasoAlta) {
+    if (destino === 'plan') continuar()
+    else volver()
+  }
+
+  function mostrarErrores(e: unknown, porDefecto: string) {
+    const { campos, general } = repartirErroresAlta(e, modo.value, porDefecto)
+    Object.assign(erroresServidor, campos)
+    errorGeneral.value = general
+    // Si el servidor objetó algo del paso 1, el modal vuelve ahí para que se vea junto al campo.
+    if (pasoConErrores(campos) === 'datos') paso.value = 'datos'
+  }
+
+  // Devuelve el socio creado, o null si no se pudo (el error queda en el estado).
+  async function enviar(): Promise<Socio | null> {
+    if (enviando.value) return null
+    intentadoDatos.value = true
+    contraseniaBorrada.value = false
+    errorGeneral.value = null
+    for (const campo of Object.keys(erroresServidor) as CampoAlta[]) delete erroresServidor[campo]
+    if (hayErrores(erroresDeAyudaDatos.value)) {
+      paso.value = 'datos'
+      return null
+    }
+    intentadoPlan.value = true
     const planElegido = PLANES.find((valor) => valor === plan.value)
     if (!planElegido) return null
 
@@ -199,11 +149,12 @@ export function useAltaSocio() {
             ...(telefono ? { telefono } : {}),
           })
         } catch (e) {
-          if (!desmontado) repartirErrores(e, 'No se pudo crear el usuario.')
+          if (!desmontado) mostrarErrores(e, 'No se pudo crear el usuario.')
           return null
         } finally {
           // La contraseña no se conserva fuera de este envío, haya salido bien o mal.
           datosNuevo.contrasenia = ''
+          contraseniaBorrada.value = true
         }
         // Desde acá el usuario existe: pasa a ser el seleccionado, así un reintento no lo vuelve a crear.
         seleccionado.value = usuario
@@ -218,12 +169,14 @@ export function useAltaSocio() {
           sedeOrigenId: Number(sede.value),
           plan: planElegido,
         })
-        return desmontado ? null : socio.id
+        return desmontado ? null : socio
       } catch (e) {
         if (!desmontado) {
-          repartirErrores(e, 'No se pudo dar de alta al socio.')
+          mostrarErrores(e, 'No se pudo dar de alta al socio.')
           if (creadoAhora.value) {
-            errorGeneral.value = `El usuario ya se creó, pero no se pudo dar de alta como socio. ${errorGeneral.value} Podés reintentar sin volver a crearlo.`
+            const motivo = (errorGeneral.value ?? '').trim()
+            const motivoConPunto = !motivo || /[.!?]$/.test(motivo) ? motivo : `${motivo}.`
+            errorGeneral.value = `El usuario ya se creó, pero no se pudo dar de alta como socio. ${motivoConPunto} Podés reintentar sin volver a crearlo.`
           }
         }
         return null
@@ -233,32 +186,56 @@ export function useAltaSocio() {
     }
   }
 
+  // Deja el formulario como recién abierto (el modal lo usa cada vez que se abre).
+  function reiniciar() {
+    paso.value = 'datos'
+    modo.value = 'nuevo'
+    Object.assign(datosNuevo, datosUsuarioVacios())
+    busqueda.reiniciar()
+    seleccionado.value = null
+    creadoAhora.value = false
+    sede.value = ''
+    plan.value = ''
+    intentadoDatos.value = false
+    intentadoPlan.value = false
+    contraseniaBorrada.value = false
+    errorGeneral.value = null
+    for (const campo of Object.keys(erroresServidor) as CampoAlta[]) delete erroresServidor[campo]
+  }
+
   onScopeDispose(() => {
     desmontado = true
-    clearTimeout(temporizador)
-    ultimaBusqueda++
-    controlador?.abort()
     datosNuevo.contrasenia = ''
   })
 
   return {
+    paso,
     modo,
-    busqueda,
-    resultados,
-    hayMasResultados,
-    buscando,
-    busquedaHecha,
-    errorBusqueda,
+    datosNuevo,
+    busqueda: busqueda.busqueda,
+    resultados: busqueda.resultados,
+    hayMasResultados: busqueda.hayMasResultados,
+    buscando: busqueda.buscando,
+    busquedaHecha: busqueda.busquedaHecha,
+    errorBusqueda: busqueda.errorBusqueda,
     seleccionado,
     creadoAhora,
-    datosNuevo,
     sede,
     plan,
     enviando,
     errores,
     errorGeneral,
+    nombreDelSocio,
     seleccionar,
     quitarSeleccion,
+    continuar,
+    volver,
+    irAPaso,
     enviar,
+    reiniciar,
   }
 }
+
+// El estado del alta tal como lo ven los componentes de los pasos: el modal lo envuelve con `reactive`, que
+// desenvuelve los refs, y se los pasa a cada paso.
+export type AltaSocio = UnwrapNestedRefs<ReturnType<typeof useAltaSocio>>

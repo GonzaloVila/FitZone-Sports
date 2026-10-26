@@ -122,15 +122,15 @@ describe('DetalleSocioPage', () => {
     wrapper.unmount()
   })
 
-  it('con ?alta=1 muestra el aviso de alta y lo saca de la URL; sin eso, no hay aviso', async () => {
-    const conAlta = await montar({ alta: '1' })
-    expect(conAlta.text()).toContain('El socio se dio de alta correctamente.')
-    expect(router.currentRoute.value.query).toEqual({})
-    conAlta.unmount()
+  it('"Editar datos" es la primera opción del menú de la ficha', async () => {
+    const wrapper = await montar()
 
-    const sinAlta = await montar()
-    expect(sinAlta.text()).not.toContain('El socio se dio de alta correctamente.')
-    sinAlta.unmount()
+    await wrapper.get('button[aria-label^="Acciones de"]').trigger('keydown', { key: 'Enter' })
+    await vi.waitFor(() => expect(document.body.querySelector('[role="menu"]')).not.toBeNull())
+
+    const items = [...document.body.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent?.trim())
+    expect(items[0]).toBe('Editar datos')
+    wrapper.unmount()
   })
 
   it('ya no interpreta ?accion=: no abre ningún modal ni toca la URL', async () => {

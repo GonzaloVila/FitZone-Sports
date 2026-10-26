@@ -37,7 +37,6 @@ const router = createRouter({
   history: createMemoryHistory(),
   routes: [
     { path: '/socios', name: 'socios', component: pagina },
-    { path: '/socios/nuevo', name: 'socios-nuevo', component: pagina },
     { path: '/socios/:socioId', name: 'socio-detalle', component: pagina },
   ],
 })
@@ -77,17 +76,30 @@ describe('GestionSociosPage', () => {
     document.body.innerHTML = ''
   })
 
-  it('arma la cabecera: título, conteo, subtítulo y "Nuevo socio" como enlace', async () => {
+  it('arma la cabecera: título, conteo, subtítulo y "Nuevo socio" como botón (ya no es un enlace)', async () => {
     servicios.socios.listar.mockResolvedValue({ items: [socio(1)], total: 1 })
     const wrapper = await montar()
 
     expect(wrapper.get('h1').text()).toBe('Socios')
     expect(wrapper.get('header').text()).toContain('1 socio')
     expect(wrapper.get('header').text()).toContain('Gestión de membresías, altas y consulta de socios.')
-    const nuevo = wrapper.get('header a')
-    expect(nuevo.text()).toBe('Nuevo socio')
-    expect(nuevo.attributes('href')).toBe('/socios/nuevo')
-    expect(wrapper.find('header a button').exists()).toBe(false)
+    expect(wrapper.get('header button').text()).toBe('Nuevo socio')
+    expect(wrapper.find('header a').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('"Nuevo socio" abre el modal de alta, en el paso 1 y con "No tiene cuenta" elegido', async () => {
+    const wrapper = await montar()
+    expect(wrapper.findAll('dialog[open]')).toHaveLength(0)
+
+    await wrapper.get('header button').trigger('click')
+    await flushPromises()
+
+    const modal = wrapper.get('dialog[open]')
+    expect(modal.get('h2').text()).toBe('Nuevo socio')
+    expect(modal.get('[role="tab"][aria-selected="true"]').text()).toBe('1 Datos del usuario')
+    expect(modal.get<HTMLInputElement>('input[name="modo-usuario"]:checked').element.value).toBe('nuevo')
+    expect(router.currentRoute.value.name).toBe('socios')
     wrapper.unmount()
   })
 
@@ -99,7 +111,7 @@ describe('GestionSociosPage', () => {
     expect(vacio.find('button, a').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('No se encontraron socios')
     // "Nuevo socio" queda solo en la cabecera.
-    expect(wrapper.findAll('a').filter((enlace) => enlace.text() === 'Nuevo socio')).toHaveLength(1)
+    expect(wrapper.findAll('button').filter((boton) => boton.text() === 'Nuevo socio')).toHaveLength(1)
     expect(wrapper.find('table').exists()).toBe(false)
     wrapper.unmount()
   })

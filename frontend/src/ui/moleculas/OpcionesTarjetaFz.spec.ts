@@ -119,6 +119,29 @@ describe('OpcionesTarjetaFz', () => {
     wrapper.unmount()
   })
 
+  it('compacta: solo suma una clase al grupo; los radios y la estructura son los mismos', () => {
+    const normal = montar()
+    const compacta = montar({ compacta: true })
+
+    expect(normal.classes()).not.toContain('opciones--compacta')
+    expect(compacta.classes()).toContain('opciones--compacta')
+    expect(compacta.element.tagName).toBe('FIELDSET')
+    expect(compacta.get('legend').text()).toBe('Plan de la membresía')
+    expect(radios(compacta)).toHaveLength(3)
+    expect(compacta.findAll('label')).toHaveLength(3)
+    normal.unmount()
+    compacta.unmount()
+  })
+
+  it('compacta: elegir una fila emite update:modelValue como siempre', async () => {
+    const wrapper = montar({ compacta: true })
+
+    await radios(wrapper)[0]!.setValue(true)
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([['MENSUAL']])
+    wrapper.unmount()
+  })
+
   it('el indicador circular es decorativo', () => {
     const wrapper = montar()
 

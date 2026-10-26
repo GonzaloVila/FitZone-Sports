@@ -1,24 +1,21 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSedes } from '@/features/sedes/composables/useSedes'
+import type { UsuarioPatch } from '@/features/usuarios/services/servicioUsuarios'
 import { AvisoFz, IconoFz } from '@/ui'
 import FichaSocio from '../components/FichaSocio.vue'
 import ModalCambiarSede from '../components/modales/ModalCambiarSede.vue'
+import ModalEditarDatos from '../components/modales/ModalEditarDatos.vue'
 import ModalesAccionSocio from '../components/modales/ModalesAccionSocio.vue'
 import { useAccionesSocio } from '../composables/useAccionesSocio'
 import { useDetalleSocio } from '../composables/useDetalleSocio'
+import { datosIniciales } from '../edicionDatos'
 import { filaDeSocio } from '../presentacion'
 import type { AccionFicha } from '../tipos'
 
 const route = useRoute()
 const router = useRouter()
-
-// Aviso de alta: llega como ?alta=1 desde el formulario y se consume una sola vez (no queda en la URL).
-const avisoAlta = ref(route.query.alta === '1')
-onMounted(() => {
-  if (avisoAlta.value) void router.replace({ name: 'socio-detalle', params: route.params })
-})
 
 // Un id que no sea un entero positivo se trata como socio inexistente, sin pedir nada a la API.
 const socioId = computed(() => {
@@ -36,9 +33,11 @@ const {
   usuario,
   ejecutando,
   errorAccion,
+  erroresCampos,
   reemplazarMembresia,
   alternarRenovacion,
   cambiarSede,
+  editarDatos,
   limpiarErrorAccion,
 } = useDetalleSocio(socioId)
 const { sedes, error: errorSedes, nombreDeSede } = useSedes()
@@ -50,12 +49,18 @@ const acciones = useAccionesSocio((resultado) => {
   else reemplazarMembresia(resultado.membresia)
 })
 
+// Cambiar sede y editar datos tienen su propio modal, manejado acá con lo que expone useDetalleSocio.
 const sedeAbierta = ref(false)
+const edicionAbierta = ref(false)
+const datosOriginales = computed(() =>
+  datosIniciales(socio.value?.nombre ?? '', usuario.value.situacion === 'disponible' ? usuario.value.valor : null),
+)
 
 function abrirAccion(accion: AccionFicha) {
-  if (accion === 'cambiar-sede') {
+  if (accion === 'cambiar-sede' || accion === 'editar-datos') {
     limpiarErrorAccion()
-    sedeAbierta.value = true
+    if (accion === 'cambiar-sede') sedeAbierta.value = true
+    else edicionAbierta.value = true
   } else if (socio.value) {
     acciones.abrir(filaDeSocio(socio.value, membresia.value), accion)
   }
@@ -65,9 +70,13 @@ async function confirmarSede(sedeId: number) {
   if (await cambiarSede(sedeId)) sedeAbierta.value = false
 }
 
+async function confirmarEdicion(cambios: UsuarioPatch) {
+  if (await editarDatos(cambios)) edicionAbierta.value = false
+}
+
 // Al cerrarse un modal (Cancelar, X, Esc o éxito) el foco vuelve al botón "···": el ítem del menú o el botón del aviso que
 // lo abrió ya no existe o cambió. Se espera a que el modal termine de cerrarse para que su propia devolución de foco no pise esta.
-const hayModal = computed(() => acciones.pedido.value !== null || sedeAbierta.value)
+const hayModal = computed(() => acciones.pedido.value !== null || sedeAbierta.value || edicionAbierta.value)
 watch(hayModal, async (abierto, estabaAbierto) => {
   if (abierto || !estabaAbierto || !socio.value) return
   const identificador = `menu-socio-${socio.value.id}`
@@ -94,9 +103,6 @@ watch(hayModal, async (abierto, estabaAbierto) => {
     <AvisoFz v-else-if="estado === 'error'" variante="peligro">{{ error }}</AvisoFz>
 
     <template v-else-if="socio">
-      <div aria-live="polite">
-        <AvisoFz v-if="avisoAlta" variante="exito">El socio se dio de alta correctamente.</AvisoFz>
-      </div>
       <AvisoFz v-if="errorSedes" variante="advertencia">{{ errorSedes }}</AvisoFz>
 
       <FichaSocio
@@ -129,6 +135,15 @@ watch(hayModal, async (abierto, estabaAbierto) => {
         :ejecutando="ejecutando === 'cambiar-sede'"
         :error="errorAccion"
         @confirmar="confirmarSede"
+      />
+
+      <ModalEditarDatos
+        v-model:abierto="edicionAbierta"
+        :original="datosOriginales"
+        :ejecutando="ejecutando === 'editar-datos'"
+        :error="errorAccion"
+        :errores="erroresCampos"
+        @confirmar="confirmarEdicion"
       />
     </template>
   </section>

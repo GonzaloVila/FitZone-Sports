@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { AvisoFz, BotonFz, ModalFz, OpcionesTarjetaFz, type OpcionTarjetaFz } from '@/ui'
-import { DURACION_PLAN, ETIQUETAS_PLAN, PLANES, puedeConfirmarPlan } from '../../presentacion'
+import { AvisoFz, BotonFz, ModalFz, OpcionesTarjetaFz } from '@/ui'
+import { OPCIONES_PLAN, PLANES, puedeConfirmarPlan } from '../../presentacion'
 import type { Membresia, Plan } from '../../services/servicioSocios'
 import type { SocioResumen } from '../../tipos'
 import ResumenSocio from './ResumenSocio.vue'
@@ -15,13 +15,6 @@ const props = defineProps<{
 
 const abierto = defineModel<boolean>('abierto', { required: true })
 const emit = defineEmits<{ confirmar: [plan: Plan] }>()
-
-// Sin precios: el front no los conoce. Cada tarjeta dice el nombre del plan y cuánto dura.
-const opciones: OpcionTarjetaFz[] = PLANES.map((plan) => ({
-  valor: plan,
-  titulo: ETIQUETAS_PLAN[plan],
-  descripcion: DURACION_PLAN[plan],
-}))
 
 const renueva = computed(() => props.membresia?.estado === 'VENCIDA')
 const planElegido = ref<string>(props.membresia?.plan ?? '')
@@ -44,7 +37,7 @@ function confirmar() {
 <template>
   <ModalFz v-model="abierto" :titulo="renueva ? 'Renovar membresía' : 'Cambiar plan'" icono="cambiar" tono="primario" :ocupado="ejecutando">
     <ResumenSocio :socio="socio" :membresia="membresia" />
-    <OpcionesTarjetaFz v-model="planElegido" nombre="plan" leyenda="Plan nuevo" :opciones="opciones" :deshabilitado="ejecutando" />
+    <OpcionesTarjetaFz v-model="planElegido" nombre="plan" leyenda="Plan nuevo" :opciones="OPCIONES_PLAN" :deshabilitado="ejecutando" />
     <p class="nota">
       {{
         renueva

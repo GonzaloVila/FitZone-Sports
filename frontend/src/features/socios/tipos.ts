@@ -31,6 +31,7 @@ export type AccionSocio =
   | 'cambiar-plan'
   | 'renovacion-automatica'
   | 'cambiar-sede'
+  | 'editar-datos'
   | 'dejar-de-ser-socio'
 
 // Lo que se puede pedir desde el menú de una fila: ver la ficha o abrir el modal de una acción.
@@ -39,8 +40,8 @@ export type AccionFila = 'ver-ficha' | Extract<AccionSocio, 'cambiar-plan' | 'su
 // Las acciones de una fila que se resuelven en un modal.
 export type AccionConModal = Exclude<AccionFila, 'ver-ficha'>
 
-// Lo que se puede pedir desde el menú de la ficha: las acciones con modal compartido o el cambio de sede.
-export type AccionFicha = AccionConModal | 'cambiar-sede'
+// Lo que se puede pedir desde el menú de la ficha: las acciones con modal compartido, el cambio de sede o la edición de datos.
+export type AccionFicha = AccionConModal | 'cambiar-sede' | 'editar-datos'
 
 // Dónde se muestra el menú de acciones de un socio: la fila de la lista o la ficha.
 export type ContextoMenuSocio = 'lista' | 'ficha'

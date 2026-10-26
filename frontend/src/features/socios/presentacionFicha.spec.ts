@@ -55,12 +55,33 @@ describe('accionesDeMenuSocio', () => {
     expect(acciones.at(-1)?.peligro).toBe(true)
   })
 
-  it('ficha: sin Ver ficha, con Cambiar sede de origen, y la baja al final, separada y en peligro', () => {
+  it('ficha: Editar datos primero, sin Ver ficha, con Cambiar sede de origen, y la baja al final, separada y en peligro', () => {
     const acciones = accionesDeMenuSocio('ACTIVA', 'ficha')
 
-    expect(acciones.map((accion) => accion.clave)).toEqual(['cambiar-plan', 'suspender', 'cambiar-sede', 'dejar-de-ser-socio'])
+    expect(acciones.map((accion) => accion.clave)).toEqual([
+      'editar-datos',
+      'cambiar-plan',
+      'suspender',
+      'cambiar-sede',
+      'dejar-de-ser-socio',
+    ])
+    expect(acciones[0]?.etiqueta).toBe('Editar datos')
     expect(acciones.filter((accion) => accion.separada).map((accion) => accion.clave)).toEqual(['dejar-de-ser-socio'])
     expect(acciones.at(-1)?.peligro).toBe(true)
+  })
+
+  it('Editar datos solo está en la ficha, no en la lista', () => {
+    expect(accionesDeMenuSocio('ACTIVA', 'lista').some((accion) => accion.clave === 'editar-datos')).toBe(false)
+  })
+
+  it('Editar datos se deshabilita si todavía no se conocen los datos del usuario, sea cual sea la membresía', () => {
+    for (const estado of ['ACTIVA', 'SUSPENDIDA', 'VENCIDA', null] as const) {
+      const editar = (editables: boolean) =>
+        accionesDeMenuSocio(estado, 'ficha', { datosEditables: editables }).find((accion) => accion.clave === 'editar-datos')
+
+      expect(editar(true)?.deshabilitada).toBe(false)
+      expect(editar(false)?.deshabilitada).toBe(true)
+    }
   })
 
   it.each(['lista', 'ficha'] as const)('%s: las reglas de habilitación son las mismas', (contexto) => {
@@ -85,7 +106,9 @@ describe('accionesDeMenuSocio', () => {
 
 describe('esAccionFicha', () => {
   it('acepta las acciones del menú de la ficha y rechaza el resto', () => {
-    for (const clave of ['cambiar-plan', 'suspender', 'reactivar', 'cambiar-sede', 'dejar-de-ser-socio']) expect(esAccionFicha(clave)).toBe(true)
+    for (const clave of ['editar-datos', 'cambiar-plan', 'suspender', 'reactivar', 'cambiar-sede', 'dejar-de-ser-socio']) {
+      expect(esAccionFicha(clave)).toBe(true)
+    }
     expect(esAccionFicha('ver-ficha')).toBe(false)
     expect(esAccionFicha('renovacion-automatica')).toBe(false)
     expect(esAccionFicha(undefined)).toBe(false)

@@ -22,12 +22,20 @@ describe('M2 - Ingresos / Aforo: contrato HTTP y scope por sede', () => {
     if (cache) return cache;
 
     const email = emailUnico('m2.recep');
+    // El alta de RECEPCION lleva la sede de trabajo (EmpleadoSede) desde POST
+    // /usuarios: ya no hace falta insertar la fila a mano.
     const crearRes = await request(app.getHttpServer())
       .post('/api/v1/usuarios')
-      .send({ rol: 'RECEPCION', dni: dniUnico(), nombre: 'Recep E2E M2', email, contrasenia: 'clave12345' })
+      .send({
+        rol: 'RECEPCION',
+        dni: dniUnico(),
+        nombre: 'Recep E2E M2',
+        email,
+        contrasenia: 'clave12345',
+        sedeId,
+      })
       .expect(201);
     usuariosCreados.push(crearRes.body.id);
-    await prisma.empleadoSede.create({ data: { usuario_id: crearRes.body.id, sede_id: sedeId } });
 
     const loginRes = await request(app.getHttpServer())
       .post('/api/v1/auth/login')

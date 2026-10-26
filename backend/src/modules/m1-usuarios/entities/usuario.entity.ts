@@ -11,6 +11,9 @@ export interface Usuario {
   contrasenia: string;
   telefono: string | null;
   fotoUrl: string | null;
+  // Sede de trabajo (EmpleadoSede, solo RECEPCION). Null cuando el rol no la
+  // tiene o cuando el recepcionista todavia no fue asignado (dato heredado).
+  sedeId?: number | null;
 }
 
 export interface UsuarioNuevo {
@@ -21,6 +24,8 @@ export interface UsuarioNuevo {
   contrasenia: string;
   telefono?: string;
   fotoUrl?: string;
+  // Solo RECEPCION: se materializa como fila de EmpleadoSede en la misma alta.
+  sedeId?: number;
 }
 
 export interface UsuarioActualizable {

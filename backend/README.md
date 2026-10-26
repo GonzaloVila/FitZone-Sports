@@ -100,6 +100,7 @@ según su propio README.
 - [x] Migración de M1-M5 a capas, sin puertos ni adapters (rama `capas-en-todo-el-backend`)
 - [x] Prisma + Supabase conectado y migraciones aplicadas (SCRUM-11b)
 - [x] Endpoints REST + Swagger de M1-M4 (SCRUM-11c)
+- [x] Alta de RECEPCION con sede de trabajo (A3): `sedeId` obligatorio para RECEPCION y prohibido para EXTERNO/GERENTE en `POST /usuarios`, materializado como fila 1:1 de `EmpleadoSede`; se expone como `sedeId` de solo lectura en `UsuarioOut`
 - [x] M5: `PagosService`, `PagoRepository` y las operaciones del contrato (RF-13 / RF-14)
 - [x] Autenticación y roles (Unidad III): JWT + guards, TOTP, bloqueados, sync offline
 - [x] Patrones de Unidad III (ADR-10): State, Observer, Chain, reglas de precio

@@ -2,11 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
+  Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { RolAlta } from '../entities/usuario.entity';
 
@@ -54,6 +57,22 @@ export class UsuarioIn {
   @IsString()
   @MaxLength(20)
   telefono?: string;
+
+  // La regla por rol no vive en el DTO: `class-validator` valida un campo solo,
+  // y aca la obligatoriedad depende de `rol`. UsuariosService la aplica antes de
+  // escribir (ver comentario en crear()). `ValidateIf` en lugar de `IsOptional`
+  // para que un `null` explícito no se cuele: si viene, IsInt lo rechaza.
+  @ApiPropertyOptional({
+    type: 'integer',
+    minimum: 1,
+    example: 5,
+    description:
+      'Sede de trabajo. Obligatoria para RECEPCION (se guarda en EmpleadoSede) y prohibida para EXTERNO/GERENTE.',
+  })
+  @ValidateIf((dto: { sedeId?: unknown }) => dto.sedeId !== undefined)
+  @IsInt()
+  @Min(1)
+  sedeId?: number;
 
   @ApiPropertyOptional({ example: 'https://cdn.fitzone.com.ar/fotos/ana.jpg' })
   @IsOptional()

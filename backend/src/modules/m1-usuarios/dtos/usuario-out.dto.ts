@@ -41,4 +41,17 @@ export class UsuarioOut {
     example: 'https://cdn.fitzone.com.ar/fotos/ana.jpg',
   })
   fotoUrl?: string | null;
+
+  // Solo RECEPCION tiene fila en EmpleadoSede. `null` en el resto de los roles
+  // y en el caso heredado de un recepcionista que todavia no fue asignado.
+  @Expose()
+  @ApiProperty({
+    type: 'integer',
+    required: false,
+    nullable: true,
+    example: 5,
+    description:
+      'Sede de trabajo (solo RECEPCION, EmpleadoSede). Null para los demas roles o si el recepcionista no fue asignado.',
+  })
+  sedeId?: number | null;
 }

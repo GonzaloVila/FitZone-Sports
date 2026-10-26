@@ -119,7 +119,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar usuario
-         * @description Alta de usuario distinguiendo el rol de perfil (EXTERNO | RECEPCION | GERENTE). DNI y email son únicos. La contrasenia se guarda hasheada (bcrypt), nunca en texto plano. Un usuario NO se crea como SOCIO acá: hacerse socio es POST /socios, que lo convierte y crea su membresía inicial. Responde 201 con el header Location apuntando al recurso creado.
+         * @description Alta de usuario distinguiendo el rol de perfil (EXTERNO | RECEPCION | GERENTE). DNI y email son únicos. La contrasenia se guarda hasheada (bcrypt), nunca en texto plano. Un usuario NO se crea como SOCIO acá: hacerse socio es POST /socios, que lo convierte y crea su membresía inicial. Para RECEPCION (`A3`) `sedeId` es obligatorio y se materializa como fila de `EmpleadoSede` (1:1: una sede tiene a lo sumo un recepcionista y un recepcionista trabaja en una sola sede); para EXTERNO y GERENTE la sede no aplica y enviarla es un 422. Esa asignación no se modifica después por API. Responde 201 con el header Location apuntando al recurso creado.
          */
         post: operations["crearUsuario"];
         delete?: never;
@@ -1055,6 +1055,11 @@ export interface components {
              * @example Clave-Segura-123
              */
             contrasenia: string;
+            /**
+             * @description Sede de trabajo del recepcionista (A3). Obligatoria cuando `rol` es RECEPCION y prohibida para EXTERNO y GERENTE (422). Se guarda en `EmpleadoSede`, no en `Usuario`; como la sede es única en esa tabla, una sede admite a lo sumo un recepcionista.
+             * @example 5
+             */
+            sedeId?: number;
             /** @example +54 351 555-1234 */
             telefono?: string;
             /** @example https://cdn.fitzone.com.ar/fotos/ana.jpg */
@@ -1075,7 +1080,8 @@ export interface components {
          *       "nombre": "Ana Gómez",
          *       "email": "ana.gomez@fitzone.com.ar",
          *       "telefono": "+54 351 555-1234",
-         *       "fotoUrl": "https://cdn.fitzone.com.ar/fotos/ana.jpg"
+         *       "fotoUrl": "https://cdn.fitzone.com.ar/fotos/ana.jpg",
+         *       "sedeId": null
          *     }
          */
         UsuarioOut: {
@@ -1087,6 +1093,8 @@ export interface components {
             email: string;
             telefono?: string | null;
             fotoUrl?: string | null;
+            /** @description Sede de trabajo del recepcionista (EmpleadoSede, A3). Null en los demás roles y en un recepcionista que todavía no fue asignado. Es de solo lectura: se define al crear el usuario. */
+            sedeId?: number | null;
         };
         SocioIn: {
             /** @description Usuario a convertir en socio (RF-01 ya lo contempla como Socio). */
@@ -2259,7 +2267,24 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
-            409: components["responses"]["Conflict"];
+            /** @description La sede de trabajo indicada no existe (solo RECEPCION) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description El email o el DNI ya están registrados, o la sede de trabajo indicada ya tiene un recepcionista (`EmpleadoSede.sede_id` es único). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["ValidationError"];
         };
     };

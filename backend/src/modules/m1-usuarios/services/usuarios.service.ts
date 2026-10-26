@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { recursoNoEncontrado } from '../../../commons/filters/problem.exception';
+import { mapearErrorPrisma } from '../../../commons/errors/prisma.mapper';
 import * as bcrypt from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
 import { UsuarioIn } from '../dtos/usuario-in.dto';
@@ -8,6 +10,12 @@ import { UsuarioPatch } from '../dtos/usuario-patch.dto';
 import { UsuarioOut } from '../dtos/usuario-out.dto';
 import { Usuario, UsuarioActualizable } from '../entities/usuario.entity';
 import { sinCamposParaModificar, usuarioDuplicado } from '../errors/socios.errors';
+import {
+  recepcionSinSede,
+  sedeConRecepcionista,
+  sedeInexistente,
+  sedeSoloParaRecepcion,
+} from '../errors/usuarios.errors';
 import { EmpleadoSedeRepository } from '../repositories/empleado-sede.repository';
 import { UsuarioRepository } from '../repositories/usuario.repository';
 
@@ -54,6 +62,18 @@ export class UsuariosService {
   }
 
   async crear(dto: UsuarioIn): Promise<UsuarioOut> {
+    // La sede de trabajo solo existe para RECEPCION (EmpleadoSede, A3; ver
+    // fitzone.dbml: EXTERNO y GERENTE "viven solo en rol"). Se valida antes de
+    // tocar la base para que el 422 no dependa de una consulta.
+    const esRecepcion = dto.rol === 'RECEPCION';
+    if (esRecepcion && dto.sedeId === undefined) {
+      throw recepcionSinSede();
+    }
+    if (!esRecepcion && dto.sedeId !== undefined) {
+      throw sedeSoloParaRecepcion(dto.rol);
+    }
+    const sedeId = esRecepcion ? dto.sedeId : undefined;
+
     const existente = await this.usuarios.buscarPorDniOEmail(dto.dni, dto.email);
     if (existente) {
       throw usuarioDuplicado(
@@ -63,16 +83,37 @@ export class UsuariosService {
       );
     }
 
+    if (sedeId !== undefined) {
+      if (!(await this.empleadosSede.existeSede(sedeId))) {
+        throw sedeInexistente(sedeId);
+      }
+      if (await this.empleadosSede.buscarPorSedeId(sedeId)) {
+        throw sedeConRecepcionista(sedeId);
+      }
+    }
+
     const contrasenia = await bcrypt.hash(dto.contrasenia, SALT_ROUNDS);
-    const usuario = await this.usuarios.crear({
-      rol: dto.rol,
-      dni: dto.dni,
-      nombre: dto.nombre,
-      email: dto.email,
-      contrasenia,
-      telefono: dto.telefono,
-      fotoUrl: dto.fotoUrl,
-    });
+    let usuario: Usuario;
+    try {
+      usuario = await this.usuarios.crear({
+        rol: dto.rol,
+        dni: dto.dni,
+        nombre: dto.nombre,
+        email: dto.email,
+        contrasenia,
+        telefono: dto.telefono,
+        fotoUrl: dto.fotoUrl,
+        ...(sedeId !== undefined && { sedeId }),
+      });
+    } catch (error) {
+      // Si dos altas compiten por la misma sede, el chequeo previo pasa en ambas
+      // y la que pierde choca contra EmpleadoSede_sede_id_key: se traduce al mismo
+      // 409. Un P2002 de otra columna (DNI/email) se deja subir como antes.
+      if (sedeId !== undefined && mapearErrorPrisma(error) === 'UNIQUE' && esSedeUnica(error)) {
+        throw sedeConRecepcionista(sedeId);
+      }
+      throw error;
+    }
 
     return this.aOut(usuario);
   }
@@ -144,4 +185,16 @@ export class UsuariosService {
   private aOut(usuario: Usuario): UsuarioOut {
     return plainToInstance(UsuarioOut, usuario);
   }
+}
+
+// P2002 de Prisma: `meta.target` llega como lista de campos (Postgres) o como
+// nombre de la constraint, segun version. Se aceptan las dos formas para no
+// depender del detalle del driver.
+function esSedeUnica(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false;
+  }
+  const target = error.meta?.target;
+  const texto = Array.isArray(target) ? target.join(',') : String(target ?? '');
+  return texto.includes('sede_id') || texto.includes('EmpleadoSede_sede_id_key');
 }

@@ -289,7 +289,9 @@ paths:
       summary: Registrar usuario
       description: >
         Alta de usuario distinguiendo el rol de perfil (EXTERNO | RECEPCION | GERENTE). DNI y email son únicos. La contrasenia se guarda hasheada (bcrypt), nunca en texto plano. Un usuario NO se crea
-        como SOCIO acá: hacerse socio es POST /socios, que lo convierte y crea su membresía inicial. Responde 201 con el header Location apuntando al recurso creado.
+        como SOCIO acá: hacerse socio es POST /socios, que lo convierte y crea su membresía inicial. Para RECEPCION (`A3`) `sedeId` es obligatorio y se materializa como fila de `EmpleadoSede` (1:1: una sede
+        tiene a lo sumo un recepcionista y un recepcionista trabaja en una sola sede); para EXTERNO y GERENTE la sede no aplica y enviarla es un 422. Esa asignación no se modifica después por API.
+        Responde 201 con el header Location apuntando al recurso creado.
       requestBody:
         required: true
         content:
@@ -319,8 +321,20 @@ paths:
                 fotoUrl: https://cdn.fitzone.com.ar/fotos/ana.jpg
         '400':
           $ref: '#/components/responses/BadRequest'
+        '404':
+          description: La sede de trabajo indicada no existe (solo RECEPCION)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '409':
-          $ref: '#/components/responses/Conflict'
+          description: >
+            El email o el DNI ya están registrados, o la sede de trabajo indicada ya tiene un recepcionista
+            (`EmpleadoSede.sede_id` es único).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '422':
           $ref: '#/components/responses/ValidationError'
   /usuarios/{id}:
@@ -2191,6 +2205,14 @@ components:
           writeOnly: true
           description: Contraseña en claro al momento del alta; el servidor la hashea y no la devuelve nunca.
           example: Clave-Segura-123
+        sedeId:
+          type: integer
+          minimum: 1
+          description: >
+            Sede de trabajo del recepcionista (A3). Obligatoria cuando `rol` es RECEPCION y prohibida para
+            EXTERNO y GERENTE (422). Se guarda en `EmpleadoSede`, no en `Usuario`; como la sede es única en esa
+            tabla, una sede admite a lo sumo un recepcionista.
+          example: 5
         telefono:
           type: string
           maxLength: 20
@@ -2245,6 +2267,12 @@ components:
         fotoUrl:
           type: string
           nullable: true
+        sedeId:
+          type: integer
+          nullable: true
+          description: >-
+            Sede de trabajo del recepcionista (EmpleadoSede, A3). Null en los demás roles y en un
+            recepcionista que todavía no fue asignado. Es de solo lectura: se define al crear el usuario.
       example:
         id: 1
         rol: SOCIO
@@ -2253,6 +2281,7 @@ components:
         email: ana.gomez@fitzone.com.ar
         telefono: +54 351 555-1234
         fotoUrl: https://cdn.fitzone.com.ar/fotos/ana.jpg
+        sedeId: null
     SocioIn:
       type: object
       required:

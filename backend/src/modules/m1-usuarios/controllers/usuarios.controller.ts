@@ -47,8 +47,12 @@ export class UsuariosController {
     },
   })
   @ApiBadRequestResponse({ description: 'Solicitud mal formada (JSON inválido)', content: PROBLEM_JSON })
+  @ApiNotFoundResponse({
+    description: 'La sede de trabajo indicada no existe (solo RECEPCION)',
+    content: PROBLEM_JSON,
+  })
   @ApiConflictResponse({
-    description: 'El email o el DNI ya están registrados (unicidad)',
+    description: 'El email o el DNI ya están registrados, o la sede ya tiene un recepcionista',
     content: PROBLEM_JSON,
   })
   @ApiUnprocessableEntityResponse({

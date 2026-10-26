@@ -39,6 +39,21 @@ describe('M1 - DTOs de usuarios, socios y membresías', () => {
     it('rechaza campos desconocidos', async () => {
       expect(await erroresDe(UsuarioIn, { ...valido, socioId: 1 })).not.toEqual([]);
     });
+
+    // `sedeId` es opcional en el DTO porque la obligatoriedad depende del rol y
+    // la aplica UsuariosService. El DTO solo cuida la forma: entero positivo.
+    it('acepta sedeId entero positivo y lo deja pasar cuando falta', async () => {
+      expect(await erroresDe(UsuarioIn, { ...valido, sedeId: 5 })).toEqual([]);
+      expect(await erroresDe(UsuarioIn, valido)).toEqual([]);
+    });
+
+    it('rechaza sedeId no entero, no positivo o null', async () => {
+      expect(await erroresDe(UsuarioIn, { ...valido, sedeId: 0 })).not.toEqual([]);
+      expect(await erroresDe(UsuarioIn, { ...valido, sedeId: -3 })).not.toEqual([]);
+      expect(await erroresDe(UsuarioIn, { ...valido, sedeId: 2.5 })).not.toEqual([]);
+      expect(await erroresDe(UsuarioIn, { ...valido, sedeId: '5' })).not.toEqual([]);
+      expect(await erroresDe(UsuarioIn, { ...valido, sedeId: null })).not.toEqual([]);
+    });
   });
 
   describe('SocioIn', () => {

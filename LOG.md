@@ -3803,3 +3803,85 @@ Al cancelar una reserva de cancha que ya estaba pagada, el `Pago` quedaba APROBA
 6. ADR de la decisión de usar Reka UI (junto con ADR-13 y ADR-15).
 7. Proteger con guards y `security` en el contrato los endpoints de usuarios (y revisar socios y membresías).
 8. Datos de prueba en la base compartida a limpiar al final.
+
+---
+
+## 2026-10-25 - Frontend: rediseño visual, Paso 5 (ficha del socio)
+
+**Fecha:** 25/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `dbbf109`
+
+### Actividades
+
+1. **Ficha rediseñada:** `FichaSocio` pasó a ser una tarjeta centrada de 28 rem de ancho máximo, con cabecera (avatar de 56 px, nombre, chip de estado, DNI en fuente monoespaciada, chip de plan, sede y menú "···") y filas "etiqueta, valor" separadas por líneas finas: Vigencia, Fecha de alta, Correo, Teléfono, ID para accesos y Renovación automática (con interruptor). El componente nuevo `FilaFichaSocio` resuelve cada fila. `DetalleSocioPage` muestra el título fijo "Ficha del socio"; el nombre del socio va dentro de la tarjeta. Se eliminaron `AccionesSocio.vue` y la sección Carnet de la ficha (`CarnetSocio` sigue en uso en la pantalla del propio socio).
+2. **Aviso de membresía:** la función pura `avisoDeMembresia` (en `presentacion.ts`, con spec) devuelve el aviso según el estado: VENCIDA con tono de peligro, la fecha de vencimiento y el botón "Renovar"; SUSPENDIDA con tono de advertencia y el botón "Reactivar"; ACTIVA sin aviso. Cada botón abre el mismo modal que el menú. El valor de Vigencia toma el color del estado (rojo si está vencida, ámbar si está suspendida).
+3. **Menú de acciones compartido:** `accionesDeMenuSocio(estado, contexto)` arma los ítems del menú "···" tanto para la lista como para la ficha, con las mismas reglas de habilitación. La lista conserva "Ver ficha"; la ficha no la tiene, suma "Cambiar sede de origen" y deja "Dejar de ser socio" separado y en rojo. `TablaSocios` usa el helper y no cambia lo que se ve.
+4. **Acciones de la ficha:** cambiar plan (o renovar), suspender, reactivar y dejar de ser socio usan los modales de `components/modales/` de 4e, manejados con `useAccionesSocio`, y la ficha muestra la membresía actualizada sin recargar. Tras la baja se vuelve a la lista. El cambio de sede pasa a su propio modal, `ModalCambiarSede`. La renovación automática se cambia directo desde el interruptor, sin modal.
+5. **`useDetalleSocio`:** queda con la carga, la renovación automática, el cambio de sede y `reemplazarMembresia`. Se quitaron `suspender`, `reactivar`, `cambiarPlan`, `dejarDeSerSocio`, `exito` y los estados que quedaron sin uso (verificado con grep). Los éxitos y el error de la renovación automática salen como avisos flotantes. Spec nuevo con 15 tests (`useDetalleSocio.spec.ts`).
+6. **Kit:** íconos nuevos `flecha-izquierda`, `lugar`, `correo`, `telefono` e `identificador`; `AvatarFz` suma el tamaño `lg` (56 px); `MenuAccionesFz` suma la opción `separada` (línea fina antes de un ítem, sin cambios si no se usa). Tokens nuevos en `componentes.css` (avatar y separador del menú). `ui/README.md` documenta todo, con los pares de contraste de poco margen.
+
+### Decisiones tomadas
+
+1. **Columna centrada:** el enlace "Volver", el título y la tarjeta comparten una columna de 28 rem, así el título queda alineado con la tarjeta.
+2. **Botones del aviso:** "Renovar" es un botón primario y "Reactivar" usa la variante de advertencia, la del tono del aviso.
+3. **Error de la renovación automática:** sale como aviso flotante con el mensaje del servidor (o "No se pudo completar la acción."); un éxito no avisa, igual que en la lista.
+4. **Foco:** al cerrar cualquier modal, también el abierto desde el botón del aviso, el foco vuelve al botón "···".
+5. **Un solo lugar para el menú:** el helper evita mantener las reglas de la lista y de la ficha por separado.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **314 tests** en 40 archivos (eran 285 en 38 al cierre de 4e).
+- Recorrido con eventos reales de teclado y mouse en un navegador sin ventana, sobre una página temporal con servicios simulados (ya borrada): **41/41**. Cubre abrir y cerrar cada modal con Esc, Cancelar y X con retorno del foco, Renovar desde el aviso, error 402 dentro del modal y reintento, interruptor ocupado y con error, cambio de plan, suspender y reactivar, cambio de sede con error y baja con vuelta a la lista.
+- Capturas de la ficha ACTIVA, VENCIDA y SUSPENDIDA con y sin menú, con DNI y teléfono no disponibles y con la membresía no disponible; a 400 px no hay scroll horizontal.
+- Contrastes de los pares nuevos verificados con script: 22 pares, todos cumplen (el ítem de menú de peligro resaltado da 4.59:1 y el botón primario sobre el aviso rojo, 4.52:1).
+
+### Pendientes que siguen abiertos
+
+1. Hay 11 variables `--fz-*` usadas sin definir en `sedes` y `acceso`: se resuelven en la pasada de tokens por módulo.
+2. Partir `ui/tokens/componentes.css` y `useListaSocios.spec.ts` (más de 300 líneas).
+3. Restilizar el alta de socio y el carnet, y pasar a tokens los tamaños y colores escritos a mano de cada módulo.
+4. ADR de la decisión de usar Reka UI (junto con ADR-13 y ADR-15).
+5. Proteger con guards y `security` en el contrato los endpoints de usuarios (y revisar socios y membresías).
+6. Datos de prueba en la base compartida a limpiar al final.
+
+---
+
+## 2026-10-26 - Frontend: rediseño visual, Paso 6 (alta de socio como modal y edición de datos)
+
+**Fecha:** 26/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `a250ec2`
+
+### Actividades
+
+1. **Alta de socio como modal de dos pasos:** "Nuevo socio" pasa de enlace a botón y abre `ModalAltaSocio` (en `components/modales/alta/`, junto con `PasoDatosUsuario`, `FormularioUsuarioNuevo`, `BuscadorUsuarios` y `PasoPlan`). El paso 1, "Datos del usuario", ofrece "No tiene cuenta" (formulario de usuario nuevo, opción por defecto) y "Ya tiene cuenta" (buscador de usuarios externos y ex socios sin membresía, mínimo 2 caracteres, 300 ms de espera, aviso de más resultados), y al final la sede de origen. El paso 2, "Plan de membresía", muestra a quién se da de alta y en qué sede, y las tarjetas Mensual, Trimestral y Anual, sin precios. Al terminar bien: el modal se cierra, aparece el aviso "Socio dado de alta", la lista se recarga y el foco vuelve a "Nuevo socio".
+2. **Segundo paso bloqueado hasta validar el primero:** "Continuar al plan" valida y avanza; hacer clic o usar las flechas hacia la pestaña 2 con el paso 1 inválido hace lo mismo (muestra los errores y no avanza). Volver al paso 1 es libre y no pierde lo cargado. Se resolvió interceptando el modelo de `PestanasFz` con un `computed`, sin modificar el componente.
+3. **Composables y lógica pura:** `useAltaSocio` se reescribió por pasos y se apoya en `useBusquedaUsuarios` (búsqueda con espera y descarte de respuestas viejas) y en `validacionAlta.ts` (validación por paso y reparto de errores del servidor). Los specs se partieron por tema: `useAltaSocio`, `useAltaSocioEnvio`, `useAltaSocioErrores`, `useBusquedaUsuarios` y `validacionAlta`, con un helper común (`altaSocioPruebas.ts`).
+4. **Manejo de errores del alta:** un 409 al crear el usuario (DNI o correo repetidos) vuelve al paso 1 con un texto propio del front junto al campo ("Ya existe un usuario con ese DNI." / "Ya existe un usuario con ese correo."), sin mostrar el mensaje del backend. Los 422 se reparten por campo mediante `erroresFormulario.ts`, compartido con la edición. Si el usuario se creó pero el alta del socio falló, queda elegido en "Ya tiene cuenta" con el aviso de usuario creado recién, el mensaje lo aclara y el reintento no lo vuelve a crear. La contraseña se borra de la memoria después de cada envío; ese vacío no se marca como error hasta que la persona intente continuar de nuevo. Mensajes de la contraseña: "Ingresá una contraseña." si está vacía y "La contraseña debe tener al menos 8 caracteres." si tiene entre 1 y 7.
+5. **Se eliminan `NuevoSocioPage` y la ruta `socios-nuevo`,** y también el aviso `?alta=1` de la ficha (verificado con grep que no quedan referencias).
+6. **"Editar datos" en la ficha:** primera opción del menú "···" (solo en la ficha). Abre `ModalEditarDatos` con nombre y apellido (obligatorio) y teléfono (opcional), y modifica el usuario con `PATCH /usuarios/{id}` (`servicioUsuarios.modificar`). Solo se envían los campos que cambiaron y un teléfono vaciado va como `null`. El DNI y el correo no se editan desde ahí, y el modal lo aclara. Con éxito el modal se cierra, sale el aviso "Datos actualizados" y la ficha muestra los datos nuevos sin recargar; los errores (422 por campo o generales) quedan dentro del modal. La lógica pura está en `edicionDatos.ts` y `useDetalleSocio` suma `editarDatos`.
+7. **Kit:** nuevo `SelectorSegmentadoFz` (radios nativos en `fieldset`/`legend`, con spec); `CampoFormularioFz` suma las props `obligatorio` (asterisco y `aria-required`) y `etiquetaChica`, y un slot por defecto para otros controles (con spec nuevo); `OpcionesTarjetaFz` suma la prop `compacta` (filas en un solo recuadro, para los resultados de la búsqueda); íconos `editar` y `flecha-derecha`. Tokens nuevos en `componentes.css` y `ui/README.md` al día. `OPCIONES_PLAN` pasa a `presentacion.ts` y lo comparten el alta y el modal de cambio de plan.
+
+### Decisiones tomadas
+
+1. **Contraste del selector segmentado:** el borde del segmento elegido usa el color de borde de controles; con el borde marcado el indicador quedaba en 1.1:1 contra la pista. Ahora da 3.02:1 (mínimo 3:1 para un indicador de estado).
+2. **Editar datos deshabilitado mientras no se conocen los datos del usuario:** sin ellos no se puede calcular qué cambió ni mostrar el teléfono actual.
+3. **`editarDatos` vuelve a pedir el socio** después del PATCH, porque su nombre sale del usuario; si esa consulta falla, corrige el nombre con lo que devolvió el usuario.
+4. **Estado del alta:** el modal está siempre montado y se reinicia cada vez que se abre; Enter en un campo funciona como el botón principal del paso.
+5. **Contraseña vacía tras un fallo:** un indicador interno solo oculta el error de ayuda; la validación no cambia, y un error del servidor sobre la contraseña sí se muestra.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **432 tests** en 49 archivos (eran 314 en 40 al cierre del Paso 5).
+- Recorrido con eventos reales de teclado y mouse en un navegador sin ventana, sobre una página temporal con servicios simulados (ya borrada): **59/59**. Cubre abrir "Nuevo socio", intentar pasar al paso 2 con el paso 1 vacío, selector y pestañas con teclado, cierre con Esc, Cancelar y X desde ambos pasos con retorno del foco, alta exitosa de usuario nuevo y de usuario existente, 409 de DNI que vuelve al paso 1, usuario creado con alta fallida y reintento sin recrearlo, estado ocupado, y "Editar datos" (guardar, solo el campo cambiado, teléfono vaciado, 422 por campo, error general y foco).
+- Capturas de cada estado del alta y de "Editar datos"; a 400 px no hay scroll horizontal.
+- Contrastes de los pares nuevos verificados con script: 30 pares, todos cumplen; los más justos están en `ui/README.md` (borde del segmento elegido, 3.02:1; correo gris sobre el primario claro, 4.92:1).
+
+### Pendientes que siguen abiertos
+
+1. Backend: permitir editar DNI y correo en `PATCH /usuarios/{id}`, con 409 si el nuevo valor ya existe. El front hoy no los ofrece.
+2. Backend: proteger con guards de rol los endpoints de `/usuarios` (hoy solo el front limita el acceso a RECEPCION y GERENTE).
+3. Pantalla de cambio o recuperación de contraseña: hoy la contraseña solo se define en el alta y no hay forma de cambiarla desde el front.
+4. Restilizar el carnet (el alta ya está hecha); depende del diseño del QR.
+5. Las 11 variables `--fz-*` usadas sin definir (`sedes`, `acceso` y `ContenedorAvisosFz`): se resuelven en la pasada de tokens por módulo.
+6. Partir `ui/tokens/componentes.css`, `useListaSocios.spec.ts` y `ArmazonApp.vue` (más de 300 líneas).
+7. ADR de la decisión de usar Reka UI (junto con ADR-13 y ADR-15).
+8. Confirmar con el arquitecto el cambio de plan en una membresía vencida: el backend cobra por la pasarela pero no cambia el estado, por eso el front envía estado `ACTIVA` al renovar.
+9. Datos de prueba en la base compartida a limpiar al final.

@@ -41,7 +41,7 @@ Reglas centrales:
 | `nombre` | `NombreIconoFz` (unión cerrada, se exporta desde `ui/index.ts`) | requerida |
 | `tamano` | `'sm' \| 'md' \| 'lg'` (1 / 1.25 / 1.5 rem, por token `--fz-icono-tamano-*`) | `'md'` |
 
-Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`, `advertencia` (triángulo con exclamación), `tilde` (check simple, sin círculo). Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
+Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`, `advertencia` (triángulo con exclamación), `tilde` (check simple, sin círculo), `flecha-izquierda`, `lugar` (marcador de mapa, para sedes), `correo` (sobre), `telefono` (auricular), `identificador` (numeral `#`). Para fechas y calendarios se reutiliza `clases`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
 
 ## Interruptor y avatar (átomos)
 
@@ -76,9 +76,9 @@ Cuadradito de esquinas redondeadas (el radio de control, como `MarcaFz`) con las
 | Prop | Tipo | Por defecto |
 | --- | --- | --- |
 | `nombre` | `string` | requerida |
-| `tamano` | `'sm' \| 'md'` (1.5 / 2 rem) | `'md'` |
+| `tamano` | `'sm' \| 'md' \| 'lg'` (1.5 / 2 / 3.5 rem) | `'md'` |
 
-Iniciales: la primera letra de cada una de las dos primeras palabras, en mayúsculas (`Camila Domínguez` → `CD`); con una sola palabra, solo su primera letra (`Camila` → `C`); con el nombre vacío o solo espacios, `?`. Respeta acentos y la Ñ. Tokens: `--fz-avatar-*`.
+`lg` (56 px) es el de las cabeceras de ficha; sus iniciales van en `--fz-texto-subtitulo` (`--fz-avatar-texto-tamano-lg`). Iniciales: la primera letra de cada una de las dos primeras palabras, en mayúsculas (`Camila Domínguez` → `CD`); con una sola palabra, solo su primera letra (`Camila` → `C`); con el nombre vacío o solo espacios, `?`. Respeta acentos y la Ñ. Tokens: `--fz-avatar-*`.
 
 ## Modal, opciones en tarjeta y botón de advertencia
 
@@ -231,7 +231,7 @@ Botón con el ícono `acciones` que despliega un menú. No tiene lógica de nego
 | Prop | Tipo | Descripción |
 | --- | --- | --- |
 | `etiqueta` | `string` | Obligatoria. `aria-label` del disparador (solo tiene un ícono), ej. `"Acciones de Camila Domínguez"` |
-| `acciones` | `AccionMenuFz[]` | `{ clave, etiqueta, icono?, deshabilitada?, peligro? }`; `icono` es un `NombreIconoFz` |
+| `acciones` | `AccionMenuFz[]` | `{ clave, etiqueta, icono?, deshabilitada?, peligro?, separada? }`; `icono` es un `NombreIconoFz`; `separada` dibuja una línea fina antes del ítem (separador de Reka, `role="separator"`, tokens `--fz-menu-acciones-separador-*`). Sin ella el menú se ve como siempre |
 | `identificador` | `string` | Opcional. Se publica en el botón disparador como `data-identificador`, para que quien lo usa pueda devolverle el foco desde afuera cuando una acción abre un modal (el ítem del menú ya no existe) |
 
 Evento: `seleccionar(clave: string)`.
@@ -328,6 +328,8 @@ Viven en `ui/tokens/` y tienen tres niveles:
 Un componente **nunca** usa primitivos ni colores literales: solo tokens de componente o semánticos.
 
 Pares de color con poco margen (no tocar uno de los dos sin volver a medir): el texto de `AvisoFz` y de `InsigniaFz` en `peligro` es `--fz-color-peligro` sobre `--fz-color-peligro-fondo` (`#c53b32` sobre `#fdebec`, **4.52:1**, el mínimo de AA es 4.5:1); el de `advertencia` es `#9a610f` sobre `#fdf5e8` (4.74:1). Aclarar el rojo del texto o oscurecer el fondo rosado lo deja por debajo.
+
+Otros pares medidos con poco margen (valores de la ficha del socio y del menú de acciones): el ítem de menú en `peligro` sobre su fondo de resaltado es `#c53b32` sobre `#f1f1ef` (**4.59:1**: no tocar el rojo ni `--fz-color-hover`); el botón sólido dentro de un `AvisoFz` se separa del fondo del aviso con 4.52:1 (`primario` sobre el rosado de `peligro`) y 4.74:1 (`advertencia` sobre el ámbar; mínimo 3:1 para elementos no textuales). El texto de vigencia en rojo (`#c53b32`) o ámbar (`#9a610f`) sobre el fondo blanco de la tarjeta da 5.19:1 y 5.13:1; el gris suave de etiquetas e íconos, 5.41:1.
 
 Los tokens los cambia solo quien lleva el kit; los demás piden el cambio.
 

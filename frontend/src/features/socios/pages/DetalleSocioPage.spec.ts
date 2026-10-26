@@ -2,12 +2,21 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+import { ErrorApi } from '@/compartido/http/errores'
 import { ServiciosKey } from '@/compartido/servicios'
 import type { EstadoMembresia, Membresia, Socio } from '../services/servicioSocios'
 import DetalleSocioPage from './DetalleSocioPage.vue'
 
-// jsdom no implementa <dialog>.showModal(): se completa con lo mínimo para que el modal quede "abierto".
+// jsdom no trae ResizeObserver (Reka, el menú de la ficha) ni implementa <dialog>.showModal() (los modales).
 beforeAll(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  )
   const dialogo = HTMLDialogElement.prototype
   dialogo.showModal ??= function (this: HTMLDialogElement) {
     this.setAttribute('open', '')
@@ -18,7 +27,7 @@ beforeAll(() => {
 })
 
 const servicios = {
-  socios: { obtener: vi.fn(), obtenerMembresia: vi.fn(), modificarMembresia: vi.fn() },
+  socios: { obtener: vi.fn(), obtenerMembresia: vi.fn(), modificarMembresia: vi.fn(), modificar: vi.fn() },
   usuarios: { obtener: vi.fn() },
   sedes: { listar: vi.fn() },
 }
@@ -53,12 +62,7 @@ const membresia = (estado: EstadoMembresia): Membresia => ({
 async function montar(query: Record<string, string> = {}) {
   await router.push({ name: 'socio-detalle', params: { socioId: '1' }, query })
   const wrapper = mount(DetalleSocioPage, {
-    global: {
-      plugins: [router],
-      provide: { [ServiciosKey as symbol]: servicios },
-      // La ficha y el carnet no intervienen: se evita armar el QR y sus datos.
-      stubs: { FichaSocio: true, CarnetSocio: true },
-    },
+    global: { plugins: [router], provide: { [ServiciosKey as symbol]: servicios } },
     attachTo: document.body,
   })
   await flushPromises()
@@ -66,20 +70,67 @@ async function montar(query: Record<string, string> = {}) {
   return wrapper
 }
 
-const botones = (wrapper: Awaited<ReturnType<typeof montar>>) =>
-  wrapper.findAll('section[aria-labelledby="detalle-acciones"] button').filter((boton) => !boton.attributes('aria-label'))
-
-describe('DetalleSocioPage: acciones de la ficha', () => {
+describe('DetalleSocioPage', () => {
   beforeEach(() => {
     servicios.socios.obtener.mockReset().mockResolvedValue(socio)
     servicios.socios.obtenerMembresia.mockReset().mockResolvedValue(membresia('ACTIVA'))
-    servicios.socios.modificarMembresia.mockReset()
-    servicios.usuarios.obtener.mockReset().mockResolvedValue({ id: 101, dni: '30111222' })
-    servicios.sedes.listar.mockReset().mockResolvedValue([])
+    servicios.usuarios.obtener.mockReset().mockResolvedValue({ id: 101, dni: '30111222', telefono: '1155550000' })
+    servicios.sedes.listar.mockReset().mockResolvedValue([{ id: 1, nombre: 'Sede Centro' }])
   })
 
   afterEach(() => {
     document.body.innerHTML = ''
+  })
+
+  it('mientras carga muestra el título y "Cargando socio…", sin ficha', async () => {
+    servicios.socios.obtener.mockReturnValue(new Promise(() => {}))
+    const wrapper = await montar()
+
+    expect(wrapper.get('h1').text()).toBe('Ficha del socio')
+    expect(wrapper.text()).toContain('Cargando socio…')
+    expect(wrapper.find('article').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('un 404 avisa que el socio no existe', async () => {
+    servicios.socios.obtener.mockRejectedValue(new ErrorApi(404, 'No existe'))
+    const wrapper = await montar()
+
+    expect(wrapper.text()).toContain('El socio no existe o ya no es socio.')
+    expect(wrapper.find('article').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('otro error muestra su mensaje', async () => {
+    servicios.socios.obtener.mockRejectedValue(new ErrorApi(500, 'Falló el servidor'))
+    const wrapper = await montar()
+
+    expect(wrapper.text()).toContain('Falló el servidor')
+    wrapper.unmount()
+  })
+
+  it('con el socio cargado arma la ficha: enlace de vuelta, h1 fijo y los datos en la tarjeta', async () => {
+    const wrapper = await montar()
+
+    expect(wrapper.get('a').text()).toBe('Volver a socios')
+    expect(wrapper.get('h1').text()).toBe('Ficha del socio')
+    const ficha = wrapper.get('article')
+    for (const texto of ['Camila Domínguez', '30111222', 'Sede Centro', 'camila@fitzone.com', '1155550000', 'Mensual', 'Activa']) {
+      expect(ficha.text()).toContain(texto)
+    }
+    expect(wrapper.findAll('dialog[open]')).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  it('con ?alta=1 muestra el aviso de alta y lo saca de la URL; sin eso, no hay aviso', async () => {
+    const conAlta = await montar({ alta: '1' })
+    expect(conAlta.text()).toContain('El socio se dio de alta correctamente.')
+    expect(router.currentRoute.value.query).toEqual({})
+    conAlta.unmount()
+
+    const sinAlta = await montar()
+    expect(sinAlta.text()).not.toContain('El socio se dio de alta correctamente.')
+    sinAlta.unmount()
   })
 
   it('ya no interpreta ?accion=: no abre ningún modal ni toca la URL', async () => {
@@ -87,34 +138,6 @@ describe('DetalleSocioPage: acciones de la ficha', () => {
 
     expect(wrapper.findAll('dialog[open]')).toHaveLength(0)
     expect(router.currentRoute.value.query).toEqual({ accion: 'suspender' })
-    wrapper.unmount()
-  })
-
-  it('VENCIDA: el botón dice "Renovar" y está habilitado', async () => {
-    servicios.socios.obtenerMembresia.mockResolvedValue(membresia('VENCIDA'))
-    const wrapper = await montar()
-
-    const renovar = botones(wrapper).find((boton) => boton.text() === 'Renovar')
-    expect(renovar?.attributes('disabled')).toBeUndefined()
-    expect(botones(wrapper).some((boton) => boton.text() === 'Cambiar plan')).toBe(false)
-    wrapper.unmount()
-  })
-
-  it('ACTIVA: el botón dice "Cambiar plan" y está habilitado', async () => {
-    const wrapper = await montar()
-
-    const cambiar = botones(wrapper).find((boton) => boton.text() === 'Cambiar plan')
-    expect(cambiar?.attributes('disabled')).toBeUndefined()
-    wrapper.unmount()
-  })
-
-  it('SUSPENDIDA: "Cambiar plan" queda deshabilitado (primero se reactiva)', async () => {
-    servicios.socios.obtenerMembresia.mockResolvedValue(membresia('SUSPENDIDA'))
-    const wrapper = await montar()
-
-    const cambiar = botones(wrapper).find((boton) => boton.text() === 'Cambiar plan')
-    expect(cambiar?.attributes('disabled')).toBeDefined()
-    expect(botones(wrapper).some((boton) => boton.text() === 'Reactivar')).toBe(true)
     wrapper.unmount()
   })
 })

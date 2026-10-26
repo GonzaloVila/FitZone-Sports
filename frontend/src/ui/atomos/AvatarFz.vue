@@ -4,7 +4,7 @@ import { computed } from 'vue'
 const props = withDefaults(
   defineProps<{
     nombre: string
-    tamano?: 'sm' | 'md'
+    tamano?: 'sm' | 'md' | 'lg'
   }>(),
   {
     tamano: 'md',
@@ -50,5 +50,11 @@ const iniciales = computed(() => {
 .avatar--md {
   width: var(--fz-avatar-tamano-md);
   height: var(--fz-avatar-tamano-md);
+}
+
+.avatar--lg {
+  width: var(--fz-avatar-tamano-lg);
+  height: var(--fz-avatar-tamano-lg);
+  font-size: var(--fz-avatar-texto-tamano-lg);
 }
 </style>

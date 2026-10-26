@@ -1,22 +1,27 @@
-import { computed, onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
+import { onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { esErrorApiConEstado, mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
 import type { Usuario } from '@/features/usuarios/services/servicioUsuarios'
-import type { Membresia, MembresiaPatch, Plan, Socio } from '../services/servicioSocios'
-import { accionPermitida, cambiosParaPlan, mensajeDeErrorDeMembresia } from '../presentacion'
+import { useAvisosFz } from '@/ui'
+import type { Membresia, Socio } from '../services/servicioSocios'
+import { mensajeDeErrorDeMembresia } from '../presentacion'
 import type { AccionSocio, Opcional } from '../tipos'
 
 export type EstadoDetalle = 'cargando' | 'listo' | 'no-existe' | 'error'
 
 interface ResultadoAccion {
-  mensaje: string
+  // Aviso flotante de éxito (sin mensaje, la acción termina en silencio: se ve en la pantalla).
+  mensaje?: string
   // Actualiza el estado local con la respuesta del servidor; solo corre si la carga sigue vigente.
-  aplicar?: () => void
+  aplicar: () => void
 }
 
 // `socioId` es null cuando el id de la ruta no es un entero positivo: se trata como socio inexistente sin pedir nada.
+// Las acciones con modal (cambiar plan, suspender, reactivar, dejar de ser socio) las maneja useAccionesSocio; acá
+// quedan las que no lo usan: la renovación automática y el cambio de sede.
 export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
   const servicios = useServicios()
+  const avisos = useAvisosFz()
 
   const estado = ref<EstadoDetalle>('cargando')
   const error = ref<string | null>(null)
@@ -25,8 +30,8 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
   const usuario = ref<Opcional<Usuario>>({ situacion: 'cargando' })
 
   const ejecutando = ref<AccionSocio | null>(null)
+  // Error de la última acción que se muestra dentro de su modal (la renovación automática avisa con un aviso flotante).
   const errorAccion = ref<string | null>(null)
-  const exito = ref<string | null>(null)
 
   // Descarte de respuestas viejas: cada carga tiene un número y su propio AbortController.
   // Al cambiar el id o salir de la página el número avanza y todo lo pendiente queda descartado.
@@ -45,7 +50,6 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
     usuario.value = { situacion: 'cargando' }
     ejecutando.value = null
     errorAccion.value = null
-    exito.value = null
     error.value = null
 
     if (id === null) {
@@ -85,69 +89,54 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
     }
   }
 
-  // ---- Acciones ----
-  const estadoMembresia = computed(() =>
-    membresia.value.situacion === 'disponible' ? membresia.value.valor.estado : null,
-  )
-  const hayMembresia = computed(() => membresia.value.situacion === 'disponible')
-  // Las reglas viven en presentacion.ts: la lista de socios usa las mismas.
-  const puedeSuspender = computed(() => accionPermitida('suspender', estadoMembresia.value))
-  const puedeReactivar = computed(() => accionPermitida('reactivar', estadoMembresia.value))
+  // Muestra la membresía que devolvió el servidor tras una acción hecha por fuera de este composable (los modales).
+  function reemplazarMembresia(actualizada: Membresia) {
+    if (estado.value === 'listo') membresia.value = { situacion: 'disponible', valor: actualizada }
+  }
 
+  // ---- Acciones ----
   // Sin doble disparo: mientras hay una acción en curso no se ejecuta otra. Devuelve true si salió bien.
-  async function ejecutar(accion: AccionSocio, tarea: (id: number) => Promise<ResultadoAccion>): Promise<boolean> {
+  // El error va a `errorAccion` (para el modal) o, con `flotante`, a un aviso flotante.
+  async function ejecutar(
+    accion: AccionSocio,
+    tarea: (id: number) => Promise<ResultadoAccion>,
+    flotante = false,
+  ): Promise<boolean> {
     const id = toValue(socioId)
     if (ejecutando.value || id === null || estado.value !== 'listo') return false
     const carga = ultimaCarga
     ejecutando.value = accion
     errorAccion.value = null
-    exito.value = null
     try {
       const { mensaje, aplicar } = await tarea(id)
       // Si mientras tanto se cambió de socio o se salió de la página, el resultado ya no aplica.
       if (carga !== ultimaCarga) return false
-      aplicar?.()
-      exito.value = mensaje
+      aplicar()
+      if (mensaje) avisos.exito(mensaje)
       return true
     } catch (e) {
-      if (carga === ultimaCarga) errorAccion.value = mensajeDeErrorDeMembresia(e, 'No se pudo completar la acción.')
+      if (carga === ultimaCarga) {
+        const mensaje = mensajeDeErrorDeMembresia(e, 'No se pudo completar la acción.')
+        if (flotante) avisos.error(mensaje)
+        else errorAccion.value = mensaje
+      }
       return false
     } finally {
       if (carga === ultimaCarga) ejecutando.value = null
     }
   }
 
-  function cambiarMembresia(accion: AccionSocio, cambios: MembresiaPatch, mensaje: string) {
-    return ejecutar(accion, async (id) => {
-      const actualizada = await servicios.socios.modificarMembresia(id, cambios)
-      return {
-        mensaje,
-        aplicar: () => {
-          membresia.value = { situacion: 'disponible', valor: actualizada }
-        },
-      }
-    })
-  }
-
-  const suspender = () => cambiarMembresia('suspender', { estado: 'SUSPENDIDA' }, 'La membresía quedó suspendida.')
-  const reactivar = () => cambiarMembresia('reactivar', { estado: 'ACTIVA' }, 'La membresía volvió a estar activa.')
-  // Una VENCIDA se renueva (se cobra el plan nuevo y vuelve a estar activa); una ACTIVA cambia sin cobro.
-  const cambiarPlan = (plan: Plan) => {
-    const vencida = estadoMembresia.value === 'VENCIDA'
-    return cambiarMembresia(
-      'cambiar-plan',
-      cambiosParaPlan(plan, estadoMembresia.value),
-      vencida ? 'La membresía se renovó con el plan nuevo desde hoy.' : 'Se cambió el plan y se abrió un período nuevo desde hoy.',
-    )
-  }
-
+  // Se guarda al tocar el interruptor; si falla, la membresía no cambia y sale un aviso flotante.
   function alternarRenovacion() {
     if (membresia.value.situacion !== 'disponible') return Promise.resolve(false)
     const activar = !membresia.value.valor.renuevaAutomatica
-    return cambiarMembresia(
+    return ejecutar(
       'renovacion-automatica',
-      { renuevaAutomatica: activar },
-      activar ? 'Se activó la renovación automática.' : 'Se desactivó la renovación automática.',
+      async (id) => {
+        const actualizada = await servicios.socios.modificarMembresia(id, { renuevaAutomatica: activar })
+        return { aplicar: () => reemplazarMembresia(actualizada) }
+      },
+      true,
     )
   }
 
@@ -160,14 +149,6 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
           socio.value = actualizado
         },
       }
-    })
-  }
-
-  // true si el socio dejó de serlo: la página navega a la lista.
-  function dejarDeSerSocio() {
-    return ejecutar('dejar-de-ser-socio', async (id) => {
-      await servicios.socios.dejarDeSerSocio(id)
-      return { mensaje: 'El socio dejó de serlo.' }
     })
   }
 
@@ -194,16 +175,9 @@ export function useDetalleSocio(socioId: MaybeRefOrGetter<number | null>) {
     usuario,
     ejecutando,
     errorAccion,
-    exito,
-    puedeSuspender,
-    puedeReactivar,
-    hayMembresia,
-    suspender,
-    reactivar,
-    cambiarPlan,
+    reemplazarMembresia,
     alternarRenovacion,
     cambiarSede,
-    dejarDeSerSocio,
     limpiarErrorAccion,
   }
 }

@@ -4,6 +4,7 @@ import {
   DropdownMenuItem,
   DropdownMenuPortal,
   DropdownMenuRoot,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from 'reka-ui'
 import IconoFz from '../atomos/IconoFz.vue'
@@ -15,6 +16,8 @@ export interface AccionMenuFz {
   icono?: NombreIconoFz
   deshabilitada?: boolean
   peligro?: boolean
+  // Dibuja una línea fina antes del ítem, para separarlo del grupo anterior.
+  separada?: boolean
 }
 
 defineProps<{
@@ -38,17 +41,18 @@ const emit = defineEmits<{
     </DropdownMenuTrigger>
     <DropdownMenuPortal>
       <DropdownMenuContent class="menu-acciones__contenido" align="end" :side-offset="4" :collision-padding="8">
-        <DropdownMenuItem
-          v-for="accion in acciones"
-          :key="accion.clave"
-          :class="['menu-acciones__item', { 'menu-acciones__item--peligro': accion.peligro }]"
-          :disabled="accion.deshabilitada"
-          :text-value="accion.etiqueta"
-          @select="emit('seleccionar', accion.clave)"
-        >
-          <IconoFz v-if="accion.icono" :nombre="accion.icono" tamano="sm" />
-          <span>{{ accion.etiqueta }}</span>
-        </DropdownMenuItem>
+        <template v-for="accion in acciones" :key="accion.clave">
+          <DropdownMenuSeparator v-if="accion.separada" class="menu-acciones__separador" />
+          <DropdownMenuItem
+            :class="['menu-acciones__item', { 'menu-acciones__item--peligro': accion.peligro }]"
+            :disabled="accion.deshabilitada"
+            :text-value="accion.etiqueta"
+            @select="emit('seleccionar', accion.clave)"
+          >
+            <IconoFz v-if="accion.icono" :nombre="accion.icono" tamano="sm" />
+            <span>{{ accion.etiqueta }}</span>
+          </DropdownMenuItem>
+        </template>
       </DropdownMenuContent>
     </DropdownMenuPortal>
   </DropdownMenuRoot>
@@ -125,6 +129,12 @@ const emit = defineEmits<{
 
 .menu-acciones__item:focus:not(:focus-visible) {
   outline: none;
+}
+
+.menu-acciones__separador {
+  height: var(--fz-menu-acciones-separador-alto);
+  margin: var(--fz-menu-acciones-separador-margen) 0;
+  background: var(--fz-menu-acciones-separador-color);
 }
 
 .menu-acciones__item--peligro {

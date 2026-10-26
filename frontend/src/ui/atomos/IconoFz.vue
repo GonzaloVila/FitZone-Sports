@@ -24,6 +24,11 @@ export type NombreIconoFz =
   | 'quitar-usuario'
   | 'advertencia'
   | 'tilde'
+  | 'flecha-izquierda'
+  | 'lugar'
+  | 'correo'
+  | 'telefono'
+  | 'identificador'
 </script>
 
 <script setup lang="ts">
@@ -105,6 +110,16 @@ const TRAZOS: Record<NombreIconoFz, readonly string[]> = {
   advertencia: ['M10.3 4.3L2.9 17.4a2 2 0 0 0 1.7 3h14.8a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z', 'M12 9.5v4', 'M12 17v.01'],
   // Tilde simple, sin círculo.
   tilde: ['M5 12.5l4.5 4.5L19 7.5'],
+  // Flecha hacia la izquierda: línea y punta.
+  'flecha-izquierda': ['M19 12H5', 'M11 6l-6 6 6 6'],
+  // Marcador de mapa: gota con un círculo al centro.
+  lugar: ['M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z', 'M9.5 10a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0'],
+  // Sobre: contorno y solapa.
+  correo: ['M3 6h18v12H3z', 'M3 7l9 6.5L21 7'],
+  // Auricular de teléfono.
+  telefono: ['M6.5 3.5h3l1.5 4-2 1.3a10 10 0 0 0 5.2 5.2l1.3-2 4 1.5v3a2 2 0 0 1-2 2A15.5 15.5 0 0 1 4.5 5.5a2 2 0 0 1 2-2z'],
+  // Numeral: dos barras verticales y dos horizontales.
+  identificador: ['M9 4L7 20', 'M17 4l-2 16', 'M4.5 9h16', 'M3.5 15h16'],
 }
 
 const trazos = computed(() => TRAZOS[props.nombre])

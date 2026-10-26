@@ -230,6 +230,9 @@
   --fz-menu-acciones-item-peligro-color: var(--fz-color-peligro);
   --fz-menu-acciones-item-deshabilitado-color: var(--fz-color-texto-suave);
   --fz-menu-acciones-item-deshabilitado-opacidad: 0.6;
+  --fz-menu-acciones-separador-color: var(--fz-color-borde);
+  --fz-menu-acciones-separador-alto: 1px;
+  --fz-menu-acciones-separador-margen: 0.25rem;
   --fz-menu-acciones-animacion-duracion: var(--fz-duracion-breve);
   --fz-menu-acciones-animacion-desplazamiento: 0.25rem;
 
@@ -282,6 +285,8 @@
   /* ---- Avatar ---- */
   --fz-avatar-tamano-sm: 1.5rem;
   --fz-avatar-tamano-md: 2rem;
+  --fz-avatar-tamano-lg: 3.5rem;
+  --fz-avatar-texto-tamano-lg: var(--fz-texto-subtitulo);
   --fz-avatar-fondo: var(--fz-color-hover);
   --fz-avatar-texto: var(--fz-color-texto);
   --fz-avatar-texto-tamano: var(--fz-texto-minimo);

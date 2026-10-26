@@ -50,12 +50,15 @@ describe('AvatarFz', () => {
     expect(wrapper.attributes('aria-hidden')).toBe('true')
   })
 
-  it('el tamaño por defecto es md y acepta sm', () => {
+  it('el tamaño por defecto es md y acepta sm y lg', () => {
     const porDefecto = mount(AvatarFz, { props: { nombre: 'Camila' } })
     const chico = mount(AvatarFz, { props: { nombre: 'Camila', tamano: 'sm' } })
+    const grande = mount(AvatarFz, { props: { nombre: 'Camila', tamano: 'lg' } })
 
     expect(porDefecto.classes()).toContain('avatar--md')
     expect(chico.classes()).toContain('avatar--sm')
     expect(chico.classes()).not.toContain('avatar--md')
+    expect(grande.classes()).toContain('avatar--lg')
+    expect(grande.classes()).not.toContain('avatar--md')
   })
 })

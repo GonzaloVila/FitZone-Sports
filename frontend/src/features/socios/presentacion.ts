@@ -1,6 +1,15 @@
 import { esErrorApiConEstado, mensajeDeError } from '@/compartido/http/errores'
-import type { EstadoMembresia, Membresia, MembresiaPatch, Plan } from './services/servicioSocios'
-import type { AccionFila, AccionSocio } from './tipos'
+import type { AccionMenuFz } from '@/ui'
+import type { EstadoMembresia, Membresia, MembresiaPatch, Plan, Socio } from './services/servicioSocios'
+import type {
+  AccionConModal,
+  AccionFicha,
+  AccionFila,
+  AccionSocio,
+  ContextoMenuSocio,
+  FilaSocio,
+  Opcional,
+} from './tipos'
 
 // Cómo se muestran los valores del contrato. Record<...> obliga a actualizar esto si el contrato agrega uno.
 export const ETIQUETAS_ESTADO: Record<EstadoMembresia, string> = {
@@ -56,6 +65,67 @@ const ACCIONES_FILA = ['ver-ficha', 'cambiar-plan', 'suspender', 'reactivar', 'd
 
 export function esAccionFila(valor: unknown): valor is AccionFila {
   return ACCIONES_FILA.some((accion) => accion === valor)
+}
+
+const ACCIONES_FICHA = ['cambiar-plan', 'suspender', 'reactivar', 'dejar-de-ser-socio', 'cambiar-sede'] as const satisfies readonly AccionFicha[]
+
+export function esAccionFicha(valor: unknown): valor is AccionFicha {
+  return ACCIONES_FICHA.some((accion) => accion === valor)
+}
+
+// Ítems del menú "···" de un socio, con las reglas de habilitación de `accionPermitida`. La lista abre con "Ver ficha";
+// la ficha, que ya está en ella, ofrece en cambio "Cambiar sede de origen" y separa "Dejar de ser socio" del resto.
+// `estado` es null si la membresía no está disponible.
+export function accionesDeMenuSocio(estado: EstadoMembresia | null, contexto: ContextoMenuSocio): AccionMenuFz[] {
+  const cambiarPlan: AccionMenuFz = {
+    clave: 'cambiar-plan',
+    etiqueta: estado === 'VENCIDA' ? 'Renovar' : 'Cambiar plan',
+    icono: 'cambiar',
+    deshabilitada: !accionPermitida('cambiar-plan', estado),
+  }
+  const alternaEstado: AccionMenuFz =
+    estado === 'SUSPENDIDA'
+      ? { clave: 'reactivar', etiqueta: 'Reactivar', icono: 'reproducir', deshabilitada: !accionPermitida('reactivar', estado) }
+      : { clave: 'suspender', etiqueta: 'Suspender', icono: 'pausa', deshabilitada: !accionPermitida('suspender', estado) }
+  const baja: AccionMenuFz = { clave: 'dejar-de-ser-socio', etiqueta: 'Dejar de ser socio', icono: 'quitar-usuario', peligro: true }
+
+  if (contexto === 'lista') return [{ clave: 'ver-ficha', etiqueta: 'Ver ficha', icono: 'ojo' }, cambiarPlan, alternaEstado, baja]
+  return [cambiarPlan, alternaEstado, { clave: 'cambiar-sede', etiqueta: 'Cambiar sede de origen', icono: 'lugar' }, { ...baja, separada: true }]
+}
+
+export interface AvisoMembresia {
+  tono: 'peligro' | 'advertencia'
+  texto: string
+  // El botón del aviso abre el mismo modal que el ítem del menú con esa clave.
+  accion: { clave: Extract<AccionConModal, 'cambiar-plan' | 'reactivar'>; etiqueta: string; variante: 'primario' | 'advertencia' }
+}
+
+// Aviso de la ficha según el estado de la membresía; una ACTIVA no lleva ninguno.
+export function avisoDeMembresia(membresia: Pick<Membresia, 'estado' | 'fechaFin'>): AvisoMembresia | null {
+  switch (membresia.estado) {
+    case 'VENCIDA':
+      return {
+        tono: 'peligro',
+        texto: `La membresía venció el ${formatearFecha(membresia.fechaFin)}.`,
+        accion: { clave: 'cambiar-plan', etiqueta: 'Renovar', variante: 'primario' },
+      }
+    case 'SUSPENDIDA':
+      return {
+        tono: 'advertencia',
+        texto: 'La membresía está suspendida.',
+        accion: { clave: 'reactivar', etiqueta: 'Reactivar', variante: 'advertencia' },
+      }
+    case 'ACTIVA':
+      return null
+  }
+}
+
+// La ficha tiene el socio y su membresía por separado; las acciones con modal trabajan sobre una fila de la lista.
+export function filaDeSocio(socio: Socio, membresia: Opcional<Membresia>): FilaSocio {
+  return {
+    socio,
+    membresia: membresia.situacion === 'disponible' ? { situacion: 'disponible', membresia: membresia.valor } : { situacion: membresia.situacion },
+  }
 }
 
 // Regla única de qué acciones admite una membresía según su estado (null = membresía no disponible).

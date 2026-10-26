@@ -110,6 +110,27 @@ describe('MenuAccionesFz', () => {
     wrapper.unmount()
   })
 
+  it('dibuja una línea antes del ítem marcado como separado, y solo ahí', async () => {
+    const wrapper = mount(MenuAccionesFz, {
+      props: { etiqueta: 'Acciones', acciones: [...acciones.slice(0, 2), { ...acciones[2]!, separada: true }] },
+      attachTo: document.body,
+    })
+    await abrir(wrapper)
+
+    const hijos = [...document.body.querySelector('[role="menu"]')!.children]
+    expect(hijos.map((hijo) => hijo.getAttribute('role'))).toEqual(['menuitem', 'menuitem', 'separator', 'menuitem'])
+    expect(items().map((item) => item.textContent?.trim())).toEqual(['Ver ficha', 'Editar', 'Bloquear'])
+    wrapper.unmount()
+  })
+
+  it('sin ítems separados no hay ninguna línea', async () => {
+    const wrapper = montar()
+    await abrir(wrapper)
+
+    expect(document.body.querySelector('[role="separator"]')).toBeNull()
+    wrapper.unmount()
+  })
+
   it('Escape cierra el menú y devuelve el foco al disparador', async () => {
     const wrapper = montar()
     await abrir(wrapper)

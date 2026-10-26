@@ -1,19 +1,11 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import {
-  AvatarFz,
-  InsigniaFz,
-  InterruptorFz,
-  MenuAccionesFz,
-  TablaFz,
-  type AccionMenuFz,
-  type ColumnaTabla,
-} from '@/ui'
+import { AvatarFz, InsigniaFz, InterruptorFz, MenuAccionesFz, TablaFz, type ColumnaTabla } from '@/ui'
 import {
   ETIQUETAS_ESTADO,
   ETIQUETAS_PLAN,
   VARIANTES_ESTADO,
-  accionPermitida,
+  accionesDeMenuSocio,
   esAccionFila,
   formatearFecha,
 } from '../presentacion'
@@ -49,25 +41,8 @@ function estadoDe(fila: FilaSocio): EstadoMembresia | null {
   return fila.membresia.situacion === 'disponible' ? fila.membresia.membresia.estado : null
 }
 
-// Las reglas de habilitación son las de la ficha (accionPermitida): sin membresía disponible, estado = null.
-function accionesDe(fila: FilaSocio): AccionMenuFz[] {
-  const estado = estadoDe(fila)
-  const alternaEstado: AccionMenuFz =
-    estado === 'SUSPENDIDA'
-      ? { clave: 'reactivar', etiqueta: 'Reactivar', icono: 'reproducir', deshabilitada: !accionPermitida('reactivar', estado) }
-      : { clave: 'suspender', etiqueta: 'Suspender', icono: 'pausa', deshabilitada: !accionPermitida('suspender', estado) }
-  return [
-    { clave: 'ver-ficha', etiqueta: 'Ver ficha', icono: 'ojo' },
-    {
-      clave: 'cambiar-plan',
-      etiqueta: estado === 'VENCIDA' ? 'Renovar' : 'Cambiar plan',
-      icono: 'cambiar',
-      deshabilitada: !accionPermitida('cambiar-plan', estado),
-    },
-    alternaEstado,
-    { clave: 'dejar-de-ser-socio', etiqueta: 'Dejar de ser socio', icono: 'quitar-usuario', peligro: true },
-  ]
-}
+// El menú es el mismo que el de la ficha (accionesDeMenuSocio): sin membresía disponible, estado = null.
+const accionesDe = (fila: FilaSocio) => accionesDeMenuSocio(estadoDe(fila), 'lista')
 
 function alSeleccionar(fila: FilaSocio, clave: string) {
   if (esAccionFila(clave)) emit('abrir-accion', { socioId: fila.socio.id, accion: clave })

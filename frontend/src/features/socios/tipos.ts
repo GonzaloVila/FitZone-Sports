@@ -39,5 +39,11 @@ export type AccionFila = 'ver-ficha' | Extract<AccionSocio, 'cambiar-plan' | 'su
 // Las acciones de una fila que se resuelven en un modal.
 export type AccionConModal = Exclude<AccionFila, 'ver-ficha'>
 
+// Lo que se puede pedir desde el menú de la ficha: las acciones con modal compartido o el cambio de sede.
+export type AccionFicha = AccionConModal | 'cambiar-sede'
+
+// Dónde se muestra el menú de acciones de un socio: la fila de la lista o la ficha.
+export type ContextoMenuSocio = 'lista' | 'ficha'
+
 // Lo mínimo del socio que muestran los modales (la lista y la ficha lo arman con lo que tienen).
 export type SocioResumen = Pick<Socio, 'id' | 'nombre' | 'email'>

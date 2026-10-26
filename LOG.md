@@ -3885,3 +3885,121 @@ Al cancelar una reserva de cancha que ya estaba pagada, el `Pago` quedaba APROBA
 7. ADR de la decisión de usar Reka UI (junto con ADR-13 y ADR-15).
 8. Confirmar con el arquitecto el cambio de plan en una membresía vencida: el backend cobra por la pasarela pero no cambia el estado, por eso el front envía estado `ACTIVA` al renovar.
 9. Datos de prueba en la base compartida a limpiar al final.
+
+---
+
+## 2026-10-26 - Frontend: rediseño visual, Paso 7a (pasada de tokens en acceso y sedes, y orden del kit de estilos)
+
+**Fecha:** 26/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `9ad6263`
+
+### Actividades
+
+1. **Pasada de tokens en acceso y sedes:** los `<style>` de páginas y componentes de `features/acceso` y `features/sedes` usan solo tokens semánticos reales del kit. Se reemplazaron los nombres que no existían (`--fz-espacio-*`, `--fz-radio-md` y `--fz-radio-lg`, `--fz-texto-xs`, `--fz-texto-sm` y `--fz-texto-2xl`, `--fz-color-texto-atenuado`) por sus equivalentes, se sacaron los colores de respaldo escritos dentro de `var()` y se pasaron a tokens las medidas de espaciado, tamaño de texto y radio que tenían uno equivalente. Las medidas estructurales (anchos máximos, columnas) quedaron como estaban. No cambió la estructura ni el comportamiento de ninguna pantalla.
+2. **Tokens nuevos:** `--fz-espaciado-minimo` (0.25rem) en la capa semántica. También se creó `--fz-espaciado-medio` (0.75rem), que se retiró en el Paso 8 al quedar sin uso.
+3. **`ui/tokens/componentes.css` partido por nivel:** `componentes-atomos.css`, `componentes-moleculas.css`, `componentes-organismos.css` y `componentes-plantillas.css`, importados desde `index.css`. Es un movimiento mecánico: las 442 definiciones `--fz-*` de componente son idénticas antes y después (mismos nombres y valores, verificado comparando las listas ordenadas), y ningún nombre quedó repetido entre archivos.
+4. **`ContenedorAvisosFz`:** ya no usa la variable `--fz-aviso-flotante-acento`; el ícono toma su color directo por variante con los mismos tokens, y su `<style>` sigue sin scoped.
+5. **Armazón:** se quitaron los tokens `--fz-armazon-enlace-indicador-*`, que eran del subrayado de la barra superior y no se usaban. `ui/README.md` describe los archivos de tokens y la escala de espaciado.
+6. **Corrección posterior:** los filtros del historial y el formulario de sede pasaron del radio de tarjeta (12 px) al de control (4 px), el que usan la tabla, el modal y el menú de Socios.
+
+### Decisiones tomadas
+
+1. **Partir por nivel y no por orden de aparición:** los bloques originales mezclaban niveles; como ningún nombre se repite, el orden de los imports no puede cambiar el resultado.
+2. **Títulos de pantalla en `--fz-texto-titulo` semibold:** donde se usaba el tamaño inexistente `--fz-texto-2xl` (se veía el valor de respaldo de 24 px), pasan a 20 px, como el título de Socios.
+3. **Sin valores de respaldo en `var()`:** quedó escrito en el README del kit.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **432 tests** en 49 archivos (sin cambios).
+- Variables `--fz-*` usadas sin definir: de 11 a 0. Sin `#hex`, `rgb()` ni valores de respaldo en acceso y sedes.
+- Capturas antes y después de las pantallas tocadas, sobre servicios simulados (página temporal ya borrada).
+
+---
+
+## 2026-10-26 - Frontend: rediseño visual, Paso 8 (restyle de acceso y sedes)
+
+**Fecha:** 26/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `8cd5bec`
+
+### Actividades
+
+1. **`EncabezadoPaginaFz` (molécula nueva, con spec):** encabezado de pantalla con el título en un `h1` (`texto-titulo`, semibold), subtítulo opcional, enlace opcional "Volver a …" (`volver: { texto, a }`, con una ruta del router) y los slots `insignia` y `acciones`, que en pantallas angostas se apila. Tokens `--fz-encabezado-pagina-*`, export en `ui/index.ts` y sección en `ui/README.md`. Usa `RouterLink` registrado globalmente por la app, de modo que `ui/` no importa `vue-router`.
+2. **Navegación activa:** `app/navegacion.ts` (con spec) decide si un ítem del menú está activo: `page` en su pantalla y `true` en una pantalla interna, ya sea porque la ruta cuelga de su path o porque declara en su meta `activaEnNavegacion` el nombre de la ruta del ítem. `ArmazonApp` la usa y los demás ítems se marcan igual que antes. Las pantallas internas de acceso y sedes llevan "Volver al aforo" arriba.
+3. **Aforo:** encabezado "Aforo y ocupación" con acciones; una tarjeta de sede con nombre, insignia de estado y selector de sede compacto (con etiqueta accesible), barra de ocupación fina y tres indicadores en una fila separados por líneas finas (sin cajas de color; solo el número toma color cuando el estado lo pide); "Socios en la sede" como sección con tabla de avatar y estado vacío sobrio. `MedidorFz` pasa a 0.5rem de alto.
+4. **Historial:** filtros en una fila sin caja (el campo de fecha conserva su etiqueta visible y pasa a ser un campo de fecha real), "Limpiar" cuando hay filtros, tabla con el estilo de la de Socios y pie con texto de rango (`aria-live`) y paginación. `useHistorialAccesos` devuelve `porPagina`.
+5. **Registrar ingreso y Nueva sede:** pantallas de tarea con tarjeta centrada de 32 rem (la sede como primer campo, "Código del carnet" en lugar de "TOTP / QR dinámico", ayudas de una línea). El resultado del ingreso aparece debajo con el aviso del tono que corresponde, y la sede nueva se avisa con un aviso flotante y vuelve al aforo.
+6. **Textos:** avisos, vacíos y mensajes de estas pantallas y de `useRegistroIngreso` en español rioplatense, sin siglas de requisitos. Títulos en frase.
+
+### Decisiones tomadas
+
+1. **Botones que navegan:** `RouterLink` en modo `custom` con `BotonFz como="a"`, la forma que el kit ya documenta; evita un botón dentro de un enlace.
+2. **Resultado del ingreso sin plan:** muestra nombre, DNI, hora y motivo, pero no el plan: `IngresoOut` del contrato no lo trae.
+3. **Chips del historial:** "En la sede" y "Egresado"; "denegado" no existe como movimiento porque el historial solo lista ingresos registrados.
+4. **Cambios de comportamiento chicos:** el filtro de fecha es un campo de fecha real y el historial suma "Limpiar", como Socios.
+5. **Radio de 4 px en todo:** las tarjetas de estas pantallas usan `--fz-radio-control`, igual que Socios.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **444 tests** en 51 archivos (eran 432 en 49).
+- Recorrido con eventos reales de teclado y mouse en un navegador sin ventana, sobre una página temporal con servicios simulados (ya borrada): **32/32**. Cubre el ítem "Acceso" marcado en las pantallas internas, "Volver al aforo" con Enter, el registro de ingreso permitido y denegado, el alta de sede, el egreso y los filtros del historial.
+- Ocho capturas (aforo vacío y con personas, registrar normal, permitido y denegado, historial, nueva sede con errores y registrar a 400 px, sin scroll horizontal).
+
+---
+
+## 2026-10-26 - Frontend: rediseño visual, Paso 8b-1 (regla única de ocupación y mensajes sin códigos de requisito)
+
+**Fecha:** 26/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `5223a4e`
+
+### Actividades
+
+1. **Regla única de ocupación:** `features/acceso/ocupacion.ts` (con spec en tabla) define `estadoDeOcupacion(actual, maximo)`: **lleno** cuando no quedan lugares (también si hay más gente que capacidad), **casi lleno** cuando quedan a lo sumo `max(1, ceil(máximo / 10))` lugares y **disponible** en el resto. La insignia ("Disponible", "Casi lleno", "Lleno"), el color del número de ocupación y el de la barra salen solo de esa función; se sacaron los umbrales 70, 80 y 90 que estaban repartidos. `TarjetaAforo` y `useAforo` la usan.
+2. **`MedidorFz` con prop `nivel` (con spec):** `normal`, `advertencia` o `critico`, decidido por quien lo usa; ya no calcula colores por su cuenta. La API sigue siendo compatible.
+3. **Mensajes sin códigos de requisito:** `compartido/sinCodigosDeRequisito.ts` (con spec) quita referencias como `(RN-01)`, `(RF-05)`, `[RNF-04]` o `(RN-01, RN-02)` y deja el resto del mensaje igual (sin espacios dobles ni puntuación suelta). Se aplica en `crearErrorDeRespuesta` (`compartido/http/errores.ts`, con spec), el único lugar donde los mensajes de la API pasan a ser texto, y limpia el `title`, el `detail` y cada ítem de `errors`. Se probó con mensajes reales del backend.
+
+### Decisiones tomadas
+
+1. **El 10 % se calcula con `ceil(máximo / 10)`:** evita errores de coma flotante (con capacidad 30 multiplicar por 0.1 daría 4 en lugar de 3).
+2. **Qué no se toca:** una referencia mezclada con otro texto, como `(RF-04, QR dinámico)`, queda igual, y también un código sin paréntesis o en minúsculas.
+3. **Todos los mensajes se siguen mostrando:** solo cambia que salen sin los códigos.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **520 tests** en 55 archivos (eran 444 en 51).
+- Variables `--fz-*` sin definir: 0.
+
+---
+
+## 2026-10-26 - Frontend: rediseño visual, Paso 8b-2 (registrar ingreso y nueva sede como modales, sede activa compartida)
+
+**Fecha:** 26/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `90f449c`
+
+### Actividades
+
+1. **`ModalRegistrarIngreso`** (`acceso/components/modales/`): mismos campos y reglas que la pantalla anterior (sede de acceso, ID del socio y código del carnet). Abre con la sede activa. Al validar **no se cierra**: muestra el resultado con los mismos roles ARIA de antes (estado para permitido, alerta para denegado), borra el código y vuelve el foco al campo de ID. Si el ingreso se permitió, también limpia el ID (queda listo para el siguiente) y emite `registrado`; si se denegó, conserva el ID para reintentar. Al reabrir se limpia el resultado, y al cerrar el foco vuelve al botón que lo abrió.
+2. **`ModalNuevaSede`** (`sedes/components/modales/`): el mismo formulario y las mismas validaciones, con mensajes propios. Al crear bien se cierra, avisa con un aviso flotante "Sede creada" (nombre y capacidad en la descripción), recarga la lista de sedes para que aparezca en todos los selectores y **no cambia la sede activa**. Los errores del servidor quedan dentro del modal: un 409 que nombra el nombre va junto al campo, un 422 se reparte por campo y el resto es un error general (`sedes/erroresSede.ts`, con spec).
+3. **`useSedeActiva`** (`acceso/composables/`, con spec): estado a nivel de módulo, sin `localStorage`, con la sede que se mira. Por defecto es la primera sede disponible; si la elegida deja de existir vuelve a esa; el RECEPCION usa siempre la suya. El selector del Aforo la lee y la escribe, así que ir al Historial y volver conserva la sede; el modal de ingreso la usa solo como valor inicial y su selector no la cambia.
+4. **Historial:** conserva "Volver al aforo"; su acción "Registrar ingreso" abre el mismo modal, con la sede del filtro si hay una elegida o, si no, la activa, y al registrar bien recarga la lista.
+5. **Encabezado del Aforo:** "Registrar ingreso" (primario con +), "Nueva sede" (secundario con +, solo GERENTE) e "Historial" (secundario con ícono de reloj, enlace real) en un solo grupo y en ese orden; los dos primeros son botones y se apilan en pantallas angostas sin romper el orden.
+6. **Se eliminan** `RegistrarIngresoPage`, `AltaSedePage`, `sedes/rutas.ts` y la ruta `acceso-ingreso`; se corrigieron las referencias (verificado con grep). `FormularioIngreso` y `FormularioSede` pasan a ser solo campos, y los botones viven en el pie del modal. `compartido/erroresFormulario.ts` se movió desde socios sin cambiar su comportamiento; `useSedes` suma `recargar`; el kit suma el ícono `reloj`.
+7. **Regla de ocupación:** "casi lleno" ahora exige al menos una persona adentro (`actual > 0`), así una sede vacía nunca aparece como casi llena aunque su capacidad sea 1.
+
+### Decisiones tomadas
+
+1. **Validar no cierra el modal:** quien recepciona registra varios ingresos seguidos; el foco vuelve al ID y el resultado queda a la vista hasta el próximo.
+2. **Errores dentro del modal:** los avisos flotantes quedan detrás del `<dialog>`, por eso los errores de ambos modales van adentro.
+3. **Sede activa derivada del listado:** no se guarda en el navegador y se corrige sola si la sede elegida desaparece.
+4. **Foco al abrir el modal de ingreso:** va al ID, no al selector de sede, porque la sede ya viene cargada.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **535 tests** en 57 archivos (eran 520 en 55).
+- Recorrido con eventos reales de teclado y mouse en un navegador sin ventana, sobre una página temporal con servicios simulados (ya borrada): **44/44**. Cubre abrir y cerrar ambos modales con mouse, teclado, Esc, la X y el botón del pie con retorno del foco; ingreso permitido y denegado con el siguiente listo; Nueva sede con error de servidor dentro del modal y con éxito (aviso, sede en los selectores, sede activa intacta); ir al Historial y volver conservando la sede; y registrar un ingreso desde el Historial con la lista recargada.
+- Variables `--fz-*` sin definir: 0. Sin `#hex`, `rgb()` ni valores de respaldo en acceso y sedes; sin referencias a las rutas eliminadas.
+
+### Pendientes que siguen abiertos
+
+1. Migrar Socios al `EncabezadoPaginaFz`.
+2. Dar el mismo tratamiento a clases, canchas y pagos: reemplazar los usos de `--fz-radio-tarjeta` y las medidas escritas a mano.
+3. Partir `ArmazonApp.vue` (335 líneas), `useListaSocios.spec.ts` (371) y `ui/README.md` (420) para que queden por debajo de 300.
+4. Pantalla de carnet: espera el QR y `POST /auth/totp`.
+5. Backend, a coordinar con Santiago: DNI y correo editables en `PATCH /usuarios` (con 409 si el valor ya existe), guards de rol en `/usuarios`, el cambio de plan en una membresía vencida (cobra pero no cambia el estado, por eso el front envía `ACTIVA` al renovar) y una pantalla de cambio o recuperación de contraseña.
+6. ADR de la decisión de usar Reka UI (y revisar ADR-13 y ADR-15).
+7. Datos de prueba en la base compartida a limpiar al final.

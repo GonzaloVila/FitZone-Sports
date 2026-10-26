@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Sede } from '@/features/sedes/services/servicioSedes'
-import { BotonFz, CampoFormularioFz, SelectFz } from '@/ui'
+import { CampoFormularioFz, SelectFz } from '@/ui'
 
 const props = defineProps<{
   procesando: boolean
@@ -9,6 +9,8 @@ const props = defineProps<{
   conSelectorSede: boolean
   sedes: Sede[]
   cargandoSedes: boolean
+  // Id del <form>: el botón del pie del modal lo envía con el atributo `form`.
+  idFormulario: string
 }>()
 
 const emit = defineEmits<{
@@ -26,7 +28,7 @@ function manejarEnvio() {
 </script>
 
 <template>
-  <form class="formulario-ingreso" novalidate @submit.prevent="manejarEnvio">
+  <form :id="idFormulario" class="formulario-ingreso" novalidate @submit.prevent="manejarEnvio">
     <CampoFormularioFz v-if="conSelectorSede" etiqueta="Sede de acceso" etiqueta-chica obligatorio>
       <template #default="{ id, describedby }">
         <SelectFz
@@ -69,12 +71,6 @@ function manejarEnvio() {
       autocomplete="off"
       :disabled="procesando || bloqueado"
     />
-
-    <div class="formulario-ingreso__acciones">
-      <BotonFz tipo="submit" :cargando="procesando" :disabled="procesando || bloqueado || !socioId || !codigoTotp">
-        {{ procesando ? 'Validando…' : 'Validar e ingresar' }}
-      </BotonFz>
-    </div>
   </form>
 </template>
 
@@ -83,14 +79,5 @@ function manejarEnvio() {
   display: flex;
   flex-direction: column;
   gap: var(--fz-espaciado-base);
-  padding: var(--fz-espaciado-amplio);
-  border: 1px solid var(--fz-color-borde-marcado);
-  border-radius: var(--fz-radio-control);
-  background: var(--fz-color-fondo);
-}
-
-.formulario-ingreso__acciones {
-  display: flex;
-  justify-content: flex-end;
 }
 </style>

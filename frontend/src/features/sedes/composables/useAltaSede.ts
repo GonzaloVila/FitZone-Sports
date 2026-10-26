@@ -1,6 +1,6 @@
 import { reactive, ref } from 'vue'
-import { esErrorApi, mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
+import { repartirErroresSede } from '../erroresSede'
 import type { Sede, SedeIn } from '../services/servicioSedes'
 
 export function useAltaSede(opciones?: { alExito?: (sede: Sede) => void }) {
@@ -13,9 +13,10 @@ export function useAltaSede(opciones?: { alExito?: (sede: Sede) => void }) {
   })
 
   const guardando = ref(false)
+  // Error general del servidor y errores por campo (los de la validación de ayuda y los del servidor), para mostrar
+  // dentro del modal.
   const error = ref<string | null>(null)
   const erroresValidacion = ref<Record<string, string>>({})
-  const sedeCreada = ref<Sede | null>(null)
 
   function validar(): boolean {
     erroresValidacion.value = {}
@@ -34,12 +35,12 @@ export function useAltaSede(opciones?: { alExito?: (sede: Sede) => void }) {
     return Object.keys(erroresValidacion.value).length === 0
   }
 
-  async function crear() {
-    if (!validar()) return
+  // Devuelve la sede creada, o null si no se pudo (los errores quedan en el estado).
+  async function crear(): Promise<Sede | null> {
+    if (guardando.value || !validar()) return null
 
     guardando.value = true
     error.value = null
-    sedeCreada.value = null
 
     try {
       const creada = await servicioSedes.crear({
@@ -47,27 +48,25 @@ export function useAltaSede(opciones?: { alExito?: (sede: Sede) => void }) {
         direccion: form.direccion.trim(),
         aforoMaximo: Number(form.aforoMaximo),
       })
-
-      sedeCreada.value = creada
       opciones?.alExito?.(creada)
+      return creada
     } catch (e) {
-      if (esErrorApi(e) && e.status === 422) {
-        error.value = e.problema?.detail ?? 'Datos de la sede inválidos.'
-      } else {
-        error.value = mensajeDeError(e, 'No se pudo crear la sede.')
-      }
+      const { campos, general } = repartirErroresSede(e)
+      erroresValidacion.value = campos
+      error.value = general
+      return null
     } finally {
       guardando.value = false
     }
   }
 
+  // Deja el formulario como recién abierto (el modal lo usa cada vez que se abre).
   function reiniciar() {
     form.nombre = ''
     form.direccion = ''
     form.aforoMaximo = 50
     error.value = null
     erroresValidacion.value = {}
-    sedeCreada.value = null
   }
 
   return {
@@ -75,7 +74,6 @@ export function useAltaSede(opciones?: { alExito?: (sede: Sede) => void }) {
     guardando,
     error,
     erroresValidacion,
-    sedeCreada,
     crear,
     reiniciar,
   }

@@ -1,19 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { AvisoFz, BotonFz, CampoFormularioFz } from '@/ui'
+import { CampoFormularioFz } from '@/ui'
 import type { SedeIn } from '@/features/sedes/services/servicioSedes'
 
 const props = defineProps<{
   form: SedeIn
   guardando: boolean
   errores: Record<string, string>
-  // Error general del servidor: se muestra dentro del formulario, sobre los botones.
-  error: string | null
+  // Id del <form>: los botones del pie del modal lo envían con el atributo `form`.
+  idFormulario: string
 }>()
 
 const emit = defineEmits<{
   (e: 'guardar'): void
-  (e: 'cancelar'): void
 }>()
 
 const aforoMaximoTexto = computed({
@@ -25,7 +24,7 @@ const aforoMaximoTexto = computed({
 </script>
 
 <template>
-  <form class="formulario-sede" novalidate @submit.prevent="emit('guardar')">
+  <form :id="idFormulario" class="formulario-sede" novalidate @submit.prevent="emit('guardar')">
     <CampoFormularioFz
       v-model="form.nombre"
       etiqueta="Nombre de la sede"
@@ -62,13 +61,6 @@ const aforoMaximoTexto = computed({
       :error="errores.aforoMaximo"
       :disabled="guardando"
     />
-
-    <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
-
-    <div class="formulario-sede__acciones">
-      <BotonFz variante="fantasma" :disabled="guardando" @click="emit('cancelar')">Cancelar</BotonFz>
-      <BotonFz tipo="submit" :cargando="guardando">Guardar</BotonFz>
-    </div>
   </form>
 </template>
 
@@ -77,15 +69,5 @@ const aforoMaximoTexto = computed({
   display: flex;
   flex-direction: column;
   gap: var(--fz-espaciado-base);
-  padding: var(--fz-espaciado-amplio);
-  border: 1px solid var(--fz-color-borde-marcado);
-  border-radius: var(--fz-radio-control);
-  background: var(--fz-color-fondo);
-}
-
-.formulario-sede__acciones {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--fz-espaciado-compacto);
 }
 </style>

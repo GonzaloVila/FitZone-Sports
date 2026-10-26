@@ -15,13 +15,13 @@ describe('marcaDeEnlace', () => {
   })
 
   it('una ruta que declara pertenecer al ítem lo marca como sección actual, aunque su path sea otro', () => {
-    for (const path of ['/acceso/ingreso', '/acceso/historial', '/sedes/nueva']) {
+    for (const path of ['/acceso/historial', '/otra/pantalla']) {
       expect(marcaDeEnlace(aforo, { path, activaEn: 'acceso-aforo' })).toBe('true')
     }
   })
 
   it('declarar pertenecer a un ítem no marca a los demás', () => {
-    expect(marcaDeEnlace(socios, { path: '/sedes/nueva', activaEn: 'acceso-aforo' })).toBeUndefined()
+    expect(marcaDeEnlace(socios, { path: '/acceso/historial', activaEn: 'acceso-aforo' })).toBeUndefined()
   })
 
   it('sin relación no se marca: otro path, y un path que solo empieza igual pero no es de adentro', () => {
@@ -30,6 +30,6 @@ describe('marcaDeEnlace', () => {
   })
 
   it('sin nombre de ruta en el ítem, solo cuenta el path', () => {
-    expect(marcaDeEnlace({ ruta: '/acceso/aforo' }, { path: '/sedes/nueva', activaEn: 'acceso-aforo' })).toBeUndefined()
+    expect(marcaDeEnlace({ ruta: '/acceso/aforo' }, { path: '/acceso/historial', activaEn: 'acceso-aforo' })).toBeUndefined()
   })
 })

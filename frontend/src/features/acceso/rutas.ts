@@ -11,15 +11,6 @@ export const rutasAcceso: RouteRecordRaw[] = [
     },
   },
   {
-    path: '/acceso/ingreso',
-    name: 'acceso-ingreso',
-    component: () => import('./pages/RegistrarIngresoPage.vue'),
-    meta: {
-      roles: ['RECEPCION', 'GERENTE'],
-      activaEnNavegacion: 'acceso-aforo',
-    },
-  },
-  {
     path: '/acceso/historial',
     name: 'acceso-historial',
     component: () => import('./pages/HistorialAccesosPage.vue'),

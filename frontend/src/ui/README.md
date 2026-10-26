@@ -41,7 +41,7 @@ Reglas centrales:
 | `nombre` | `NombreIconoFz` (unión cerrada, se exporta desde `ui/index.ts`) | requerida |
 | `tamano` | `'sm' \| 'md' \| 'lg'` (1 / 1.25 / 1.5 rem, por token `--fz-icono-tamano-*`) | `'md'` |
 
-Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`, `advertencia` (triángulo con exclamación), `tilde` (check simple, sin círculo), `flecha-izquierda`, `lugar` (marcador de mapa, para sedes), `correo` (sobre), `telefono` (auricular), `identificador` (numeral `#`), `editar` (lápiz), `flecha-derecha`. Para fechas y calendarios se reutiliza `clases`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
+Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas`, `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`, `advertencia` (triángulo con exclamación), `tilde` (check simple, sin círculo), `flecha-izquierda`, `lugar` (marcador de mapa, para sedes), `correo` (sobre), `telefono` (auricular), `identificador` (numeral `#`), `editar` (lápiz), `flecha-derecha`, `reloj` (esfera con agujas). Para fechas y calendarios se reutiliza `clases`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
 
 ## Interruptor y avatar (átomos)
 
@@ -171,8 +171,8 @@ El enlace de volver usa `<RouterLink>` **registrado globalmente por el router de
 ```vue
 <EncabezadoPaginaFz titulo="Historial de accesos" subtitulo="Ingresos y egresos de las sedes." :volver="{ texto: 'Volver al aforo', a: { name: 'acceso-aforo' } }">
   <template #acciones>
-    <RouterLink v-slot="{ href, navigate }" :to="{ name: 'acceso-ingreso' }" custom>
-      <BotonFz como="a" :href="href" @click="navigate">Registrar ingreso</BotonFz>
+    <RouterLink v-slot="{ href, navigate }" :to="{ name: 'acceso-historial' }" custom>
+      <BotonFz como="a" variante="fantasma" :href="href" @click="navigate">Historial</BotonFz>
     </RouterLink>
   </template>
 </EncabezadoPaginaFz>

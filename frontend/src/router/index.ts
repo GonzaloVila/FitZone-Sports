@@ -5,7 +5,6 @@ import { rutasClases } from '../features/clases/rutas'
 import { rutasInicio } from '../features/inicio/rutas'
 import { rutasPagos } from '../features/pagos/rutas'
 import { NOMBRE_RUTA_NO_ENCONTRADA, rolPermitido, rutaInicialPorRol } from '../features/sesion/acceso'
-import { rutasSedes } from '../features/sedes/rutas'
 import { rutasSesion } from '../features/sesion/rutas'
 import { useSesionStore } from '../features/sesion/stores/sesionStore'
 import type { Rol } from '../features/sesion/tipos'
@@ -19,7 +18,7 @@ declare module 'vue-router' {
     // Roles que pueden entrar. Sin `roles`, la ruta solo requiere sesión.
     roles?: Rol[]
     // Nombre de la ruta del ítem del menú al que pertenece esta pantalla: ese ítem queda marcado mientras se la ve
-    // (por ejemplo, el registro de ingreso o el alta de sede, a los que se entra desde el aforo).
+    // (por ejemplo, el historial de accesos, al que se entra desde el aforo).
     activaEnNavegacion?: string
     // Si está, la ruta aparece como link en la navegación del armazón (solo a los roles que puedan entrar).
     // `icono` y `seccion` son opcionales: la barra lateral agrupa por sección (sin sección va arriba, sin título).
@@ -46,7 +45,6 @@ const router = createRouter({
         ...rutasInicio,
         ...rutasSocios,
         ...rutasAcceso,
-        ...rutasSedes,
         ...rutasClases,
         ...rutasCanchas,
         ...rutasPagos,

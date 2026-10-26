@@ -19,9 +19,12 @@ export function useSedes() {
     return nombres.value.get(id) ?? `Sede ${id}`
   }
 
+  // También sirve para volver a pedir el listado (por ejemplo, después de crear una sede): la lista se reemplaza sin
+  // pasar por "Cargando…", así los selectores no parpadean.
   async function cargar() {
     try {
       sedes.value = await servicio.listar()
+      error.value = null
     } catch (e) {
       error.value = mensajeDeError(e, 'No se pudo cargar el listado de sedes.')
     } finally {
@@ -31,5 +34,5 @@ export function useSedes() {
 
   void cargar()
 
-  return { sedes, cargando, error, nombreDeSede }
+  return { sedes, cargando, error, nombreDeSede, recargar: cargar }
 }

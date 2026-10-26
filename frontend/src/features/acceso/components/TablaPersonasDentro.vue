@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import { AvatarFz, BotonFz, CampoTextoFz, ModalFz, TablaFz, type ColumnaTabla } from '@/ui'
 import type { Ingreso } from '../services/servicioAcceso'
 
@@ -13,6 +12,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'egresar', ingresoId: number): void
   (e: 'actualizar'): void
+  // La pantalla abre el modal de registro de ingreso (el foco vuelve a este botón al cerrarlo).
+  (e: 'registrar-ingreso'): void
 }>()
 
 // Filtro rápido por nombre o DNI
@@ -129,9 +130,7 @@ function formatearHora(iso: string) {
 
     <div v-else class="personas__estado">
       <p class="personas__texto">No hay socios dentro de la sede en este momento.</p>
-      <RouterLink v-slot="{ href, navigate }" :to="{ name: 'acceso-ingreso' }" custom>
-        <BotonFz como="a" variante="secundario" :href="href" @click="navigate">Registrar ingreso</BotonFz>
-      </RouterLink>
+      <BotonFz variante="secundario" @click="emit('registrar-ingreso')">Registrar ingreso</BotonFz>
     </div>
 
     <ModalFz

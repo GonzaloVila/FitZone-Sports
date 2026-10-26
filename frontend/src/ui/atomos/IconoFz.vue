@@ -31,6 +31,7 @@ export type NombreIconoFz =
   | 'identificador'
   | 'editar'
   | 'flecha-derecha'
+  | 'reloj'
 </script>
 
 <script setup lang="ts">
@@ -126,6 +127,8 @@ const TRAZOS: Record<NombreIconoFz, readonly string[]> = {
   editar: ['M4 20v-4l11-11a2.8 2.8 0 0 1 4 4L8 20z', 'M13.5 6.5l4 4'],
   // Flecha hacia la derecha: línea y punta.
   'flecha-derecha': ['M5 12h14', 'M13 6l6 6-6 6'],
+  // Reloj: esfera y las dos agujas.
+  reloj: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 7v5l3 2'],
 }
 
 const trazos = computed(() => TRAZOS[props.nombre])

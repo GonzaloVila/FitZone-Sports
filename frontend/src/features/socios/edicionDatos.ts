@@ -1,6 +1,6 @@
 import { esErrorApi } from '@/compartido/http/errores'
 import type { Usuario, UsuarioPatch } from '@/features/usuarios/services/servicioUsuarios'
-import { erroresDe422 } from './erroresFormulario'
+import { erroresDe422 } from '@/compartido/erroresFormulario'
 
 // Lo que se edita de un usuario desde la ficha. El DNI y el correo no se pueden cambiar.
 export interface DatosEditables {

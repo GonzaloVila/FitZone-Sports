@@ -1,47 +1,31 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import ModalNuevaSede from '@/features/sedes/components/modales/ModalNuevaSede.vue'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
 import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz, SelectFz } from '@/ui'
+import ModalRegistrarIngreso from '../components/modales/ModalRegistrarIngreso.vue'
 import TarjetaAforo from '../components/TarjetaAforo.vue'
 import TablaPersonasDentro from '../components/TablaPersonasDentro.vue'
 import { useAforo } from '../composables/useAforo'
 import { usePersonasDentro } from '../composables/usePersonasDentro'
+import { useSedeActiva } from '../composables/useSedeActiva'
 
 const { rol, sedeId: sedeUsuario } = useUsuarioSesion()
 const esGerente = computed(() => rol.value === 'GERENTE')
 
-const { sedes, cargando: cargandoSedes, error: errorSedes, nombreDeSede } = useSedes()
+const { sedes, cargando: cargandoSedes, error: errorSedes, nombreDeSede, recargar: recargarSedes } = useSedes()
 
-const sedeSeleccionada = ref<number | null>(sedeUsuario.value ?? null)
-
-watch(
-  () => sedeUsuario.value,
-  (val) => {
-    if (!esGerente.value && val) {
-      sedeSeleccionada.value = val
-    }
-  },
-  { immediate: true },
-)
-
-watch(
-  sedes,
-  (lista) => {
-    if (esGerente.value && !sedeSeleccionada.value && lista.length > 0 && lista[0]) {
-      sedeSeleccionada.value = lista[0].id
-    }
-  },
-  { immediate: true },
-)
+// La sede que se mira se comparte con las otras pantallas del módulo; el RECEPCION trabaja siempre en la suya.
+const sedeActiva = useSedeActiva(sedes, () => (esGerente.value ? null : sedeUsuario.value))
 
 const {
   aforo,
   cargando: cargandoAforo,
   error: errorAforo,
   refrescar: refrescarAforo,
-} = useAforo(sedeSeleccionada)
+} = useAforo(sedeActiva)
 
 const {
   personas,
@@ -51,7 +35,7 @@ const {
   mensajeAccion,
   registrarEgreso,
   recargar: recargarPersonas,
-} = usePersonasDentro(sedeSeleccionada, {
+} = usePersonasDentro(sedeActiva, {
   alModificar: () => {
     void refrescarAforo()
   },
@@ -60,6 +44,9 @@ const {
 async function refrescarTodo() {
   await Promise.all([refrescarAforo(), recargarPersonas()])
 }
+
+const ingresoAbierto = ref(false)
+const sedeNuevaAbierta = ref(false)
 
 const tonoMensaje = computed(() => {
   const tipo = mensajeAccion.value?.tipo
@@ -71,17 +58,19 @@ const tonoMensaje = computed(() => {
   <section class="aforo">
     <EncabezadoPaginaFz titulo="Aforo y ocupación" subtitulo="Cuánta gente hay en la sede y quién está adentro.">
       <template #acciones>
-        <RouterLink v-slot="{ href, navigate }" :to="{ name: 'acceso-ingreso' }" custom>
-          <BotonFz como="a" :href="href" @click="navigate">
-            <IconoFz nombre="mas" tamano="sm" />
-            Registrar ingreso
-          </BotonFz>
-        </RouterLink>
+        <BotonFz @click="ingresoAbierto = true">
+          <IconoFz nombre="mas" tamano="sm" />
+          Registrar ingreso
+        </BotonFz>
+        <BotonFz v-if="esGerente" variante="secundario" @click="sedeNuevaAbierta = true">
+          <IconoFz nombre="mas" tamano="sm" />
+          Nueva sede
+        </BotonFz>
         <RouterLink v-slot="{ href, navigate }" :to="{ name: 'acceso-historial' }" custom>
-          <BotonFz como="a" variante="secundario" :href="href" @click="navigate">Historial</BotonFz>
-        </RouterLink>
-        <RouterLink v-if="esGerente" v-slot="{ href, navigate }" :to="{ name: 'sedes-nueva' }" custom>
-          <BotonFz como="a" variante="secundario" :href="href" @click="navigate">Nueva sede</BotonFz>
+          <BotonFz como="a" variante="secundario" :href="href" @click="navigate">
+            <IconoFz nombre="reloj" tamano="sm" />
+            Historial
+          </BotonFz>
         </RouterLink>
       </template>
     </EncabezadoPaginaFz>
@@ -92,7 +81,7 @@ const tonoMensaje = computed(() => {
 
     <TarjetaAforo
       :aforo="aforo"
-      :nombre-sede="sedeSeleccionada ? nombreDeSede(sedeSeleccionada) : undefined"
+      :nombre-sede="sedeActiva ? nombreDeSede(sedeActiva) : undefined"
       :cargando="cargandoAforo"
     >
       <template #selector>
@@ -102,9 +91,9 @@ const tonoMensaje = computed(() => {
             name="sede"
             tamano="sm"
             aria-label="Sede"
-            :model-value="sedeSeleccionada ? String(sedeSeleccionada) : ''"
+            :model-value="sedeActiva ? String(sedeActiva) : ''"
             :disabled="cargandoSedes"
-            @update:model-value="(val) => (sedeSeleccionada = val ? Number(val) : null)"
+            @update:model-value="(val) => (sedeActiva = val ? Number(val) : null)"
           >
             <option v-for="s in sedes" :key="s.id" :value="String(s.id)">{{ s.nombre }}</option>
           </SelectFz>
@@ -123,8 +112,20 @@ const tonoMensaje = computed(() => {
         :egresando-id="egresandoId"
         @egresar="registrarEgreso"
         @actualizar="refrescarTodo"
+        @registrar-ingreso="ingresoAbierto = true"
       />
     </section>
+
+    <ModalRegistrarIngreso
+      v-model:abierto="ingresoAbierto"
+      :sedes="sedes"
+      :sede-inicial="sedeActiva"
+      :con-selector-sede="esGerente"
+      :cargando-sedes="cargandoSedes"
+      @registrado="refrescarTodo"
+    />
+
+    <ModalNuevaSede v-if="esGerente" v-model:abierto="sedeNuevaAbierta" @creada="recargarSedes" />
   </section>
 </template>
 

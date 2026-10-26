@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, ref } from 'vue'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
 import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz } from '@/ui'
 import FiltrosHistorial from '../components/FiltrosHistorial.vue'
+import ModalRegistrarIngreso from '../components/modales/ModalRegistrarIngreso.vue'
 import TablaHistorial from '../components/TablaHistorial.vue'
 import { useHistorialAccesos } from '../composables/useHistorialAccesos'
+import { useSedeActiva } from '../composables/useSedeActiva'
 
 const { rol, sedeId: sedeUsuario } = useUsuarioSesion()
 const esGerente = computed(() => rol.value === 'GERENTE')
 
-const { sedes, nombreDeSede } = useSedes()
+const { sedes, cargando: cargandoSedes, nombreDeSede } = useSedes()
+
+const sedeActiva = useSedeActiva(sedes, () => (esGerente.value ? null : sedeUsuario.value))
 
 const {
   filtros,
@@ -22,6 +25,7 @@ const {
   totalPaginas,
   cargando,
   error,
+  recargar,
 } = useHistorialAccesos(esGerente.value ? null : sedeUsuario.value)
 
 // "Limpiar" deja los filtros vacíos; la sede del RECEPCION no es un filtro suyo y se conserva.
@@ -31,6 +35,10 @@ function limpiarFiltros() {
   filtros.socioId = ''
   if (esGerente.value) filtros.sedeId = ''
 }
+
+// El modal de ingreso abre con la sede que se esté filtrando; si no hay una elegida, con la sede activa.
+const ingresoAbierto = ref(false)
+const sedeDelIngreso = computed(() => (typeof filtros.sedeId === 'number' && filtros.sedeId > 0 ? filtros.sedeId : sedeActiva.value))
 </script>
 
 <template>
@@ -41,12 +49,10 @@ function limpiarFiltros() {
       :volver="{ texto: 'Volver al aforo', a: { name: 'acceso-aforo' } }"
     >
       <template #acciones>
-        <RouterLink v-slot="{ href, navigate }" :to="{ name: 'acceso-ingreso' }" custom>
-          <BotonFz como="a" :href="href" @click="navigate">
-            <IconoFz nombre="mas" tamano="sm" />
-            Registrar ingreso
-          </BotonFz>
-        </RouterLink>
+        <BotonFz @click="ingresoAbierto = true">
+          <IconoFz nombre="mas" tamano="sm" />
+          Registrar ingreso
+        </BotonFz>
       </template>
     </EncabezadoPaginaFz>
 
@@ -62,6 +68,15 @@ function limpiarFiltros() {
       :por-pagina="porPagina"
       :cargando="cargando"
       :nombre-de-sede="nombreDeSede"
+    />
+
+    <ModalRegistrarIngreso
+      v-model:abierto="ingresoAbierto"
+      :sedes="sedes"
+      :sede-inicial="sedeDelIngreso"
+      :con-selector-sede="esGerente"
+      :cargando-sedes="cargandoSedes"
+      @registrado="recargar"
     />
   </section>
 </template>

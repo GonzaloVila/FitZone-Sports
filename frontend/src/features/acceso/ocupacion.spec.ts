@@ -7,8 +7,8 @@ const casos: [number, number, EstadoOcupacion][] = [
   // Capacidad 0: no hay lugares nunca.
   [0, 0, 'lleno'],
   [0, 3, 'lleno'],
-  // Capacidad 1: con el único lugar libre ya queda "uno solo".
-  [1, 0, 'casi-lleno'],
+  // Capacidad 1: vacía está disponible (casi lleno pide al menos una persona adentro); con una persona, llena.
+  [1, 0, 'disponible'],
   [1, 1, 'lleno'],
   [1, 2, 'lleno'],
   // Capacidad 2 y 3: el umbral es 1 lugar.
@@ -54,6 +54,10 @@ describe('estadoDeOcupacion', () => {
   it('con más gente que capacidad sigue siendo "lleno" (no se rompe)', () => {
     expect(estadoDeOcupacion(120, 100)).toBe('lleno')
     expect(estadoDeOcupacion(1000, 10)).toBe('lleno')
+  })
+
+  it('una sede vacía nunca está "casi llena", de cualquier capacidad', () => {
+    for (const maximo of [1, 2, 3, 10, 50, 100]) expect(estadoDeOcupacion(0, maximo)).toBe('disponible')
   })
 
   it('una capacidad negativa tampoco tiene lugares', () => {

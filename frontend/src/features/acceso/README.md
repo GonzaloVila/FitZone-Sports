@@ -8,8 +8,10 @@ Módulo de Gimnasio y Acceso (M2), responsable de la gestión de aforo, control 
 src/features/acceso/
 ├── components/
 │   ├── FiltrosHistorial.vue        # Filtros de búsqueda (fecha, nombre, socio, sede)
-│   ├── FormularioIngreso.vue       # Formulario con socioId y código TOTP/QR
-│   ├── ResultadoIngreso.vue        # Notificación con alto contraste, texto e íconos
+│   ├── FormularioIngreso.vue       # Campos del ingreso: sede, ID del socio y código del carnet
+│   ├── modales/
+│   │   └── ModalRegistrarIngreso.vue # Modal de registro de ingreso (se abre desde el aforo y el historial)
+│   ├── ResultadoIngreso.vue        # Aviso del resultado (permitido o denegado) con su rol ARIA
 │   ├── TablaHistorial.vue          # Tabla paginada de accesos con Insignias de estado
 │   ├── TablaPersonasDentro.vue     # Socios actualmente en la sede con botón de egreso
 │   └── TarjetaAforo.vue            # Resumen de aforo con medidor y aviso persistente
@@ -18,11 +20,12 @@ src/features/acceso/
 │   ├── useHistorialAccesos.ts      # Consulta paginada con debounce y descarte de respuestas viejas
 │   ├── usePersonasDentro.ts        # Consulta de ingresos abiertos y acción de egreso
 │   ├── useRegistroIngreso.ts       # Envío y traducción de errores según RFC 9457 problem+json
+│   ├── useSedeActiva.ts            # Sede que se mira en el módulo, compartida entre pantallas (estado de módulo)
 │   └── useSincronizacionOffline.ts # Cola offline y sincronización en lote (RNF-01)
+├── ocupacion.ts                    # estadoDeOcupacion: disponible, casi lleno o lleno (única regla de ocupación)
 ├── pages/
 │   ├── AforoPage.vue               # /acceso/aforo (RECEPCION / GERENTE)
-│   ├── HistorialAccesosPage.vue    # /acceso/historial (RECEPCION / GERENTE)
-│   └── RegistrarIngresoPage.vue    # /acceso/ingreso (RECEPCION / GERENTE)
+│   └── HistorialAccesosPage.vue    # /acceso/historial (RECEPCION / GERENTE)
 ├── services/
 │   └── servicioAcceso.ts           # Cliente tipado contra api.d.ts para /ingresos y /sedes/{id}/aforo
 ├── rutas.ts                        # Definición de rutas y metadatos de navegación
@@ -33,8 +36,7 @@ src/features/acceso/
 
 | Ruta | Nombre | Roles | Descripción |
 |---|---|---|---|
-| `/acceso/aforo` | `acceso-aforo` | RECEPCION, GERENTE | Monitor de ocupación en tiempo real y lista de personas dentro con egreso. Entrada única "Acceso" en el menú. |
-| `/acceso/ingreso` | `acceso-ingreso` | RECEPCION, GERENTE | Formulario de validación de código TOTP/QR y socio. |
+| `/acceso/aforo` | `acceso-aforo` | RECEPCION, GERENTE | Monitor de ocupación en tiempo real y lista de personas dentro con egreso. Entrada única "Acceso" en el menú. Desde acá se abren los modales "Registrar ingreso" y "Nueva sede" (esta última solo para GERENTE). |
 | `/acceso/historial` | `acceso-historial` | RECEPCION, GERENTE | Historial paginado con filtros de fecha, sede y búsqueda de socio. |
 
 ## Decisiones técnicas y reglas de negocio

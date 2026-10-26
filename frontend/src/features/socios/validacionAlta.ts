@@ -1,5 +1,5 @@
 import { esErrorApi } from '@/compartido/http/errores'
-import { erroresDe422 } from './erroresFormulario'
+import { erroresDe422 } from '@/compartido/erroresFormulario'
 import { PLANES } from './presentacion'
 
 export type ModoUsuario = 'existente' | 'nuevo'

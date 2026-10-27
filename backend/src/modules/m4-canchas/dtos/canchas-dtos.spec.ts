@@ -1,5 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { describe, expect, it } from 'vitest';
+import { BuscarCanchasQueryDto } from 'src/modules/m4-canchas/dtos/buscar-canchas-query.dto';
 import { CanchaIn } from 'src/modules/m4-canchas/dtos/cancha-in.dto';
 import { CanchaPatch } from 'src/modules/m4-canchas/dtos/cancha-patch.dto';
 import { ListarCanchasQueryDto } from 'src/modules/m4-canchas/dtos/listar-canchas-query.dto';
@@ -92,6 +93,64 @@ describe('M4 - DTOs de canchas y reservas', () => {
 
     it('rechaza un parámetro fuera de la lista blanca', async () => {
       expect(await erroresDe(ListarCanchasQueryDto, { parametro: 'futuro' })).not.toEqual([]);
+    });
+  });
+
+  describe('BuscarCanchasQueryDto', () => {
+    it('acepta consulta vacía y todos los filtros combinados', async () => {
+      expect(await erroresDe(BuscarCanchasQueryDto, {})).toEqual([]);
+      expect(
+        await erroresDe(BuscarCanchasQueryDto, {
+          sedeId: '3',
+          tipo: 'PADDLE',
+          estado: 'EN_MANTENIMIENTO',
+          page: '2',
+          perPage: '50',
+        }),
+      ).toEqual([]);
+    });
+
+    it('convierte sedeId, page y perPage a número y aplica los defaults', () => {
+      const d = plainToInstance(BuscarCanchasQueryDto, { sedeId: '3', page: '2', perPage: '5' });
+      expect(d.sedeId).toBe(3);
+      expect(d.page).toBe(2);
+      expect(d.perPage).toBe(5);
+
+      const vacio = plainToInstance(BuscarCanchasQueryDto, {});
+      expect(vacio.sedeId).toBeUndefined();
+      expect(vacio.page).toBe(1);
+      expect(vacio.perPage).toBe(20);
+    });
+
+    it('rechaza sedeId no entero, no positivo o no numérico', async () => {
+      expect(await erroresDe(BuscarCanchasQueryDto, { sedeId: '0' })).not.toEqual([]);
+      expect(await erroresDe(BuscarCanchasQueryDto, { sedeId: '-1' })).not.toEqual([]);
+      expect(await erroresDe(BuscarCanchasQueryDto, { sedeId: '2.5' })).not.toEqual([]);
+      expect(await erroresDe(BuscarCanchasQueryDto, { sedeId: 'abc' })).not.toEqual([]);
+    });
+
+    it('rechaza un tipo o un estado fuera del enum', async () => {
+      expect(await erroresDe(BuscarCanchasQueryDto, { tipo: 'TENIS' })).not.toEqual([]);
+      expect(await erroresDe(BuscarCanchasQueryDto, { tipo: 'paddle' })).not.toEqual([]);
+      expect(await erroresDe(BuscarCanchasQueryDto, { estado: 'ROTA' })).not.toEqual([]);
+    });
+
+    it('rechaza la paginación fuera de rango (mismo tope que el listado por sede)', async () => {
+      expect(await erroresDe(BuscarCanchasQueryDto, { page: '0' })).not.toEqual([]);
+      expect(await erroresDe(BuscarCanchasQueryDto, { perPage: '0' })).not.toEqual([]);
+      expect(await erroresDe(BuscarCanchasQueryDto, { perPage: '101' })).not.toEqual([]);
+      expect(await erroresDe(BuscarCanchasQueryDto, { perPage: '100' })).toEqual([]);
+    });
+
+    it('rechaza un parámetro fuera de la lista blanca', async () => {
+      expect(await erroresDe(BuscarCanchasQueryDto, { parametro: 'futuro' })).not.toEqual([]);
+    });
+
+    // El listado por sede toma la sede de la ruta: seguir rechazando sedeId/tipo en su
+    // query evita que el DTO nuevo cambie el contrato de GET /sedes/{sedeId}/canchas.
+    it('ListarCanchasQueryDto sigue sin aceptar sedeId ni tipo', async () => {
+      expect(await erroresDe(ListarCanchasQueryDto, { sedeId: '3' })).not.toEqual([]);
+      expect(await erroresDe(ListarCanchasQueryDto, { tipo: 'PADDLE' })).not.toEqual([]);
     });
   });
 });

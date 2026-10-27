@@ -10,6 +10,11 @@ export interface OpcionesListadoCanchas {
   perPage: number;
 }
 
+export interface FiltrosBusquedaCanchas extends OpcionesListadoCanchas {
+  sedeId?: number;
+  tipo?: 'PADDLE' | 'FUTBOL5';
+}
+
 export interface CanchaNueva {
   sedeId: number;
   tipo: 'PADDLE' | 'FUTBOL5';
@@ -30,16 +35,39 @@ export class CanchaRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async listarPorSede(sedeId: number, { estado, page, perPage }: OpcionesListadoCanchas): Promise<{ items: Cancha[]; total: number }> {
-    const where = {
-      sede_id: sedeId,
-      ...(estado && { estado }),
-    };
+    return this.paginar(
+      {
+        sede_id: sedeId,
+        ...(estado && { estado }),
+      },
+      page,
+      perPage,
+    );
+  }
+
+  // Listado de todas las sedes (GET /canchas): cada filtro es opcional y se combinan
+  // con AND. Sin filtros trae todas las canchas de la cadena.
+  async buscar({ sedeId, tipo, estado, page, perPage }: FiltrosBusquedaCanchas): Promise<{ items: Cancha[]; total: number }> {
+    return this.paginar(
+      {
+        ...(sedeId !== undefined && { sede_id: sedeId }),
+        ...(tipo && { tipo }),
+        ...(estado && { estado }),
+      },
+      page,
+      perPage,
+    );
+  }
+
+  // Orden estable por sede y luego por id: dentro de una sola sede equivale a `id asc`,
+  // asi que listarPorSede conserva su orden de siempre.
+  private async paginar(where: Prisma.CanchaWhereInput, page: number, perPage: number): Promise<{ items: Cancha[]; total: number }> {
     const [filas, total] = await Promise.all([
       this.prisma.cancha.findMany({
         where,
         skip: (page - 1) * perPage,
         take: perPage,
-        orderBy: { id: 'asc' },
+        orderBy: [{ sede_id: 'asc' }, { id: 'asc' }],
       }),
       this.prisma.cancha.count({ where }),
     ]);

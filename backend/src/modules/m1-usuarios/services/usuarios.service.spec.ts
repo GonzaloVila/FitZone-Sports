@@ -51,6 +51,48 @@ describe('UsuariosService.buscarParaAutenticarPorId', () => {
   });
 });
 
+// listar() solo compone los filtros del DTO hacia el repositorio; el where de Prisma
+// se verifica en la integracion y en el e2e.
+describe('UsuariosService.listar', () => {
+  function serviceDeListado() {
+    const llamadas: { filtros?: unknown; paginacion?: unknown } = {};
+    const usuarios = {
+      listar: async (filtros: unknown, paginacion: unknown) => {
+        llamadas.filtros = filtros;
+        llamadas.paginacion = paginacion;
+        return { items: [usuario({ id: 3, rol: 'RECEPCION', sedeId: 5 })], total: 1 };
+      },
+    } as unknown as UsuarioRepository;
+    return { service: new UsuariosService(usuarios, {} as EmpleadoSedeRepository), llamadas };
+  }
+
+  it('baja sedeId junto con rol, nombre, email y paginacion al repositorio', async () => {
+    const { service, llamadas } = serviceDeListado();
+
+    const res = await service.listar({
+      sedeId: 5,
+      rol: 'RECEPCION',
+      nombre: 'ana',
+      email: 'ana@fitzone.test',
+      page: 2,
+      perPage: 10,
+    });
+
+    expect(llamadas.filtros).toEqual({ rol: 'RECEPCION', sedeId: 5, nombre: 'ana', email: 'ana@fitzone.test' });
+    expect(llamadas.paginacion).toEqual({ page: 2, perPage: 10 });
+    expect(res).toMatchObject({ total: 1, items: [{ id: 3, sedeId: 5 }] });
+  });
+
+  it('sin sedeId no manda ese filtro y usa los defaults de paginacion', async () => {
+    const { service, llamadas } = serviceDeListado();
+
+    await service.listar({});
+
+    expect((llamadas.filtros as { sedeId?: number }).sedeId).toBeUndefined();
+    expect(llamadas.paginacion).toEqual({ page: 1, perPage: 20 });
+  });
+});
+
 interface EscenarioAlta {
   duplicado?: Usuario | null;
   sedeExiste?: boolean;

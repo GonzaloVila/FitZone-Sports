@@ -47,6 +47,23 @@ export class CanchasService {
     };
   }
 
+  // GET /canchas. A diferencia de listar(), la sede no es parte de la ruta sino un
+  // filtro opcional: un sedeId inexistente da lista vacia (igual que GET /ingresos y
+  // GET /socios), asi que no se consulta la existencia de la sede.
+  async buscar(filtros: {
+    sedeId?: number;
+    tipo?: Cancha['tipo'];
+    estado?: Cancha['estado'];
+    page: number;
+    perPage: number;
+  }): Promise<{ items: CanchaOut[]; total: number }> {
+    const { items, total } = await this.canchas.buscar(filtros);
+    return {
+      items: items.map((cancha) => this.aOut(cancha)),
+      total,
+    };
+  }
+
   async obtener(id: number): Promise<CanchaOut> {
     const cancha = await this.canchas.buscarPorId(id);
     if (!cancha) {

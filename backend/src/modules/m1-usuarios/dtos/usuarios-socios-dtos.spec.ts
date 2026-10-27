@@ -1,4 +1,6 @@
+import { plainToInstance } from 'class-transformer';
 import { describe, expect, it } from 'vitest';
+import { ListarUsuariosQueryDto } from 'src/modules/m1-usuarios/dtos/listar-usuarios-query.dto';
 import { MembresiaPatch } from 'src/modules/m1-usuarios/dtos/membresia-patch.dto';
 import { SocioIn } from 'src/modules/m1-usuarios/dtos/socio-in.dto';
 import { SocioPatch } from 'src/modules/m1-usuarios/dtos/socio-patch.dto';
@@ -53,6 +55,40 @@ describe('M1 - DTOs de usuarios, socios y membresías', () => {
       expect(await erroresDe(UsuarioIn, { ...valido, sedeId: 2.5 })).not.toEqual([]);
       expect(await erroresDe(UsuarioIn, { ...valido, sedeId: '5' })).not.toEqual([]);
       expect(await erroresDe(UsuarioIn, { ...valido, sedeId: null })).not.toEqual([]);
+    });
+  });
+
+  describe('ListarUsuariosQueryDto', () => {
+    it('acepta consulta vacía y sedeId combinado con los demás filtros', async () => {
+      expect(await erroresDe(ListarUsuariosQueryDto, {})).toEqual([]);
+      expect(
+        await erroresDe(ListarUsuariosQueryDto, {
+          sedeId: '3',
+          rol: 'RECEPCION',
+          nombre: 'ana',
+          email: 'ana@fitzone.com.ar',
+          page: '2',
+          perPage: '50',
+        }),
+      ).toEqual([]);
+    });
+
+    it('convierte sedeId a número y lo deja indefinido si no viene', () => {
+      expect(plainToInstance(ListarUsuariosQueryDto, { sedeId: '3' }).sedeId).toBe(3);
+      expect(plainToInstance(ListarUsuariosQueryDto, {}).sedeId).toBeUndefined();
+    });
+
+    it('rechaza sedeId no entero, no positivo o no numérico', async () => {
+      expect(await erroresDe(ListarUsuariosQueryDto, { sedeId: '0' })).not.toEqual([]);
+      expect(await erroresDe(ListarUsuariosQueryDto, { sedeId: '-2' })).not.toEqual([]);
+      expect(await erroresDe(ListarUsuariosQueryDto, { sedeId: '1.5' })).not.toEqual([]);
+      expect(await erroresDe(ListarUsuariosQueryDto, { sedeId: 'abc' })).not.toEqual([]);
+    });
+
+    it('sigue rechazando la paginación fuera de rango y los parámetros fuera de la lista blanca', async () => {
+      expect(await erroresDe(ListarUsuariosQueryDto, { page: '0' })).not.toEqual([]);
+      expect(await erroresDe(ListarUsuariosQueryDto, { perPage: '101' })).not.toEqual([]);
+      expect(await erroresDe(ListarUsuariosQueryDto, { sedeOrigenId: '3' })).not.toEqual([]);
     });
   });
 

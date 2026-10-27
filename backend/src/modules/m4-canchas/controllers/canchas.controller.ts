@@ -12,6 +12,7 @@ import {
 import type { Response } from 'express';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
+import { BuscarCanchasQueryDto } from '../dtos/buscar-canchas-query.dto';
 import { CanchaIn } from '../dtos/cancha-in.dto';
 import { CanchaOut } from '../dtos/cancha-out.dto';
 import { CanchaPatch } from '../dtos/cancha-patch.dto';
@@ -92,6 +93,32 @@ export class CanchasController {
     const cancha = await this.canchasService.crear(sedeId, dto);
     res.setHeader('Location', `/api/v1/sedes/${sedeId}/canchas/${cancha.id}`);
     return cancha;
+  }
+
+  // `canchas` (sin parametro) y `canchas/:canchaId` no chocan: Express compara la
+  // ruta completa, y ':canchaId' exige un segmento mas.
+  @Get('canchas')
+  @ApiOperation({
+    operationId: 'buscarCanchas',
+    summary: 'Listado de canchas de todas las sedes',
+    description:
+      'Listado paginado de las canchas de TODAS las sedes (incluye las no operativas, RF-12); ' +
+      'opcional filtrar por sede, tipo y estado (lista blanca de parametros). Sin filtros devuelve ' +
+      'todas las canchas de la cadena. Orden estable por sede y luego por id (`sede_id asc, id asc`). ' +
+      'Como en GET /ingresos y GET /socios, un `sedeId` bien formado pero inexistente no es un error: ' +
+      'responde 200 con la lista vacia (`items: []`, `total: 0`); el 404 de una sede inexistente es ' +
+      'propio de GET /sedes/{sedeId}/canchas, donde la sede es parte de la ruta.',
+  })
+  @ApiOkResponse({ description: 'Listado de canchas', type: ListaCanchasDto })
+  @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
+  buscar(@Query() query: BuscarCanchasQueryDto): Promise<ListaCanchasDto> {
+    return this.canchasService.buscar({
+      sedeId: query.sedeId,
+      tipo: query.tipo,
+      estado: query.estado,
+      page: query.page ?? 1,
+      perPage: query.perPage ?? 20,
+    });
   }
 
   @Get('canchas/:canchaId')

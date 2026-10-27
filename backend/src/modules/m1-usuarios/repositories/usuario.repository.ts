@@ -7,6 +7,7 @@ import type { RolUsuario, Usuario, UsuarioActualizable, UsuarioNuevo } from '../
 
 export interface FiltrosUsuarios {
   rol?: RolUsuario;
+  sedeId?: number;
   nombre?: string;
   email?: string;
 }
@@ -30,11 +31,14 @@ export class UsuarioRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async listar(
-    { rol, nombre, email }: FiltrosUsuarios,
+    { rol, sedeId, nombre, email }: FiltrosUsuarios,
     { page, perPage }: OpcionesPaginacion,
   ): Promise<{ items: Usuario[]; total: number }> {
     const where = {
       ...(rol !== undefined && { rol }),
+      // Sede de trabajo: solo quien tiene fila en EmpleadoSede de esa sede. No es
+      // la sede de origen del socio (Socio.sede_origen_id).
+      ...(sedeId !== undefined && { empleado: { sede_id: sedeId } }),
       // `insensitive` porque el contrato pide coincidencia parcial y el
       // usuario que busca "ana" espera encontrar "Ana".
       ...(nombre !== undefined && { nombre: { contains: nombre, mode: 'insensitive' as const } }),

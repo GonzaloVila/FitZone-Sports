@@ -113,7 +113,8 @@ export interface paths {
         };
         /**
          * Listado de usuarios con filtros
-         * @description Filtros por rol, nombre y email (lista blanca de parámetros) y paginación.
+         * @description Filtros por rol, sede de trabajo, nombre y email (lista blanca de parámetros) y paginación. `sedeId` filtra por el puesto en `EmpleadoSede`, así que solo devuelve personal con puesto en esa sede
+         *     (hoy, el recepcionista); no tiene relación con la sede de origen de un socio. Como en GET /ingresos y GET /socios, un `sedeId` inexistente no es un error: responde 200 con la lista vacía.
          */
         get: operations["listarUsuarios"];
         put?: never;
@@ -395,6 +396,26 @@ export interface paths {
          * @description El Gerente configura el tipo y el costo por hora (por defecto, operativa).
          */
         post: operations["crearCancha"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/canchas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listado de canchas de todas las sedes
+         * @description Listado paginado de las canchas de TODAS las sedes (incluye las no operativas, RF-12); opcional filtrar por sede, tipo y estado (lista blanca de parámetros). Sin filtros devuelve todas las canchas de la cadena. Orden estable por sede y luego por id (`sede_id asc, id asc`). Como en GET /ingresos y GET /socios, un `sedeId` bien formado pero inexistente no es un error: responde 200 con la lista vacía (`items: []`, `total: 0`); el 404 de una sede inexistente es propio de GET /sedes/{sedeId}/canchas, donde la sede es parte de la ruta.
+         */
+        get: operations["buscarCanchas"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2185,6 +2206,11 @@ export interface operations {
                 /** @description Rol del usuario. Sin filtro devuelve todos los roles. */
                 rol?: components["schemas"]["Rol"];
                 /**
+                 * @description Sede de trabajo (EmpleadoSede): devuelve solo usuarios con puesto en esa sede
+                 * @example 3
+                 */
+                sedeId?: number;
+                /**
                  * @description coincidencia parcial sobre el nombre.
                  * @example Ana
                  */
@@ -2946,6 +2972,39 @@ export interface operations {
                 };
             };
             404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    buscarCanchas: {
+        parameters: {
+            query?: {
+                /**
+                 * @description ID numérico de la sede. Si no existe, la lista vuelve vacía.
+                 * @example 3
+                 */
+                sedeId?: number;
+                /** @description Filtro por tipo de cancha (PADDLE | FUTBOL5). Si se omite, devuelve ambos. */
+                tipo?: components["schemas"]["TipoCancha"];
+                /** @description Filtro por estado (OPERATIVA | EN_MANTENIMIENTO). Si se omite, devuelve ambas. */
+                estado?: components["schemas"]["EstadoCancha"];
+                page?: components["parameters"]["Page"];
+                perPage?: components["parameters"]["PerPage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Listado de canchas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaCanchas"];
+                };
+            };
             422: components["responses"]["ValidationError"];
         };
     };

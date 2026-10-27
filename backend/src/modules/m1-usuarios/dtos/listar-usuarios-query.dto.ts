@@ -23,6 +23,18 @@ export class ListarUsuariosQueryDto {
   rol?: RolUsuario;
 
   @ApiPropertyOptional({
+    type: 'integer',
+    minimum: 1,
+    description: 'Sede de trabajo (EmpleadoSede): devuelve solo usuarios con puesto en esa sede',
+    example: 3,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  sedeId?: number;
+
+  @ApiPropertyOptional({
     description: 'Coincidencia parcial sobre el nombre, sin distinguir mayusculas.',
     example: 'Ana',
   })

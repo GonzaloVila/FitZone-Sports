@@ -238,7 +238,8 @@ paths:
       operationId: listarUsuarios
       summary: Listado de usuarios con filtros
       description: |
-        Filtros por rol, nombre y email (lista blanca de parámetros) y paginación.
+        Filtros por rol, sede de trabajo, nombre y email (lista blanca de parámetros) y paginación. `sedeId` filtra por el puesto en `EmpleadoSede`, así que solo devuelve personal con puesto en esa sede
+        (hoy, el recepcionista); no tiene relación con la sede de origen de un socio. Como en GET /ingresos y GET /socios, un `sedeId` inexistente no es un error: responde 200 con la lista vacía.
       parameters:
         - name: rol
           in: query
@@ -246,6 +247,14 @@ paths:
           description: Rol del usuario. Sin filtro devuelve todos los roles.
           schema:
             $ref: '#/components/schemas/Rol'
+        - name: sedeId
+          in: query
+          required: false
+          description: 'Sede de trabajo (EmpleadoSede): devuelve solo usuarios con puesto en esa sede'
+          schema:
+            type: integer
+            minimum: 1
+          example: 3
         - name: nombre
           in: query
           required: false
@@ -948,6 +957,48 @@ paths:
                 $ref: '#/components/schemas/CanchaOut'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /canchas:
+    get:
+      tags:
+        - canchas
+      operationId: buscarCanchas
+      summary: Listado de canchas de todas las sedes
+      description: >-
+        Listado paginado de las canchas de TODAS las sedes (incluye las no operativas, RF-12); opcional filtrar por sede, tipo y estado (lista blanca de parámetros). Sin filtros devuelve todas las
+        canchas de la cadena. Orden estable por sede y luego por id (`sede_id asc, id asc`). Como en GET /ingresos y GET /socios, un `sedeId` bien formado pero inexistente no es un error: responde 200
+        con la lista vacía (`items: []`, `total: 0`); el 404 de una sede inexistente es propio de GET /sedes/{sedeId}/canchas, donde la sede es parte de la ruta.
+      parameters:
+        - name: sedeId
+          in: query
+          required: false
+          description: ID numérico de la sede. Si no existe, la lista vuelve vacía.
+          schema:
+            type: integer
+            minimum: 1
+          example: 3
+        - name: tipo
+          in: query
+          required: false
+          description: Filtro por tipo de cancha (PADDLE | FUTBOL5). Si se omite, devuelve ambos.
+          schema:
+            $ref: '#/components/schemas/TipoCancha'
+        - name: estado
+          in: query
+          required: false
+          description: Filtro por estado (OPERATIVA | EN_MANTENIMIENTO). Si se omite, devuelve ambas.
+          schema:
+            $ref: '#/components/schemas/EstadoCancha'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Listado de canchas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaCanchas'
         '422':
           $ref: '#/components/responses/ValidationError'
   /canchas/{canchaId}:

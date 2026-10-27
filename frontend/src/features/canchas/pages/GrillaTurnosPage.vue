@@ -3,37 +3,48 @@ import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
-import { AvisoFz, EncabezadoPaginaFz } from '@/ui'
-import CabeceraCancha from '../components/CabeceraCancha.vue'
+import { AvisoFz, CampoFormularioFz, EncabezadoPaginaFz } from '@/ui'
 import ConfirmarReserva from '../components/ConfirmarReserva.vue'
 import GrillaTurnos from '../components/GrillaTurnos.vue'
-import TiraDeDias from '../components/TiraDeDias.vue'
 import { useFechaDeTurnos } from '../composables/useFechaDeTurnos'
 import { useGrillaTurnos } from '../composables/useGrillaTurnos'
 import { useReservarTurno } from '../composables/useReservarTurno'
 import { destinoVolver } from '../direccion'
+import { nombreDeCancha } from '../edicion'
 import { formatearMonto } from '../presentacion'
 import { puedeReservar } from '../reglas'
 import type { Disponibilidad } from '../services/servicioCanchas'
+import { clasificarTurnos } from '../turnos'
 
 const route = useRoute()
 const { rol } = useUsuarioSesion()
 const { nombreDeSede } = useSedes()
 const canchaId = Number(route.params.canchaId)
 
-// El día vive en la dirección (?fecha=) y se elige en la tira de los próximos siete días.
-const { dias, fecha } = useFechaDeTurnos()
+// El día vive en la dirección (?fecha=) y se elige en un campo de fecha: de hoy a hoy + 6.
+const { hoy, ultimo, fecha, campo } = useFechaDeTurnos()
 
-// Quien reserva (SOCIO, EXTERNO) elige un turno libre; RECEPCION y GERENTE consultan la disponibilidad.
+// Quien reserva (SOCIO, EXTERNO) tiene el botón "Reservar" en los turnos libres; RECEPCION y GERENTE ven la tabla sin acciones.
 const reservaPermitida = computed(() => puedeReservar(rol.value))
 
 // "Volver" se arma con la dirección (de dónde se vino y con qué filtros), no con el historial: sirve igual al recargar.
 // "Mis reservas" existe para quien reserva.
 const volver = computed(() => destinoVolver(route.query, reservaPermitida.value))
 
-const { cancha, cargandoCancha, errorCancha, mantenimiento, turnos, cargando, error, ahora, reservasDelDia, recargar } =
-  useGrillaTurnos(canchaId, fecha)
+const { cancha, cargandoCancha, errorCancha, mantenimiento, turnos, cargando, error, ahora, recargar } = useGrillaTurnos(
+  canchaId,
+  fecha,
+)
 const { enviando, error: errorReserva, reserva: reservaHecha, reservar, limpiar } = useReservarTurno(recargar)
+
+// Un solo título (la cancha) y una línea suave debajo: "Sede · precio base por hora".
+const titulo = computed(() => (cancha.value ? nombreDeCancha(cancha.value) : 'Turnos'))
+const detalle = computed(() =>
+  cancha.value ? `${nombreDeSede(cancha.value.sedeId)} · ${formatearMonto(cancha.value.costoPorHora)} por hora` : undefined,
+)
+
+// Todos los turnos del día, también los que ya pasaron, cada uno pasado, libre u ocupado.
+const clasificados = computed(() => clasificarTurnos(turnos.value, ahora.value))
 
 const seleccionado = ref<Disponibilidad | null>(null)
 const abierto = ref(false)
@@ -45,7 +56,7 @@ function elegir(turno: Disponibilidad) {
 }
 
 // Si sale bien el modal se cierra; si falla sigue abierto con el error adentro (un aviso flotante quedaría detrás del
-// <dialog>) y, si el turno ya estaba tomado, la grilla ya se volvió a pedir.
+// <dialog>) y, si el turno ya estaba tomado, los turnos ya se volvieron a pedir.
 async function confirmar() {
   const turno = seleccionado.value
   if (!turno) return
@@ -54,24 +65,11 @@ async function confirmar() {
   abierto.value = false
   seleccionado.value = null
 }
-
-const cargandoTurnos = computed(() => cargandoCancha.value || cargando.value)
-const sinTurnos = computed(() => !cargandoTurnos.value && turnos.value.length === 0 && !error.value)
-
-const subtitulo = computed(() =>
-  reservaPermitida.value
-    ? 'Elegí un día y un turno libre para reservar.'
-    : 'Elegí un día para ver qué turnos están libres y cuáles ocupados.',
-)
 </script>
 
 <template>
   <section class="turnos-pagina">
-    <EncabezadoPaginaFz titulo="Turnos" :subtitulo="subtitulo" :volver="volver" />
-
-    <CabeceraCancha v-if="cancha" :cancha="cancha" :nombre-sede="nombreDeSede(cancha.sedeId)" />
-
-    <TiraDeDias v-model="fecha" :dias="dias" />
+    <EncabezadoPaginaFz :titulo="titulo" :subtitulo="detalle" :volver="volver" />
 
     <AvisoFz v-if="errorCancha" variante="peligro">{{ errorCancha }}</AvisoFz>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
@@ -81,24 +79,20 @@ const subtitulo = computed(() =>
       <RouterLink :to="{ name: 'pagar-reserva', query: { reservaId: reservaHecha.id } }">Pagar ahora</RouterLink>
     </AvisoFz>
 
-    <AvisoFz v-if="mantenimiento" variante="advertencia">
-      La cancha está en mantenimiento: no se reservan turnos nuevos. Las reservas ya tomadas se mantienen.
-    </AvisoFz>
-    <p v-if="!reservaPermitida" class="turnos-pagina__estado">
-      Estás consultando la disponibilidad: los turnos los reserva cada socio o cliente desde su cuenta.
-    </p>
+    <p v-if="cargandoCancha" class="turnos-pagina__estado" role="status">Cargando turnos…</p>
 
-    <p v-if="cargandoTurnos" class="turnos-pagina__estado" role="status">Cargando turnos…</p>
-    <GrillaTurnos
-      v-else-if="turnos.length > 0"
-      :turnos="turnos"
-      :mantenimiento="mantenimiento"
-      :reservas="reservasDelDia"
-      :ahora="ahora"
-      :puede-reservar="reservaPermitida"
-      @elegir="elegir"
-    />
-    <p v-else-if="sinTurnos" class="turnos-pagina__estado" role="status">No hay turnos para ese día.</p>
+    <!-- En mantenimiento no se muestra nada más que esta línea: ni la fecha ni la tabla. -->
+    <AvisoFz v-else-if="mantenimiento" variante="advertencia">Esta cancha está en mantenimiento: no se reservan turnos nuevos.</AvisoFz>
+
+    <template v-else-if="cancha">
+      <div class="turnos-pagina__fecha">
+        <CampoFormularioFz v-model="campo" etiqueta="Fecha" tipo="date" name="fecha" :min="hoy" :max="ultimo" />
+      </div>
+
+      <p v-if="cargando" class="turnos-pagina__estado" role="status">Cargando turnos…</p>
+      <GrillaTurnos v-else-if="clasificados.length > 0" :turnos="clasificados" :puede-reservar="reservaPermitida" @elegir="elegir" />
+      <p v-else-if="!error" class="turnos-pagina__estado" role="status">No hay turnos para este día.</p>
+    </template>
 
     <ConfirmarReserva
       v-if="reservaPermitida"
@@ -118,6 +112,12 @@ const subtitulo = computed(() =>
   flex-direction: column;
   gap: var(--fz-espaciado-base);
   width: 100%;
+}
+
+/* El campo de fecha mide lo que su contenido; en ancho chico ocupa todo el ancho disponible. */
+.turnos-pagina__fecha {
+  width: max-content;
+  max-width: 100%;
 }
 
 .turnos-pagina__estado {

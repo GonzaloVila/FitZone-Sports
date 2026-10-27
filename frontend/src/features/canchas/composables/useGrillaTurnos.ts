@@ -1,10 +1,9 @@
 import { computed, onScopeDispose, ref, watch, type Ref } from 'vue'
 import { mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
-import type { Cancha, Disponibilidad, ReservaCancha } from '../services/servicioCanchas'
+import type { Cancha, Disponibilidad } from '../services/servicioCanchas'
 
 const RELOJ_MS = 30_000
-const POR_PAGINA = 100
 
 export function useGrillaTurnos(canchaId: number, fecha: Ref<string>) {
   const servicio = useServicios().canchas
@@ -17,7 +16,6 @@ export function useGrillaTurnos(canchaId: number, fecha: Ref<string>) {
   const cargando = ref(true)
   const error = ref<string | null>(null)
 
-  const reservasDelDia = ref<ReservaCancha[]>([])
   const ahora = ref(new Date())
 
   const mantenimiento = computed(() => cancha.value?.estado === 'EN_MANTENIMIENTO')
@@ -72,45 +70,18 @@ export function useGrillaTurnos(canchaId: number, fecha: Ref<string>) {
     }
   }
 
-  let ultimaConsultaReservas = 0
-  let controladorReservas: AbortController | undefined
-
-  async function cargarReservas() {
-    if (!mantenimiento.value || !fecha.value) {
-      reservasDelDia.value = []
-      return
-    }
-
-    const consulta = ++ultimaConsultaReservas
-    controladorReservas?.abort()
-    controladorReservas = new AbortController()
-    const { signal } = controladorReservas
-    try {
-      const [confirmadas, cumplidas] = await Promise.all([
-        servicio.listarReservas({ canchaId, fecha: fecha.value }, 1, POR_PAGINA, signal),
-        servicio.listarReservas({ canchaId, fecha: fecha.value, estado: 'CUMPLIDA' }, 1, POR_PAGINA, signal),
-      ])
-      if (consulta !== ultimaConsultaReservas) return
-      reservasDelDia.value = [...confirmadas.items, ...cumplidas.items]
-    } catch {
-      if (consulta === ultimaConsultaReservas) reservasDelDia.value = []
-    }
-  }
-
+  // El reloj hace que un turno que va empezando salga de la lista sin recargar.
   const reloj = setInterval(() => {
     ahora.value = new Date()
   }, RELOJ_MS)
 
   watch(fecha, () => void cargar())
-  watch([fecha, mantenimiento], () => void cargarReservas(), { immediate: true })
   onScopeDispose(() => {
     clearInterval(reloj)
     consultaCancha++
     ultimaConsulta++
-    ultimaConsultaReservas++
     controladorCancha?.abort()
     controlador?.abort()
-    controladorReservas?.abort()
   })
   void cargarCancha()
   void cargar()
@@ -124,7 +95,6 @@ export function useGrillaTurnos(canchaId: number, fecha: Ref<string>) {
     cargando,
     error,
     ahora,
-    reservasDelDia,
     recargar: cargar,
   }
 }

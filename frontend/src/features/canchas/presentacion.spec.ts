@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  estadoDeTurno,
   puedeCancelarse,
   puedePagarse,
   situacionDeReserva,
@@ -52,28 +51,5 @@ describe('situacionDeReserva', () => {
       'cumplida',
     )
     expect(situacionDeReserva(reserva({ estado: 'CANCELADA' }), AHORA)).toBe('cancelada')
-  })
-})
-
-describe('estadoDeTurno', () => {
-  const turno = (inicio: string, fin: string, disponible = true) => ({
-    fechaHoraInicio: inicio,
-    fechaHoraFin: fin,
-    disponible,
-  })
-
-  it('el pasado no está disponible', () => {
-    expect(estadoDeTurno(turno(iso(19), iso(20)), false, [], AHORA)).toBe('pasado')
-  })
-
-  it('sin mantenimiento refleja la disponibilidad del servidor', () => {
-    expect(estadoDeTurno(turno(iso(21), iso(22)), false, [], AHORA)).toBe('libre')
-    expect(estadoDeTurno(turno(iso(21), iso(22), false), false, [], AHORA)).toBe('ocupado')
-  })
-
-  it('en mantenimiento distingue las reservas existentes del resto', () => {
-    expect(estadoDeTurno(turno(iso(21), iso(22)), true, [], AHORA)).toBe('mantenimiento')
-    const reservada = { fechaHoraInicio: iso(21), fechaHoraFin: iso(22) }
-    expect(estadoDeTurno(turno(iso(21), iso(22)), true, [reservada], AHORA)).toBe('ocupado')
   })
 })

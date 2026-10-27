@@ -1,81 +1,59 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { estadoDeTurno } from '../presentacion'
-import type { Disponibilidad, ReservaCancha } from '../services/servicioCanchas'
-import { agruparPorFranja, resumenDeTurnos } from '../turnos'
-import TurnoDeCancha from './TurnoDeCancha.vue'
+import { BotonFz, InsigniaFz, TablaFz, type ColumnaTabla } from '@/ui'
+import { rangoDeTurno } from '../presentacion'
+import type { Disponibilidad } from '../services/servicioCanchas'
+import type { EstadoTurno, TurnoClasificado } from '../turnos'
 
 const props = defineProps<{
-  turnos: Disponibilidad[]
-  mantenimiento: boolean
-  reservas: ReservaCancha[]
-  ahora: Date
-  // Quien reserva (SOCIO, EXTERNO) elige un turno libre con un botón; el personal solo consulta.
+  turnos: TurnoClasificado[]
+  // Quien reserva (SOCIO, EXTERNO) tiene una columna con "Reservar" en las filas libres; RECEPCION y GERENTE no tienen esa
+  // columna.
   puedeReservar: boolean
-  ocupada?: boolean
 }>()
 
 const emit = defineEmits<{ elegir: [turno: Disponibilidad] }>()
 
-const grupos = computed(() =>
-  agruparPorFranja(props.turnos, (turno) => estadoDeTurno(turno, props.mantenimiento, props.reservas, props.ahora)),
-)
-const resumen = computed(() => resumenDeTurnos(grupos.value.flatMap((grupo) => grupo.turnos)))
+// El estado siempre se dice con una palabra. "Ya pasó" va atenuado, sin insignia, y no tiene acción.
+const ETIQUETA: Record<EstadoTurno, string> = { pasado: 'Ya pasó', libre: 'Libre', ocupado: 'Ocupado' }
+const VARIANTE = { libre: 'exito', ocupado: 'advertencia' } as const
+
+const columnas = computed<ColumnaTabla[]>(() => [
+  { clave: 'horario', etiqueta: 'Horario', encabezadoFila: true },
+  { clave: 'estado', etiqueta: 'Estado' },
+  ...(props.puedeReservar ? [{ clave: 'accion', etiqueta: 'Reserva', ajustada: true, alineacion: 'fin' as const }] : []),
+])
+
+const claveFila = (fila: TurnoClasificado) => fila.turno.fechaHoraInicio
+const rango = (turno: Disponibilidad) => rangoDeTurno(turno.fechaHoraInicio, turno.fechaHoraFin)
 </script>
 
 <template>
-  <div class="turnos" :aria-busy="ocupada || undefined">
-    <!-- Cuántos turnos hay libres y ocupados ese día; la región avisa el cambio al elegir otro día. -->
-    <p class="turnos__resumen" role="status" aria-live="polite" aria-atomic="true">{{ resumen }}</p>
+  <TablaFz titulo="Turnos del día" ocultar-titulo :columnas="columnas" :filas="turnos" :clave-fila="claveFila">
+    <template #celda-horario="{ fila }">
+      <span :class="{ 'turnos__tenue': fila.estado === 'pasado' }">{{ rango(fila.turno) }}</span>
+    </template>
 
-    <section v-for="grupo in grupos" :key="grupo.franja" class="turnos__franja" :aria-labelledby="`franja-${grupo.franja}`">
-      <h2 :id="`franja-${grupo.franja}`" class="turnos__titulo">{{ grupo.etiqueta }}</h2>
-      <ul class="turnos__lista">
-        <TurnoDeCancha
-          v-for="item in grupo.turnos"
-          :key="item.turno.fechaHoraInicio"
-          :item="item"
-          :reservable="puedeReservar"
-          @elegir="emit('elegir', item.turno)"
-        />
-      </ul>
-    </section>
-  </div>
+    <template #celda-estado="{ fila }">
+      <span v-if="fila.estado === 'pasado'" class="turnos__tenue">{{ ETIQUETA.pasado }}</span>
+      <InsigniaFz v-else :variante="VARIANTE[fila.estado]">{{ ETIQUETA[fila.estado] }}</InsigniaFz>
+    </template>
+
+    <template #celda-accion="{ fila }">
+      <BotonFz
+        v-if="fila.estado === 'libre'"
+        tamano="sm"
+        :aria-label="`Reservar ${rango(fila.turno)}`"
+        @click="emit('elegir', fila.turno)"
+      >
+        Reservar
+      </BotonFz>
+    </template>
+  </TablaFz>
 </template>
 
 <style scoped>
-.turnos {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fz-espaciado-base);
-}
-
-.turnos__resumen {
-  margin: 0;
+.turnos__tenue {
   color: var(--fz-color-texto-suave);
-  font-size: var(--fz-texto-cuerpo);
-  font-weight: var(--fz-peso-enfasis);
-}
-
-.turnos__franja {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fz-espaciado-compacto);
-}
-
-.turnos__titulo {
-  margin: 0;
-  color: var(--fz-color-texto);
-  font-size: var(--fz-texto-subtitulo);
-  font-weight: var(--fz-peso-enfasis);
-}
-
-.turnos__lista {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(calc(8 * var(--fz-espaciado-amplio)), 1fr));
-  gap: var(--fz-espaciado-compacto);
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 </style>

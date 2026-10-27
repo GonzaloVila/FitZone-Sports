@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { effectScope, reactive } from 'vue'
+import { effectScope, nextTick, reactive } from 'vue'
 
 const mocks = vi.hoisted(() => ({
   route: { name: 'cancha-turnos', query: {} as Record<string, unknown> },
@@ -28,18 +28,20 @@ describe('useFechaDeTurnos', () => {
     })
   })
 
-  it('sin ?fecha= es hoy y ofrece la tira de siete días desde hoy', () => {
-    const { fecha, dias, hoy } = armar()
+  it('sin ?fecha= es hoy, el campo arranca en hoy y el rango termina en hoy + 6', () => {
+    const { fecha, campo, hoy, ultimo } = armar()
 
     expect(hoy).toBe(HOY)
+    expect(ultimo).toBe('2026-11-18')
     expect(fecha.value).toBe(HOY)
-    expect(dias).toHaveLength(7)
-    expect(dias[0]?.fecha).toBe(HOY)
+    expect(campo.value).toBe(HOY)
   })
 
-  it('lee la fecha de la dirección y descarta la que no es de la tira', () => {
+  it('lee la fecha de la dirección y descarta la que está fuera del rango', () => {
     mocks.route.query = { fecha: '2026-11-15' }
-    expect(armar().fecha.value).toBe('2026-11-15')
+    const dentro = armar()
+    expect(dentro.fecha.value).toBe('2026-11-15')
+    expect(dentro.campo.value).toBe('2026-11-15')
 
     mocks.route.query = { fecha: '2026-12-25' }
     expect(armar().fecha.value).toBe(HOY)
@@ -48,33 +50,74 @@ describe('useFechaDeTurnos', () => {
     expect(armar().fecha.value).toBe(HOY)
   })
 
-  it('elegir un día reemplaza la dirección (no agrega una entrada) y conserva el origen y los filtros', () => {
+  it('elegir un día en el campo reemplaza la dirección (no agrega una entrada) y conserva el origen y los filtros', async () => {
     mocks.route.query = { desde: 'canchas', sede: '2', tipo: 'PADDLE' }
-    const { fecha } = armar()
+    const { fecha, campo } = armar()
 
-    fecha.value = '2026-11-14'
+    campo.value = '2026-11-14'
+    await nextTick()
 
     expect(mocks.replace).toHaveBeenCalledTimes(1)
     expect(mocks.replace).toHaveBeenCalledWith({ query: { desde: 'canchas', sede: '2', tipo: 'PADDLE', fecha: '2026-11-14' } })
     expect(fecha.value).toBe('2026-11-14')
   })
 
-  it('volver a hoy quita ?fecha= de la dirección', () => {
-    mocks.route.query = { desde: 'canchas', fecha: '2026-11-14' }
-    const { fecha } = armar()
+  it('el último día del rango es válido', async () => {
+    const { fecha, campo } = armar()
 
-    fecha.value = HOY
+    campo.value = '2026-11-18'
+    await nextTick()
+
+    expect(fecha.value).toBe('2026-11-18')
+  })
+
+  it('volver a hoy quita ?fecha= de la dirección', async () => {
+    mocks.route.query = { desde: 'canchas', fecha: '2026-11-14' }
+    const { fecha, campo } = armar()
+
+    campo.value = HOY
+    await nextTick()
 
     expect(mocks.replace).toHaveBeenCalledWith({ query: { desde: 'canchas' } })
     expect(fecha.value).toBe(HOY)
   })
 
-  it('si la dirección cambia por otro lado (Atrás, un enlace) el día la sigue', () => {
-    const { fecha } = armar()
+  it('un día fuera del rango (pasado o más allá del último) no cambia la dirección y el campo vuelve al día que se mira', async () => {
+    mocks.route.query = { fecha: '2026-11-14' }
+    const { fecha, campo } = armar()
+
+    for (const escrita of ['2026-11-11', '2026-11-19', '2027-01-01', '2026-02-30']) {
+      campo.value = escrita
+      await nextTick()
+      await nextTick()
+
+      expect(campo.value, escrita).toBe('2026-11-14')
+    }
+    expect(mocks.replace).not.toHaveBeenCalled()
+    expect(fecha.value).toBe('2026-11-14')
+  })
+
+  it('un campo vacío (mientras se edita) no cambia nada', async () => {
+    mocks.route.query = { fecha: '2026-11-14' }
+    const { fecha, campo } = armar()
+
+    campo.value = ''
+    await nextTick()
+    await nextTick()
+
+    expect(mocks.replace).not.toHaveBeenCalled()
+    expect(fecha.value).toBe('2026-11-14')
+    expect(campo.value).toBe('')
+  })
+
+  it('si la dirección cambia por otro lado (Atrás, un enlace) el día y el campo la siguen', async () => {
+    const { fecha, campo } = armar()
 
     mocks.route.query = { fecha: '2026-11-17' }
+    await nextTick()
 
     expect(fecha.value).toBe('2026-11-17')
+    expect(campo.value).toBe('2026-11-17')
     expect(mocks.replace).not.toHaveBeenCalled()
   })
 })

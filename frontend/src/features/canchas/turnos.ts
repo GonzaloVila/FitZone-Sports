@@ -1,25 +1,12 @@
-// Lógica pura de la pantalla de turnos de una cancha: los días de la tira, la fecha en la dirección, las franjas del día y el
-// resumen. Las fechas se manejan como texto YYYY-MM-DD en la zona de la sede, sin pasar por la zona del navegador.
+// Lógica pura de la pantalla de turnos de una cancha: el día que se mira (en la dirección) y el estado de cada turno. Las fechas
+// se manejan como texto YYYY-MM-DD en la zona de la sede, sin pasar por la zona del navegador.
 import { textoDe, type ConsultaCruda, type Parametros } from '@/compartido/parametrosDeDireccion'
-import { formatearHora, type EstadoTurno } from './presentacion'
 import type { Disponibilidad } from './services/servicioCanchas'
 
-// ---- Días de la tira ----
+// ---- Fechas ----
 
-export const DIAS_DE_LA_TIRA = 7
-
-export interface DiaDeLaTira {
-  // YYYY-MM-DD
-  fecha: string
-  // Lo que dice el botón: "Hoy", "Mañana" o el día ("vie 13").
-  etiqueta: string
-  // Para el lector de pantalla: "viernes 13 de noviembre".
-  nombreCompleto: string
-}
-
-const DIAS_CORTOS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
-const DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+// Se puede mirar hoy y los días que siguen, hasta completar esta cantidad (hoy + 6).
+export const DIAS_PERMITIDOS = 7
 
 const FORMATO_FECHA = /^(\d{4})-(\d{2})-(\d{2})$/
 
@@ -42,35 +29,20 @@ export function sumarDias(fecha: string, dias: number): string {
   return new Date(Date.UTC(partes.anio, partes.mes - 1, partes.dia + dias)).toISOString().slice(0, 10)
 }
 
-function etiquetaDe(fecha: string, indice: number): string {
-  if (indice === 0) return 'Hoy'
-  if (indice === 1) return 'Mañana'
-  const partes = partesDe(fecha)!
-  return `${DIAS_CORTOS[new Date(Date.UTC(partes.anio, partes.mes - 1, partes.dia)).getUTCDay()]} ${partes.dia}`
-}
+// El último día que se puede mirar.
+export const ultimaFecha = (hoy: string, cantidad = DIAS_PERMITIDOS): string => sumarDias(hoy, cantidad - 1)
 
-function nombreCompletoDe(fecha: string): string {
-  const partes = partesDe(fecha)!
-  const diaDeLaSemana = DIAS_LARGOS[new Date(Date.UTC(partes.anio, partes.mes - 1, partes.dia)).getUTCDay()]
-  return `${diaDeLaSemana} ${partes.dia} de ${MESES[partes.mes - 1]}`
-}
-
-// Hoy y los días que siguen, hasta completar `cantidad`.
-export function diasDeLaTira(hoy: string, cantidad = DIAS_DE_LA_TIRA): DiaDeLaTira[] {
-  return Array.from({ length: cantidad }, (_, indice) => {
-    const fecha = sumarDias(hoy, indice)
-    return { fecha, etiqueta: etiquetaDe(fecha, indice), nombreCompleto: nombreCompletoDe(fecha) }
-  })
-}
+// Una fecha real entre hoy y el último día permitido (inclusive).
+export const fechaPermitida = (fecha: string, hoy: string, cantidad = DIAS_PERMITIDOS): boolean =>
+  esFechaValida(fecha) && fecha >= hoy && fecha <= ultimaFecha(hoy, cantidad)
 
 // ---- La fecha en la dirección (?fecha=) ----
 
-// La fecha que dice la dirección, solo si es una de las de la tira; si falta, es inválida, ya pasó o queda fuera de la tira,
+// La fecha que dice la dirección, solo si está en el rango permitido; si falta, es inválida, ya pasó o queda fuera del rango,
 // vale hoy (nunca rompe).
-export function fechaDeTurnosDe(query: ConsultaCruda, hoy: string, cantidad = DIAS_DE_LA_TIRA): string {
+export function fechaDeTurnosDe(query: ConsultaCruda, hoy: string, cantidad = DIAS_PERMITIDOS): string {
   const fecha = textoDe(query, 'fecha')
-  if (fecha === null || !esFechaValida(fecha)) return hoy
-  return fecha >= hoy && fecha <= sumarDias(hoy, cantidad - 1) ? fecha : hoy
+  return fecha !== null && fechaPermitida(fecha, hoy, cantidad) ? fecha : hoy
 }
 
 // Lo que se escribe en la dirección: hoy es el valor por defecto y no se escribe.
@@ -85,58 +57,25 @@ export function sinFecha<T extends ConsultaCruda>(query: T): Partial<T> {
   return resto
 }
 
-// ---- Franjas del día ----
+// ---- Estado de cada turno ----
 
-export type Franja = 'manana' | 'tarde' | 'noche'
+export type EstadoTurno = 'pasado' | 'libre' | 'ocupado'
 
-export const ETIQUETA_FRANJA: Record<Franja, string> = { manana: 'Mañana', tarde: 'Tarde', noche: 'Noche' }
-
-const ORDEN_FRANJAS: Franja[] = ['manana', 'tarde', 'noche']
-
-// Mañana hasta las 12, tarde hasta las 19 y noche desde las 19, según la hora de la sede.
-export function franjaDe(inicioIso: string): Franja {
-  const hora = Number(formatearHora(inicioIso).slice(0, 2))
-  if (hora < 12) return 'manana'
-  return hora < 19 ? 'tarde' : 'noche'
-}
-
-export interface TurnoConEstado {
+export interface TurnoClasificado {
   turno: Disponibilidad
   estado: EstadoTurno
 }
 
-export interface GrupoDeTurnos {
-  franja: Franja
-  etiqueta: string
-  turnos: TurnoConEstado[]
-}
-
-// Los turnos agrupados por franja y ordenados por hora; las franjas sin turnos no aparecen.
-export function agruparPorFranja(
-  turnos: readonly Disponibilidad[],
-  estadoDe: (turno: Disponibilidad) => EstadoTurno,
-): GrupoDeTurnos[] {
-  const ordenados = [...turnos].sort((a, b) => new Date(a.fechaHoraInicio).getTime() - new Date(b.fechaHoraInicio).getTime())
-  return ORDEN_FRANJAS.map((franja) => ({
-    franja,
-    etiqueta: ETIQUETA_FRANJA[franja],
-    turnos: ordenados.filter((turno) => franjaDe(turno.fechaHoraInicio) === franja).map((turno) => ({ turno, estado: estadoDe(turno) })),
-  })).filter((grupo) => grupo.turnos.length > 0)
-}
-
-// ---- Estado de cada turno, siempre con texto ----
-
-export const ETIQUETA_ESTADO_TURNO: Record<EstadoTurno, string> = {
-  libre: 'Libre',
-  ocupado: 'Ocupado',
-  mantenimiento: 'En mantenimiento',
-  pasado: 'Ya pasó',
-}
-
-// ---- Resumen del día ----
-
-export function resumenDeTurnos(turnos: readonly { estado: EstadoTurno }[]): string {
-  const libres = turnos.filter((turno) => turno.estado === 'libre').length
-  const ocupados = turnos.filter((turno) => turno.estado === 'ocupado').length
-  return `${libres} ${libres === 1 ? 'libre' : 'libres'} · ${ocupados} ${ocupados === 1 ? 'ocupado' : 'ocupados'}`
+// Todos los turnos del día, por hora de inicio, cada uno pasado, libre u ocupado. Un turno que ya empezó (o pasó) es "pasado"
+// aunque el servidor lo marque libre u ocupado: el pasado tiene prioridad, porque no se puede reservar y el servidor lo
+// rechaza. Se compara el instante de inicio con `ahora`; como cada horario trae su offset (-03:00 de la sede), el corte es el
+// de la hora de la sede aunque el navegador esté en otra zona.
+export function clasificarTurnos(turnos: readonly Disponibilidad[], ahora: Date): TurnoClasificado[] {
+  const instante = ahora.getTime()
+  return [...turnos]
+    .sort((a, b) => new Date(a.fechaHoraInicio).getTime() - new Date(b.fechaHoraInicio).getTime())
+    .map((turno) => ({
+      turno,
+      estado: new Date(turno.fechaHoraInicio).getTime() <= instante ? 'pasado' : turno.disponible ? 'libre' : 'ocupado',
+    }))
 }

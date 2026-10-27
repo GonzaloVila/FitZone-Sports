@@ -105,23 +105,3 @@ export const ETIQUETA_SITUACION: Record<SituacionReserva, string> = {
   cumplida: 'Cumplida',
   cancelada: 'Cancelada',
 }
-
-export type EstadoTurno = 'libre' | 'ocupado' | 'mantenimiento' | 'pasado'
-
-export function estadoDeTurno(
-  turno: { fechaHoraInicio: string; fechaHoraFin: string; disponible: boolean },
-  mantenimiento: boolean,
-  reservas: Array<{ fechaHoraInicio: string; fechaHoraFin: string }>,
-  ahora: Date = new Date(),
-): EstadoTurno {
-  const inicio = new Date(turno.fechaHoraInicio).getTime()
-  const fin = new Date(turno.fechaHoraFin).getTime()
-  if (inicio <= ahora.getTime()) return 'pasado'
-  if (!mantenimiento) return turno.disponible ? 'libre' : 'ocupado'
-  const ocupado = reservas.some((reserva) => {
-    const reservaInicio = new Date(reserva.fechaHoraInicio).getTime()
-    const reservaFin = new Date(reserva.fechaHoraFin).getTime()
-    return reservaInicio < fin && reservaFin > inicio
-  })
-  return ocupado ? 'ocupado' : 'mantenimiento'
-}

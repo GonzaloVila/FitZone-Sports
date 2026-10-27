@@ -73,6 +73,25 @@ describe('useReservarTurno', () => {
     detener()
   })
 
+  it('un 422 crudo del servidor se muestra como texto humano y no recarga la grilla', async () => {
+    mocks.crearReserva.mockRejectedValue(
+      new ErrorApi(422, 'Turno pasado', {
+        type: 'about:blank',
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: 'Turno pasado',
+      }),
+    )
+    const { reservar, error, recargar, detener } = armar()
+
+    const ok = await reservar(3, TURNO)
+
+    expect(ok).toBe(false)
+    expect(error.value).toBe('No se pudo reservar ese turno. Probá con otro horario.')
+    expect(recargar).not.toHaveBeenCalled()
+    detener()
+  })
+
   it('no llama al servicio sin usuarioId en la sesión', async () => {
     mocks.usuarioId.value = null
     const { reservar, error, detener } = armar()

@@ -42,7 +42,7 @@ function descargarComprobante() {
       <ResultadoPago v-if="pago" :pago="pago" :descargando="descargando" @comprobante="descargarComprobante" />
       <template v-else>
         <FormularioPago v-model="medio" :enviando="enviando" :error="error" @pagar="pagar" />
-        <RouterLink :to="{ name: 'mis-reservas' }" class="pagar__volver">Volver a mis reservas</RouterLink>
+        <RouterLink :to="{ name: 'canchas', query: { vista: 'mis-reservas' } }" class="pagar__volver">Volver a mis reservas</RouterLink>
       </template>
 
       <AvisoFz v-if="errorDescarga" variante="peligro">{{ errorDescarga }}</AvisoFz>

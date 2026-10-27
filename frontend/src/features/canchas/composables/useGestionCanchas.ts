@@ -1,36 +1,33 @@
-import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
-import { useSedes } from '@/features/sedes/composables/useSedes'
-import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
-import { TIPOS_CANCHA } from '../presentacion'
-import type { Cancha, CanchaPatch, TipoCancha } from '../services/servicioCanchas'
+import { mensajeCancha } from '../errores'
+import type { Cancha, CanchaPatch } from '../services/servicioCanchas'
 
-export function useGestionCanchas() {
+const POR_PAGINA = 100
+
+// Canchas de una sede para el GERENTE: costo por hora y mantenimiento. El alta va aparte (useAltaCancha, en un modal).
+// `sedeId` es la sede que se está mirando (la activa); null = todavía ninguna.
+export function useGestionCanchas(sedeId: MaybeRefOrGetter<number | null>) {
   const servicio = useServicios().canchas
-  const { sedeId: sedeSesion } = useUsuarioSesion()
-  const { sedes, cargando: cargandoSedes, error: errorSedes } = useSedes()
 
-  const sede = ref(sedeSesion.value !== null ? String(sedeSesion.value) : '')
   const items = ref<Cancha[]>([])
   const cargando = ref(false)
   const error = ref<string | null>(null)
 
   const guardando = ref(false)
-  const errorFormulario = ref<string | null>(null)
+  const errorAccion = ref<string | null>(null)
   const exito = ref<string | null>(null)
 
-  const nuevo = reactive({ tipo: 'PADDLE', costoPorHora: '' })
+  const sedeElegida = computed(() => toValue(sedeId))
 
-  const sedeElegida = computed<number | null>(() => {
-    const id = Number(sede.value)
-    return Number.isInteger(id) && id > 0 ? id : null
-  })
-
+  // Descarte de respuestas viejas: cada consulta tiene un número y su propio AbortController.
   let ultimaConsulta = 0
   let controlador: AbortController | undefined
 
   async function cargar() {
+    const numero = ++ultimaConsulta
+    controlador?.abort()
     const idSede = sedeElegida.value
     if (idSede === null) {
       items.value = []
@@ -39,78 +36,44 @@ export function useGestionCanchas() {
       return
     }
 
-    const consulta = ++ultimaConsulta
-    controlador?.abort()
     controlador = new AbortController()
     cargando.value = true
     error.value = null
     try {
-      const lista = await servicio.listar(idSede, {}, 1, 100, controlador.signal)
-      if (consulta !== ultimaConsulta) return
+      const lista = await servicio.listar(idSede, {}, 1, POR_PAGINA, controlador.signal)
+      if (numero !== ultimaConsulta) return
       items.value = lista.items
     } catch (e) {
-      if (consulta !== ultimaConsulta) return
+      if (numero !== ultimaConsulta) return
       items.value = []
       error.value = mensajeDeError(e, 'No se pudieron cargar las canchas.')
     } finally {
-      if (consulta === ultimaConsulta) cargando.value = false
+      if (numero === ultimaConsulta) cargando.value = false
     }
   }
 
-  watch(sede, () => void cargar())
+  // Cambiar de sede deja atrás los mensajes de la anterior.
+  watch(sedeElegida, () => {
+    limpiarMensajes()
+    void cargar()
+  })
   onScopeDispose(() => {
     ultimaConsulta++
     controlador?.abort()
   })
   void cargar()
 
-  async function crear(): Promise<boolean> {
-    if (guardando.value) return false
-    const idSede = sedeElegida.value
-    if (idSede === null) {
-      errorFormulario.value = 'Elegí la sede de la cancha.'
-      return false
-    }
-    const tipo: TipoCancha | undefined = TIPOS_CANCHA.find((valor) => valor === nuevo.tipo)
-    if (!tipo) {
-      errorFormulario.value = 'Elegí el deporte de la cancha.'
-      return false
-    }
-    const costo = Number(nuevo.costoPorHora)
-    if (!Number.isFinite(costo) || costo < 0) {
-      errorFormulario.value = 'Ingresá un costo por hora válido.'
-      return false
-    }
-
-    guardando.value = true
-    errorFormulario.value = null
-    exito.value = null
-    try {
-      await servicio.crear(idSede, { tipo, costoPorHora: costo, estado: 'OPERATIVA' })
-      nuevo.costoPorHora = ''
-      exito.value = 'Cancha creada.'
-      await cargar()
-      return true
-    } catch (e) {
-      errorFormulario.value = mensajeDeError(e, 'No se pudo crear la cancha.')
-      return false
-    } finally {
-      guardando.value = false
-    }
-  }
-
-  async function modificar(canchaId: number, cambios: CanchaPatch): Promise<boolean> {
+  async function modificar(canchaId: number, cambios: CanchaPatch, textoExito: string): Promise<boolean> {
     if (guardando.value) return false
     guardando.value = true
-    errorFormulario.value = null
-    exito.value = null
+    limpiarMensajes()
     try {
       await servicio.modificar(canchaId, cambios)
-      exito.value = 'Cancha actualizada.'
+      exito.value = textoExito
       await cargar()
       return true
     } catch (e) {
-      errorFormulario.value = mensajeDeError(e, 'No se pudo actualizar la cancha.')
+      errorAccion.value = mensajeCancha(e, 'No se pudo actualizar la cancha.')
       return false
     } finally {
       guardando.value = false
@@ -118,39 +81,38 @@ export function useGestionCanchas() {
   }
 
   function alternarMantenimiento(cancha: Cancha): Promise<boolean> {
-    return modificar(cancha.id, {
-      estado: cancha.estado === 'OPERATIVA' ? 'EN_MANTENIMIENTO' : 'OPERATIVA',
-    })
+    const aMantenimiento = cancha.estado === 'OPERATIVA'
+    return modificar(
+      cancha.id,
+      { estado: aMantenimiento ? 'EN_MANTENIMIENTO' : 'OPERATIVA' },
+      aMantenimiento ? 'La cancha pasó a mantenimiento.' : 'La cancha volvió a estar operativa.',
+    )
   }
 
   function cambiarCosto(cancha: Cancha, costoPorHora: number): Promise<boolean> {
     if (!Number.isFinite(costoPorHora) || costoPorHora < 0) {
-      errorFormulario.value = 'Ingresá un costo por hora válido.'
+      limpiarMensajes()
+      errorAccion.value = 'Ingresá un costo por hora de cero o más.'
       return Promise.resolve(false)
     }
-    return modificar(cancha.id, { costoPorHora })
+    return modificar(cancha.id, { costoPorHora }, 'Costo por hora actualizado.')
   }
 
   function limpiarMensajes() {
-    errorFormulario.value = null
+    errorAccion.value = null
     exito.value = null
   }
 
   return {
-    sedes,
-    cargandoSedes,
-    errorSedes,
-    sede,
     items,
     cargando,
     error,
     guardando,
-    errorFormulario,
+    errorAccion,
     exito,
-    nuevo,
-    crear,
     alternarMantenimiento,
     cambiarCosto,
     limpiarMensajes,
+    recargar: cargar,
   }
 }

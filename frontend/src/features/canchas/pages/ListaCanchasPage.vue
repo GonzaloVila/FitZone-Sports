@@ -1,83 +1,128 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useSedeActiva } from '@/compartido/composables/useSedeActiva'
+import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
-import { AvisoFz, BotonFz, PaginacionFz, SelectFz } from '@/ui'
+import {
+  AvisoFz,
+  BotonFz,
+  EncabezadoPaginaFz,
+  IconoFz,
+  InsigniaFz,
+  PaginacionFz,
+  SelectorSegmentadoFz,
+  type OpcionSegmentadaFz,
+} from '@/ui'
+import FiltrosCanchas from '../components/FiltrosCanchas.vue'
 import ListaCanchas from '../components/ListaCanchas.vue'
-import { useCanchas } from '../composables/useCanchas'
-import { ESTADOS_CANCHA, ETIQUETA_ESTADO_CANCHA } from '../presentacion'
+import VistaMisReservas from '../components/VistaMisReservas.vue'
+import { POR_PAGINA_CANCHAS, useCanchas } from '../composables/useCanchas'
+import { useVistaCanchas } from '../composables/useVistaCanchas'
+import { puedeReservar } from '../reglas'
 
-const {
-  sedes,
-  cargandoSedes,
-  errorSedes,
-  sede,
-  estado,
-  pagina,
-  items,
-  total,
-  totalPaginas,
-  cargando,
-  error,
-} = useCanchas()
-const { rol } = useUsuarioSesion()
+const { rol, sedeId: sedeUsuario } = useUsuarioSesion()
+const { sedes, cargando: cargandoSedes, error: errorSedes } = useSedes()
+
+const reserva = computed(() => puedeReservar(rol.value))
+const esGerente = computed(() => rol.value === 'GERENTE')
+
+// "Mis reservas" es una vista más de esta pantalla, solo para quien reserva (SOCIO y EXTERNO); la vista activa vive en la
+// dirección.
+const { vista } = useVistaCanchas(reserva)
+const enCanchas = computed(() => vista.value === 'canchas')
+const opcionesVista: OpcionSegmentadaFz[] = [
+  { valor: 'canchas', etiqueta: 'Canchas' },
+  { valor: 'mis-reservas', etiqueta: 'Mis reservas' },
+]
+const subtitulo = computed(() => {
+  if (!enCanchas.value) return 'Tus reservas de cancha, con la opción de pagar o cancelar.'
+  return reserva.value
+    ? 'Elegí una sede y una cancha para ver sus turnos y reservar.'
+    : 'Consultá las canchas de cada sede y la disponibilidad de sus turnos.'
+})
+
+function cambiarVista(valor: string) {
+  vista.value = valor === 'mis-reservas' ? 'mis-reservas' : 'canchas'
+}
+
+// La sede activa se comparte con las otras pantallas de trabajo; el RECEPCION trabaja siempre en la suya. La lista arranca
+// ahí, y elegir otra sede en el filtro no cambia la sede activa.
+const sedeActiva = useSedeActiva(sedes, () => (esGerente.value ? null : sedeUsuario.value))
+const { filtros, pagina, items, total, totalPaginas, cargando, error, parametrosDetalle, recargar } = useCanchas(sedeActiva)
+
+// La lista no se actualiza mientras se mira "Mis reservas": al volver se trae de nuevo.
+watch(enCanchas, (visible) => {
+  if (visible) void recargar()
+})
 
 const hayFilas = computed(() => items.value.length > 0)
+const cargandoSinFilas = computed(() => cargando.value && !hayFilas.value)
+const vacio = computed(() => !cargando.value && !hayFilas.value && !error.value)
+
+const rangoInicio = computed(() => (total.value === 0 ? 0 : (pagina.value - 1) * POR_PAGINA_CANCHAS + 1))
+const rangoFin = computed(() => Math.min(total.value, pagina.value * POR_PAGINA_CANCHAS))
+
+// La región del pie siempre está en el DOM (los lectores de pantalla solo anuncian cambios de una región existente);
+// mientras no hay un resultado que informar, queda vacía.
+const textoRango = computed(() => {
+  if (cargandoSinFilas.value || error.value || !filtros.sede) return ''
+  if (total.value === 0) return '0 canchas'
+  return `Mostrando ${rangoInicio.value} a ${rangoFin.value} de ${total.value} ${total.value === 1 ? 'cancha' : 'canchas'}`
+})
 </script>
 
 <template>
   <section class="canchas">
-    <header class="canchas__encabezado">
-      <div class="canchas__titulos">
-        <h1 class="canchas__titulo">Canchas</h1>
-        <p class="canchas__subtitulo">Elegí una sede para ver sus canchas y reservar un turno.</p>
-      </div>
-      <RouterLink v-if="rol === 'GERENTE'" :to="{ name: 'canchas-gestion' }">
-        <BotonFz variante="secundario">Gestionar canchas</BotonFz>
-      </RouterLink>
-    </header>
+    <EncabezadoPaginaFz titulo="Canchas" :subtitulo="subtitulo">
+      <template v-if="enCanchas && filtros.sede" #insignia>
+        <InsigniaFz>{{ total }} {{ total === 1 ? 'cancha' : 'canchas' }}</InsigniaFz>
+      </template>
+      <template v-if="esGerente && enCanchas" #acciones>
+        <RouterLink v-slot="{ href, navigate }" :to="{ name: 'canchas-gestion' }" custom>
+          <BotonFz como="a" variante="secundario" :href="href" @click="navigate">
+            <IconoFz nombre="editar" tamano="sm" />
+            Gestionar canchas
+          </BotonFz>
+        </RouterLink>
+      </template>
+    </EncabezadoPaginaFz>
 
-    <div class="canchas__filtros">
-      <label class="canchas__campo">
-        <span class="canchas__etiqueta">Sede</span>
-        <SelectFz v-model="sede" :disabled="cargandoSedes">
-          <option value="">Elegí una sede</option>
-          <option v-for="opcion in sedes" :key="opcion.id" :value="String(opcion.id)">
-            {{ opcion.nombre }}
-          </option>
-        </SelectFz>
-      </label>
-      <label class="canchas__campo">
-        <span class="canchas__etiqueta">Estado</span>
-        <SelectFz v-model="estado">
-          <option value="">Todas</option>
-          <option v-for="valor in ESTADOS_CANCHA" :key="valor" :value="valor">
-            {{ ETIQUETA_ESTADO_CANCHA[valor] }}
-          </option>
-        </SelectFz>
-      </label>
-    </div>
-
-    <AvisoFz v-if="errorSedes" variante="advertencia">{{ errorSedes }}</AvisoFz>
-    <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
-
-    <ListaCanchas v-if="hayFilas" :canchas="items" :ocupada="cargando" />
-
-    <div v-else-if="!cargando && sede" class="canchas__vacio">
-      <h2 class="canchas__vacio-titulo">No hay canchas</h2>
-      <p class="canchas__vacio-texto">La sede elegida no tiene canchas con ese estado.</p>
-    </div>
-    <p v-else-if="!sede" class="canchas__ayuda">Elegí una sede para empezar.</p>
-
-    <footer v-if="hayFilas" class="canchas__pie">
-      <span class="canchas__rango">{{ total }} {{ total === 1 ? 'cancha' : 'canchas' }}</span>
-      <PaginacionFz
-        v-if="totalPaginas > 1"
-        v-model="pagina"
-        :total-paginas="totalPaginas"
-        etiqueta="Paginación de canchas"
+    <div v-if="reserva" class="canchas__vistas">
+      <SelectorSegmentadoFz
+        :model-value="vista"
+        nombre="vista-canchas"
+        leyenda="Vista de canchas"
+        :opciones="opcionesVista"
+        @update:model-value="cambiarVista"
       />
-    </footer>
+    </div>
+
+    <VistaMisReservas v-if="!enCanchas" />
+
+    <template v-else>
+      <FiltrosCanchas v-model:sede="filtros.sede" v-model:estado="filtros.estado" :sedes="sedes" :cargando-sedes="cargandoSedes" />
+
+      <AvisoFz v-if="errorSedes" variante="advertencia">{{ errorSedes }}</AvisoFz>
+      <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
+
+      <ListaCanchas v-if="hayFilas" :canchas="items" :parametros-detalle="parametrosDetalle" :ocupada="cargando" />
+
+      <p v-else-if="cargandoSinFilas" class="canchas__estado" role="status">Cargando canchas…</p>
+
+      <p v-else-if="vacio" class="canchas__estado canchas__vacio" role="status">
+        {{
+          filtros.sede
+            ? 'No se encontraron canchas con los filtros elegidos. Probá con otra sede o con otro estado.'
+            : 'Elegí una sede para ver sus canchas.'
+        }}
+      </p>
+
+      <footer class="canchas__pie">
+        <p class="canchas__rango" role="status" aria-live="polite" aria-atomic="true">{{ textoRango }}</p>
+        <PaginacionFz v-if="totalPaginas > 1" v-model="pagina" :total-paginas="totalPaginas" etiqueta="Paginación de canchas" />
+      </footer>
+    </template>
   </section>
 </template>
 
@@ -85,73 +130,24 @@ const hayFilas = computed(() => items.value.length > 0)
 .canchas {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  max-width: 64rem;
-  margin: 0 auto;
+  gap: var(--fz-espaciado-base);
   width: 100%;
 }
 
-.canchas__encabezado {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+/* El selector mide lo que sus dos opciones; en ancho chico ocupa todo el ancho disponible. */
+.canchas__vistas {
+  width: calc(10 * var(--fz-espaciado-amplio));
+  max-width: 100%;
 }
 
-.canchas__titulo {
+.canchas__estado {
   margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--fz-color-texto);
-}
-
-.canchas__subtitulo {
-  margin: 0;
-  font-size: 0.875rem;
   color: var(--fz-color-texto-suave);
-}
-
-.canchas__filtros {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: var(--fz-espaciado-base);
-}
-
-.canchas__campo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.canchas__etiqueta {
   font-size: var(--fz-texto-pequeno);
-  font-weight: 600;
-  color: var(--fz-color-texto);
-}
-
-.canchas__ayuda,
-.canchas__vacio-texto {
-  margin: 0;
-  color: var(--fz-color-texto-suave);
 }
 
 .canchas__vacio {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 3rem 1.5rem;
-  text-align: center;
-  border: 1px dashed var(--fz-color-borde);
-  border-radius: var(--fz-radio-tarjeta);
-  background: var(--fz-color-superficie);
-}
-
-.canchas__vacio-titulo {
-  margin: 0;
-  font-size: 1.125rem;
-  color: var(--fz-color-texto);
+  padding: var(--fz-espaciado-amplio) 0;
 }
 
 .canchas__pie {
@@ -159,13 +155,12 @@ const hayFilas = computed(() => items.value.length > 0)
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--fz-color-borde);
+  gap: var(--fz-espaciado-base);
 }
 
 .canchas__rango {
-  font-size: 0.875rem;
+  margin: 0;
   color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-pequeno);
 }
 </style>

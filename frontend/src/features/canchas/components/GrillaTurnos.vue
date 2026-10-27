@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { BotonFz, InsigniaFz, TablaFz, type ColumnaTabla } from '@/ui'
 import { estadoDeTurno, rangoDeTurno, type EstadoTurno } from '../presentacion'
 import type { Disponibilidad, ReservaCancha } from '../services/servicioCanchas'
 
@@ -7,84 +9,59 @@ const props = defineProps<{
   mantenimiento: boolean
   reservas: ReservaCancha[]
   ahora: Date
+  // Quien reserva ve el botón "Reservar" en los turnos libres; el personal solo consulta.
+  puedeReservar: boolean
+  ocupada?: boolean
 }>()
+
 const emit = defineEmits<{ elegir: [turno: Disponibilidad] }>()
 
-const TEXTO: Record<EstadoTurno, string> = {
-  libre: 'libre',
-  ocupado: 'ocupado',
-  mantenimiento: 'no disponible por mantenimiento',
-  pasado: 'ya pasó',
+// Cada turno dice su estado con una palabra (no solo con el color de la insignia).
+const ETIQUETA: Record<EstadoTurno, string> = {
+  libre: 'Libre',
+  ocupado: 'Ocupado',
+  mantenimiento: 'En mantenimiento',
+  pasado: 'Ya pasó',
 }
 
-function estado(turno: Disponibilidad): EstadoTurno {
-  return estadoDeTurno(turno, props.mantenimiento, props.reservas, props.ahora)
+const VARIANTE: Record<EstadoTurno, 'exito' | 'peligro' | 'advertencia' | 'neutra'> = {
+  libre: 'exito',
+  ocupado: 'peligro',
+  mantenimiento: 'advertencia',
+  pasado: 'neutra',
 }
+
+const columnas = computed<ColumnaTabla[]>(() => [
+  { clave: 'horario', etiqueta: 'Horario', encabezadoFila: true },
+  { clave: 'estado', etiqueta: 'Estado' },
+  ...(props.puedeReservar ? [{ clave: 'acciones', etiqueta: 'Reserva', ajustada: true, alineacion: 'fin' as const }] : []),
+])
+
+const claveFila = (fila: Disponibilidad) => fila.fechaHoraInicio
+const rango = (turno: Disponibilidad) => rangoDeTurno(turno.fechaHoraInicio, turno.fechaHoraFin)
+const estado = (turno: Disponibilidad) => estadoDeTurno(turno, props.mantenimiento, props.reservas, props.ahora)
 </script>
 
 <template>
-  <ul class="grilla">
-    <li v-for="turno in turnos" :key="turno.fechaHoraInicio">
-      <button
-        type="button"
-        :class="['grilla__turno', { 'grilla__turno--bloqueado': estado(turno) !== 'libre' }]"
-        :disabled="estado(turno) !== 'libre'"
-        @click="emit('elegir', turno)"
-      >
-        <span class="grilla__rango">{{ rangoDeTurno(turno.fechaHoraInicio, turno.fechaHoraFin) }}</span>
-        <span class="grilla__estado">{{ TEXTO[estado(turno)] }}</span>
-      </button>
-    </li>
-  </ul>
+  <TablaFz titulo="Turnos del día" ocultar-titulo :columnas="columnas" :filas="turnos" :clave-fila="claveFila" :ocupada="ocupada">
+    <template #celda-horario="{ fila }">
+      <span :class="{ 'grilla__horario--apagado': estado(fila) !== 'libre' }">{{ rango(fila) }}</span>
+    </template>
+    <template #celda-estado="{ fila }">
+      <InsigniaFz :variante="VARIANTE[estado(fila)]">{{ ETIQUETA[estado(fila)] }}</InsigniaFz>
+    </template>
+    <template #celda-acciones="{ fila }">
+      <BotonFz v-if="estado(fila) === 'libre'" tamano="sm" :aria-label="`Reservar el turno de ${rango(fila)}`" @click="emit('elegir', fila)">
+        Reservar
+      </BotonFz>
+      <span v-else class="grilla__sin-accion">—</span>
+    </template>
+  </TablaFz>
 </template>
 
 <style scoped>
-.grilla {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: var(--fz-espaciado-compacto);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.grilla__turno {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  width: 100%;
-  padding: var(--fz-espaciado-compacto);
-  border: 1px solid var(--fz-color-borde);
-  border-radius: var(--fz-radio-control);
-  background: var(--fz-color-superficie);
-  color: var(--fz-color-texto);
-  font-family: inherit;
-  font-size: var(--fz-texto-cuerpo);
-  text-align: left;
-  cursor: pointer;
-}
-
-.grilla__turno:hover:not(:disabled) {
-  background: var(--fz-color-hover);
-}
-
-.grilla__turno:focus-visible {
-  outline: 2px solid var(--fz-color-foco);
-  outline-offset: 2px;
-}
-
-.grilla__turno--bloqueado {
+.grilla__horario--apagado,
+.grilla__sin-accion {
   color: var(--fz-color-texto-suave);
-  cursor: not-allowed;
-  opacity: 0.75;
-}
-
-.grilla__rango {
-  font-weight: 600;
-}
-
-.grilla__estado {
-  font-size: var(--fz-texto-pequeno);
-  text-transform: lowercase;
 }
 </style>

@@ -1,145 +1,80 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
-import {
-  AvisoFz,
-  BotonFz,
-  CampoTextoFz,
-  InsigniaFz,
-  SelectFz,
-  TablaFz,
-  type ColumnaTabla,
-} from '@/ui'
-import FormularioCancha from '../components/FormularioCancha.vue'
+import { computed, ref } from 'vue'
+import { useSedeActiva } from '@/compartido/composables/useSedeActiva'
+import { useSedes } from '@/features/sedes/composables/useSedes'
+import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz, SelectFz } from '@/ui'
+import ModalNuevaCancha from '../components/modales/ModalNuevaCancha.vue'
+import TablaGestionCanchas from '../components/TablaGestionCanchas.vue'
 import { useGestionCanchas } from '../composables/useGestionCanchas'
-import { ETIQUETA_ESTADO_CANCHA, ETIQUETA_TIPO_CANCHA, formatearMonto } from '../presentacion'
 import type { Cancha } from '../services/servicioCanchas'
 
-const {
-  sedes,
-  cargandoSedes,
-  errorSedes,
-  sede,
-  items,
-  cargando,
-  error,
-  guardando,
-  errorFormulario,
-  exito,
-  nuevo,
-  crear,
-  alternarMantenimiento,
-  cambiarCosto,
-} = useGestionCanchas()
+const { sedes, cargando: cargandoSedes, error: errorSedes } = useSedes()
 
-const COLUMNAS: ColumnaTabla[] = [
-  { clave: 'tipo', etiqueta: 'Deporte' },
-  { clave: 'estado', etiqueta: 'Estado' },
-  { clave: 'costo', etiqueta: 'Costo por hora' },
-  { clave: 'acciones', etiqueta: 'Acciones' },
-]
-
-const costos = reactive<Record<number, string>>({})
-
-watch(
-  items,
-  (lista) => {
-    const ids = new Set(lista.map((cancha) => cancha.id))
-    for (const clave of Object.keys(costos)) {
-      if (!ids.has(Number(clave))) delete costos[Number(clave)]
-    }
-    for (const cancha of lista) {
-      if (costos[cancha.id] === undefined) costos[cancha.id] = String(cancha.costoPorHora)
-    }
+// La sede que se gestiona es la sede activa, compartida con las otras pantallas de trabajo (solo el GERENTE llega acá).
+const sedeActiva = useSedeActiva(sedes)
+const sede = computed({
+  get: () => (sedeActiva.value === null ? '' : String(sedeActiva.value)),
+  set: (valor: string) => {
+    sedeActiva.value = valor ? Number(valor) : null
   },
-  { immediate: true },
-)
+})
 
-function cambioDeCosto(cancha: Cancha): boolean {
-  return Number(costos[cancha.id]) !== cancha.costoPorHora
-}
+const { items, cargando, error, guardando, errorAccion, exito, alternarMantenimiento, cambiarCosto, recargar } =
+  useGestionCanchas(sedeActiva)
 
-function guardarCosto(cancha: Cancha) {
-  void cambiarCosto(cancha, Number(costos[cancha.id]))
+const altaAbierta = ref(false)
+
+// Una cancha nueva en otra sede lleva a mirar esa sede (el cambio de sede ya vuelve a consultar); en la misma, se recarga.
+function alCrear(cancha: Cancha) {
+  if (sedeActiva.value === cancha.sedeId) void recargar()
+  else sedeActiva.value = cancha.sedeId
 }
 </script>
 
 <template>
   <section class="gestion">
-    <header class="gestion__encabezado">
-      <h1 class="gestion__titulo">Gestión de canchas</h1>
-      <p class="gestion__subtitulo">Alta, costo por hora y mantenimiento de las canchas de una sede.</p>
-    </header>
+    <EncabezadoPaginaFz
+      titulo="Gestión de canchas"
+      subtitulo="Costo por hora y mantenimiento de las canchas de una sede."
+      :volver="{ texto: 'Volver a canchas', a: { name: 'canchas' } }"
+    >
+      <template #acciones>
+        <BotonFz @click="altaAbierta = true">
+          <IconoFz nombre="mas" tamano="sm" />
+          Nueva cancha
+        </BotonFz>
+      </template>
+    </EncabezadoPaginaFz>
 
-    <label class="gestion__campo">
-      <span class="gestion__etiqueta">Sede</span>
-      <SelectFz v-model="sede" :disabled="cargandoSedes">
-        <option value="">Elegí una sede</option>
-        <option v-for="opcion in sedes" :key="opcion.id" :value="String(opcion.id)">
-          {{ opcion.nombre }}
-        </option>
-      </SelectFz>
-    </label>
+    <div class="filtros" role="group" aria-label="Sede de las canchas">
+      <div class="filtros__select">
+        <SelectFz v-model="sede" name="sede" aria-label="Sede" :disabled="cargandoSedes">
+          <option value="" disabled>{{ cargandoSedes ? 'Cargando sedes…' : 'Elegí una sede' }}</option>
+          <option v-for="opcion in sedes" :key="opcion.id" :value="String(opcion.id)">{{ opcion.nombre }}</option>
+        </SelectFz>
+      </div>
+    </div>
 
     <AvisoFz v-if="errorSedes" variante="advertencia">{{ errorSedes }}</AvisoFz>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
+    <AvisoFz v-if="errorAccion" variante="peligro">{{ errorAccion }}</AvisoFz>
     <AvisoFz v-if="exito" variante="exito">{{ exito }}</AvisoFz>
 
-    <FormularioCancha
-      v-if="sede"
-      v-model:tipo="nuevo.tipo"
-      v-model:costo-por-hora="nuevo.costoPorHora"
+    <TablaGestionCanchas
+      v-if="items.length > 0"
+      :canchas="items"
       :guardando="guardando"
-      :error="errorFormulario"
-      @crear="crear"
+      @mantenimiento="alternarMantenimiento"
+      @costo="cambiarCosto"
     />
 
-    <p v-if="cargando" class="gestion__estado" role="status">Cargando canchas…</p>
+    <p v-else-if="cargando" class="gestion__estado" role="status">Cargando canchas…</p>
 
-    <TablaFz
-      v-else-if="items.length > 0"
-      titulo="Canchas de la sede"
-      :columnas="COLUMNAS"
-      :filas="items"
-      :clave-fila="(cancha) => cancha.id"
-      :ocupada="guardando"
-      ocultar-titulo
-    >
-      <template #celda-tipo="{ fila }">
-        {{ ETIQUETA_TIPO_CANCHA[fila.tipo] }} <span class="gestion__id">#{{ fila.id }}</span>
-      </template>
-      <template #celda-estado="{ fila }">
-        <InsigniaFz :variante="fila.estado === 'OPERATIVA' ? 'exito' : 'advertencia'">
-          {{ ETIQUETA_ESTADO_CANCHA[fila.estado] }}
-        </InsigniaFz>
-      </template>
-      <template #celda-costo="{ fila }">
-        <div class="gestion__costo">
-          <CampoTextoFz v-model="costos[fila.id]" tipo="number" min="0" step="0.01" tamano="sm" />
-          <BotonFz
-            v-if="cambioDeCosto(fila)"
-            tamano="sm"
-            :disabled="guardando"
-            @click="guardarCosto(fila)"
-          >
-            Guardar
-          </BotonFz>
-          <span v-else class="gestion__costo-actual">{{ formatearMonto(fila.costoPorHora) }}</span>
-        </div>
-      </template>
-      <template #celda-acciones="{ fila }">
-        <BotonFz
-          tamano="sm"
-          :variante="fila.estado === 'OPERATIVA' ? 'secundario' : 'primario'"
-          :disabled="guardando"
-          @click="alternarMantenimiento(fila)"
-        >
-          {{ fila.estado === 'OPERATIVA' ? 'Pasar a mantenimiento' : 'Liberar mantenimiento' }}
-        </BotonFz>
-      </template>
-    </TablaFz>
+    <p v-else-if="!error" class="gestion__estado gestion__vacio" role="status">
+      {{ sede ? 'La sede elegida todavía no tiene canchas.' : 'Elegí una sede para gestionar sus canchas.' }}
+    </p>
 
-    <p v-else-if="sede" class="gestion__vacio">La sede elegida todavía no tiene canchas.</p>
-    <p v-else class="gestion__vacio">Elegí una sede para gestionar sus canchas.</p>
+    <ModalNuevaCancha v-model:abierto="altaAbierta" :sedes="sedes" :sede-inicial="sedeActiva" @creada="alCrear" />
   </section>
 </template>
 
@@ -147,65 +82,31 @@ function guardarCosto(cancha: Cancha) {
 .gestion {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  max-width: 64rem;
-  margin: 0 auto;
+  gap: var(--fz-espaciado-base);
   width: 100%;
 }
 
-.gestion__encabezado {
+.filtros {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.gestion__titulo {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--fz-color-texto);
-}
-
-.gestion__subtitulo {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--fz-color-texto-suave);
-}
-
-.gestion__campo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  max-width: 14rem;
-}
-
-.gestion__etiqueta {
-  font-size: var(--fz-texto-pequeno);
-  font-weight: 600;
-  color: var(--fz-color-texto);
-}
-
-.gestion__estado,
-.gestion__vacio {
-  margin: 0;
-  color: var(--fz-color-texto-suave);
-}
-
-.gestion__id {
-  color: var(--fz-color-texto-suave);
-  font-weight: 400;
-}
-
-.gestion__costo {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  min-width: 12rem;
+  gap: var(--fz-espaciado-compacto);
 }
 
-.gestion__costo-actual {
-  font-size: var(--fz-texto-pequeno);
+/* El select mide lo que su contenido. */
+.filtros__select {
+  flex: none;
+  width: max-content;
+  max-width: 100%;
+}
+
+.gestion__estado {
+  margin: 0;
   color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-pequeno);
+}
+
+.gestion__vacio {
+  padding: var(--fz-espaciado-amplio) 0;
 }
 </style>

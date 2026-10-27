@@ -24,12 +24,10 @@ export const rutasCanchas: RouteRecordRaw[] = [
     meta: { roles: ['SOCIO', 'RECEPCION', 'GERENTE', 'EXTERNO'] },
   },
   {
+    // "Mis reservas" es una vista de /canchas (solo para quien reserva): el enlace viejo sigue funcionando.
     path: '/mis-reservas',
     name: 'mis-reservas',
-    component: () => import('./pages/MisReservasPage.vue'),
-    meta: {
-      roles: ['SOCIO', 'RECEPCION', 'GERENTE', 'EXTERNO'],
-      navegacion: { etiqueta: 'Mis reservas', orden: 7, icono: 'canchas', seccion: 'actividades' },
-    },
+    redirect: { name: 'canchas', query: { vista: 'mis-reservas' } },
+    meta: { roles: ['SOCIO', 'EXTERNO'] },
   },
 ]

@@ -118,7 +118,14 @@ export function useMisReservas() {
 
   const sinUsuario = computed(() => usuarioId.value === null)
 
+  // Quien abre el modal de cancelación arranca sin el resultado de una acción anterior.
+  function limpiarMensajes() {
+    errorAccion.value = null
+    exitoAccion.value = null
+  }
+
   return {
+    limpiarMensajes,
     pestana,
     filas,
     cargando,

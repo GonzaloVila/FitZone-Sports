@@ -1,8 +1,9 @@
-import { ref, type Ref } from 'vue'
+import { ref, watch, type Ref } from 'vue'
 import { esErrorApi, mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
 import type { Ingreso } from '../services/servicioAcceso'
 import { TIPOS_ERROR_ACCESO } from '../tipos'
+import { validarIngreso, type ErroresIngreso } from '../validacionIngreso'
 
 export type TipoResultadoIngreso =
   | 'exito'
@@ -26,6 +27,8 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
   const codigoTotpInput = ref('')
   const procesando = ref(false)
   const resultado = ref<ResultadoIngresoInfo | null>(null)
+  // Errores de la validación de ayuda, por campo: se muestran junto al campo (sede, socio, código).
+  const errores = ref<ErroresIngreso>({})
 
   function limpiarFormulario() {
     codigoTotpInput.value = ''
@@ -33,29 +36,25 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
 
   function reiniciarResultado() {
     resultado.value = null
+    errores.value = {}
   }
 
+  // Escribir o elegir en un campo saca su error.
+  watch(sedeId, () => delete errores.value.sedeId)
+  watch(socioIdInput, () => delete errores.value.socioId)
+  watch(codigoTotpInput, () => delete errores.value.codigoTotp)
+
   async function registrar(opciones?: { alExito?: (ingreso: Ingreso) => void }) {
-    const idSede = sedeId.value
-    if (!idSede) {
-      resultado.value = {
-        tipo: 'error_general',
-        mensaje: 'Elegí una sede antes de registrar el ingreso.',
-      }
+    errores.value = validarIngreso({ sedeId: sedeId.value, socioId: socioIdInput.value, codigoTotp: codigoTotpInput.value })
+    if (Object.keys(errores.value).length > 0) {
+      resultado.value = null
       return
     }
+    const idSede = sedeId.value as number
+    const socio = Number(String(socioIdInput.value).trim())
 
-    const socio = Number(socioIdInput.value)
-    if (!socio || isNaN(socio)) {
-      resultado.value = {
-        tipo: 'error_validacion',
-        mensaje: 'Ingresá el número de socio.',
-      }
-      return
-    }
-
-    // Código TOTP: de 6 dígitos si se provee, o cadena vacía si no
-    const codigo = codigoTotpInput.value.trim()
+    // Código TOTP: los 6 dígitos del carnet
+    const codigo = String(codigoTotpInput.value).trim()
 
     // Regla de seguridad: limpiar el código del formulario de inmediato
     limpiarFormulario()
@@ -127,6 +126,7 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
     codigoTotpInput,
     procesando,
     resultado,
+    errores,
     registrar,
     reiniciarResultado,
     limpiarFormulario,

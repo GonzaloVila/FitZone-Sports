@@ -119,8 +119,6 @@ const tonoMensaje = computed(() => {
     <ModalRegistrarIngreso
       v-model:abierto="ingresoAbierto"
       :sedes="sedes"
-      :sede-inicial="sedeActiva"
-      :con-selector-sede="esGerente"
       :cargando-sedes="cargandoSedes"
       @registrado="refrescarTodo"
     />

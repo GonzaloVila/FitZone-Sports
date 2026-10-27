@@ -9,6 +9,7 @@ import { useListaPersonal } from '../composables/useListaPersonal'
 import { ETIQUETA_RECEPCION, ETIQUETA_RECEPCION_PLURAL } from '../presentacion'
 
 const {
+  sede,
   nombre,
   pagina,
   porPagina,
@@ -21,7 +22,7 @@ const {
   limpiarFiltros,
   recargar,
 } = useListaPersonal()
-const { sedes, error: errorSedes, nombreDeSede } = useSedes()
+const { sedes, cargando: cargandoSedes, error: errorSedes, nombreDeSede } = useSedes()
 
 const hayFilas = computed(() => items.value.length > 0)
 const cargandoSinFilas = computed(() => cargando.value && !hayFilas.value)
@@ -53,7 +54,14 @@ const altaAbierta = ref(false)
       </template>
     </EncabezadoPaginaFz>
 
-    <FiltrosPersonal v-model:nombre="nombre" :hay-filtros-activos="hayFiltrosActivos" @limpiar="limpiarFiltros" />
+    <FiltrosPersonal
+      v-model:sede="sede"
+      v-model:nombre="nombre"
+      :sedes="sedes"
+      :cargando-sedes="cargandoSedes"
+      :hay-filtros-activos="hayFiltrosActivos"
+      @limpiar="limpiarFiltros"
+    />
 
     <AvisoFz v-if="errorSedes" variante="advertencia">{{ errorSedes }}</AvisoFz>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
@@ -65,7 +73,7 @@ const altaAbierta = ref(false)
     <p v-else-if="vacio" class="personal__estado personal__vacio">
       {{
         hayFiltrosActivos
-          ? 'No se encontraron recepcionistas con ese nombre.'
+          ? 'No se encontraron recepcionistas con los filtros elegidos. Probá con otra sede o con otro nombre.'
           : 'Todavía no hay recepcionistas.'
       }}
     </p>

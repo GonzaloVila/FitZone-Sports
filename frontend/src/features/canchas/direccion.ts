@@ -1,20 +1,23 @@
 // El estado de la pantalla de Canchas que vive en la dirección: los filtros de la lista, su página y de dónde se llegó a la
 // grilla de turnos. Todo se valida al leerlo: un valor desconocido se ignora como si no estuviera (nunca rompe).
 import {
+  SEDE_TODAS,
   esEnteroPositivo,
   paginaDe,
   textoDe,
   type ConsultaCruda,
   type Parametros,
 } from '@/compartido/parametrosDeDireccion'
-import { ESTADOS_CANCHA } from './presentacion'
+import { ESTADOS_CANCHA, TIPOS_CANCHA } from './presentacion'
 
 // ---- Lista de canchas: filtros y página ----
 
 export interface ConsultaCanchas {
-  // null = el parámetro no está (la sede por defecto: la activa); si no, el id como texto. Las canchas se piden siempre de
-  // una sede, así que no hay "todas".
+  // null = el parámetro no está (la sede por defecto: todas, o la fija del RECEPCION); '' = todas las sedes elegidas a
+  // propósito; si no, el id como texto.
   sede: string | null
+  // Un TipoCancha (el deporte), o '' = todos los deportes.
+  tipo: string
   // Un EstadoCancha, o '' = sin filtro.
   estado: string
   pagina: number
@@ -22,18 +25,21 @@ export interface ConsultaCanchas {
 
 export function leerConsultaCanchas(query: ConsultaCruda): ConsultaCanchas {
   const sede = textoDe(query, 'sede')
+  const tipo = textoDe(query, 'tipo')
   const estado = textoDe(query, 'estado')
   return {
-    sede: sede !== null && esEnteroPositivo(sede) ? sede : null,
+    sede: sede === SEDE_TODAS ? '' : sede !== null && esEnteroPositivo(sede) ? sede : null,
+    tipo: TIPOS_CANCHA.find((valor) => valor === tipo) ?? '',
     estado: ESTADOS_CANCHA.find((valor) => valor === estado) ?? '',
     pagina: paginaDe(query),
   }
 }
 
-// Lo que se escribe en la dirección: solo lo que se aparta de "sede por defecto, todos los estados, página 1".
+// Lo que se escribe en la dirección: solo lo que se aparta de "sede por defecto, todos los deportes y estados, página 1".
 export function parametrosDeConsultaCanchas(consulta: ConsultaCanchas): Parametros {
   const parametros: Parametros = {}
-  if (consulta.sede !== null) parametros.sede = consulta.sede
+  if (consulta.sede !== null) parametros.sede = consulta.sede === '' ? SEDE_TODAS : consulta.sede
+  if (consulta.tipo) parametros.tipo = consulta.tipo
   if (consulta.estado) parametros.estado = consulta.estado
   if (consulta.pagina > 1) parametros.pagina = String(consulta.pagina)
   return parametros
@@ -43,6 +49,7 @@ export function parametrosDeConsultaCanchas(consulta: ConsultaCanchas): Parametr
 export function sinParametrosDeCanchas<T extends ConsultaCruda>(query: T): Partial<T> {
   const resto: Partial<T> = { ...query }
   delete resto.sede
+  delete resto.tipo
   delete resto.estado
   delete resto.pagina
   return resto

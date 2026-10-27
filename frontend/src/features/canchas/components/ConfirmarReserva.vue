@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { AvisoFz, BotonFz, ModalFz } from '@/ui'
-import { ETIQUETA_TIPO_CANCHA, formatearMonto, rangoDeTurno } from '../presentacion'
+import { ETIQUETA_TIPO_CANCHA, formatearDia, formatearMonto, rangoDeTurno } from '../presentacion'
 import type { Cancha, Disponibilidad } from '../services/servicioCanchas'
 
 defineProps<{
@@ -31,6 +31,10 @@ defineEmits<{
       <div class="confirmar__fila">
         <dt class="confirmar__etiqueta">Cancha</dt>
         <dd class="confirmar__valor">{{ ETIQUETA_TIPO_CANCHA[cancha.tipo] }} #{{ cancha.id }}</dd>
+      </div>
+      <div class="confirmar__fila">
+        <dt class="confirmar__etiqueta">Día</dt>
+        <dd class="confirmar__valor">{{ formatearDia(turno.fechaHoraInicio) }}</dd>
       </div>
       <div class="confirmar__fila">
         <dt class="confirmar__etiqueta">Turno</dt>

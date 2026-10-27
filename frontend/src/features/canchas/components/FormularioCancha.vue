@@ -48,6 +48,7 @@ defineEmits<{
           :aria-describedby="describedby"
           :disabled="guardando"
         >
+          <option value="" disabled>Elegí un deporte</option>
           <option v-for="valor in TIPOS_CANCHA" :key="valor" :value="valor">{{ ETIQUETA_TIPO_CANCHA[valor] }}</option>
         </SelectFz>
       </template>
@@ -63,7 +64,7 @@ defineEmits<{
       min="0"
       step="0.01"
       autocomplete="off"
-      ayuda="La cancha se crea operativa; el mantenimiento se cambia desde la gestión."
+      ayuda="La cancha se crea operativa; el mantenimiento se cambia al editarla."
       :error="errores.costoPorHora"
       :disabled="guardando"
     />

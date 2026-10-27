@@ -12,7 +12,7 @@ import {
 
 // ---- Agenda: filtros y página ----
 
-// Sin ?sede= la sede es la por defecto (la activa para el personal; todas para el socio); ?sede=todas es elegir todas.
+// Sin ?sede= la sede es la por defecto (todas, o la fija del RECEPCION); ?sede=todas es elegir todas a propósito.
 export interface ConsultaAgenda {
   // Texto de la disciplina, sin espacios en los bordes ('' = sin filtro).
   tipo: string

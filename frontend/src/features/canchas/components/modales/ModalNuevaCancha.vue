@@ -9,8 +9,6 @@ import FormularioCancha from '../FormularioCancha.vue'
 
 const props = defineProps<{
   sedes: Sede[]
-  // Sede con la que abre el formulario (la sede activa).
-  sedeInicial: number | null
 }>()
 
 const abierto = defineModel<boolean>('abierto', { required: true })
@@ -20,9 +18,9 @@ const avisos = useAvisosFz()
 const idFormulario = useId()
 const { form, guardando, error, errores, crear, reiniciar } = useAltaCancha()
 
-// Cada vez que se abre, el formulario arranca limpio y con la sede activa.
+// Cada vez que se abre, el formulario arranca limpio: la sede y el deporte sin elegir.
 watch(abierto, (valor) => {
-  if (valor) reiniciar(props.sedeInicial)
+  if (valor) reiniciar()
 })
 
 function nombreDeSede(id: number): string {

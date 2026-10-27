@@ -14,8 +14,9 @@ export type EstadoCancha = components['schemas']['EstadoCancha']
 export type EstadoReserva = components['schemas']['EstadoReserva']
 export type TipoCancha = components['schemas']['TipoCancha']
 
-type QueryListarCanchas = NonNullable<operations['listarCanchas']['parameters']['query']>
-export type FiltrosCanchas = Pick<QueryListarCanchas, 'estado'>
+// Los filtros de GET /canchas (todas las sedes): todos opcionales, y el servidor filtra y pagina.
+type QueryBuscarCanchas = NonNullable<operations['buscarCanchas']['parameters']['query']>
+export type FiltrosCanchas = Pick<QueryBuscarCanchas, 'sedeId' | 'tipo' | 'estado'>
 
 type QueryListarReservasCancha = NonNullable<operations['listarReservasCancha']['parameters']['query']>
 export type FiltrosReservasCancha = Pick<
@@ -24,13 +25,9 @@ export type FiltrosReservasCancha = Pick<
 >
 
 export interface ServicioCanchas {
-  listar(
-    sedeId: number,
-    filtros: FiltrosCanchas,
-    pagina: number,
-    porPagina: number,
-    senal?: AbortSignal,
-  ): Promise<ListaCanchas>
+  // GET /canchas: las canchas de todas las sedes, o de una con `sedeId`, ordenadas por sede y por id. Una sede inexistente
+  // da una lista vacía (no un 404).
+  buscar(filtros: FiltrosCanchas, pagina: number, porPagina: number, senal?: AbortSignal): Promise<ListaCanchas>
   obtener(canchaId: number, senal?: AbortSignal): Promise<Cancha>
   crear(sedeId: number, cancha: CanchaNueva): Promise<Cancha>
   modificar(canchaId: number, cambios: CanchaPatch): Promise<Cancha>
@@ -48,10 +45,10 @@ export interface ServicioCanchas {
 
 export function crearServicioCanchas(cliente: ClienteApi): ServicioCanchas {
   return {
-    async listar(sedeId, filtros, pagina, porPagina, senal) {
+    async buscar(filtros, pagina, porPagina, senal) {
       return desenvolver(
-        await cliente.GET('/sedes/{sedeId}/canchas', {
-          params: { path: { sedeId }, query: { ...filtros, page: pagina, perPage: porPagina } },
+        await cliente.GET('/canchas', {
+          params: { query: { ...filtros, page: pagina, perPage: porPagina } },
           signal: senal,
         }),
       )

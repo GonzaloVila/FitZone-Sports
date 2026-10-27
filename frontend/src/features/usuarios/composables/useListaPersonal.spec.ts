@@ -62,20 +62,55 @@ describe('useListaPersonal', () => {
     expect(lista.total.value).toBe(2)
   })
 
-  it('arranca con lo que dice la dirección y descarta lo inválido', async () => {
-    mocks.route.query = { nombre: ' Ana ', pagina: '2' }
+  it('sin ?sede= pide todas las sedes: no manda sedeId', async () => {
     const lista = armar()
     await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
 
+    expect(lista.sede.value).toBe('')
+    expect(mocks.listar.mock.calls[0]?.[0]).not.toHaveProperty('sedeId')
+  })
+
+  it('elegir una sede la escribe en la dirección, vuelve a la página 1 y manda sedeId (con rol=RECEPCION)', async () => {
+    mocks.route.query = { pagina: '2', nombre: 'Ana' }
+    const lista = armar()
+    await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
+
+    lista.sede.value = '3'
+
+    expect(ultimoReplace()).toEqual({ query: { sede: '3', nombre: 'Ana' } })
+    await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(2))
+    expect(mocks.listar).toHaveBeenLastCalledWith({ rol: 'RECEPCION', sedeId: 3, nombre: 'Ana' }, 1, 10, expect.any(AbortSignal))
+  })
+
+  it('volver a "Todas las sedes" quita ?sede= de la dirección', async () => {
+    mocks.route.query = { sede: '3' }
+    const lista = armar()
+    await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
+    expect(mocks.listar).toHaveBeenCalledWith({ rol: 'RECEPCION', sedeId: 3 }, 1, 10, expect.any(AbortSignal))
+
+    lista.sede.value = ''
+
+    expect(ultimoReplace()).toEqual({ query: {} })
+    await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(2))
+    expect(mocks.listar.mock.calls[1]?.[0]).not.toHaveProperty('sedeId')
+  })
+
+  it('arranca con lo que dice la dirección y descarta lo inválido', async () => {
+    mocks.route.query = { sede: '2', nombre: ' Ana ', pagina: '2' }
+    const lista = armar()
+    await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
+
+    expect(lista.sede.value).toBe('2')
     expect(lista.nombre.value).toBe('Ana')
     expect(lista.pagina.value).toBe(2)
-    expect(mocks.listar).toHaveBeenCalledWith({ rol: 'RECEPCION', nombre: 'Ana' }, 2, 10, expect.any(AbortSignal))
+    expect(mocks.listar).toHaveBeenCalledWith({ rol: 'RECEPCION', sedeId: 2, nombre: 'Ana' }, 2, 10, expect.any(AbortSignal))
 
     scope.stop()
     mocks.listar.mockClear()
-    mocks.route.query = { pagina: '-4' }
+    mocks.route.query = { sede: 'xx', pagina: '-4' }
     const otra = armar()
     expect(otra.pagina.value).toBe(1)
+    expect(otra.sede.value).toBe('')
   })
 
   it('la búsqueda se escribe en la dirección a los 300 ms, recortada y volviendo a la página 1', async () => {
@@ -151,8 +186,8 @@ describe('useListaPersonal', () => {
     await vi.waitFor(() => expect(lista.items.value.map((item) => item.id)).toEqual([3]))
   })
 
-  it('limpiar los filtros vacía el campo y quita el nombre de la dirección', async () => {
-    mocks.route.query = { nombre: 'Ana', pagina: '2' }
+  it('limpiar los filtros vacía el campo y quita el nombre y la sede de la dirección', async () => {
+    mocks.route.query = { sede: '3', nombre: 'Ana', pagina: '2' }
     const lista = armar()
     await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
     expect(lista.hayFiltrosActivos.value).toBe(true)
@@ -161,7 +196,16 @@ describe('useListaPersonal', () => {
 
     expect(lista.nombre.value).toBe('')
     expect(ultimoReplace()).toEqual({ query: {} })
-    expect(lista.hayFiltrosActivos.value).toBe(false)
+    // La sede sale de la dirección, que el router actualiza un instante después.
+    await vi.waitFor(() => expect(lista.hayFiltrosActivos.value).toBe(false))
+  })
+
+  it('una sede elegida sola ya cuenta como filtro activo', async () => {
+    mocks.route.query = { sede: '3' }
+    const lista = armar()
+    await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
+
+    expect(lista.hayFiltrosActivos.value).toBe(true)
   })
 
   it('muestra el error del listado y vacía las filas', async () => {

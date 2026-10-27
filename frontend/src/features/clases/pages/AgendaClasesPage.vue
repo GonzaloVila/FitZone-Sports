@@ -43,11 +43,12 @@ function cambiarVista(valor: string) {
   vista.value = valor === 'mis-clases' ? 'mis-clases' : 'agenda'
 }
 
-// La sede activa se comparte con las otras pantallas de trabajo; el RECEPCION trabaja siempre en la suya. El filtro de la
-// agenda arranca ahí para el personal; el SOCIO ve todas las sedes.
-const sedeActiva = useSedeActiva(sedes, () => (rol.value === 'GERENTE' ? null : sedeUsuario.value))
+// El filtro de sede arranca en "Todas las sedes" (GERENTE y SOCIO); el RECEPCION con sede en el token ve siempre la suya y no
+// tiene selector. Solo un RECEPCION sin sede en el token mantiene lo de antes: arranca en la sede activa y puede cambiarla.
+const sedeFija = computed(() => sedeUsuario.value !== null)
+const sedeActiva = useSedeActiva(sedes)
 const { filtros, pagina, items, total, totalPaginas, cargando, error, parametrosDetalle, recargar } = useAgendaClases(() =>
-  puedeCrear.value ? sedeActiva.value : null,
+  rol.value === 'RECEPCION' && !sedeFija.value ? sedeActiva.value : null,
 )
 // Solo el socio ve qué clases ya reservó o espera (una consulta extra; el personal no la hace).
 const { marcas, recargar: recargarMarcas } = useMarcasClases(items, esSocio)
@@ -107,7 +108,7 @@ const altaAbierta = ref(false)
     <VistaMisClases v-if="!enAgenda" />
 
     <template v-else>
-      <FiltrosClases v-model:tipo="filtros.tipo" v-model:sede="filtros.sede" :sedes="sedes" />
+      <FiltrosClases v-model:tipo="filtros.tipo" v-model:sede="filtros.sede" :sedes="sedes" :sede-fija="sedeFija" />
 
       <AvisoFz v-if="errorSedes" variante="advertencia">{{ errorSedes }}</AvisoFz>
       <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
@@ -133,7 +134,7 @@ const altaAbierta = ref(false)
       </footer>
     </template>
 
-    <ModalNuevaClase v-if="puedeCrear" v-model:abierto="altaAbierta" :sedes="sedes" :sede-inicial="sedeActiva" @creada="recargar" />
+    <ModalNuevaClase v-if="puedeCrear" v-model:abierto="altaAbierta" :sedes="sedes" @creada="recargar" />
   </section>
 </template>
 

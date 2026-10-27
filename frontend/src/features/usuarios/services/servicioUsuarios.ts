@@ -8,7 +8,9 @@ export type ListaUsuarios = components['schemas']['ListaUsuarios']
 
 // Filtros del listado, con los nombres exactos de los parámetros del contrato (listarUsuarios).
 type QueryListarUsuarios = NonNullable<operations['listarUsuarios']['parameters']['query']>
-export type FiltrosUsuarios = Pick<QueryListarUsuarios, 'rol' | 'nombre' | 'email'>
+// `sedeId` es la sede de trabajo (EmpleadoSede): devuelve solo usuarios con puesto en esa sede; una sede inexistente da una
+// lista vacía.
+export type FiltrosUsuarios = Pick<QueryListarUsuarios, 'rol' | 'sedeId' | 'nombre' | 'email'>
 
 export interface ServicioUsuarios {
   obtener(usuarioId: number, senal?: AbortSignal): Promise<Usuario>

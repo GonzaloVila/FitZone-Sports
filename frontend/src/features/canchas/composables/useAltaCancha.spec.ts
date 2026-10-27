@@ -28,24 +28,21 @@ describe('useAltaCancha', () => {
     mocks.crear.mockReset()
   })
 
-  describe('reiniciar', () => {
-    it('arranca en la sede que se le pasa, con Paddle y sin costo', () => {
-      const alta = armar()
-      completar(alta)
-
-      alta.reiniciar(5)
-
-      expect(alta.form).toEqual({ sedeId: '5', tipo: 'PADDLE', costoPorHora: '' })
+  describe('arranque y reiniciar', () => {
+    it('la sede y el deporte arrancan sin elegir, sin precargar ningún valor', () => {
+      expect(armar().form).toEqual({ sedeId: '', tipo: '', costoPorHora: '' })
     })
 
-    it('sin sede activa todavía queda sin elegir y limpia los errores', async () => {
+    it('reiniciar deja todo sin elegir y limpia los errores', async () => {
       const alta = armar()
+      completar(alta)
+      alta.form.costoPorHora = '-1'
       await alta.crear()
       alta.error.value = 'algo falló'
 
-      alta.reiniciar(null)
+      alta.reiniciar()
 
-      expect(alta.form.sedeId).toBe('')
+      expect(alta.form).toEqual({ sedeId: '', tipo: '', costoPorHora: '' })
       expect(alta.errores.value).toEqual({})
       expect(alta.error.value).toBeNull()
     })
@@ -58,7 +55,72 @@ describe('useAltaCancha', () => {
       expect(await alta.crear()).toBeNull()
 
       expect(mocks.crear).not.toHaveBeenCalled()
-      expect(Object.keys(alta.errores.value)).toEqual(expect.arrayContaining(['sedeId', 'costoPorHora']))
+      expect(Object.keys(alta.errores.value)).toEqual(expect.arrayContaining(['sedeId', 'tipo', 'costoPorHora']))
+    })
+
+    // Criterio de los selects obligatorios: "Elegí el/la …" junto al campo, con la redacción de "Elegí la sede de origen.".
+    it('sin elegir sede ni deporte pide elegirlos con un mensaje "Elegí …"', async () => {
+      const alta = armar()
+      alta.form.costoPorHora = '5000'
+
+      await alta.crear()
+
+      expect(alta.errores.value.sedeId).toBe('Elegí la sede de la cancha.')
+      expect(alta.errores.value.tipo).toBe('Elegí el deporte de la cancha.')
+      expect(alta.errores.value.costoPorHora).toBeUndefined()
+    })
+
+    // v-model sobre un campo type="number" entrega un NÚMERO aunque el modelo se declare como texto.
+    it('acepta un costo que llega como número (como lo entrega un campo numérico)', async () => {
+      mocks.crear.mockResolvedValue({ id: 9 })
+      const alta = armar()
+      completar(alta)
+      alta.form.costoPorHora = 10000 as unknown as string
+
+      expect(await alta.crear()).toEqual({ id: 9 })
+
+      expect(alta.errores.value).toEqual({})
+      expect(mocks.crear).toHaveBeenCalledWith(3, { tipo: 'FUTBOL5', costoPorHora: 10000, estado: 'OPERATIVA' })
+    })
+
+    it('un costo numérico de cero o negativo se valida sin lanzar una excepción', async () => {
+      mocks.crear.mockResolvedValue({ id: 1 })
+      const alta = armar()
+      completar(alta)
+
+      alta.form.costoPorHora = -5 as unknown as string
+      await expect(alta.crear()).resolves.toBeNull()
+      expect(alta.errores.value.costoPorHora).toBe('Ingresá un costo por hora de cero o más.')
+
+      alta.form.costoPorHora = 0 as unknown as string
+      await expect(alta.crear()).resolves.toEqual({ id: 1 })
+      expect(alta.errores.value).toEqual({})
+    })
+
+    it('un valor vacío o nulo en el modelo es un costo faltante, no un error del programa', async () => {
+      const alta = armar()
+      completar(alta)
+
+      for (const vacio of [null, undefined, '']) {
+        alta.form.costoPorHora = vacio as unknown as string
+        await expect(alta.crear()).resolves.toBeNull()
+        expect(alta.errores.value.costoPorHora).toBe('Ingresá un costo por hora de cero o más.')
+        expect(alta.error.value).toBeNull()
+      }
+    })
+
+    it('el error viejo del costo se limpia cuando el valor pasa a ser válido', async () => {
+      mocks.crear.mockResolvedValue({ id: 2 })
+      const alta = armar()
+      completar(alta)
+      alta.form.costoPorHora = ''
+      await alta.crear()
+      expect(alta.errores.value.costoPorHora).toBeTruthy()
+
+      alta.form.costoPorHora = 10000 as unknown as string
+      await alta.crear()
+
+      expect(alta.errores.value.costoPorHora).toBeUndefined()
     })
 
     it('un costo vacío, negativo o que no es un número es inválido', async () => {

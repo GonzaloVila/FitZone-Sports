@@ -1,13 +1,18 @@
 import type { EstadoCancha, EstadoReserva, TipoCancha } from './services/servicioCanchas'
 
-export const TIPOS_CANCHA: TipoCancha[] = ['PADDLE', 'FUTBOL5']
 export const ESTADOS_CANCHA: EstadoCancha[] = ['OPERATIVA', 'EN_MANTENIMIENTO']
 export const ESTADOS_RESERVA: EstadoReserva[] = ['CONFIRMADA', 'CANCELADA', 'CUMPLIDA']
 
+// ÚNICO lugar donde se escribe el nombre de un deporte. `TipoCancha` sale del contrato (api.d.ts): como el mapa es un
+// Record<TipoCancha, string>, sumar un deporte al contrato rompe el type-check hasta que se le escribe el nombre acá, y
+// con eso queda en el selector del alta, en el filtro de la lista, en la tabla, en los nombres accesibles y en los turnos.
 export const ETIQUETA_TIPO_CANCHA: Record<TipoCancha, string> = {
   PADDLE: 'Paddle',
   FUTBOL5: 'Fútbol 5',
 }
+
+// Los deportes, en el orden del mapa de etiquetas (no hay una segunda lista que mantener).
+export const TIPOS_CANCHA = Object.keys(ETIQUETA_TIPO_CANCHA) as TipoCancha[]
 
 export const ETIQUETA_ESTADO_CANCHA: Record<EstadoCancha, string> = {
   OPERATIVA: 'Operativa',
@@ -33,6 +38,16 @@ export function formatearHora(iso: string): string {
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
+    timeZone: ZONA_HORARIA_SEDE,
+  }).format(new Date(iso))
+}
+
+// "jueves 12 de noviembre", en la zona de la sede.
+export function formatearDia(iso: string): string {
+  return new Intl.DateTimeFormat('es-AR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
     timeZone: ZONA_HORARIA_SEDE,
   }).format(new Date(iso))
 }

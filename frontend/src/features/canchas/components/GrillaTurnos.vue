@@ -1,67 +1,81 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { BotonFz, InsigniaFz, TablaFz, type ColumnaTabla } from '@/ui'
-import { estadoDeTurno, rangoDeTurno, type EstadoTurno } from '../presentacion'
+import { estadoDeTurno } from '../presentacion'
 import type { Disponibilidad, ReservaCancha } from '../services/servicioCanchas'
+import { agruparPorFranja, resumenDeTurnos } from '../turnos'
+import TurnoDeCancha from './TurnoDeCancha.vue'
 
 const props = defineProps<{
   turnos: Disponibilidad[]
   mantenimiento: boolean
   reservas: ReservaCancha[]
   ahora: Date
-  // Quien reserva ve el botón "Reservar" en los turnos libres; el personal solo consulta.
+  // Quien reserva (SOCIO, EXTERNO) elige un turno libre con un botón; el personal solo consulta.
   puedeReservar: boolean
   ocupada?: boolean
 }>()
 
 const emit = defineEmits<{ elegir: [turno: Disponibilidad] }>()
 
-// Cada turno dice su estado con una palabra (no solo con el color de la insignia).
-const ETIQUETA: Record<EstadoTurno, string> = {
-  libre: 'Libre',
-  ocupado: 'Ocupado',
-  mantenimiento: 'En mantenimiento',
-  pasado: 'Ya pasó',
-}
-
-const VARIANTE: Record<EstadoTurno, 'exito' | 'peligro' | 'advertencia' | 'neutra'> = {
-  libre: 'exito',
-  ocupado: 'peligro',
-  mantenimiento: 'advertencia',
-  pasado: 'neutra',
-}
-
-const columnas = computed<ColumnaTabla[]>(() => [
-  { clave: 'horario', etiqueta: 'Horario', encabezadoFila: true },
-  { clave: 'estado', etiqueta: 'Estado' },
-  ...(props.puedeReservar ? [{ clave: 'acciones', etiqueta: 'Reserva', ajustada: true, alineacion: 'fin' as const }] : []),
-])
-
-const claveFila = (fila: Disponibilidad) => fila.fechaHoraInicio
-const rango = (turno: Disponibilidad) => rangoDeTurno(turno.fechaHoraInicio, turno.fechaHoraFin)
-const estado = (turno: Disponibilidad) => estadoDeTurno(turno, props.mantenimiento, props.reservas, props.ahora)
+const grupos = computed(() =>
+  agruparPorFranja(props.turnos, (turno) => estadoDeTurno(turno, props.mantenimiento, props.reservas, props.ahora)),
+)
+const resumen = computed(() => resumenDeTurnos(grupos.value.flatMap((grupo) => grupo.turnos)))
 </script>
 
 <template>
-  <TablaFz titulo="Turnos del día" ocultar-titulo :columnas="columnas" :filas="turnos" :clave-fila="claveFila" :ocupada="ocupada">
-    <template #celda-horario="{ fila }">
-      <span :class="{ 'grilla__horario--apagado': estado(fila) !== 'libre' }">{{ rango(fila) }}</span>
-    </template>
-    <template #celda-estado="{ fila }">
-      <InsigniaFz :variante="VARIANTE[estado(fila)]">{{ ETIQUETA[estado(fila)] }}</InsigniaFz>
-    </template>
-    <template #celda-acciones="{ fila }">
-      <BotonFz v-if="estado(fila) === 'libre'" tamano="sm" :aria-label="`Reservar el turno de ${rango(fila)}`" @click="emit('elegir', fila)">
-        Reservar
-      </BotonFz>
-      <span v-else class="grilla__sin-accion">—</span>
-    </template>
-  </TablaFz>
+  <div class="turnos" :aria-busy="ocupada || undefined">
+    <!-- Cuántos turnos hay libres y ocupados ese día; la región avisa el cambio al elegir otro día. -->
+    <p class="turnos__resumen" role="status" aria-live="polite" aria-atomic="true">{{ resumen }}</p>
+
+    <section v-for="grupo in grupos" :key="grupo.franja" class="turnos__franja" :aria-labelledby="`franja-${grupo.franja}`">
+      <h2 :id="`franja-${grupo.franja}`" class="turnos__titulo">{{ grupo.etiqueta }}</h2>
+      <ul class="turnos__lista">
+        <TurnoDeCancha
+          v-for="item in grupo.turnos"
+          :key="item.turno.fechaHoraInicio"
+          :item="item"
+          :reservable="puedeReservar"
+          @elegir="emit('elegir', item.turno)"
+        />
+      </ul>
+    </section>
+  </div>
 </template>
 
 <style scoped>
-.grilla__horario--apagado,
-.grilla__sin-accion {
+.turnos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fz-espaciado-base);
+}
+
+.turnos__resumen {
+  margin: 0;
   color: var(--fz-color-texto-suave);
+  font-size: var(--fz-texto-cuerpo);
+  font-weight: var(--fz-peso-enfasis);
+}
+
+.turnos__franja {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fz-espaciado-compacto);
+}
+
+.turnos__titulo {
+  margin: 0;
+  color: var(--fz-color-texto);
+  font-size: var(--fz-texto-subtitulo);
+  font-weight: var(--fz-peso-enfasis);
+}
+
+.turnos__lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(8 * var(--fz-espaciado-amplio)), 1fr));
+  gap: var(--fz-espaciado-compacto);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 </style>

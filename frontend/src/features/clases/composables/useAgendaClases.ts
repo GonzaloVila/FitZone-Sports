@@ -17,9 +17,10 @@ const ESPERA_BUSQUEDA_MS = 300
 
 // Los filtros (disciplina y sede) y la página viven en la dirección, junto con la vista: sobreviven a ir al detalle y volver,
 // a recargar y a compartir el enlace. Cada cambio reemplaza la entrada del historial (Atrás no recorre cada selección).
-// Un parámetro ausente es el valor por defecto: `sedePorDefecto` es la sede con la que arranca quien no tiene una fija (la
-// sede activa del personal; el SOCIO no la pasa y ve todas); puede llegar después, cuando terminan de cargar las sedes.
-// "Todas las sedes" elegida a propósito se escribe en la dirección y no vuelve sola a la sede por defecto.
+// Un parámetro ausente es el valor por defecto: "Todas las sedes" para el GERENTE y el SOCIO, y la sede del token para el
+// RECEPCION (fija, sin selector). `sedePorDefecto` solo lo pasa la pantalla para un RECEPCION sin sede en el token (su sede
+// activa); puede llegar después, cuando terminan de cargar las sedes. "Todas las sedes" elegida a propósito se escribe en la
+// dirección y no vuelve sola a la sede por defecto.
 export function useAgendaClases(sedePorDefecto?: MaybeRefOrGetter<number | null>) {
   const servicio = useServicios().clases
   const { sedeId } = useUsuarioSesion()
@@ -36,12 +37,13 @@ export function useAgendaClases(sedePorDefecto?: MaybeRefOrGetter<number | null>
     },
   )
 
-  // El RECEPCION arranca viendo su sede; los demás, la sede por defecto si la hay o todas.
-  const sedeAusente = computed(() => {
-    const id = sedeId.value ?? toValue(sedePorDefecto) ?? null
+  // El RECEPCION con sede en el token ve siempre la suya (un ?sede= de la dirección no la cambia). Los demás arrancan en la
+  // sede por defecto si la hay (la pantalla solo la pasa para un RECEPCION sin sede en el token) o en todas las sedes.
+  const sedePorDefectoTexto = computed(() => {
+    const id = toValue(sedePorDefecto) ?? null
     return id === null ? '' : String(id)
   })
-  const sede = computed(() => consulta.value.sede ?? sedeAusente.value)
+  const sede = computed(() => (sedeId.value !== null ? String(sedeId.value) : (consulta.value.sede ?? sedePorDefectoTexto.value)))
 
   function actualizar(cambios: Partial<ConsultaAgenda>) {
     const siguiente = { ...consulta.value, ...cambios }

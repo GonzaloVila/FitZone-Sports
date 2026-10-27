@@ -105,6 +105,17 @@ describe('useAgendaClases', () => {
       detener()
     })
 
+    it('el RECEPCION con sede en el token ignora un ?sede= de la dirección', async () => {
+      mocks.sedeId.value = 2
+      mocks.route.query = { sede: '9' }
+      const { filtros, detener } = armar()
+      await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
+
+      expect(filtros.sede).toBe('2')
+      expect(sedeDeLaUltimaConsulta()).toBe(2)
+      detener()
+    })
+
     it('el RECEPCION arranca en su sede aunque la sede por defecto sea otra', async () => {
       mocks.sedeId.value = 2
       const { filtros, detener } = armar(() => 9)

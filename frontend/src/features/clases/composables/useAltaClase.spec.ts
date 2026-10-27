@@ -47,27 +47,34 @@ describe('useAltaClase', () => {
   })
 
   describe('sede por defecto', () => {
-    it('el GERENTE arranca en la sede que se le pasa (la sede activa)', () => {
+    it('el GERENTE arranca sin sede elegida, sin precargar ninguna', () => {
       const alta = armar()
+      expect(alta.form.sedeId).toBe('')
 
-      alta.reiniciar(5)
-
-      expect(alta.form.sedeId).toBe('5')
-    })
-
-    it('sin sede activa todavía queda sin elegir', () => {
-      const alta = armar()
-
-      alta.reiniciar(null)
+      completar(alta)
+      alta.reiniciar()
 
       expect(alta.form.sedeId).toBe('')
     })
 
-    it('el RECEPCION queda en su sede, aunque la sede que se pase sea otra', () => {
+    it('sin elegir sede, pide "Elegí la sede …" junto al campo', async () => {
+      const alta = armar()
+      completar(alta)
+      alta.form.sedeId = ''
+
+      await alta.crear()
+
+      expect(alta.errores.value.sedeId).toBe('Elegí la sede donde se dicta la clase.')
+      expect(mocks.crear).not.toHaveBeenCalled()
+    })
+
+    it('el RECEPCION queda en la sede de su token, también al reiniciar', () => {
       mocks.sedeId.value = 3
       const alta = armar()
+      expect(alta.form.sedeId).toBe('3')
 
-      alta.reiniciar(9)
+      alta.form.sedeId = '9'
+      alta.reiniciar()
 
       expect(alta.form.sedeId).toBe('3')
     })
@@ -80,9 +87,9 @@ describe('useAltaClase', () => {
       completar(alta)
       alta.error.value = 'algo falló'
 
-      alta.reiniciar(2)
+      alta.reiniciar()
 
-      expect(alta.form).toMatchObject({ sedeId: '2', tipo: '', instructor: '', dia: '', horaInicio: '', horaFin: '', capacidad: '' })
+      expect(alta.form).toMatchObject({ sedeId: '', tipo: '', instructor: '', dia: '', horaInicio: '', horaFin: '', capacidad: '' })
       expect(alta.errores.value).toEqual({})
       expect(alta.error.value).toBeNull()
     })

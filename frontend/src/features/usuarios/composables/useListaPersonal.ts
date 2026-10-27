@@ -14,8 +14,9 @@ const POR_PAGINA = 10
 const ESPERA_BUSQUEDA_MS = 300
 const ROL = 'RECEPCION' as const
 
-// Listado paginado de recepcionistas para el gerente central. El nombre buscado y la página viven en la dirección
-// (?nombre=, ?pagina=): sobreviven a recargar y a compartir el enlace, y cada cambio reemplaza la entrada del historial.
+// Listado paginado de recepcionistas para el gerente central. La sede, el nombre buscado y la página viven en la dirección
+// (?sede=, ?nombre=, ?pagina=): sobreviven a recargar y a compartir el enlace, y cada cambio reemplaza la entrada del
+// historial. Sin ?sede= se ven todas las sedes; con ella, el servidor filtra por la sede de trabajo (sedeId).
 export function useListaPersonal() {
   const servicio = useServicios().usuarios
   const route = useRoute()
@@ -53,6 +54,12 @@ export function useListaPersonal() {
     },
   )
 
+  // Cambiar la sede vuelve a la página 1. '' = todas las sedes.
+  const sede = computed({
+    get: () => consulta.value.sede,
+    set: (valor: string) => actualizar({ sede: valor, pagina: 1 }),
+  })
+
   const pagina = computed({
     get: () => consulta.value.pagina,
     set: (numero: number) => actualizar({ pagina: numero }),
@@ -77,7 +84,11 @@ export function useListaPersonal() {
     cargando.value = true
     error.value = null
     try {
-      const filtros: FiltrosUsuarios = { rol: ROL, ...(consulta.value.nombre ? { nombre: consulta.value.nombre } : {}) }
+      const filtros: FiltrosUsuarios = {
+        rol: ROL,
+        ...(consulta.value.sede ? { sedeId: Number(consulta.value.sede) } : {}),
+        ...(consulta.value.nombre ? { nombre: consulta.value.nombre } : {}),
+      }
       const lista = await servicio.listar(filtros, pagina.value, POR_PAGINA, controlador.signal)
       if (numero !== ultimaConsulta) return
 
@@ -98,15 +109,15 @@ export function useListaPersonal() {
     }
   }
 
-  // Cualquier cambio de lo que se pide (nombre, página) vuelve a consultar.
-  watch([() => consulta.value.nombre, () => consulta.value.pagina], () => void cargar())
+  // Cualquier cambio de lo que se pide (sede, nombre, página) vuelve a consultar.
+  watch([() => consulta.value.sede, () => consulta.value.nombre, () => consulta.value.pagina], () => void cargar())
 
-  const hayFiltrosActivos = computed(() => nombre.value.trim().length > 0)
+  const hayFiltrosActivos = computed(() => nombre.value.trim().length > 0 || consulta.value.sede !== '')
 
   function limpiarFiltros() {
     clearTimeout(temporizador)
     nombre.value = ''
-    if (consulta.value.nombre !== '') actualizar({ nombre: '', pagina: 1 })
+    if (consulta.value.nombre !== '' || consulta.value.sede !== '') actualizar({ sede: '', nombre: '', pagina: 1 })
   }
 
   onScopeDispose(() => {
@@ -118,6 +129,7 @@ export function useListaPersonal() {
   void cargar()
 
   return {
+    sede,
     nombre,
     pagina,
     porPagina: POR_PAGINA,

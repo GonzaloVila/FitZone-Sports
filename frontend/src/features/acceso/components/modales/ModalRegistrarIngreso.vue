@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { Sede } from '@/features/sedes/services/servicioSedes'
+import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
 import { BotonFz, ModalFz } from '@/ui'
 import { useRegistroIngreso } from '../../composables/useRegistroIngreso'
 import type { Ingreso } from '../../services/servicioAcceso'
 import FormularioIngreso from '../FormularioIngreso.vue'
 import ResultadoIngreso from '../ResultadoIngreso.vue'
 
-const props = defineProps<{
+defineProps<{
   sedes: Sede[]
-  // Sede con la que abre el modal; el selector propio no cambia la sede activa de la pantalla.
-  sedeInicial: number | null
-  // El GERENTE elige la sede; el RECEPCION trabaja en la suya y no ve el selector.
-  conSelectorSede: boolean
   cargandoSedes: boolean
 }>()
 
@@ -21,8 +18,12 @@ const emit = defineEmits<{ registrado: [ingreso: Ingreso] }>()
 
 const idFormulario = useId()
 const cuerpo = useTemplateRef<HTMLElement>('cuerpo')
+const { sedeId: sedeDelToken } = useUsuarioSesion()
 
-const sedeElegida = ref<number | null>(props.sedeInicial)
+// El RECEPCION trabaja en la sede de su token (campo de solo lectura); el GERENTE arranca sin sede elegida, sin precargar la
+// sede que se esté mirando.
+const sedeBloqueada = computed(() => sedeDelToken.value !== null)
+const sedeElegida = ref<number | null>(sedeDelToken.value)
 // El formulario trabaja con el valor del select (texto); la sede elegida se guarda como número.
 const sedeTexto = computed({
   get: () => (sedeElegida.value ? String(sedeElegida.value) : ''),
@@ -31,26 +32,27 @@ const sedeTexto = computed({
   },
 })
 
-const { socioIdInput, codigoTotpInput, procesando, resultado, registrar, reiniciarResultado } = useRegistroIngreso(sedeElegida)
+const { socioIdInput, codigoTotpInput, procesando, resultado, errores, registrar, reiniciarResultado } =
+  useRegistroIngreso(sedeElegida)
 
-const faltanDatos = computed(() => !sedeElegida.value || !socioIdInput.value || !codigoTotpInput.value)
-
-// El foco vuelve al campo de ID: es lo que se escribe para el siguiente ingreso (su contenido queda seleccionado).
-function enfocarId() {
-  const campo = cuerpo.value?.querySelector<HTMLInputElement>('input[name="socioId"]')
+// El foco va al primer campo a corregir; si no hay errores, al ID, que es lo que se escribe para el siguiente ingreso (su
+// contenido queda seleccionado).
+function enfocarCampo() {
+  const nombre = errores.value.sedeId && !sedeBloqueada.value ? 'sede' : 'socioId'
+  const campo = cuerpo.value?.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${nombre}"]`)
   campo?.focus()
-  campo?.select()
+  if (campo instanceof HTMLInputElement) campo.select()
 }
 
-// Cada vez que se abre arranca limpio, con la sede inicial y sin el resultado de la vez anterior.
+// Cada vez que se abre arranca limpio, sin sede elegida (salvo la del token) y sin el resultado de la vez anterior.
 watch(abierto, async (valor) => {
   if (!valor) return
-  sedeElegida.value = props.sedeInicial
+  sedeElegida.value = sedeDelToken.value
   socioIdInput.value = ''
   codigoTotpInput.value = ''
   reiniciarResultado()
   await nextTick()
-  enfocarId()
+  enfocarCampo()
 })
 
 // Validar NO cierra el modal: muestra el resultado y deja todo listo para el siguiente. El código se borra siempre (lo
@@ -63,7 +65,7 @@ async function validar() {
     },
   })
   await nextTick()
-  enfocarId()
+  enfocarCampo()
 }
 </script>
 
@@ -82,11 +84,11 @@ async function validar() {
         v-model:socio-id="socioIdInput"
         v-model:codigo-totp="codigoTotpInput"
         :id-formulario="idFormulario"
-        :con-selector-sede="conSelectorSede"
+        :sede-bloqueada="sedeBloqueada"
         :sedes="sedes"
         :cargando-sedes="cargandoSedes"
+        :errores="errores"
         :procesando="procesando"
-        :bloqueado="!sedeElegida"
         @enviar="validar"
       />
       <ResultadoIngreso :resultado="resultado" />
@@ -94,7 +96,7 @@ async function validar() {
 
     <template #acciones="{ cerrar }">
       <BotonFz variante="secundario" :disabled="procesando" @click="cerrar">Cerrar</BotonFz>
-      <BotonFz tipo="submit" :form="idFormulario" :cargando="procesando" :disabled="faltanDatos">
+      <BotonFz tipo="submit" :form="idFormulario" :cargando="procesando">
         {{ procesando ? 'Validando…' : 'Validar e ingresar' }}
       </BotonFz>
     </template>

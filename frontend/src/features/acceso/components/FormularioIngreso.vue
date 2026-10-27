@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import type { Sede } from '@/features/sedes/services/servicioSedes'
 import { CampoFormularioFz, SelectFz } from '@/ui'
+import type { ErroresIngreso } from '../validacionIngreso'
 
 const props = defineProps<{
   procesando: boolean
-  bloqueado?: boolean
-  // El GERENTE elige la sede; el RECEPCION trabaja en la suya y no ve el selector.
-  conSelectorSede: boolean
+  // El RECEPCION trabaja en la sede de su token: el campo queda de solo lectura con su valor. El GERENTE elige.
+  sedeBloqueada: boolean
   sedes: Sede[]
   cargandoSedes: boolean
+  errores: ErroresIngreso
   // Id del <form>: el botón del pie del modal lo envía con el atributo `form`.
   idFormulario: string
 }>()
@@ -22,23 +23,25 @@ const socioId = defineModel<string>('socioId', { required: true })
 const codigoTotp = defineModel<string>('codigoTotp', { required: true })
 
 function manejarEnvio() {
-  if (props.procesando || props.bloqueado) return
+  if (props.procesando) return
   emit('enviar')
 }
 </script>
 
 <template>
   <form :id="idFormulario" class="formulario-ingreso" novalidate @submit.prevent="manejarEnvio">
-    <CampoFormularioFz v-if="conSelectorSede" etiqueta="Sede de acceso" etiqueta-chica obligatorio>
-      <template #default="{ id, describedby }">
+    <CampoFormularioFz etiqueta="Sede de acceso" etiqueta-chica obligatorio :error="errores.sedeId">
+      <template #default="{ id, describedby, invalido }">
         <SelectFz
           :id="id"
           v-model="sedeId"
           name="sede"
           aria-required="true"
+          :invalido="invalido"
           :aria-describedby="describedby"
-          :disabled="cargandoSedes || procesando"
+          :disabled="cargandoSedes || procesando || sedeBloqueada"
         >
+          <option value="" disabled>{{ cargandoSedes ? 'Cargando sedes…' : 'Elegí una sede' }}</option>
           <option v-for="sede in sedes" :key="sede.id" :value="String(sede.id)">{{ sede.nombre }}</option>
         </SelectFz>
       </template>
@@ -54,7 +57,8 @@ function manejarEnvio() {
       min="1"
       placeholder="Ej: 1"
       ayuda="Es el número que figura en el carnet."
-      :disabled="procesando || bloqueado"
+      :error="errores.socioId"
+      :disabled="procesando"
     />
 
     <CampoFormularioFz
@@ -69,7 +73,8 @@ function manejarEnvio() {
       placeholder="Ej: 123456"
       ayuda="Son los 6 dígitos que muestra el carnet."
       autocomplete="off"
-      :disabled="procesando || bloqueado"
+      :error="errores.codigoTotp"
+      :disabled="procesando"
     />
   </form>
 </template>

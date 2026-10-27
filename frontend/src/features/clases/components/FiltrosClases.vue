@@ -4,6 +4,8 @@ import { CampoTextoFz, SelectFz } from '@/ui'
 
 defineProps<{
   sedes: Sede[]
+  // El RECEPCION trabaja en la sede de su token: no hay selector de sede.
+  sedeFija?: boolean
 }>()
 
 const tipo = defineModel<string>('tipo', { required: true })
@@ -24,7 +26,7 @@ const sede = defineModel<string>('sede', { required: true })
       />
     </div>
 
-    <div class="filtros__select">
+    <div v-if="!sedeFija" class="filtros__select">
       <SelectFz v-model="sede" name="sede" aria-label="Sede">
         <option value="">Todas las sedes</option>
         <option v-for="opcion in sedes" :key="opcion.id" :value="String(opcion.id)">{{ opcion.nombre }}</option>

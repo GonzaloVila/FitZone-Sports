@@ -11,11 +11,9 @@ export const rutasCanchas: RouteRecordRaw[] = [
     },
   },
   {
-    // Estática: gana sobre /canchas/:canchaId, así que "gestion" nunca se interpreta como un id.
+    // La gestión (alta y edición) se integró a /canchas: el enlace viejo sigue funcionando.
     path: '/canchas/gestion',
-    name: 'canchas-gestion',
-    component: () => import('./pages/GestionCanchasPage.vue'),
-    meta: { roles: ['GERENTE'] },
+    redirect: { name: 'canchas' },
   },
   {
     path: '/canchas/:canchaId/turnos',

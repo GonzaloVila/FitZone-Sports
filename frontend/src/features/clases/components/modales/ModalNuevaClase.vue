@@ -9,8 +9,6 @@ import FormularioClase from '../FormularioClase.vue'
 
 const props = defineProps<{
   sedes: Sede[]
-  // Sede con la que abre el formulario (la sede activa); el RECEPCION queda siempre en la suya.
-  sedeInicial: number | null
 }>()
 
 const abierto = defineModel<boolean>('abierto', { required: true })
@@ -24,9 +22,9 @@ const { form, guardando, error, errores, crear, reiniciar } = useAltaClase()
 // RECEPCION tiene sede fija; el GERENTE (sedeId null) elige.
 const sedeBloqueada = computed(() => sedeId.value !== null)
 
-// Cada vez que se abre, el formulario arranca limpio y con la sede activa.
+// Cada vez que se abre, el formulario arranca limpio: el GERENTE sin sede elegida y el RECEPCION en la suya.
 watch(abierto, (valor) => {
-  if (valor) reiniciar(props.sedeInicial)
+  if (valor) reiniciar()
 })
 
 function nombreDeSede(id: number): string {

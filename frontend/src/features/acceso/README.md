@@ -48,7 +48,7 @@ src/features/acceso/
    - `409` con `type: 'https://fitzone.app/errores/egreso-duplicado'` -> Ingreso ya egresado (refresca automáticamente la lista de personas dentro).
 3. **Seguridad y privacidad**: El código TOTP se limpia inmediatamente del formulario y nunca se persiste ni se imprime en logs.
 4. **Actualización periódica**: Implementada con el composable compartido `useActualizacionPeriodica` (cada 10 segundos). Se suspende automáticamente cuando la pestaña está oculta (`document.visibilityState === 'hidden'`) para no generar tráfico ocioso.
-5. **Sede activa compartida**: el aforo y el historial leen `useSedeActiva` (`compartido/composables/`), que también usan Clases y Canchas. Es estado de módulo, sin `localStorage`.
+5. **Sede activa**: el aforo lee `useSedeActiva` (`compartido/composables/`) y arranca mostrando la sede activa por defecto (la primera sede disponible; el RECEPCION, la suya). El historial no la usa: su filtro de sede arranca en "Todas las sedes". "Registrar ingreso" pide su propia sede: el GERENTE arranca en "Elegí una sede" (opción vacía deshabilitada, sin precargar la sede que se esté mirando) y el RECEPCION ve la suya, de solo lectura. `useSedeActiva` es estado de módulo, sin `localStorage`.
 6. **Accesibilidad WCAG 2.2 AA**:
    - Componente `MedidorFz` utilizando el elemento nativo `<meter>` con atributos ARIA completos (`aria-valuenow`, `aria-valuetext`).
    - Los mensajes de resultado y rechazos emplean íconos y textos explicativos explícitos, no dependiendo exclusivamente de colores.

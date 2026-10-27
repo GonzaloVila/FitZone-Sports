@@ -82,7 +82,7 @@ const ayudaSede = (alta: AltaPersonal): string => {
           :disabled="alta.cargandoSedes || alta.enviando"
           aria-required="true"
         >
-          <option value="">{{ alta.cargandoSedes ? 'Cargando sedes…' : 'Elegí una sede' }}</option>
+          <option value="" disabled>{{ alta.cargandoSedes ? 'Cargando sedes…' : 'Elegí una sede' }}</option>
           <option v-for="sede in alta.sedesDisponibles" :key="sede.id" :value="String(sede.id)">
             {{ sede.nombre }}
           </option>

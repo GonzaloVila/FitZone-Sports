@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useSedeActiva } from '@/compartido/composables/useSedeActiva'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
 import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz } from '@/ui'
@@ -13,8 +12,6 @@ const { rol, sedeId: sedeUsuario } = useUsuarioSesion()
 const esGerente = computed(() => rol.value === 'GERENTE')
 
 const { sedes, cargando: cargandoSedes, nombreDeSede } = useSedes()
-
-const sedeActiva = useSedeActiva(sedes, () => (esGerente.value ? null : sedeUsuario.value))
 
 const {
   filtros,
@@ -36,9 +33,8 @@ function limpiarFiltros() {
   if (esGerente.value) filtros.sedeId = ''
 }
 
-// El modal de ingreso abre con la sede que se esté filtrando; si no hay una elegida, con la sede activa.
+// El modal de ingreso pide su propia sede (el GERENTE la elige; el RECEPCION usa la de su token).
 const ingresoAbierto = ref(false)
-const sedeDelIngreso = computed(() => (typeof filtros.sedeId === 'number' && filtros.sedeId > 0 ? filtros.sedeId : sedeActiva.value))
 </script>
 
 <template>
@@ -73,8 +69,6 @@ const sedeDelIngreso = computed(() => (typeof filtros.sedeId === 'number' && fil
     <ModalRegistrarIngreso
       v-model:abierto="ingresoAbierto"
       :sedes="sedes"
-      :sede-inicial="sedeDelIngreso"
-      :con-selector-sede="esGerente"
       :cargando-sedes="cargandoSedes"
       @registrado="recargar"
     />

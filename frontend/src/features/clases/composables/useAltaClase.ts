@@ -17,14 +17,13 @@ export function useAltaClase(opciones?: { alExito?: (clase: Clase) => void }) {
   const servicio = useServicios().clases
   const { sedeId } = useUsuarioSesion()
 
-  // RECEPCION tiene sede fija; el GERENTE elige y arranca en la sede que se le pase (la sede activa).
-  function sedePorDefecto(sedeInicial: number | null): string {
-    const sede = sedeId.value ?? sedeInicial
-    return sede === null ? '' : String(sede)
+  // RECEPCION tiene sede fija (la del token); el GERENTE elige y arranca sin sede elegida, sin precargar la sede activa.
+  function sedePorDefecto(): string {
+    return sedeId.value === null ? '' : String(sedeId.value)
   }
 
   const form = reactive<FormularioClaseDatos>({
-    sedeId: sedePorDefecto(null),
+    sedeId: sedePorDefecto(),
     tipo: '',
     instructor: '',
     dia: '',
@@ -39,8 +38,8 @@ export function useAltaClase(opciones?: { alExito?: (clase: Clase) => void }) {
   const claseCreada = ref<Clase | null>(null)
 
   // Deja el formulario como recién abierto (el modal lo usa cada vez que se abre).
-  function reiniciar(sedeInicial: number | null = null) {
-    form.sedeId = sedePorDefecto(sedeInicial)
+  function reiniciar() {
+    form.sedeId = sedePorDefecto()
     form.tipo = ''
     form.instructor = ''
     form.dia = ''

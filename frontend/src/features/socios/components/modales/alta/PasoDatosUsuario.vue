@@ -50,7 +50,7 @@ async function cambiarModo(valor: string) {
           :invalido="invalido"
           :aria-describedby="describedby"
         >
-          <option value="">Elegí una sede</option>
+          <option value="" disabled>Elegí una sede</option>
           <option v-for="sede in sedes" :key="sede.id" :value="String(sede.id)">{{ sede.nombre }}</option>
         </SelectFz>
       </template>

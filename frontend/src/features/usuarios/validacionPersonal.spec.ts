@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { ErrorApi } from '@/compartido/http/errores'
 import {
-  datosStaffVacios,
+  datosPersonalVacios,
   erroresDeDatos,
   hayErrores,
-  repartirErroresStaff,
-  type DatosStaff,
-} from './validacionStaff'
+  repartirErroresPersonal,
+  type DatosPersonal,
+} from './validacionPersonal'
 
-const validos = (): DatosStaff => ({
-  ...datosStaffVacios(),
+const validos = (): DatosPersonal => ({
+  ...datosPersonalVacios(),
   nombre: 'Ana Gómez',
   dni: '35123456',
   email: 'ana@fitzone.com.ar',
@@ -60,7 +60,7 @@ describe('erroresDeDatos', () => {
   })
 })
 
-describe('repartirErroresStaff', () => {
+describe('repartirErroresPersonal', () => {
   it('reparte un 422 de validación por propiedad', () => {
     const e = errorApi(422, 'Datos inválidos', [
       'email must be an email',
@@ -68,7 +68,7 @@ describe('repartirErroresStaff', () => {
       'algo inesperado',
     ])
 
-    expect(repartirErroresStaff(e, 'fallback')).toEqual({
+    expect(repartirErroresPersonal(e, 'fallback')).toEqual({
       campos: {
         email: 'email must be an email',
         sedeId: 'sedeId must be a positive number',
@@ -79,7 +79,7 @@ describe('repartirErroresStaff', () => {
 
   it('un 422 de negocio sin `errors` se ubica por la palabra del detail', () => {
     const sinSede = errorApi(422, 'Un recepcionista necesita una sede de trabajo.')
-    expect(repartirErroresStaff(sinSede, 'fallback')).toEqual({
+    expect(repartirErroresPersonal(sinSede, 'fallback')).toEqual({
       campos: { sedeId: 'Un recepcionista necesita una sede de trabajo.' },
       general: null,
     })
@@ -87,25 +87,25 @@ describe('repartirErroresStaff', () => {
 
   it('mapea los 409 de unicidad al campo que corresponde', () => {
     const sede = errorApi(409, 'La sede 462 ya tiene un recepcionista asignado.')
-    expect(repartirErroresStaff(sede, 'fallback')).toEqual({
+    expect(repartirErroresPersonal(sede, 'fallback')).toEqual({
       campos: { sedeId: 'La sede 462 ya tiene un recepcionista asignado.' },
       general: null,
     })
 
     const email = errorApi(409, 'Ya existe un usuario con el email ana@fitzone.com.ar')
-    expect(repartirErroresStaff(email, 'fallback').campos.email).toBe('Ya existe un usuario con ese correo.')
+    expect(repartirErroresPersonal(email, 'fallback').campos.email).toBe('Ya existe un usuario con ese correo.')
 
     const dni = errorApi(409, 'Ya existe un usuario con el DNI 35123456')
-    expect(repartirErroresStaff(dni, 'fallback').campos.dni).toBe('Ya existe un usuario con ese DNI.')
+    expect(repartirErroresPersonal(dni, 'fallback').campos.dni).toBe('Ya existe un usuario con ese DNI.')
   })
 
   it('un 409 sin campo reconocible queda como error general', () => {
     const e = errorApi(409, 'Conflicto inesperado.')
-    expect(repartirErroresStaff(e, 'fallback')).toEqual({ campos: {}, general: 'Conflicto inesperado.' })
+    expect(repartirErroresPersonal(e, 'fallback')).toEqual({ campos: {}, general: 'Conflicto inesperado.' })
   })
 
   it('un error que no es de la API usa el mensaje por defecto', () => {
-    expect(repartirErroresStaff(new Error('boom'), 'No se pudo crear.')).toEqual({
+    expect(repartirErroresPersonal(new Error('boom'), 'No se pudo crear.')).toEqual({
       campos: {},
       general: 'No se pudo crear.',
     })

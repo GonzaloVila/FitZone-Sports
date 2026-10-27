@@ -1,13 +1,13 @@
 import type { RouteRecordRaw } from 'vue-router'
 
-export const rutasStaff: RouteRecordRaw[] = [
+export const rutasPersonal: RouteRecordRaw[] = [
   {
-    path: '/staff',
-    name: 'staff',
-    component: () => import('./pages/GestionStaffPage.vue'),
+    path: '/personal',
+    name: 'personal',
+    component: () => import('./pages/GestionPersonalPage.vue'),
     meta: {
       roles: ['GERENTE'],
-      navegacion: { etiqueta: 'Staff', orden: 10, icono: 'equipo', seccion: 'administracion' },
+      navegacion: { etiqueta: 'Personal', orden: 10, icono: 'equipo', seccion: 'administracion' },
     },
   },
 ]

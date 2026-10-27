@@ -1,26 +1,18 @@
 // El estado de la pantalla de Clases que vive en la dirección: los filtros de la agenda, su página y de dónde se llegó al
 // detalle. Todo se valida al leerlo: un valor desconocido se ignora como si no estuviera (nunca rompe).
 
-type Parametros = Record<string, string>
-
-// Lo que se lee de la dirección: acepta el `route.query` del router tal cual.
-type ConsultaCruda = Record<string, unknown>
-
-// Un parámetro repetido (?a=1&a=2) vale como el primero; uno sin valor (?a) o ausente, como no estar.
-function textoDe(query: ConsultaCruda, clave: string): string | null {
-  const crudo: unknown = query[clave]
-  const valor: unknown = Array.isArray(crudo) ? crudo[0] : crudo
-  return typeof valor === 'string' ? valor : null
-}
-
-const esEnteroPositivo = (texto: string) => /^[1-9]\d*$/.test(texto) && Number.isSafeInteger(Number(texto))
+import {
+  SEDE_TODAS,
+  esEnteroPositivo,
+  paginaDe,
+  textoDe,
+  type ConsultaCruda,
+  type Parametros,
+} from '@/compartido/parametrosDeDireccion'
 
 // ---- Agenda: filtros y página ----
 
-// Valor de ?sede= para "Todas las sedes": se distingue de la ausencia del parámetro, que significa "la sede por defecto"
-// (la activa para el personal; todas para el socio).
-export const SEDE_TODAS = 'todas'
-
+// Sin ?sede= la sede es la por defecto (la activa para el personal; todas para el socio); ?sede=todas es elegir todas.
 export interface ConsultaAgenda {
   // Texto de la disciplina, sin espacios en los bordes ('' = sin filtro).
   tipo: string
@@ -31,11 +23,10 @@ export interface ConsultaAgenda {
 
 export function leerConsultaAgenda(query: ConsultaCruda): ConsultaAgenda {
   const sede = textoDe(query, 'sede')
-  const pagina = textoDe(query, 'pagina')
   return {
     tipo: textoDe(query, 'tipo')?.trim() ?? '',
     sede: sede === SEDE_TODAS ? '' : sede !== null && esEnteroPositivo(sede) ? sede : null,
-    pagina: pagina !== null && esEnteroPositivo(pagina) ? Number(pagina) : 1,
+    pagina: paginaDe(query),
   }
 }
 

@@ -1,7 +1,7 @@
 import { erroresDe422 } from '@/compartido/erroresFormulario'
 import { esErrorApi } from '@/compartido/http/errores'
 
-export interface DatosStaff {
+export interface DatosPersonal {
   nombre: string
   dni: string
   email: string
@@ -12,11 +12,11 @@ export interface DatosStaff {
   sedeId: string
 }
 
-export type CampoStaff = keyof DatosStaff
+export type CampoPersonal = keyof DatosPersonal
 
-export type ErroresStaff = Partial<Record<CampoStaff, string>>
+export type ErroresPersonal = Partial<Record<CampoPersonal, string>>
 
-export const datosStaffVacios = (): DatosStaff => ({
+export const datosPersonalVacios = (): DatosPersonal => ({
   nombre: '',
   dni: '',
   email: '',
@@ -32,8 +32,8 @@ const FORMATO_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export const LARGO_MINIMO_CONTRASENIA = 8
 export const LARGO_MAXIMO_TELEFONO = 20
 
-export const erroresDeDatos = (datos: DatosStaff): ErroresStaff => {
-  const errores: ErroresStaff = {}
+export const erroresDeDatos = (datos: DatosPersonal): ErroresPersonal => {
+  const errores: ErroresPersonal = {}
   if (!datos.nombre.trim()) errores.nombre = 'Ingresá el nombre y apellido.'
   else if (datos.nombre.trim().length > 100) errores.nombre = 'El nombre no puede superar los 100 caracteres.'
 
@@ -57,10 +57,10 @@ export const erroresDeDatos = (datos: DatosStaff): ErroresStaff => {
   return errores
 }
 
-export const hayErrores = (errores: ErroresStaff): boolean => Object.keys(errores).length > 0
+export const hayErrores = (errores: ErroresPersonal): boolean => Object.keys(errores).length > 0
 
 // Nombre de la propiedad del contrato -> campo del formulario.
-const CAMPOS_DEL_CONTRATO: Record<string, CampoStaff> = {
+const CAMPOS_DEL_CONTRATO: Record<string, CampoPersonal> = {
   nombre: 'nombre',
   dni: 'dni',
   email: 'email',
@@ -77,7 +77,10 @@ const MENSAJE_REPETIDO = {
 // Reparte el error del alta: los 422 de validación vienen por propiedad; los
 // 422 de negocio (por ejemplo, RECEPCION sin sede) y los 409 traen solo un
 // `detail`, así que se reconoce el campo por la palabra que nombran.
-export function repartirErroresStaff(e: unknown, porDefecto: string): { campos: ErroresStaff; general: string | null } {
+export function repartirErroresPersonal(
+  e: unknown,
+  porDefecto: string,
+): { campos: ErroresPersonal; general: string | null } {
   if (!esErrorApi(e)) return { campos: {}, general: porDefecto }
 
   const repartidos = erroresDe422(e, CAMPOS_DEL_CONTRATO)
@@ -91,7 +94,7 @@ export function repartirErroresStaff(e: unknown, porDefecto: string): { campos: 
   }
 
   const detalle = e.message.toLowerCase()
-  const campos: ErroresStaff = {}
+  const campos: ErroresPersonal = {}
   if (e.status === 409) {
     if (detalle.includes('sede')) campos.sedeId = e.message
     else if (detalle.includes('email') || detalle.includes('correo')) campos.email = MENSAJE_REPETIDO.email

@@ -28,13 +28,13 @@ const claveFila = (fila: Usuario) => fila.id
     :ocupada="ocupada"
   >
     <template #celda-nombre="{ fila }">
-      <span class="tabla-staff__nombre">{{ (fila as Usuario).nombre }}</span>
+      <span class="tabla-personal__nombre">{{ (fila as Usuario).nombre }}</span>
     </template>
     <template #celda-dni="{ fila }">
-      <span class="tabla-staff__dato">{{ (fila as Usuario).dni }}</span>
+      <span class="tabla-personal__dato">{{ (fila as Usuario).dni }}</span>
     </template>
     <template #celda-email="{ fila }">
-      <span class="tabla-staff__dato">{{ (fila as Usuario).email }}</span>
+      <span class="tabla-personal__dato">{{ (fila as Usuario).email }}</span>
     </template>
     <template #celda-sede="{ fila }">
       <InsigniaFz v-if="(fila as Usuario).sedeId" variante="neutra">
@@ -46,11 +46,11 @@ const claveFila = (fila: Usuario) => fila.id
 </template>
 
 <style scoped>
-.tabla-staff__nombre {
+.tabla-personal__nombre {
   font-weight: var(--fz-peso-enfasis);
 }
 
-.tabla-staff__dato {
+.tabla-personal__dato {
   color: var(--fz-color-texto-suave);
 }
 </style>

@@ -9,7 +9,7 @@ import { rutasSesion } from '../features/sesion/rutas'
 import { useSesionStore } from '../features/sesion/stores/sesionStore'
 import type { Rol } from '../features/sesion/tipos'
 import { rutasSocios } from '../features/socios/rutas'
-import { rutasStaff } from '../features/usuarios/rutas'
+import { rutasPersonal } from '../features/usuarios/rutas'
 import type { NombreIconoFz } from '../ui'
 
 declare module 'vue-router' {
@@ -49,7 +49,7 @@ const router = createRouter({
         ...rutasClases,
         ...rutasCanchas,
         ...rutasPagos,
-        ...rutasStaff,
+        ...rutasPersonal,
       ],
     },
     // Comodín: toda ruta inexistente va a /login; el guard reubica a quien tenga sesión.

@@ -14,7 +14,7 @@ vi.mock('@/compartido/servicios', () => ({
 import { ErrorApi } from '@/compartido/http/errores'
 import type { Sede } from '@/features/sedes/services/servicioSedes'
 import type { Usuario } from '../services/servicioUsuarios'
-import { useAltaStaff } from './useAltaStaff'
+import { useAltaPersonal } from './useAltaPersonal'
 
 const sede = (id: number): Sede => ({ id, nombre: `Sede ${id}`, direccion: '', aforoMaximo: 100 })
 
@@ -35,7 +35,7 @@ let scope: EffectScope
 function armar() {
   scope = effectScope()
   const sedes = ref<Sede[]>([sede(1), sede(2), sede(3)])
-  const alta = scope.run(() => useAltaStaff(sedes))!
+  const alta = scope.run(() => useAltaPersonal(sedes))!
   return { alta, sedes }
 }
 
@@ -48,7 +48,7 @@ function completar(alta: ReturnType<typeof armar>['alta']) {
   alta.datos.sedeId = '1'
 }
 
-describe('useAltaStaff', () => {
+describe('useAltaPersonal', () => {
   beforeEach(() => {
     mocks.crear.mockReset()
     mocks.listarTodosPorRol.mockReset().mockResolvedValue([])

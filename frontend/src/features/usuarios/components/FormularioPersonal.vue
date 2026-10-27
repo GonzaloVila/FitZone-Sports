@@ -1,18 +1,26 @@
 <script setup lang="ts">
 import { CampoContraseniaFz, CampoFormularioFz, SelectFz } from '@/ui'
-import type { AltaStaff } from '../composables/useAltaStaff'
+import type { AltaPersonal } from '../composables/useAltaPersonal'
 
-defineProps<{ alta: AltaStaff }>()
+defineProps<{
+  alta: AltaPersonal
+  // Id del <form>: los botones del pie del modal lo envían con el atributo `form`.
+  idFormulario: string
+}>()
 
-const ayudaSede = (alta: AltaStaff): string => {
-  if (alta.cargandoSedes) return 'Cargando sedes libres.'
+defineEmits<{
+  (e: 'guardar'): void
+}>()
+
+const ayudaSede = (alta: AltaPersonal): string => {
+  if (alta.cargandoSedes) return 'Cargando sedes libres…'
   if (alta.sedesDisponibles.length === 0) return 'No hay sedes libres: creá una sede antes de asignar un recepcionista.'
   return 'Una sede admite un solo recepcionista.'
 }
 </script>
 
 <template>
-  <div class="formulario">
+  <form :id="idFormulario" class="formulario-personal" novalidate @submit.prevent="$emit('guardar')">
     <CampoFormularioFz
       v-model="alta.datos.nombre"
       etiqueta="Nombre y apellido"
@@ -22,6 +30,7 @@ const ayudaSede = (alta: AltaStaff): string => {
       autocomplete="name"
       data-primer-campo
       :error="alta.errores.nombre"
+      :disabled="alta.enviando"
     />
     <CampoFormularioFz
       v-model="alta.datos.dni"
@@ -32,6 +41,7 @@ const ayudaSede = (alta: AltaStaff): string => {
       inputmode="numeric"
       autocomplete="off"
       :error="alta.errores.dni"
+      :disabled="alta.enviando"
     />
     <CampoFormularioFz
       v-model="alta.datos.email"
@@ -42,6 +52,7 @@ const ayudaSede = (alta: AltaStaff): string => {
       name="email"
       autocomplete="off"
       :error="alta.errores.email"
+      :disabled="alta.enviando"
     />
     <CampoFormularioFz
       v-model="alta.datos.telefono"
@@ -51,6 +62,7 @@ const ayudaSede = (alta: AltaStaff): string => {
       name="telefono"
       autocomplete="off"
       :error="alta.errores.telefono"
+      :disabled="alta.enviando"
     />
 
     <CampoFormularioFz
@@ -67,10 +79,10 @@ const ayudaSede = (alta: AltaStaff): string => {
           name="sedeId"
           :invalido="invalido"
           :aria-describedby="describedby"
-          :disabled="alta.cargandoSedes"
+          :disabled="alta.cargandoSedes || alta.enviando"
           aria-required="true"
         >
-          <option value="">{{ alta.cargandoSedes ? 'Cargando sedes.' : 'Elegí una sede' }}</option>
+          <option value="">{{ alta.cargandoSedes ? 'Cargando sedes…' : 'Elegí una sede' }}</option>
           <option v-for="sede in alta.sedesDisponibles" :key="sede.id" :value="String(sede.id)">
             {{ sede.nombre }}
           </option>
@@ -78,29 +90,24 @@ const ayudaSede = (alta: AltaStaff): string => {
       </template>
     </CampoFormularioFz>
 
-    <div class="formulario__ancho">
-      <CampoContraseniaFz
-        v-model="alta.datos.contrasenia"
-        etiqueta="Contraseña"
-        etiqueta-chica
-        ayuda="Al menos 8 caracteres."
-        obligatorio
-        name="contrasenia"
-        autocomplete="new-password"
-        :error="alta.errores.contrasenia"
-      />
-    </div>
-  </div>
+    <CampoContraseniaFz
+      v-model="alta.datos.contrasenia"
+      etiqueta="Contraseña"
+      etiqueta-chica
+      ayuda="Al menos 8 caracteres."
+      obligatorio
+      name="contrasenia"
+      autocomplete="new-password"
+      :error="alta.errores.contrasenia"
+      :disabled="alta.enviando"
+    />
+  </form>
 </template>
 
 <style scoped>
-.formulario {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+.formulario-personal {
+  display: flex;
+  flex-direction: column;
   gap: var(--fz-espaciado-base);
-}
-
-.formulario__ancho {
-  grid-column: 1 / -1;
 }
 </style>

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useSedes } from '@/features/sedes/composables/useSedes'
-import { AvisoFz, BotonFz, CampoTextoFz, EncabezadoPaginaFz, IconoFz, InsigniaFz, PaginacionFz } from '@/ui'
-import TablaStaff from '../components/TablaStaff.vue'
-import ModalAltaStaff from '../components/modales/ModalAltaStaff.vue'
-import { useListaStaff } from '../composables/useListaStaff'
+import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz, PaginacionFz } from '@/ui'
+import FiltrosPersonal from '../components/FiltrosPersonal.vue'
+import TablaPersonal from '../components/TablaPersonal.vue'
+import ModalAltaPersonal from '../components/modales/ModalAltaPersonal.vue'
+import { useListaPersonal } from '../composables/useListaPersonal'
 import { ETIQUETA_RECEPCION, ETIQUETA_RECEPCION_PLURAL } from '../presentacion'
 
 const {
@@ -17,8 +18,9 @@ const {
   cargando,
   error,
   hayFiltrosActivos,
+  limpiarFiltros,
   recargar,
-} = useListaStaff()
+} = useListaPersonal()
 const { sedes, error: errorSedes, nombreDeSede } = useSedes()
 
 const hayFilas = computed(() => items.value.length > 0)
@@ -27,6 +29,9 @@ const vacio = computed(() => !cargando.value && !hayFilas.value && !error.value)
 
 const rangoInicio = computed(() => (total.value === 0 ? 0 : (pagina.value - 1) * porPagina + 1))
 const rangoFin = computed(() => Math.min(total.value, pagina.value * porPagina))
+
+// La región del pie siempre está en el DOM (los lectores de pantalla solo anuncian cambios de una región existente);
+// mientras no hay un resultado que informar, queda vacía.
 const textoRango = computed(() => {
   if (cargandoSinFilas.value || error.value) return ''
   if (total.value === 0) return `0 ${ETIQUETA_RECEPCION_PLURAL.toLowerCase()}`
@@ -38,14 +43,8 @@ const altaAbierta = ref(false)
 </script>
 
 <template>
-  <section class="staff">
-    <EncabezadoPaginaFz
-      titulo="Staff"
-      subtitulo="Vista del gerente central: un recepcionista por sede."
-    >
-      <template #insignia>
-        <InsigniaFz>{{ total }} {{ total === 1 ? ETIQUETA_RECEPCION.toLowerCase() : ETIQUETA_RECEPCION_PLURAL.toLowerCase() }}</InsigniaFz>
-      </template>
+  <section class="personal">
+    <EncabezadoPaginaFz titulo="Personal" subtitulo="Un recepcionista por sede.">
       <template #acciones>
         <BotonFz @click="altaAbierta = true">
           <IconoFz nombre="mas" tamano="sm" />
@@ -54,31 +53,16 @@ const altaAbierta = ref(false)
       </template>
     </EncabezadoPaginaFz>
 
-    <div class="staff__barra">
-      <CampoTextoFz
-        v-model="nombre"
-        class="staff__buscar"
-        tipo="search"
-        tamano="sm"
-        icono="buscar"
-        placeholder="Buscar por nombre"
-        aria-label="Buscar recepcionistas por nombre"
-      />
-    </div>
+    <FiltrosPersonal v-model:nombre="nombre" :hay-filtros-activos="hayFiltrosActivos" @limpiar="limpiarFiltros" />
 
     <AvisoFz v-if="errorSedes" variante="advertencia">{{ errorSedes }}</AvisoFz>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
 
-    <TablaStaff
-      v-if="hayFilas"
-      :filas="items"
-      :nombre-sede="nombreDeSede"
-      :ocupada="cargando"
-    />
+    <TablaPersonal v-if="hayFilas" :filas="items" :nombre-sede="nombreDeSede" :ocupada="cargando" />
 
-    <p v-else-if="cargandoSinFilas" class="staff__estado" role="status">Cargando recepcionistas.</p>
+    <p v-else-if="cargandoSinFilas" class="personal__estado" role="status">Cargando recepcionistas…</p>
 
-    <p v-else-if="vacio" class="staff__estado staff__vacio">
+    <p v-else-if="vacio" class="personal__estado personal__vacio">
       {{
         hayFiltrosActivos
           ? 'No se encontraron recepcionistas con ese nombre.'
@@ -86,10 +70,10 @@ const altaAbierta = ref(false)
       }}
     </p>
 
-    <ModalAltaStaff v-model:abierto="altaAbierta" :sedes="sedes" @creado="recargar" />
+    <ModalAltaPersonal v-model:abierto="altaAbierta" :sedes="sedes" @creado="recargar" />
 
-    <footer class="staff__pie">
-      <p class="staff__rango" role="status" aria-live="polite" aria-atomic="true">{{ textoRango }}</p>
+    <footer class="personal__pie">
+      <p class="personal__rango" role="status" aria-live="polite" aria-atomic="true">{{ textoRango }}</p>
       <PaginacionFz
         v-if="totalPaginas > 1"
         v-model="pagina"
@@ -101,36 +85,24 @@ const altaAbierta = ref(false)
 </template>
 
 <style scoped>
-.staff {
+.personal {
   display: flex;
   flex-direction: column;
   gap: var(--fz-espaciado-base);
   width: 100%;
 }
 
-.staff__barra {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--fz-espaciado-base);
-}
-
-.staff__buscar {
-  width: min(18rem, 100%);
-}
-
-.staff__estado {
+.personal__estado {
   margin: 0;
   color: var(--fz-color-texto-suave);
   font-size: var(--fz-texto-pequeno);
 }
 
-.staff__vacio {
+.personal__vacio {
   padding: var(--fz-espaciado-amplio) 0;
 }
 
-.staff__pie {
+.personal__pie {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -138,7 +110,7 @@ const altaAbierta = ref(false)
   gap: var(--fz-espaciado-base);
 }
 
-.staff__rango {
+.personal__rango {
   margin: 0;
   color: var(--fz-color-texto-suave);
   font-size: var(--fz-texto-pequeno);

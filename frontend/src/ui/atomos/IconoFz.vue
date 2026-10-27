@@ -130,7 +130,7 @@ const TRAZOS: Record<NombreIconoFz, readonly string[]> = {
   'flecha-derecha': ['M5 12h14', 'M13 6l6 6-6 6'],
   // Reloj: esfera y las dos agujas.
   reloj: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 7v5l3 2'],
-  // Credencial con foto y enganche: el staff con puesto de trabajo.
+  // Credencial con foto y enganche: el personal con puesto de trabajo.
   equipo: ['M4 6h16v14H4z', 'M9 3v3', 'M15 3v3', 'M12 10.5a2 2 0 1 0 0 4a2 2 0 0 0 0-4', 'M8.5 18a3.5 3.5 0 0 1 7 0'],
 }
 

@@ -2,9 +2,9 @@
 import { reactive, useId, watch } from 'vue'
 import type { Sede } from '@/features/sedes/services/servicioSedes'
 import { AvisoFz, BotonFz, ModalFz, useAvisosFz } from '@/ui'
-import { useAltaStaff } from '../../composables/useAltaStaff'
+import { useAltaPersonal } from '../../composables/useAltaPersonal'
 import type { Usuario } from '../../services/servicioUsuarios'
-import FormularioStaff from '../FormularioStaff.vue'
+import FormularioPersonal from '../FormularioPersonal.vue'
 
 const props = defineProps<{ sedes: readonly Sede[] }>()
 
@@ -13,23 +13,25 @@ const emit = defineEmits<{ creado: [usuario: Usuario] }>()
 
 const avisos = useAvisosFz()
 const idFormulario = useId()
-const alta = reactive(useAltaStaff(() => props.sedes))
+const alta = reactive(useAltaPersonal(() => props.sedes))
 
-// Cada vez que se abre, el formulario arranca limpio y se refrescan las sedes
-// libres (otra sesión pudo haber asignado una mientras tanto).
+// Cada vez que se abre, el formulario arranca limpio y se refrescan las sedes libres (otra sesión pudo haber asignado una
+// mientras tanto).
 watch(abierto, (valor) => {
   if (!valor) return
   alta.reiniciar()
   void alta.cargarSedesOcupadas()
 })
 
+// Si sale bien: se cierra, avisa y le dice a quien lo abrió que hay un recepcionista nuevo (para recargar el listado). Si
+// falla, el modal sigue abierto con el error adentro (un aviso flotante quedaría detrás del <dialog>).
 async function guardar() {
   const creado = await alta.crear()
   if (!creado) return
 
   const sede = props.sedes.find((candidata) => String(candidata.id) === alta.datos.sedeId)?.nombre
   abierto.value = false
-  avisos.exito('Recepcionista creado', `${creado.nombre}${sede ? ` · ${sede}` : ''}.`)
+  avisos.exito('Recepcionista creado', `${creado.nombre}${sede ? ` · ${sede}` : ''}`)
   emit('creado', creado)
 }
 </script>
@@ -39,26 +41,18 @@ async function guardar() {
     v-model="abierto"
     titulo="Nuevo recepcionista"
     descripcion="Cargá los datos del recepcionista y la sede donde va a trabajar."
-    icono="equipo"
+    icono="mas"
     tono="primario"
     :ocupado="alta.enviando"
   >
-    <form :id="idFormulario" novalidate @submit.prevent="guardar">
-      <FormularioStaff :alta="alta" />
-      <AvisoFz v-if="alta.errorGeneral" variante="peligro" class="modal-alta-staff__error">
-        {{ alta.errorGeneral }}
-      </AvisoFz>
-    </form>
+    <FormularioPersonal :alta="alta" :id-formulario="idFormulario" @guardar="guardar" />
+    <AvisoFz v-if="alta.errorGeneral" variante="peligro">{{ alta.errorGeneral }}</AvisoFz>
 
     <template #acciones="{ cerrar }">
-      <BotonFz variante="fantasma" @click="cerrar">Cancelar</BotonFz>
-      <BotonFz tipo="submit" :form="idFormulario" :cargando="alta.enviando">Crear</BotonFz>
+      <BotonFz variante="fantasma" :disabled="alta.enviando" @click="cerrar">Cancelar</BotonFz>
+      <BotonFz tipo="submit" :form="idFormulario" :cargando="alta.enviando">
+        {{ alta.enviando ? 'Creando recepcionista…' : 'Crear recepcionista' }}
+      </BotonFz>
     </template>
   </ModalFz>
 </template>
-
-<style scoped>
-.modal-alta-staff__error {
-  margin-top: var(--fz-espaciado-base);
-}
-</style>

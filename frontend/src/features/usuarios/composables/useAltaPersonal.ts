@@ -3,25 +3,25 @@ import { useServicios } from '@/compartido/servicios'
 import type { Sede } from '@/features/sedes/services/servicioSedes'
 import type { Usuario } from '../services/servicioUsuarios'
 import {
-  datosStaffVacios,
+  datosPersonalVacios,
   erroresDeDatos,
   hayErrores,
-  repartirErroresStaff,
-  type CampoStaff,
-  type DatosStaff,
-  type ErroresStaff,
-} from '../validacionStaff'
+  repartirErroresPersonal,
+  type CampoPersonal,
+  type DatosPersonal,
+  type ErroresPersonal,
+} from '../validacionPersonal'
 
 // Alta de un recepcionista. La sede es obligatoria y se ofrecen únicamente las
 // libres: EmpleadoSede.sede_id es único, así que una sede ya ocupada daría 409.
-export function useAltaStaff(sedes: MaybeRefOrGetter<readonly Sede[]>) {
+export function useAltaPersonal(sedes: MaybeRefOrGetter<readonly Sede[]>) {
   const servicio = useServicios().usuarios
 
-  const datos = reactive<DatosStaff>(datosStaffVacios())
+  const datos = reactive<DatosPersonal>(datosPersonalVacios())
   const intentado = ref(false)
   const enviando = ref(false)
   const errorGeneral = ref<string | null>(null)
-  const erroresServidor = reactive<ErroresStaff>({})
+  const erroresServidor = reactive<ErroresPersonal>({})
 
   const sedesOcupadas = ref<Set<number>>(new Set())
   const cargandoSedes = ref(false)
@@ -61,7 +61,7 @@ export function useAltaStaff(sedes: MaybeRefOrGetter<readonly Sede[]>) {
     if (datos.sedeId && !lista.some((sede) => String(sede.id) === datos.sedeId)) datos.sedeId = ''
   })
 
-  const erroresDeAyuda = computed<ErroresStaff>(() => {
+  const erroresDeAyuda = computed<ErroresPersonal>(() => {
     const errores = intentado.value ? erroresDeDatos(datos) : {}
     // La contraseña se vacía sola después de cada envío; ese vacío no lo causó
     // la persona, así que no se marca hasta que vuelva a intentar.
@@ -70,7 +70,7 @@ export function useAltaStaff(sedes: MaybeRefOrGetter<readonly Sede[]>) {
   })
 
   // Un error del servidor tiene prioridad sobre la ayuda y se borra al corregir el campo.
-  const errores = computed<ErroresStaff>(() => ({ ...erroresDeAyuda.value, ...erroresServidor }))
+  const errores = computed<ErroresPersonal>(() => ({ ...erroresDeAyuda.value, ...erroresServidor }))
 
   for (const campo of ['nombre', 'dni', 'email', 'telefono', 'contrasenia', 'sedeId'] as const) {
     watch(
@@ -90,7 +90,7 @@ export function useAltaStaff(sedes: MaybeRefOrGetter<readonly Sede[]>) {
     intentado.value = true
     contraseniaBorrada.value = false
     errorGeneral.value = null
-    for (const campo of Object.keys(erroresServidor) as CampoStaff[]) delete erroresServidor[campo]
+    for (const campo of Object.keys(erroresServidor) as CampoPersonal[]) delete erroresServidor[campo]
     if (hayErrores(erroresDeAyuda.value)) return null
 
     enviando.value = true
@@ -108,7 +108,7 @@ export function useAltaStaff(sedes: MaybeRefOrGetter<readonly Sede[]>) {
       return desmontado ? null : usuario
     } catch (e) {
       if (!desmontado) {
-        const { campos, general } = repartirErroresStaff(e, 'No se pudo crear el recepcionista.')
+        const { campos, general } = repartirErroresPersonal(e, 'No se pudo crear el recepcionista.')
         Object.assign(erroresServidor, campos)
         errorGeneral.value = general
       }
@@ -121,12 +121,12 @@ export function useAltaStaff(sedes: MaybeRefOrGetter<readonly Sede[]>) {
   }
 
   function reiniciar() {
-    Object.assign(datos, datosStaffVacios())
+    Object.assign(datos, datosPersonalVacios())
     intentado.value = false
     contraseniaBorrada.value = false
     enviando.value = false
     errorGeneral.value = null
-    for (const campo of Object.keys(erroresServidor) as CampoStaff[]) delete erroresServidor[campo]
+    for (const campo of Object.keys(erroresServidor) as CampoPersonal[]) delete erroresServidor[campo]
     consultaSedes++
     cargandoSedes.value = false
   }
@@ -152,4 +152,4 @@ export function useAltaStaff(sedes: MaybeRefOrGetter<readonly Sede[]>) {
 
 // El estado del alta tal como lo ve el formulario: el modal lo envuelve con
 // `reactive`, que desenvuelve los refs, y se lo pasa a los campos.
-export type AltaStaff = UnwrapNestedRefs<ReturnType<typeof useAltaStaff>>
+export type AltaPersonal = UnwrapNestedRefs<ReturnType<typeof useAltaPersonal>>

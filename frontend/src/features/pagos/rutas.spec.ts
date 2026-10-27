@@ -12,7 +12,7 @@ describe('rutas de pagos', () => {
     expect(rolesDe('pagar-reserva')).toContain('EXTERNO')
   })
 
-  it('la lista de pagos y el reporte quedan para el staff', () => {
+  it('la lista de pagos y el reporte quedan para el personal', () => {
     expect(rolesDe('pagos')).toEqual(['RECEPCION', 'GERENTE'])
     expect(rolesDe('reporte-ingresos')).toEqual(['GERENTE'])
   })

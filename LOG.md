@@ -4207,3 +4207,46 @@ El alta de RECEPCION con sede (A3) solo existía por API: el front no tenía pan
 ### Pendientes que siguen abiertos
 
 1. La UI de canchas y de Personal pasa a usar estos filtros (siguiente paso del frontend).
+
+---
+
+## 2026-10-27 - Frontend: rediseño visual, Paso 9d (criterio de selects, canchas unificadas y turnos)
+
+**Fecha:** 27/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commits:** `2112b80`, `f70a0a8`
+
+### Actividades
+
+1. **Criterio único de selects:** en los formularios de alta (Nueva clase, Nueva cancha, Nuevo socio, Nuevo recepcionista, Registrar ingreso) el select arranca en "Elegí…" y, una vez elegida una opción, no se puede volver al placeholder. En los filtros la sede arranca en "Todas las sedes". El Aforo conserva su sede principal por defecto y el Historial de accesos sigue en "Todas las sedes".
+2. **Filtro de sede en Personal:** usa el parámetro `sedeId` de `GET /usuarios` y queda en la dirección junto con el buscador por nombre.
+3. **Fix del costo por hora:** `v-model` sobre un campo de tipo número entrega un número en ejecución aunque el modelo esté tipado como texto, y llamar a `.trim()` rompía el alta de canchas. Se agrega el helper `comoTexto` en `compartido/`. En Registrar ingreso y en las clases se agregan validaciones propias y errores por campo.
+4. **Canchas unificadas:** una sola pantalla en `/canchas` con filtros de deporte, sede y estado en la dirección (`?tipo=`, `?sede=`, `?estado=`, `?pagina=`), tabla con Deporte, Sede, Estado, Precio base y Acciones, y "Nueva cancha" como modal para el GERENTE. El GERENTE tiene un menú "⋯" (`MenuAccionesFz`) con "Ver turnos" y "Editar"; los demás roles tienen el botón directo "Ver turnos". La edición (costo y mantenimiento) pasa a un modal (`ModalEditarCancha`, `useEditarCancha`). `/canchas/gestion` redirige a `/canchas`, y se eliminan `GestionCanchasPage`, `TablaGestionCanchas` y `useGestionCanchas`.
+5. **Turnos:** cabecera mínima (nombre de la cancha y "Sede · precio por hora"), campo de fecha (`?fecha=`, de hoy a hoy más 6 días) y tabla con Horario, Estado (Libre, Ocupado o Ya pasó) y "Reservar" solo para SOCIO y EXTERNO. La cancha en mantenimiento muestra un único aviso. La clasificación de cada turno vive en `clasificarTurnos` (`canchas/turnos.ts`, con spec).
+6. **Íconos:** "Ver turnos" usa el ícono `reloj`. Se cambió el ícono `canchas`, pero a tamaño chico se lee como un billete y queda pendiente rediseñarlo.
+
+### Decisiones tomadas
+
+1. **Los deportes son fijos (Paddle y Fútbol 5):** el enunciado del caso los define así. Se evaluó un buscador de texto con soporte de varios `tipo` a la vez en el backend y se descartó por sobreingeniería: se vuelve a un selector simple y el backend no cambia. Las etiquetas viven en un único mapa de `presentacion.ts`. Agregar un deporte (por ejemplo tenis) es un valor nuevo del enum `TipoCancha`, su migración, la lista del DTO y del repositorio, `api.d.ts` regenerado y la etiqueta en ese mapa.
+2. **Turnos como tabla con campo de fecha:** se probaron fichas, una agenda de un día y una tira de días, y se descartaron por peso visual o por repetir información. Se vuelve a una tabla como la de Socios.
+3. **La sede de los filtros no se comparte entre pantallas:** Clases, Canchas y Personal arrancan cada una en "Todas las sedes"; solo el Aforo y Registrar ingreso usan la sede activa compartida.
+
+### Problemas encontrados
+
+1. **Alta de cancha rota por el costo por hora:** el `.trim()` sobre un número tiraba un error. Corregido.
+2. **`TablaGestionCanchas` comparaba un número con un texto**, así que "Guardar" aparecía siempre. Desapareció junto con la pantalla.
+3. **Ícono de canchas:** a 16 px se confunde con un billete (pendiente).
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **830 tests** en 86 archivos.
+- Prueba manual de 33 pasos con GERENTE, RECEPCION (con sede) y SOCIO. Sin fallos funcionales; las correcciones de pulido quedaron anotadas.
+
+### Pendientes que siguen abiertos
+
+1. Paso 9c (pagos).
+2. Correcciones de la prueba manual en Canchas: botón "Limpiar" en los filtros, sede visible para RECEPCION, encabezado "Turnos" cuando hay una sola acción y columnas Estado y Precio base más a la izquierda.
+3. Correcciones en reserva y pago: enlace "Pagar ahora" con el estilo del kit, enlace de volver unificado (también después de pagar), "Canchas" activo en el menú durante el pago, medio de pago en "Elegí…", "Fútbol 5 #2" en vez de "Cancha #2", "Pagada" en la columna Estado de Mis reservas y rediseño del ícono de canchas.
+4. El aviso de penalidad de clases debe mostrarse solo en la agenda y en el detalle de la clase cancelada.
+5. Comprobante PDF (backend): maquetación, fechas en formato local y deporte de la cancha.
+6. Filtro de estado en Clases: el contrato de `GET /clases` hoy solo filtra por `tipo` y `sedeId`.
+7. Reintegro al cancelar una reserva de cancha ya pagada: hoy solo se cancela; definir con Santiago.
+8. Los pendientes de la entrada anterior (partir `ArmazonApp.vue`, `useListaSocios.spec.ts` y `ui/README.md`, y los de backend de la entrada 8b-2).

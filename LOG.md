@@ -4089,3 +4089,121 @@ El alta de RECEPCION con sede (A3) solo existía por API: el front no tenía pan
 1. Prueba manual en navegador con el gerente central: `/staff` y alta de recepcionista en una sede libre.
 2. Reasignación de sede de un recepcionista (sigue sin API).
 3. Limpiar los datos de prueba (`test.recepcion@fitzone.com.ar` sin sede, `prueba.recepcion@fitzone.com.ar` en la sede 462).
+
+---
+
+## 2026-10-26 - Frontend: rediseño visual, Paso 9a (clases)
+
+**Fecha:** 26/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `9a2bfe4` y `5f7e998`
+
+### Actividades
+
+1. **Clases con `EncabezadoPaginaFz` y "Nueva clase" como modal:** `ModalNuevaClase` reemplaza a `AltaClasePage`; se eliminan la página y la ruta `clases-nueva`. El detalle de la clase se arma con `DatosClase` y `FilaDatoClase`. `useSedeActiva` pasa de `acceso/composables` a `compartido/composables`, porque ahora la usan varias pantallas.
+2. **Fecha pasada en el alta:** el selector de día no deja elegir una fecha anterior a hoy y, si igual llega una (por ejemplo, la hora de hoy ya pasada), el error se muestra dentro del modal.
+3. **Filtros, página y origen en la URL** (`features/clases/direccion.ts`, con spec): `?tipo=`, `?sede=<id>|todas`, `?pagina=N` desde la 2 y `?desde=agenda|mis-clases` en el detalle. Cada cambio reemplaza la entrada del historial, la búsqueda por tipo espera 300 ms y el botón "Volver" respeta el origen.
+4. **"Mis clases" como vista de Clases:** el SOCIO elige entre Agenda y Mis clases con `?vista=mis-clases` (`VistaMisClases`, `useVistaClases`). `/mis-clases` redirige a esa dirección y ya no tiene ítem de menú propio.
+5. **Marcas en la agenda del SOCIO:** `MarcaDeClase` y `useMarcasClases` marcan las clases reservadas o con lista de espera. Solo el SOCIO hace las dos consultas extra (reservas y esperas); el personal no.
+6. **Solo vigentes:** el backend devuelve también las reservas y esperas canceladas en los listados, aunque el contrato dice que sin `estado` son solo las vigentes. El front filtra del lado del cliente: reserva `CONFIRMADA`, espera `EN_ESPERA` o `NOTIFICADO`; la lista de inscriptos descarta solo `CANCELADA`, porque `CUMPLIDA` es un estado derivado que el contrato sí incluye. Queda documentado en el README de clases.
+7. **Aviso de penalidad persistente** (`AvisoPenalidad`, `compartido/composables/usePenalidadCobrada`, textos en `textosPenalidad.ts`): al cancelar con menos de 2 h el servidor cobra el 50 % en el momento (pago y comprobante). El aviso muestra el cobro con el mismo mensaje "Reserva cancelada" en el detalle de esa clase y se limpia al cerrar la sesión. En una clase que ya comenzó no se muestra.
+8. **Detalle de la clase:** se vuelve a ofrecer "Reservar" después de cancelar, se muestra "N libres de M" en el cupo y se quita el chip "Sin cupos" repetido.
+
+### Decisiones tomadas
+
+1. **El texto de la penalidad dice lo que el servidor hace:** cobro inmediato, en vez de "se aplicará en la próxima reserva".
+2. **La regla de vigentes vive en `reglas.ts`:** `reservaVigente`, `esperaVigente`, `esperasVigentes` e `inscriptosVigentes`. Si el backend aplica el filtro del contrato, esos filtros quedan sin efecto y no hay que tocar nada.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **655 tests** en 68 archivos.
+
+### Pendientes que siguen abiertos
+
+1. Backend: los listados de reservas y esperas devuelven las canceladas contra lo que dice el contrato.
+2. Backend: el servidor no valida que la sede de una clase creada coincida con la de la Recepción.
+3. Backend: no existe un endpoint para que el staff cancele una clase.
+4. `ReservaClaseOut` y `EsperaOut` traen solo `socioId`, así que las tablas de inscriptos y de espera muestran "Socio #N". Se resuelve con `socioNombre` en el backend o con consultas por socio.
+
+---
+
+## 2026-10-27 - Frontend: rediseño visual, Paso 9-0 (Personal)
+
+**Fecha:** 27/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `81533c6`
+
+### Actividades
+
+1. **De "Staff" a "Personal":** la pantalla de recepcionistas del gerente (`features/usuarios`, hecha por Exe) cambia la etiqueta del menú, el título, la ruta (`/personal`) y los identificadores internos: `GestionPersonalPage`, `TablaPersonal`, `FormularioPersonal`, `ModalAltaPersonal`, `useAltaPersonal`, `useListaPersonal`, `validacionPersonal` y `rutasPersonal`.
+2. **Encabezado y filtros:** subtítulo "Un recepcionista por sede." y se quita la insignia de contador (queda el texto del pie). El buscador pasa a la barra de filtros como en Socios (`FiltrosPersonal`), con "Limpiar".
+3. **Modal de alta:** alineado con `ModalNuevaClase`. Las medidas escritas a mano se reemplazaron por el patrón del kit.
+4. **Nombre y página en la URL** (`features/usuarios/direccion.ts`, con spec): `?nombre=` y `?pagina=N` desde la 2. Los helpers de lectura de parámetros se extraen a `compartido/parametrosDeDireccion.ts` y `clases/direccion.ts` los reutiliza.
+5. **Tests y README:** se elimina `GestionStaffPage.spec.ts`. El README de la feature documenta la limitación conocida: un recepcionista sin sede muestra "Sin sede" y la asignación no se puede cambiar por la API.
+
+### Decisiones tomadas
+
+1. **Cambia el nombre, no el alcance:** la pantalla sigue siendo solo para GERENTE y de recepcionistas, uno por sede.
+2. **Se saca el test de render de pantalla completa:** sus casos ya estaban cubiertos por los specs de `useListaPersonal` y `useAltaPersonal`.
+3. **Helpers de dirección compartidos:** Clases y Personal leen los parámetros con el mismo código, en vez de repetirlo en cada feature.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **743 tests** en 79 archivos (la cuenta incluye el Paso 9b).
+- Sin referencias a "staff" en `frontend/src`, salvo en `api.d.ts`.
+
+---
+
+## 2026-10-27 - Frontend: rediseño visual, Paso 9b (canchas y reservas)
+
+**Fecha:** 27/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `0cb1991`
+
+### Actividades
+
+1. **"Mis reservas" como vista de Canchas:** `?vista=mis-reservas` (`VistaMisReservas`, `useVistaCanchas`), solo para SOCIO y EXTERNO. `/mis-reservas` redirige, se quita su ítem de menú y se actualiza el enlace de `PagarReservaPage`. Las pestañas no se desmontan al cambiar, así el foco no se pierde.
+2. **Reservar solo para SOCIO y EXTERNO (RF-01):** `puedeReservar(rol)` en `canchas/reglas.ts` (con spec), usada por el selector de vista y la grilla. RECEPCION y GERENTE ven la disponibilidad en modo consulta, sin botón de reservar. Reservar en nombre de un socio desde Recepción queda pendiente (M4).
+3. **"Nueva cancha" como modal:** `ModalNuevaCancha` y `useAltaCancha`. Filtros, página y `?desde=` quedan en la URL (`canchas/direccion.ts`).
+4. **Grilla de turnos accesible:** pasa a una tabla con el estado de cada turno escrito (Libre, Ocupado, En mantenimiento, Ya pasó) y botones alcanzables con Tab.
+5. **Errores:** los textos crudos en inglés de los 422 se reemplazan por frases genéricas. Los modales de cancelar y confirmar reserva muestran el error adentro y se cierran solo si salió bien.
+
+### Decisiones tomadas
+
+1. **La lista arranca en la sede activa:** si la dirección no trae `sede`, usa la sede activa en vez de pedir que se elija una antes de ver canchas. El RECEPCION usa la suya y el resto la elegida o la primera disponible. Elegir otra sede en el filtro no cambia la sede activa.
+2. **Cancelar una reserva de cancha no usa `usePenalidadCobrada`:** el contrato responde 204 y no menciona penalidad para canchas; ese aviso es solo de las clases.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **743 tests** en 79 archivos.
+
+### Pendientes que siguen abiertos
+
+1. Paso 9c (pagos).
+2. Unificar la gestión con la consulta de canchas, definir un criterio único de selects y de sede en los filtros y rediseñar los turnos (en curso).
+3. Partir `ArmazonApp.vue` (335 líneas), `useListaSocios.spec.ts` (371) y `ui/README.md` (420) para que queden por debajo de 300.
+4. Los pendientes de backend de la entrada 8b-2.
+
+---
+
+## 2026-10-27 - Backend: GET /canchas de todas las sedes y filtro sedeId en GET /usuarios
+
+**Fecha:** 27/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `df95d56`
+
+### Actividades
+
+1. **Contrato y Swagger:** nuevo `GET /canchas` (`operationId` `buscarCanchas`, tag `canchas`) con los filtros `sedeId`, `tipo`, `estado`, `page` y `perPage` (tope 100), respuesta `ListaCanchas` y orden por `sede_id` y luego `id`. Nuevo parámetro opcional `sedeId` en `GET /usuarios` (usuarios con puesto en esa sede, vía `EmpleadoSede`). `GET /sedes/{sedeId}/canchas` y el resto de las rutas de canchas no cambian.
+2. **Canchas:** `BuscarCanchasQueryDto` (extiende el DTO de listado por sede) y método `buscar` en el controller, el service y el repositorio. El repositorio comparte con el listado por sede un método privado de paginación.
+3. **Usuarios:** `sedeId` en `ListarUsuariosQueryDto`, `UsuariosService.listar` y `UsuarioRepository.listar`, filtrando por la relación `empleado`. Sin cambios de schema ni migraciones.
+4. **Tests:** casos nuevos en los specs de DTO, en el spec del repositorio de canchas, en el de `UsuariosService` y en la integración de canchas; archivo nuevo `usuarios.service.integration-spec.ts`; bloques nuevos en los e2e de canchas y de usuarios.
+5. **Frontend:** `frontend/src/types/api.d.ts` regenerado con `npm run types:api`.
+
+### Decisiones tomadas
+
+1. **Un `sedeId` inexistente da 200 con lista vacía, no 404, en ambos endpoints:** es el mismo criterio de `GET /ingresos?sedeId` y `GET /socios?sedeOrigenId`, que no validan la sede y filtran directo. El 404 sigue siendo propio del listado con la sede en la ruta (`GET /sedes/{sedeId}/canchas`). Quedó escrito en el contrato, en el Swagger y en los tests.
+2. **Motivo del endpoint:** el front necesitaba "Todas las sedes" en canchas sin pedir una lista por sede.
+3. **El DTO nuevo hereda del de listado por sede:** `estado`, `page` y `perPage` quedan con las mismas reglas y el listado por sede sigue rechazando `sedeId` y `tipo`.
+
+### Verificación
+
+- **321 tests unitarios**, **71 de integración** y **101 e2e** en verde, contra la base local de test (`fitzone_test`).
+- `tsc --noEmit` del backend y `npm run type-check` del frontend en verde.
+- No hay comparador automático del contrato con el Swagger en el repo: se revisaron a mano `operationId`, parámetros y schemas.
+
+### Pendientes que siguen abiertos
+
+1. La UI de canchas y de Personal pasa a usar estos filtros (siguiente paso del frontend).

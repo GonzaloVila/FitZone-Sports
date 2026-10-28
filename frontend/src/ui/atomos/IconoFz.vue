@@ -72,9 +72,9 @@ const TRAZOS: Record<NombreIconoFz, readonly string[]> = {
   acceso: ['M6 21V4h12v17', 'M3 21h18', 'M14.5 12v.01'],
   // Calendario: tapa, dos anillas y el cuerpo.
   clases: ['M4 6h16v15H4z', 'M4 11h16', 'M8 3v4', 'M16 3v4'],
-  // Una cancha vista desde arriba: el rectángulo, la línea central y el círculo del medio. Las esquinas se redondean solas
-  // con el `stroke-linejoin` del <svg>.
-  canchas: ['M3 6h18v12H3z', 'M12 6v12', 'M9.5 12a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0'],
+  // Una cancha vista desde arriba: el rectángulo, la línea central y un área chica en cada extremo. Sin círculo central (a
+  // 16 px con él se leía como un billete). Las esquinas se redondean solas con el `stroke-linejoin` del <svg>.
+  canchas: ['M3 6h18v12H3z', 'M12 6v12', 'M3 10h3v4H3', 'M21 10h-3v4h3'],
   // Hoja con la esquina doblada y dos renglones.
   pagos: ['M6 3h8l4 4v14H6z', 'M14 3v4h4', 'M9 13h6', 'M9 17h6'],
   // Tres barras de distinta altura sobre una base.

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Sede } from '@/features/sedes/services/servicioSedes'
-import { SelectFz } from '@/ui'
+import { BotonFz, IconoFz, SelectFz } from '@/ui'
 import { ESTADOS_CANCHA, ETIQUETA_ESTADO_CANCHA, ETIQUETA_TIPO_CANCHA, TIPOS_CANCHA } from '../presentacion'
 
 defineProps<{
@@ -8,6 +8,12 @@ defineProps<{
   cargandoSedes?: boolean
   // El RECEPCION trabaja en la sede de su token: no hay selector de sede.
   sedeFija?: boolean
+  // Si hay algún filtro aplicado: muestra "Limpiar". Quién limpia es el padre (evento `limpiar`).
+  hayFiltrosActivos: boolean
+}>()
+
+const emit = defineEmits<{
+  limpiar: []
 }>()
 
 // Deporte (el `tipo` de la cancha); '' = todos los deportes.
@@ -41,6 +47,11 @@ const estado = defineModel<string>('estado', { required: true })
           <option v-for="valor in ESTADOS_CANCHA" :key="valor" :value="valor">{{ ETIQUETA_ESTADO_CANCHA[valor] }}</option>
         </SelectFz>
       </div>
+
+      <BotonFz v-if="hayFiltrosActivos" variante="fantasma" @click="emit('limpiar')">
+        <IconoFz nombre="cerrar" tamano="sm" />
+        Limpiar
+      </BotonFz>
     </div>
 
     <div v-if="$slots.acciones" class="barra__acciones">

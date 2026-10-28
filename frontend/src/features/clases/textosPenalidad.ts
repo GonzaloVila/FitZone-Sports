@@ -13,13 +13,16 @@ export interface ClaseVista {
 }
 
 // Qué dice el aviso de la última penalidad cobrada (el cobro ya ocurrió: los textos van en pasado), o null si no se muestra.
-// - En el detalle de una clase que ya comenzó no se muestra.
+// - En la agenda: un texto informativo con la clase cancelada.
 // - En el detalle de la misma clase cuya reserva se canceló: "Reserva cancelada. Se cobró una penalidad de $X."
-// - En la agenda y en el detalle de otra clase: un texto informativo con la clase cancelada, sin repetir "Reserva cancelada".
+// - En el detalle de cualquier otra clase (o si no se sabe cuál fue la cancelada) no se muestra.
+// - Tampoco en el detalle de una clase que ya comenzó.
 export function textoAvisoPenalidad(penalidad: PenalidadCobrada, vista: ClaseVista | null): string | null {
   const monto = formatearMonto(penalidad.monto)
-  if (vista && momentoDeClase(vista.clase, vista.ahora) === 'comenzada') return null
-  if (vista && penalidad.clase?.id === vista.clase.id) return `Reserva cancelada. Se cobró una penalidad de ${monto}.`
+  if (vista) {
+    if (penalidad.clase?.id !== vista.clase.id || momentoDeClase(vista.clase, vista.ahora) === 'comenzada') return null
+    return `Reserva cancelada. Se cobró una penalidad de ${monto}.`
+  }
   if (!penalidad.clase) return `Tu última cancelación tuvo una penalidad de ${monto}.`
   return `Tu última cancelación («${penalidad.clase.tipo}», ${penalidad.clase.horario}) tuvo una penalidad de ${monto}.`
 }

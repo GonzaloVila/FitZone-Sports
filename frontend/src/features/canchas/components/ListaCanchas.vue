@@ -10,7 +10,7 @@ const props = defineProps<{
   canchas: Cancha[]
   // Parámetros de dirección del enlace a la grilla de turnos (de dónde se vino y con qué filtros).
   parametrosDetalle?: Record<string, string>
-  // Con "Todas las sedes" la tabla suma la columna Sede.
+  // Suma la columna Sede (con "Todas las sedes" y para el RECEPCION, cuya sede es fija).
   mostrarSede?: boolean
   nombreDeSede?: (sedeId: number) => string
   // Solo el GERENTE edita: tiene dos acciones por fila (Ver turnos y Editar), en un menú. Los demás tienen una sola ("Ver
@@ -23,12 +23,15 @@ const emit = defineEmits<{ editar: [cancha: Cancha] }>()
 
 const router = useRouter()
 
+// Solo la última columna es ajustada (ocupa lo que necesita); las demás se reparten el resto del ancho, así Estado y Precio
+// base no quedan empujadas contra el borde derecho por una primera columna que se lleva todo el espacio sobrante.
+// La columna de acciones se llama "Turnos" cuando tiene una sola acción ("Ver turnos") y "Acciones" cuando tiene el menú.
 const columnas = computed<ColumnaTabla[]>(() => [
   { clave: 'tipo', etiqueta: 'Deporte', encabezadoFila: true },
   ...(props.mostrarSede ? [{ clave: 'sede', etiqueta: 'Sede' }] : []),
-  { clave: 'estado', etiqueta: 'Estado', ajustada: true },
-  { clave: 'costo', etiqueta: 'Precio base por hora', ajustada: true },
-  { clave: 'acciones', etiqueta: 'Acciones', ajustada: true, alineacion: 'fin' },
+  { clave: 'estado', etiqueta: 'Estado' },
+  { clave: 'costo', etiqueta: 'Precio base por hora' },
+  { clave: 'acciones', etiqueta: props.puedeEditar ? 'Acciones' : 'Turnos', ajustada: true, alineacion: 'fin' },
 ])
 
 const ACCIONES_GERENTE: AccionMenuFz[] = [

@@ -5,6 +5,8 @@ import type { ReservaCancha } from '../services/servicioCanchas'
 
 defineProps<{
   reserva: ReservaCancha | null
+  // El nombre de la cancha de la reserva ("Fútbol 5 #2").
+  nombreCancha?: string
   cargando?: boolean
   error?: string | null
 }>()
@@ -19,7 +21,7 @@ defineEmits<{
 <template>
   <ModalFz v-model="abierto" titulo="Cancelar reserva" icono="cerrar" tono="peligro" ancho="angosto" :ocupado="cargando">
     <p v-if="reserva" class="modal-cancelar__texto">
-      ¿Querés cancelar tu reserva de la <strong>cancha #{{ reserva.canchaId }}</strong>
+      ¿Querés cancelar tu reserva de <strong>{{ nombreCancha ?? `Cancha #${reserva.canchaId}` }}</strong>
       ({{ formatearFechaHora(reserva.fechaHoraInicio) }} a {{ formatearHora(reserva.fechaHoraFin) }})? No se puede deshacer.
     </p>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>

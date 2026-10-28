@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { AvisoFz, PestanasFz } from '@/ui'
+import { useEtiquetasCanchas } from '../composables/useEtiquetasCanchas'
 import { useMisReservas } from '../composables/useMisReservas'
 import type { FilaReserva } from '../tipos'
 import ModalCancelarReserva from './ModalCancelarReserva.vue'
@@ -21,6 +22,8 @@ const {
   cancelar,
   limpiarMensajes,
 } = useMisReservas()
+// La reserva no trae su cancha: los nombres ("Fútbol 5 #2") salen de una sola consulta a la lista de canchas.
+const { etiquetaDe } = useEtiquetasCanchas()
 
 const PESTANAS = [
   { id: 'proximas', etiqueta: 'Próximas' },
@@ -63,7 +66,14 @@ async function confirmarCancelacion() {
     <PestanasFz v-if="!sinUsuario" v-model="pestana" :pestanas="PESTANAS" etiqueta="Mis reservas de cancha por estado">
       <template v-for="opcion in PESTANAS" :key="opcion.id" #[`panel-${opcion.id}`]>
         <p v-if="cargando" class="mis-reservas__estado" role="status">Cargando tus reservas…</p>
-        <TablaReservas v-else-if="filas.length > 0" :filas="filas" :ahora="ahora" :ocupada="accionando" @cancelar="pedirCancelacion" />
+        <TablaReservas
+          v-else-if="filas.length > 0"
+          :filas="filas"
+          :ahora="ahora"
+          :etiqueta-de-cancha="etiquetaDe"
+          :ocupada="accionando"
+          @cancelar="pedirCancelacion"
+        />
         <p v-else class="mis-reservas__estado" role="status">{{ mensajeVacio }}</p>
       </template>
     </PestanasFz>
@@ -71,6 +81,7 @@ async function confirmarCancelacion() {
     <ModalCancelarReserva
       v-model="modalCancelar"
       :reserva="aCancelar?.reserva ?? null"
+      :nombre-cancha="aCancelar ? etiquetaDe(aCancelar.reserva.canchaId) : undefined"
       :cargando="accionando"
       :error="errorAccion"
       @confirmar="confirmarCancelacion"

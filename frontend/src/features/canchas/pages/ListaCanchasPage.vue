@@ -54,12 +54,23 @@ function cambiarVista(valor: string) {
 // cambiarla.
 const sedeFija = computed(() => sedeUsuario.value !== null)
 const sedeActiva = useSedeActiva(sedes)
-const { filtros, pagina, items, total, totalPaginas, cargando, error, parametrosDetalle, recargar } = useCanchas(() =>
-  rol.value === 'RECEPCION' && !sedeFija.value ? sedeActiva.value : null,
-)
+const {
+  filtros,
+  pagina,
+  items,
+  total,
+  totalPaginas,
+  cargando,
+  error,
+  hayFiltrosActivos,
+  limpiarFiltros,
+  parametrosDetalle,
+  recargar,
+} = useCanchas(() => (rol.value === 'RECEPCION' && !sedeFija.value ? sedeActiva.value : null))
 
-// Con "Todas las sedes" la tabla muestra a qué sede pertenece cada cancha.
-const todasLasSedes = computed(() => filtros.sede === '')
+// La tabla muestra a qué sede pertenece cada cancha con "Todas las sedes" y también cuando la sede es fija (RECEPCION con
+// sede en el token: no tiene selector, pero igual ve en qué sede está cada fila).
+const mostrarSede = computed(() => filtros.sede === '' || sedeFija.value)
 
 // La lista no se actualiza mientras se mira "Mis reservas": al volver se trae de nuevo.
 watch(enCanchas, (visible) => {
@@ -128,6 +139,8 @@ const textoRango = computed(() => {
         :sedes="sedes"
         :cargando-sedes="cargandoSedes"
         :sede-fija="sedeFija"
+        :hay-filtros-activos="hayFiltrosActivos"
+        @limpiar="limpiarFiltros"
       >
         <template v-if="esGerente" #acciones>
           <BotonFz @click="altaAbierta = true">
@@ -144,7 +157,7 @@ const textoRango = computed(() => {
         v-if="hayFilas"
         :canchas="items"
         :parametros-detalle="parametrosDetalle"
-        :mostrar-sede="todasLasSedes"
+        :mostrar-sede="mostrarSede"
         :nombre-de-sede="nombreDeSede"
         :puede-editar="esGerente"
         :ocupada="cargando"

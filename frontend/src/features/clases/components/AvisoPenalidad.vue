@@ -11,7 +11,7 @@ const props = defineProps<{
   ahora?: number
 }>()
 
-// La última penalidad cobrada: queda visible en la agenda y en el detalle de cualquier clase hasta que se la cierra.
+// La última penalidad cobrada: queda visible en la agenda y en el detalle de la clase cancelada hasta que se la cierra.
 const { penalidad, cerrar, descargando, error, descargarComprobante } = useAvisoPenalidad()
 
 const texto = computed(() => {

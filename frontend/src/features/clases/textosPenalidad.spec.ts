@@ -34,8 +34,12 @@ describe('textoAvisoPenalidad', () => {
     expect(textoAvisoPenalidad(CANCELADA, claseVista(7, ANTES))).toBe(`Reserva cancelada. Se cobró una penalidad de ${MONTO}.`)
   })
 
-  it('en el detalle de otra clase es informativo, con la clase cancelada y sin "Reserva cancelada"', () => {
-    const texto = textoAvisoPenalidad(CANCELADA, claseVista(8, ANTES))
+  it('no se muestra en el detalle de otra clase', () => {
+    expect(textoAvisoPenalidad(CANCELADA, claseVista(8, ANTES))).toBeNull()
+  })
+
+  it('en la agenda (sin clase puntual) es un texto informativo con la clase cancelada', () => {
+    const texto = textoAvisoPenalidad(CANCELADA, null)
 
     expect(texto).toBe(
       `Tu última cancelación («Spinning», viernes, 24/10, 18:00 a 19:00 hs) tuvo una penalidad de ${MONTO}.`,
@@ -43,23 +47,17 @@ describe('textoAvisoPenalidad', () => {
     expect(texto).not.toContain('Reserva cancelada')
   })
 
-  it('en la agenda (sin clase puntual) es el mismo texto informativo', () => {
-    expect(textoAvisoPenalidad(CANCELADA, null)).toBe(
-      `Tu última cancelación («Spinning», viernes, 24/10, 18:00 a 19:00 hs) tuvo una penalidad de ${MONTO}.`,
-    )
-  })
-
-  it('sin la clase cancelada igual informa el importe, sin inventar datos', () => {
+  it('sin la clase cancelada informa el importe solo en la agenda, sin inventar datos', () => {
     const sinClase: PenalidadCobrada = { pagoId: 99, monto: 5000, clase: null }
 
     expect(textoAvisoPenalidad(sinClase, null)).toBe(`Tu última cancelación tuvo una penalidad de ${MONTO}.`)
-    expect(textoAvisoPenalidad(sinClase, claseVista(7, ANTES))).toBe(`Tu última cancelación tuvo una penalidad de ${MONTO}.`)
+    expect(textoAvisoPenalidad(sinClase, claseVista(7, ANTES))).toBeNull()
   })
 
   it('no se muestra en el detalle de una clase que ya comenzó, sea la cancelada u otra', () => {
     expect(textoAvisoPenalidad(CANCELADA, claseVista(7, DESPUES))).toBeNull()
+    expect(textoAvisoPenalidad(CANCELADA, claseVista(7, INICIO))).toBeNull()
     expect(textoAvisoPenalidad(CANCELADA, claseVista(8, DESPUES))).toBeNull()
-    expect(textoAvisoPenalidad(CANCELADA, claseVista(8, INICIO))).toBeNull()
   })
 
   it('en la agenda se muestra siempre', () => {

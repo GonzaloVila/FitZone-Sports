@@ -4546,3 +4546,50 @@ El alta de RECEPCION con sede (A3) solo existía por API: el front no tenía pan
 1. Comprobantes viejos sin archivo: se deja como está (son datos de prueba). Opción a futuro: que el backend regenere el comprobante cuando falte el archivo; el monto sale del pago, que está congelado. También protegería ante un despliegue sin volumen persistente para `storage/`, a hablar con Gonza antes del Demo Day, y cambia la decisión "el comprobante se genera una sola vez".
 2. Quedan unos 70 PDF de tests (ids 119 a 292) sin limpiar en `backend/storage/comprobantes`: algunos tests generan comprobantes y no los borran. Los tests de comprobantes podrían usar una carpeta propia.
 3. La descripción de Swagger de `pago-in.dto.ts` todavía menciona el 50% del valor nominal (es documentación del contrato; no se tocó).
+
+---
+
+## 2026-10-28 - Backend: guards de sesión y alcance por rol en pagos
+
+**Fecha:** 28/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `57dd1c1`
+
+### Actividades
+
+1. **Sesión obligatoria en `PagosController`:** `JwtAuthGuard` y `RolesGuard` en los cinco endpoints (`POST /pagos`, `GET /pagos`, `GET /pagos/{pagoId}`, `GET /pagos/{pagoId}/comprobante` y `POST /pagos/{pagoId}/anulaciones`). Sin token o con token inválido responden 401. `PagosModule` importa `CommonsModule`, que trae el Passport que necesita el guard.
+2. **Alcance por rol:**
+   - SOCIO y EXTERNO: el listado fuerza su propio `usuarioId` (ignora el que manden por query); ver o descargar el comprobante del pago de otro usuario da 404 con el mismo texto que un pago inexistente; cobrar una reserva de cancha, una membresía o una reserva de clase ajena da 404 y no crea ningún pago; anular da 403.
+   - RECEPCION y GERENTE: ven y cobran todo (cobro de mostrador), sin restricción por sede, y anulan.
+3. **Servicio nuevo `PagosAccesoService`** (`services/pagos-acceso.service.ts`): aplica el alcance y delega en `PagosService`, que quedó sin cambios. Las reglas son funciones puras sin dependencias en `services/alcance-pagos.ts`. El dueño del concepto que se cobra se resuelve con `obtenerParaCobro` de los servicios de precio de M1, M3 y M4, que ya exponían `usuarioId`.
+4. **Contrato (`docs/openapi.yaml`):** las cinco operaciones de pagos declaran `security: bearer` y la respuesta 401 con la referencia `NoAutorizado` que ya usa `/reportes/pagos`; el 403 está solo en `anularPago`; las descripciones indican quién puede hacer qué. No cambiaron los summary ni los operationId. Los tipos del frontend se regeneraron con `npm run types:api` (27 líneas de diferencia en `api.d.ts`).
+5. **Tests:**
+   - Unitarios: `alcance-pagos.spec.ts` y `pagos-acceso.service.spec.ts`.
+   - E2E: `pagos-acceso.e2e-spec.ts` (401 sin token en los cinco endpoints, alcance de SOCIO y EXTERNO, 403 al anular y permisos del personal), con ajustes en `pagos.e2e-spec.ts`, `comprobante.e2e-spec.ts` y el fixture `m5.fixtures.ts`, que ahora crea sesiones por rol.
+   - Helper nuevo `test/helpers/sesion.ts`, que hace login real por HTTP.
+   - Los e2e de M1 (`socios.e2e-spec.ts`) y M3 (`reservas.e2e-spec.ts`) llaman a `GET /pagos` y se adaptaron para autenticarse.
+6. **Frontend:** sin cambios de código. Todas las llamadas a pagos ya pasaban por el cliente autenticado (Pagos, Mis pagos, descarga de comprobantes, búsqueda de la penalidad por `reservaClaseId`, anulación y cobro), así que ninguna salteaba el token.
+
+### Decisiones tomadas
+
+1. **Lo ajeno responde 404, no 403:** no se revela qué ids de pago existen, y el contrato ya declaraba el 404 en esos endpoints. El 403 queda solo para la anulación por rol.
+2. **Anulan RECEPCION y GERENTE:** son los roles que hoy ven el botón en el frontend (la ruta `/pagos` es de esos dos roles).
+3. **RECEPCION y GERENTE cobran cualquier concepto:** se contempla el cobro de mostrador. No hay scope por sede porque los pagos no tienen sede directa.
+4. **Servicio de acceso aparte:** el alcance vive en `PagosAccesoService` y no en `PagosService`, que ya pasaba las 300 líneas y lo usan los cobros internos. El cobro de un SOCIO o EXTERNO consulta el concepto dos veces (una en el acceso y otra al cobrar); se aceptó por no tocar el servicio grande.
+5. **Comprobante:** primero se verifica que el pago sea del usuario (404) y recién después el estado (409), para no revelar el estado de un pago ajeno.
+6. **Los cobros internos no pasan por el controller** (renovación de membresía por cron, cobro del alta y del cambio de plan, penalidad de clase por listener), por lo que su comportamiento no cambió.
+
+### Problemas encontrados
+
+1. **`PagosController` no tenía guards:** cualquiera, incluso sin sesión, podía listar, ver, descargar comprobantes, cobrar y anular pagos de cualquier usuario. Es lo que cierra este cambio.
+2. **Tests que llamaban a `/pagos` sin token:** los e2e de M5, M1 y M3 empezaron a recibir 401 y se adaptaron con sesiones reales.
+
+### Verificación
+
+- Backend: `npx tsc --noEmit` sin errores; `npm run test:unit` 365 tests (más 1 salteado: las muestras de PDF; antes 347); `npm run test:integration` 75 tests en 13 archivos; `npm run test:e2e` 114 tests en 21 archivos (antes 103).
+- Frontend: `npm run type-check` y `npm run build` sin errores; 95 archivos y 967 tests en verde.
+- La base de test queda limpia después de los e2e: no quedan usuarios ni refresh tokens de las sesiones nuevas.
+- Comparador de contrato: no está en este repo; se revisó a mano que el contrato (enum, descripciones, 401 y 403) coincida con los decoradores del controller.
+- Prueba manual con SOCIO, EXTERNO, RECEPCION y GERENTE: Mis pagos, listado completo de Pagos, descarga de comprobantes (incluido el de la penalidad), cobro de reservas, anulación y reporte de ingresos.
+
+### Pendientes que siguen abiertos
+
+1. Los controllers de usuarios, socios, clases, canchas y reservas siguen sin guards: se cierran módulo por módulo, y antes de implementar se hace una auditoría de endpoints para decidir cuáles deben quedar públicos (login, refresh, ingreso con QR, aforo) y cuáles exigen sesión o rol.

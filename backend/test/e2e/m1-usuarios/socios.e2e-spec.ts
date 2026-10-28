@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp, dniUnico } from '@test/helpers/base-de-datos';
+import { conToken, crearUsuarioConSesion } from '@test/helpers/sesion';
 import { crearContextoM1 } from './m1.fixtures';
 
 // E2E de socios: el flujo HTTP completo (usuario -> socio -> membresía -> baja) y el
@@ -80,6 +81,8 @@ describe('M1 - Socios', () => {
     expect(pagoDespues).not.toBeNull();
     expect(pagoDespues!.pago_membresia?.membresia_id).toBe(membresiaTrasBaja!.id);
 
-    await request(app.getHttpServer()).get(`/api/v1/pagos/${pagoId}/comprobante`).expect(200);
+    // /pagos exige sesion: el comprobante lo baja el personal. El prefijo `socio.` hace que la limpieza de la suite lo borre.
+    const { token } = await crearUsuarioConSesion(app, prisma, 'GERENTE', 'socio.gerente');
+    await request(app.getHttpServer()).get(`/api/v1/pagos/${pagoId}/comprobante`).set(conToken(token)).expect(200);
   });
 });

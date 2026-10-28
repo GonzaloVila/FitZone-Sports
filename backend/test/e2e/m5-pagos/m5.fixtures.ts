@@ -5,6 +5,7 @@ import request from 'supertest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { PRECIOS_PLAN } from 'src/modules/m1-usuarios/entities/membresia.entity';
 import { dniUnico } from '@test/helpers/base-de-datos';
+import { conToken, crearUsuarioConSesion, iniciarSesion } from '@test/helpers/sesion';
 
 // Fixtures compartidos por los e2e de M5 (antes en el beforeAll de m5.e2e-spec.ts).
 // El contexto crea la sede + usuario/socio/membresia + cancha y expone helpers para
@@ -82,16 +83,34 @@ export async function crearContextoM5(app: INestApplication, prisma: PrismaServi
     return reserva.id;
   }
 
-  function cobroReserva(reservaId: number, clave: string, token = 'tok_aprobado_abc') {
+  // /pagos exige sesion. Por defecto quien cobra es el dueño de las reservas (el SOCIO del fixture); `sesion` permite cobrar
+  // como otro rol. Ademas del dueño hay un SOCIO y un EXTERNO ajenos, un RECEPCION y un GERENTE.
+  const sesiones = {
+    socio: await iniciarSesion(app, prisma, usuario.id),
+    socioAjeno: await sesionNueva('SOCIO'),
+    externo: await sesionNueva('EXTERNO'),
+    recepcion: await sesionNueva('RECEPCION'),
+    gerente: await sesionNueva('GERENTE'),
+  };
+
+  async function sesionNueva(rol: 'SOCIO' | 'EXTERNO' | 'RECEPCION' | 'GERENTE'): Promise<string> {
+    const { usuarioId, token } = await crearUsuarioConSesion(app, prisma, rol, `m5.${rol.toLowerCase()}`);
+    usuariosCreados.push(usuarioId);
+    return token;
+  }
+
+  function cobroReserva(reservaId: number, clave: string, token = 'tok_aprobado_abc', sesion = sesiones.socio) {
     return request(app.getHttpServer())
       .post('/api/v1/pagos')
+      .set(conToken(sesion))
       .set('Idempotency-Key', clave)
       .send({ concepto: { tipo: 'RESERVA_CANCHA', reservaCanchaId: reservaId }, token });
   }
 
-  function cobroMembresia(clave: string, token = 'tok_aprobado_abc') {
+  function cobroMembresia(clave: string, token = 'tok_aprobado_abc', sesion = sesiones.socio) {
     return request(app.getHttpServer())
       .post('/api/v1/pagos')
+      .set(conToken(sesion))
       .set('Idempotency-Key', clave)
       .send({ concepto: { tipo: 'MEMBRESIA', membresiaId: membresia.id }, token });
   }
@@ -144,6 +163,7 @@ export async function crearContextoM5(app: INestApplication, prisma: PrismaServi
     canchasCreadas,
     reservasCreadas,
     sufijo,
+    sesiones,
     crearReserva,
     cobroReserva,
     cobroMembresia,

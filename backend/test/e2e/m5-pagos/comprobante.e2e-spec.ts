@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp } from '@test/helpers/base-de-datos';
+import { conToken } from '@test/helpers/sesion';
 import { crearContextoM5 } from './m5.fixtures';
 
 // E2E de RF-14: la descarga HTTP del comprobante (content-type, disposition y bytes)
@@ -24,7 +25,7 @@ describe('M5 - Comprobante en PDF (RF-14)', () => {
   });
 
   function comprobante(pagoId: number) {
-    return request(app.getHttpServer()).get(`/api/v1/pagos/${pagoId}/comprobante`);
+    return request(app.getHttpServer()).get(`/api/v1/pagos/${pagoId}/comprobante`).set(conToken(ctx.sesiones.socio));
   }
 
   it('devuelve el PDF con application/pdf y el nombre de descarga', async () => {

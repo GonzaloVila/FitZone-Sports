@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp } from '@test/helpers/base-de-datos';
+import { conToken } from '@test/helpers/sesion';
 import { crearContextoM5 } from './m5.fixtures';
 
 // E2E de /pagos: solo el contrato HTTP que la integración no puede ver (cabecera
@@ -62,6 +63,7 @@ describe('M5 - Pagos: contrato HTTP (RF-13)', () => {
 
     const res = await request(app.getHttpServer())
       .post('/api/v1/pagos')
+      .set(conToken(ctx.sesiones.socio))
       .send({ concepto: { tipo: 'MEMBRESIA', membresiaId: ctx.membresiaId }, token: 'tok_aprobado_1' })
       .expect(400);
 
@@ -79,6 +81,7 @@ describe('M5 - Pagos: contrato HTTP (RF-13)', () => {
     const consulta = (estado?: string) =>
       request(app.getHttpServer())
         .get('/api/v1/pagos')
+        .set(conToken(ctx.sesiones.gerente))
         .query({ usuarioId: ctx.usuarioId, perPage: 100, ...(estado ? { estado } : {}) })
         .expect(200);
 
@@ -95,14 +98,21 @@ describe('M5 - Pagos: contrato HTTP (RF-13)', () => {
   });
 
   it('GET /pagos con un estado fuera del enum sigue siendo 422', async () => {
-    await request(app.getHttpServer()).get('/api/v1/pagos').query({ estado: 'COBRADO' }).expect(422);
+    await request(app.getHttpServer())
+      .get('/api/v1/pagos')
+      .set(conToken(ctx.sesiones.gerente))
+      .query({ estado: 'COBRADO' })
+      .expect(422);
   });
 
   it('anula un pago APROBADO con 204 sin cuerpo', async () => {
     const reservaId = await ctx.crearReserva();
     const cobrado = await ctx.cobroReserva(reservaId, `anular-${ctx.sufijo}`).expect(201);
 
-    const res = await request(app.getHttpServer()).post(`/api/v1/pagos/${cobrado.body.id}/anulaciones`).expect(204);
+    const res = await request(app.getHttpServer())
+      .post(`/api/v1/pagos/${cobrado.body.id}/anulaciones`)
+      .set(conToken(ctx.sesiones.gerente))
+      .expect(204);
 
     expect(res.body).toEqual({});
     const pago = await prisma.pago.findUniqueOrThrow({ where: { id: cobrado.body.id } });

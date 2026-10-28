@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { penalidadCancelacionTardia } from 'src/modules/m3-clases/entities/reserva-clase.entity';
 import { crearApp } from '@test/helpers/base-de-datos';
+import { conToken, iniciarSesion } from '@test/helpers/sesion';
 import { crearContextoM3 } from './m3.fixtures';
 
 // E2E de reservas de clase: el contrato HTTP del alta y los DOS cruces con M5 (RF-07):
@@ -58,7 +59,7 @@ describe('M3 - Reservas de clase: alta y penalidad (RF-07)', () => {
   });
 
   it('cancelación con < 2 hs cobra la penalidad vía M5 y libera el cupo (RF-07)', async () => {
-    const { socioId } = await ctx.crearSocioConMembresia({ vigente: true });
+    const { socioId, usuarioId } = await ctx.crearSocioConMembresia({ vigente: true });
     const claseId = await crearClase('Spinning Exprés', 1, 5);
 
     const resReserva = await request(app.getHttpServer())
@@ -79,8 +80,18 @@ describe('M3 - Reservas de clase: alta y penalidad (RF-07)', () => {
     expect(pago!.comprobantePdfUrl).not.toBeNull();
     ctx.pagosDePenalidad.push(pago!.id);
 
+    // /pagos exige sesion. Como hace el frontend, el SOCIO busca su penalidad por reservaClaseId (el listado se acota solo a
+    // su usuario) y baja el comprobante.
+    const token = await iniciarSesion(app, prisma, usuarioId);
+    const busqueda = await request(app.getHttpServer())
+      .get('/api/v1/pagos')
+      .set(conToken(token))
+      .query({ reservaClaseId: reservaId, page: 1, perPage: 1 })
+      .expect(200);
+    expect(busqueda.body.items.map((p: { id: number }) => p.id)).toEqual([pago!.id]);
     const resComprobante = await request(app.getHttpServer())
       .get(`/api/v1/pagos/${pago!.id}/comprobante`)
+      .set(conToken(token))
       .expect(200);
     expect((resComprobante.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
   });

@@ -776,13 +776,13 @@ export interface paths {
         };
         /**
          * Listado de pagos con filtros
-         * @description Filtros por usuario, estado, tipo de concepto, concepto concreto y período (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los APROBADO: es el único estado en el que el dinero se movió y existe comprobante. PENDIENTE, RECHAZADO y ANULADO se piden explícitamente con ?estado=, porque un pago anulado no se borra del histórico: se repaga con una nueva Idempotency-Key. `estado=TODOS` devuelve pagos en cualquier estado. `tipo` es el discriminante de ConceptoPago (RESERVA_CANCHA cruza con PagoReserva, MEMBRESIA con PagoMembresia). `desde` y `hasta` son días (YYYY-MM-DD) en hora local y forman un intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo.
+         * @description Filtros por usuario, estado, tipo de concepto, concepto concreto y período (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los APROBADO: es el único estado en el que el dinero se movió y existe comprobante. PENDIENTE, RECHAZADO y ANULADO se piden explícitamente con ?estado=, porque un pago anulado no se borra del histórico: se repaga con una nueva Idempotency-Key. `estado=TODOS` devuelve pagos en cualquier estado. `tipo` es el discriminante de ConceptoPago (RESERVA_CANCHA cruza con PagoReserva, MEMBRESIA con PagoMembresia). `desde` y `hasta` son días (YYYY-MM-DD) en hora local y forman un intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo. SOCIO y EXTERNO solo ven sus propios pagos (`usuarioId` se fuerza al de la sesión); RECEPCION y GERENTE ven todos.
          */
         get: operations["listarPagos"];
         put?: never;
         /**
          * Procesar un pago (RF-13)
-         * @description Cobro de una reserva de cancha (PagoReserva) o una renovación de membresía (PagoMembresia). Requiere la cabecera Idempotency-Key: si la clave ya fue usada, el unique del esquema responde 409 y la pasarela no se invoca de nuevo. El monto lo computa la regla de negocio (por precio aplicado o plan). Sin PATCH/DELETE: un cobro mal hecho se ANULA por POST /pagos/{pagoId}/anulaciones y se repaga con una nueva Idempotency-Key.
+         * @description Cobro de una reserva de cancha (PagoReserva) o una renovación de membresía (PagoMembresia). Requiere la cabecera Idempotency-Key: si la clave ya fue usada, el unique del esquema responde 409 y la pasarela no se invoca de nuevo. El monto lo computa la regla de negocio (por precio aplicado o plan). Sin PATCH/DELETE: un cobro mal hecho se ANULA por POST /pagos/{pagoId}/anulaciones y se repaga con una nueva Idempotency-Key. Cualquier rol con sesión puede cobrar: SOCIO y EXTERNO solo conceptos propios (uno ajeno responde 404 como si no existiera); RECEPCION y GERENTE cualquiera.
          */
         post: operations["procesarPago"];
         delete?: never;
@@ -801,7 +801,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Obtener pago por id */
+        /**
+         * Obtener pago por id
+         * @description SOCIO y EXTERNO solo acceden a sus propios pagos (el de otro responde 404 como si no existiera); RECEPCION y GERENTE acceden a todos.
+         */
         get: operations["obtenerPago"];
         put?: never;
         post?: never;
@@ -823,7 +826,7 @@ export interface paths {
         };
         /**
          * Descargar comprobante PDF (RF-14)
-         * @description Genera/retorna el comprobante del pago aprobado (snapshot al momento del pago). Si el pago no fue aprobado (PENDIENTE/RECHAZADO/ANULADO) responde 409.
+         * @description Genera/retorna el comprobante del pago aprobado (snapshot al momento del pago). Si el pago no fue aprobado (PENDIENTE/RECHAZADO/ANULADO) responde 409. SOCIO y EXTERNO solo descargan comprobantes de sus propios pagos (el de otro responde 404); RECEPCION y GERENTE descargan cualquiera.
          */
         get: operations["obtenerComprobante"];
         put?: never;
@@ -848,7 +851,7 @@ export interface paths {
         put?: never;
         /**
          * Anular un pago
-         * @description Única forma de mover un pago hacia ANULADO (sin PATCH ni DELETE). Aplica a un pago PENDIENTE o APROBADO (por ej. cobro duplicado o mal hecho). Re-anular un pago ya ANULADO es idempotente: responde 204 sin cambios. Un pago RECHAZADO nunca se cobró y no es anulable: responde 409. El pago anulado no se borra del histórico: se repaga con una nueva Idempotency-Key.
+         * @description Única forma de mover un pago hacia ANULADO (sin PATCH ni DELETE). Aplica a un pago PENDIENTE o APROBADO (por ej. cobro duplicado o mal hecho). Re-anular un pago ya ANULADO es idempotente: responde 204 sin cambios. Un pago RECHAZADO nunca se cobró y no es anulable: responde 409. El pago anulado no se borra del histórico: se repaga con una nueva Idempotency-Key. Solo RECEPCION y GERENTE; SOCIO y EXTERNO nunca.
          */
         post: operations["anularPago"];
         delete?: never;
@@ -3662,6 +3665,7 @@ export interface operations {
                     "application/json": components["schemas"]["ListaPagos"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             422: components["responses"]["ValidationError"];
         };
     };
@@ -3693,6 +3697,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["MissingIdempotency"];
+            401: components["responses"]["NoAutorizado"];
             402: components["responses"]["PagoRechazado"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["IdempotenciaRepetida"];
@@ -3720,6 +3725,7 @@ export interface operations {
                     "application/json": components["schemas"]["PagoOut"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -3744,6 +3750,7 @@ export interface operations {
                     "application/pdf": string;
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["PagoNoAprobado"];
         };
@@ -3766,6 +3773,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
             };
             404: components["responses"]["NotFound"];
             409: components["responses"]["PagoNoAnulable"];

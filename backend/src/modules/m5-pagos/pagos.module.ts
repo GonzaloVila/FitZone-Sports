@@ -52,6 +52,7 @@
 // directa que invertiría el grafo.
 
 import { Module } from '@nestjs/common';
+import { CommonsModule } from '../../commons/commons.module';
 import { CanchasModule } from '../m4-canchas/canchas.module';
 import { ClasesModule } from '../m3-clases/clases.module';
 import { UsuariosModule } from '../m1-usuarios/usuarios.module';
@@ -60,6 +61,7 @@ import { PagosController } from './controllers/pagos.controller';
 import { PagoRepository } from './repositories/pago.repository';
 import { CobroInternoService } from './services/cobro-interno.service';
 import { ComprobantesService } from './services/comprobantes.service';
+import { PagosAccesoService } from './services/pagos-acceso.service';
 import { PagosService } from './services/pagos.service';
 import { PasarelaPagoService } from './services/pasarela-pago.service';
 import { PenalidadReservaClaseListener } from './services/penalidad-reserva-clase.listener';
@@ -79,13 +81,16 @@ import { RenovacionesService } from './services/renovaciones.service';
 // membresías con renovación automática. Ambos usan `RenovacionesService`, que cobra
 // primero y solo inserta el Pago si la pasarela aprobó.
 @Module({
-  imports: [UsuariosModule, CanchasModule, ClasesModule],
+  // CommonsModule trae lo que JwtAuthGuard necesita (el PassportModule): PagosController exige sesion.
+  imports: [CommonsModule, UsuariosModule, CanchasModule, ClasesModule],
   controllers: [PagosController],
   providers: [
     PagoRepository,
     PasarelaPagoService,
     ComprobantesService,
     PagosService,
+    // Lo que usa el controller: aplica el alcance por rol (SOCIO y EXTERNO solo lo propio) antes de llegar a PagosService.
+    PagosAccesoService,
     // Flujo interno común (RF-02 y RF-07): lo usan RenovacionesService y
     // PenalidadReservaClaseService, que solo resuelven el concepto y delegan.
     CobroInternoService,

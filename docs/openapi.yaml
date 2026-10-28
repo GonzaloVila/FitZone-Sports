@@ -1610,7 +1610,10 @@ paths:
         Filtros por usuario, estado, tipo de concepto, concepto concreto y período (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los APROBADO: es el único estado en el que el
         dinero se movió y existe comprobante. PENDIENTE, RECHAZADO y ANULADO se piden explícitamente con ?estado=, porque un pago anulado no se borra del histórico: se repaga con una nueva
         Idempotency-Key. `estado=TODOS` devuelve pagos en cualquier estado. `tipo` es el discriminante de ConceptoPago (RESERVA_CANCHA cruza con PagoReserva, MEMBRESIA con PagoMembresia). `desde` y
-        `hasta` son días (YYYY-MM-DD) en hora local y forman un intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo.
+        `hasta` son días (YYYY-MM-DD) en hora local y forman un intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo. SOCIO y EXTERNO solo ven sus propios pagos (`usuarioId` se fuerza al de
+        la sesión); RECEPCION y GERENTE ven todos.
+      security:
+        - bearer: []
       parameters:
         - name: usuarioId
           in: query
@@ -1688,6 +1691,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaPagos'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -1698,7 +1703,9 @@ paths:
       description: >
         Cobro de una reserva de cancha (PagoReserva) o una renovación de membresía (PagoMembresia). Requiere la cabecera Idempotency-Key: si la clave ya fue usada, el unique del esquema responde 409 y
         la pasarela no se invoca de nuevo. El monto lo computa la regla de negocio (por precio aplicado o plan). Sin PATCH/DELETE: un cobro mal hecho se ANULA por POST /pagos/{pagoId}/anulaciones y
-        se repaga con una nueva Idempotency-Key.
+        se repaga con una nueva Idempotency-Key. Cualquier rol con sesión puede cobrar: SOCIO y EXTERNO solo conceptos propios (uno ajeno responde 404 como si no existiera); RECEPCION y GERENTE cualquiera.
+      security:
+        - bearer: []
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -1722,6 +1729,8 @@ paths:
                 $ref: '#/components/schemas/PagoOut'
         '400':
           $ref: '#/components/responses/MissingIdempotency'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '402':
           $ref: '#/components/responses/PagoRechazado'
         '404':
@@ -1738,6 +1747,9 @@ paths:
         - pagos
       operationId: obtenerPago
       summary: Obtener pago por id
+      description: SOCIO y EXTERNO solo acceden a sus propios pagos (el de otro responde 404 como si no existiera); RECEPCION y GERENTE acceden a todos.
+      security:
+        - bearer: []
       responses:
         '200':
           description: Pago
@@ -1745,6 +1757,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PagoOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '404':
           $ref: '#/components/responses/NotFound'
   /pagos/{pagoId}/comprobante:
@@ -1756,7 +1770,9 @@ paths:
       operationId: obtenerComprobante
       summary: Descargar comprobante PDF (RF-14)
       description: |
-        Genera/retorna el comprobante del pago aprobado (snapshot al momento del pago). Si el pago no fue aprobado (PENDIENTE/RECHAZADO/ANULADO) responde 409.
+        Genera/retorna el comprobante del pago aprobado (snapshot al momento del pago). Si el pago no fue aprobado (PENDIENTE/RECHAZADO/ANULADO) responde 409. SOCIO y EXTERNO solo descargan comprobantes de sus propios pagos (el de otro responde 404); RECEPCION y GERENTE descargan cualquiera.
+      security:
+        - bearer: []
       responses:
         '200':
           description: Comprobante en PDF
@@ -1765,6 +1781,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -1779,10 +1797,20 @@ paths:
       summary: Anular un pago
       description: >
         Única forma de mover un pago hacia ANULADO (sin PATCH ni DELETE). Aplica a un pago PENDIENTE o APROBADO (por ej. cobro duplicado o mal hecho). Re-anular un pago ya ANULADO es idempotente:
-        responde 204 sin cambios. Un pago RECHAZADO nunca se cobró y no es anulable: responde 409. El pago anulado no se borra del histórico: se repaga con una nueva Idempotency-Key.
+        responde 204 sin cambios. Un pago RECHAZADO nunca se cobró y no es anulable: responde 409. El pago anulado no se borra del histórico: se repaga con una nueva Idempotency-Key. Solo RECEPCION y GERENTE; SOCIO y EXTERNO nunca.
+      security:
+        - bearer: []
       responses:
         '204':
           description: Pago anulado (sin cuerpo)
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (solo RECEPCION/GERENTE)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':

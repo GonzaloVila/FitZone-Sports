@@ -1,6 +1,10 @@
 import type { EstadoPago } from './services/servicioPagos'
 
-export const ESTADOS_PAGO: EstadoPago[] = ['PENDIENTE', 'APROBADO', 'RECHAZADO', 'ANULADO']
+// El filtro de estado: "TODOS" no es un estado del pago sino "sin filtro" (el contrato lo pide explícito; sin `estado` el
+// backend devuelve solo los aprobados). Es el valor por defecto y va primero, en el orden del filtro.
+export type FiltroEstadoPago = EstadoPago | 'TODOS'
+export const ESTADOS_FILTRO: FiltroEstadoPago[] = ['TODOS', 'APROBADO', 'PENDIENTE', 'RECHAZADO', 'ANULADO']
+// En el orden del filtro: la penalidad de clase va al final por ser el concepto menos habitual.
 export const TIPOS_CONCEPTO = ['RESERVA_CANCHA', 'MEMBRESIA', 'RESERVA_CLASE'] as const
 export type TipoConcepto = (typeof TIPOS_CONCEPTO)[number]
 
@@ -11,10 +15,16 @@ export const ETIQUETA_ESTADO_PAGO: Record<EstadoPago, string> = {
   ANULADO: 'Anulado',
 }
 
+export const ETIQUETA_FILTRO_ESTADO: Record<FiltroEstadoPago, string> = {
+  TODOS: 'Todos los estados',
+  ...ETIQUETA_ESTADO_PAGO,
+}
+
 export const ETIQUETA_TIPO_CONCEPTO: Record<TipoConcepto, string> = {
   RESERVA_CANCHA: 'Reserva de cancha',
   MEMBRESIA: 'Membresía',
-  RESERVA_CLASE: 'Reserva de clase',
+  // Un pago con este concepto es siempre la penalidad por cancelación tardía (RF-07), no el pago de una clase.
+  RESERVA_CLASE: 'Penalidad de clase',
 }
 
 export const MEDIOS_PAGO = [

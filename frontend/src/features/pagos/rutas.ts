@@ -20,6 +20,17 @@ export const rutasPagos: RouteRecordRaw[] = [
     },
   },
   {
+    // Los pagos propios de quien reserva (SOCIO y EXTERNO). Sin sección (no es una actividad ni una tarea de administración) y
+    // con el orden más alto de los ítems de esos roles (Mi carnet 1, Clases 4, Canchas 6): es la última opción de su barra.
+    path: '/mis-pagos',
+    name: 'mis-pagos',
+    component: () => import('./pages/MisPagosPage.vue'),
+    meta: {
+      roles: ['SOCIO', 'EXTERNO'],
+      navegacion: { etiqueta: 'Mis pagos', orden: 7, icono: 'pagos' },
+    },
+  },
+  {
     // Enlace viejo: sigue funcionando como redirección.
     path: '/pagos/nuevo',
     name: 'pagar-reserva',

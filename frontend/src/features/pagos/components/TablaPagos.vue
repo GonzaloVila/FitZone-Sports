@@ -1,22 +1,34 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { AccionesFilaFz, InsigniaFz, TablaFz, type AccionFilaFz, type ColumnaTabla } from '@/ui'
 import { ETIQUETA_ESTADO_PAGO, ETIQUETA_TIPO_CONCEPTO, formatearFechaHora, formatearMonto } from '../presentacion'
 import type { EstadoPago, Pago } from '../services/servicioPagos'
 
-defineProps<{ pagos: Pago[]; ocupada: boolean }>()
+const props = withDefaults(
+  defineProps<{
+    pagos: Pago[]
+    ocupada: boolean
+    // La columna Usuario no va en "Mis pagos" (son todos del mismo usuario).
+    mostrarUsuario?: boolean
+    // Sin esto no existe la acción "Anular" (en "Mis pagos" queda solo "Comprobante").
+    puedeAnular?: boolean
+  }>(),
+  { mostrarUsuario: true, puedeAnular: true },
+)
 const emit = defineEmits<{ comprobante: [pago: Pago]; anular: [pago: Pago] }>()
 
-const COLUMNAS: ColumnaTabla[] = [
-  { clave: 'fecha', etiqueta: 'Fecha' },
-  { clave: 'usuario', etiqueta: 'Usuario' },
+// Fecha, Monto y Estado ocupan lo justo; Usuario y Concepto se reparten el resto del ancho.
+const columnas = computed<ColumnaTabla[]>(() => [
+  ...(props.mostrarUsuario ? [{ clave: 'usuario', etiqueta: 'Usuario' }] : []),
+  { clave: 'fecha', etiqueta: 'Fecha', ajustada: true },
   { clave: 'concepto', etiqueta: 'Concepto' },
-  { clave: 'monto', etiqueta: 'Monto' },
-  { clave: 'estado', etiqueta: 'Estado' },
-  { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' },
-]
+  { clave: 'estado', etiqueta: 'Estado', ajustada: true },
+  { clave: 'monto', etiqueta: 'Monto', ajustada: true, alineacion: 'fin' as const },
+  { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' as const },
+])
 
-// Comprobante y anular: como mucho 2 acciones por fila, así que son íconos.
-const MAXIMO_DE_ACCIONES = 2
+// Comprobante y anular: como mucho 2 acciones por fila, así que son íconos (sin "Anular", una sola).
+const maximoDeAcciones = computed(() => (props.puedeAnular ? 2 : 1))
 
 function variante(estado: EstadoPago): 'exito' | 'peligro' | 'advertencia' | 'neutra' {
   if (estado === 'APROBADO') return 'exito'
@@ -25,7 +37,8 @@ function variante(estado: EstadoPago): 'exito' | 'peligro' | 'advertencia' | 'ne
   return 'neutra'
 }
 
-// "Comprobante" solo en un pago aprobado; "Anular" en uno aprobado o pendiente. Rechazado y anulado no tienen acciones.
+// "Comprobante" solo en un pago aprobado; "Anular" (si se puede) en uno aprobado o pendiente. Rechazado y anulado no tienen
+// acciones.
 function accionesDe(pago: Pago): AccionFilaFz[] {
   const acciones: AccionFilaFz[] = []
   if (pago.estado === 'APROBADO') {
@@ -36,7 +49,7 @@ function accionesDe(pago: Pago): AccionFilaFz[] {
       icono: 'descargar',
     })
   }
-  if (pago.estado === 'APROBADO' || pago.estado === 'PENDIENTE') {
+  if (props.puedeAnular && (pago.estado === 'APROBADO' || pago.estado === 'PENDIENTE')) {
     acciones.push({ clave: 'anular', etiqueta: 'Anular', etiquetaAccesible: `Anular el pago #${pago.id}`, icono: 'cerrar', peligro: true })
   }
   return acciones
@@ -51,7 +64,7 @@ function alSeleccionar(pago: Pago, clave: string) {
 <template>
   <TablaFz
     titulo="Pagos"
-    :columnas="COLUMNAS"
+    :columnas="columnas"
     :filas="pagos"
     :clave-fila="(pago) => pago.id"
     :ocupada="ocupada"
@@ -70,7 +83,7 @@ function alSeleccionar(pago: Pago, clave: string) {
         :etiqueta="`Acciones del pago #${fila.id}`"
         :identificador="`acciones-pago-${fila.id}`"
         :acciones="accionesDe(fila)"
-        :maximo="MAXIMO_DE_ACCIONES"
+        :maximo="maximoDeAcciones"
         @seleccionar="(clave) => alSeleccionar(fila, clave)"
       />
       <span v-else class="tabla-pagos__vacio">—</span>

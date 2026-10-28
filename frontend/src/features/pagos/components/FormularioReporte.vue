@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AvisoFz, BotonFz, CampoTextoFz } from '@/ui'
+import { AvisoFz, BotonFz, CampoTextoFz, IconoFz } from '@/ui'
 
 defineProps<{ errorFechas: string | null; descargando: boolean; error: string | null }>()
 const emit = defineEmits<{ descargar: [] }>()
@@ -10,26 +10,27 @@ const hasta = defineModel<string>('hasta', { required: true })
 
 <template>
   <form class="formulario-reporte" @submit.prevent="emit('descargar')">
-    <div class="formulario-reporte__campos">
-      <label class="formulario-reporte__campo">
-        <span class="formulario-reporte__etiqueta">Desde</span>
-        <CampoTextoFz v-model="desde" tipo="date" />
-      </label>
-      <label class="formulario-reporte__campo">
-        <span class="formulario-reporte__etiqueta">Hasta</span>
-        <CampoTextoFz v-model="hasta" tipo="date" />
-      </label>
+    <!-- Una sola fila: las dos fechas a la izquierda y la descarga pegada al borde derecho; en ancho chico se apila. -->
+    <div class="formulario-reporte__fila">
+      <!-- Las fechas mantienen su etiqueta visible: un campo de fecha vacío no dice por sí solo para qué sirve. -->
+      <div class="formulario-reporte__fecha">
+        <label for="reporte-desde" class="formulario-reporte__etiqueta">Desde</label>
+        <CampoTextoFz id="reporte-desde" v-model="desde" tipo="date" name="desde" />
+      </div>
+      <div class="formulario-reporte__fecha">
+        <label for="reporte-hasta" class="formulario-reporte__etiqueta">Hasta</label>
+        <CampoTextoFz id="reporte-hasta" v-model="hasta" tipo="date" name="hasta" />
+      </div>
+      <BotonFz class="formulario-reporte__descargar" tipo="submit" :cargando="descargando" :disabled="descargando || Boolean(errorFechas)">
+        <IconoFz v-if="!descargando" nombre="descargar" tamano="sm" />
+        Descargar PDF
+      </BotonFz>
     </div>
     <p class="formulario-reporte__nota">
       El rango incluye desde y hasta. Si dejás las dos fechas vacías, el reporte incluye todo el histórico.
     </p>
     <AvisoFz v-if="errorFechas" variante="advertencia">{{ errorFechas }}</AvisoFz>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
-    <div class="formulario-reporte__acciones">
-      <BotonFz tipo="submit" :cargando="descargando" :disabled="descargando || Boolean(errorFechas)">
-        Descargar PDF
-      </BotonFz>
-    </div>
   </form>
 </template>
 
@@ -38,38 +39,37 @@ const hasta = defineModel<string>('hasta', { required: true })
   display: flex;
   flex-direction: column;
   gap: var(--fz-espaciado-base);
-  padding: var(--fz-espaciado-base);
-  border: 1px solid var(--fz-color-borde);
-  border-radius: var(--fz-radio-tarjeta);
-  background: var(--fz-color-superficie);
 }
 
-.formulario-reporte__campos {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: var(--fz-espaciado-base);
-}
-
-.formulario-reporte__campo {
+.formulario-reporte__fila {
   display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fz-espaciado-compacto);
+}
+
+.formulario-reporte__fecha {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--fz-espaciado-compacto);
+  width: max-content;
+  max-width: 100%;
 }
 
 .formulario-reporte__etiqueta {
+  color: var(--fz-color-texto-suave);
   font-size: var(--fz-texto-pequeno);
-  font-weight: 600;
-  color: var(--fz-color-texto);
+}
+
+/* La descarga queda pegada al borde derecho de la misma fila. */
+.formulario-reporte__descargar {
+  margin-inline-start: auto;
 }
 
 .formulario-reporte__nota {
   margin: 0;
   font-size: var(--fz-texto-pequeno);
   color: var(--fz-color-texto-suave);
-}
-
-.formulario-reporte__acciones {
-  display: flex;
-  justify-content: flex-end;
 }
 </style>

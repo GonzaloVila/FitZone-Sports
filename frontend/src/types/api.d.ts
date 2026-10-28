@@ -776,7 +776,7 @@ export interface paths {
         };
         /**
          * Listado de pagos con filtros
-         * @description Filtros por usuario, estado, tipo de concepto, concepto concreto y período (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los APROBADO: es el único estado en el que el dinero se movió y existe comprobante. PENDIENTE, RECHAZADO y ANULADO se piden explícitamente con ?estado=, porque un pago anulado no se borra del histórico: se repaga con una nueva Idempotency-Key. `tipo` es el discriminante de ConceptoPago (RESERVA_CANCHA cruza con PagoReserva, MEMBRESIA con PagoMembresia). `desde` y `hasta` son días (YYYY-MM-DD) en hora local y forman un intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo.
+         * @description Filtros por usuario, estado, tipo de concepto, concepto concreto y período (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los APROBADO: es el único estado en el que el dinero se movió y existe comprobante. PENDIENTE, RECHAZADO y ANULADO se piden explícitamente con ?estado=, porque un pago anulado no se borra del histórico: se repaga con una nueva Idempotency-Key. `estado=TODOS` devuelve pagos en cualquier estado. `tipo` es el discriminante de ConceptoPago (RESERVA_CANCHA cruza con PagoReserva, MEMBRESIA con PagoMembresia). `desde` y `hasta` son días (YYYY-MM-DD) en hora local y forman un intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo.
          */
         get: operations["listarPagos"];
         put?: never;
@@ -3615,8 +3615,8 @@ export interface operations {
                  * @example 1
                  */
                 usuarioId?: number;
-                /** @description Estado del pago. Sin este parámetro devuelve solo los APROBADO. */
-                estado?: components["schemas"]["EstadoPago"];
+                /** @description Estado del pago. Sin este parámetro devuelve solo los APROBADO; con TODOS devuelve pagos en cualquier estado. */
+                estado?: "PENDIENTE" | "APROBADO" | "RECHAZADO" | "ANULADO" | "TODOS";
                 /** @description Discriminante del concepto cobrado. */
                 tipo?: "RESERVA_CANCHA" | "MEMBRESIA" | "RESERVA_CLASE";
                 /**

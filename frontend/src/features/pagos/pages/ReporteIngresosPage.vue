@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { EncabezadoPaginaFz } from '@/ui'
 import FormularioReporte from '../components/FormularioReporte.vue'
 import { useReporteIngresos } from '../composables/useReporteIngresos'
 
@@ -7,10 +8,10 @@ const { desde, hasta, errorFechas, descargando, error, descargarReporte } = useR
 
 <template>
   <section class="reporte">
-    <header class="reporte__encabezado">
-      <h1 class="reporte__titulo">Reporte de ingresos</h1>
-      <p class="reporte__subtitulo">Consolidado de pagos aprobados por período. Solo GERENTE.</p>
-    </header>
+    <EncabezadoPaginaFz
+      titulo="Reporte de ingresos"
+      subtitulo="Consolidado en PDF de los pagos aprobados, agrupado por día, sede y concepto."
+    />
 
     <FormularioReporte
       v-model:desde="desde"
@@ -27,29 +28,7 @@ const { desde, hasta, errorFechas, descargando, error, descargarReporte } = useR
 .reporte {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  max-width: 48rem;
-  margin: 0 auto;
+  gap: var(--fz-espaciado-base);
   width: 100%;
-}
-
-.reporte__encabezado {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.reporte__titulo {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--fz-color-texto);
-}
-
-.reporte__subtitulo {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--fz-color-texto-suave);
 }
 </style>

@@ -1,27 +1,36 @@
 <script setup lang="ts">
-import { AvisoFz, BotonFz, ModalFz } from '@/ui'
-import { ETIQUETA_TIPO_CONCEPTO, formatearMonto } from '../presentacion'
+import { computed } from 'vue'
+import { AvisoFz, BotonFz, ListaDatosFz, ModalFz, type DatoFz } from '@/ui'
+import { ETIQUETA_TIPO_CONCEPTO, formatearFechaHora, formatearMonto } from '../presentacion'
 import type { Pago } from '../services/servicioPagos'
 
-defineProps<{ pago: Pago | null; anulando: boolean; error: string | null }>()
+const props = defineProps<{ pago: Pago | null; anulando: boolean; error: string | null }>()
 const emit = defineEmits<{ confirmar: [] }>()
 
 const abierto = defineModel<boolean>({ default: false })
+
+const datos = computed<DatoFz[]>(() => {
+  const pago = props.pago
+  if (!pago) return []
+  return [
+    { etiqueta: 'Pago', valor: `#${pago.id}` },
+    { etiqueta: 'Concepto', valor: ETIQUETA_TIPO_CONCEPTO[pago.concepto.tipo] },
+    { etiqueta: 'Usuario', valor: `Usuario #${pago.usuarioId}` },
+    { etiqueta: 'Fecha', valor: formatearFechaHora(pago.fechaPago) },
+    { etiqueta: 'Monto', valor: formatearMonto(pago.monto), destacado: true },
+  ]
+})
 </script>
 
 <template>
-  <ModalFz v-model="abierto" titulo="Anular pago" :ocupado="anulando">
-    <div v-if="pago" class="confirmar-anulacion">
-      <p class="confirmar-anulacion__dato">
-        Pago #{{ pago.id }} · {{ ETIQUETA_TIPO_CONCEPTO[pago.concepto.tipo] }} · {{ formatearMonto(pago.monto) }}
-      </p>
-      <p class="confirmar-anulacion__nota">
-        La anulación no se puede deshacer. Si hay que volver a cobrar, se hace con una clave nueva.
-      </p>
-    </div>
+  <ModalFz v-model="abierto" titulo="Anular pago" icono="advertencia" tono="peligro" ancho="angosto" :ocupado="anulando">
+    <template v-if="pago">
+      <ListaDatosFz :datos="datos" />
+      <p class="nota">La anulación no se puede deshacer. Si hay que volver a cobrar, se hace con una clave nueva.</p>
+    </template>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
     <template #acciones="{ cerrar }">
-      <BotonFz variante="secundario" :disabled="anulando" @click="cerrar">Volver</BotonFz>
+      <BotonFz variante="secundario" :disabled="anulando" @click="cerrar">Cancelar</BotonFz>
       <BotonFz variante="peligro" :cargando="anulando" :disabled="anulando" @click="emit('confirmar')">
         Anular pago
       </BotonFz>
@@ -30,17 +39,7 @@ const abierto = defineModel<boolean>({ default: false })
 </template>
 
 <style scoped>
-.confirmar-anulacion {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.confirmar-anulacion__dato {
-  margin: 0;
-}
-
-.confirmar-anulacion__nota {
+.nota {
   margin: 0;
   font-size: var(--fz-texto-pequeno);
   color: var(--fz-color-texto-suave);

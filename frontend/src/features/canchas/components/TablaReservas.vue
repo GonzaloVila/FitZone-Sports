@@ -28,8 +28,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ pagar: [fila: FilaReserva]; cancelar: [fila: FilaReserva] }>()
 
-// Como en la lista de canchas: las columnas se reparten el ancho y solo la última (las acciones, sin etiqueta a la vista)
-// ocupa lo que necesita.
+// Como en la lista de canchas: las columnas se reparten el ancho y solo la última (las acciones) ocupa lo que necesita.
 const columnas = computed<ColumnaTabla[]>(() => [
   { clave: 'cancha', etiqueta: 'Cancha', encabezadoFila: true },
   { clave: 'sede', etiqueta: 'Sede' },
@@ -37,7 +36,7 @@ const columnas = computed<ColumnaTabla[]>(() => [
   { clave: 'pago', etiqueta: 'Pago' },
   { clave: 'precio', etiqueta: 'Precio' },
   ...(props.pestana === 'proximas'
-    ? [{ clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' as const }]
+    ? [{ clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' as const }]
     : []),
 ])
 

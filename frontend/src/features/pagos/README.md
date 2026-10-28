@@ -55,7 +55,7 @@ src/features/pagos/
 
 13. **Foco al pagar:** al aparecer el resultado el formulario (y el botón "Pagar" que tenía el foco) desaparece, así que el foco pasa a la región del resultado (`role="group"`, `tabindex="-1"`, "Resultado del pago", sin contorno porque no es un control). Se anuncia por su nombre y por la descripción (el texto del resultado) y el aviso de adentro lleva `aria-live="off"` para no repetirse; el aviso de error de la descarga, que aparece después, sí se anuncia solo. El foco no va a un botón (un Enter de más descargaría o cerraría sin querer). No tiene test: es comportamiento de pantalla y el repo no prueba pantallas completas.
 
-14. **Acciones de la lista (convención de las tablas):** "Comprobante" (solo APROBADO) y "Anular" (APROBADO o PENDIENTE) son botones de solo ícono (`AccionesFilaFz`, máximo 2 → íconos) con la columna "Acciones" sin etiqueta a la vista; los pagos RECHAZADO y ANULADO siguen mostrando "—". Al anular, el foco vuelve al primer control que siga en la fila.
+14. **Acciones de la lista (convención de las tablas):** "Comprobante" (solo APROBADO) y "Anular" (APROBADO o PENDIENTE) son botones de solo ícono (`AccionesFilaFz`, máximo 2 → íconos) bajo el encabezado "Acciones"; los pagos RECHAZADO y ANULADO siguen mostrando "—". Al anular, el foco vuelve al primer control que siga en la fila.
 
 ## Verificación
 

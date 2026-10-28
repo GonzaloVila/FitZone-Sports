@@ -22,7 +22,7 @@ const columnas: ColumnaTabla[] = [
   { clave: 'horario', etiqueta: 'Horario' },
   { clave: 'posicion', etiqueta: 'Posición', ajustada: true },
   { clave: 'estado', etiqueta: 'Estado', ajustada: true },
-  { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' },
+  { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' },
 ]
 
 // "Confirmar cupo" (solo si te avisaron), "Ver detalle" y "Salir de la lista": hasta 3 acciones posibles, así que van todas en

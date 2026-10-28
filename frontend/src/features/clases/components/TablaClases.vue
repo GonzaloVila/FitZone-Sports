@@ -25,7 +25,7 @@ const columnas: ColumnaTabla[] = [
   { clave: 'sede', etiqueta: 'Sede' },
   { clave: 'cupos', etiqueta: 'Cupos libres', ajustada: true },
   { clave: 'estado', etiqueta: 'Estado', ajustada: true },
-  { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' },
+  { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' },
 ]
 
 // Una sola acción por fila ("Ver detalle"): es un ícono. El nombre de la clase es texto simple.

@@ -245,7 +245,7 @@ Prop opcional `soloIcono`: el botón queda cuadrado (del alto de su tamaño: `sm
 
 ### `AccionesFilaFz` (molécula)
 
-Las acciones de una fila de tabla. Concentra la regla en un solo lugar: según la CANTIDAD MÁXIMA de acciones que puede tener cualquier fila de esa tabla (`maximo`, no las de cada fila, para que todas se vean iguales), dibuja **botones de solo ícono** sueltos (`maximo` de 2 o menos) o **un único menú "⋯"** (`MenuAccionesFz`, con 3 o más). Va con la columna `etiquetaOculta`, `ajustada` y alineada al final.
+Las acciones de una fila de tabla. Concentra la regla en un solo lugar: según la CANTIDAD MÁXIMA de acciones que puede tener cualquier fila de esa tabla (`maximo`, no las de cada fila, para que todas se vean iguales), dibuja **botones de solo ícono** sueltos (`maximo` de 2 o menos) o **un único menú "⋯"** (`MenuAccionesFz`, con 3 o más). Va en una columna con encabezado "Acciones", `ajustada` y centrada.
 
 | Prop / evento | |
 | --- | --- |
@@ -255,9 +255,9 @@ Las acciones de una fila de tabla. Concentra la regla en un solo lugar: según l
 | `identificador?` | Base para devolver el foco (ver abajo) |
 | evento `seleccionar` | `(clave)`, en los dos modos. Las acciones de navegación también emiten: la tabla hace el `router.push` |
 
-En modo íconos hay un `<div role="group">` con un botón por acción: `title` (tooltip nativo) = `etiqueta` (también en uno deshabilitado, que se ve apagado), `aria-label` = `etiquetaAccesible` y, si está `cargando`, el spinner del botón en lugar del ícono. **Foco:** cada botón lleva `data-identificador="<identificador>-<clave>"` y, en modo menú, el disparador lleva `data-identificador="<identificador>"`. Para devolver el foco al cerrar un modal abierto desde una fila, `enfocarControlDeFila(identificador, clave)` busca el botón de esa acción y, si ya no existe (se pagó, por ejemplo), el disparador del menú o el primer control habilitado que siga en esa fila.
+En modo íconos hay un `<div role="group">` con un botón por acción y, entre cada par de botones, una rayita vertical decorativa (`aria-hidden`, sin rol: no es un elemento del grupo) de alrededor del 60 % de la altura del botón (`--fz-acciones-fila-divisor-alto`, `-ancho` y `-color`, este último el borde de los controles); con una sola acción, o en modo menú, no hay rayita. Cada botón lleva: `title` (tooltip nativo) = `etiqueta` (también en uno deshabilitado, que se ve apagado), `aria-label` = `etiquetaAccesible` y, si está `cargando`, el spinner del botón en lugar del ícono. **Foco:** cada botón lleva `data-identificador="<identificador>-<clave>"` y, en modo menú, el disparador lleva `data-identificador="<identificador>"`. Para devolver el foco al cerrar un modal abierto desde una fila, `enfocarControlDeFila(identificador, clave)` busca el botón de esa acción y, si ya no existe (se pagó, por ejemplo), el disparador del menú o el primer control habilitado que siga en esa fila.
 
-Convención de las tablas: las acciones de cada fila son botones de solo ícono, sin la palabra "Acciones" a la vista; los nombres en las filas son texto simple y abrir un detalle es una acción más ("Ver detalle", ícono `ojo`). Única excepción: "Reservar" de la grilla de turnos, que mantiene su texto por ser la acción principal.
+Convención de las tablas: las acciones de cada fila son botones de solo ícono, bajo el encabezado "Acciones"; los nombres en las filas son texto simple y abrir un detalle es una acción más ("Ver detalle", ícono `ojo`). Única excepción: "Reservar" de la grilla de turnos, que mantiene su texto por ser la acción principal.
 
 ### `CampoTextoFz` con `icono`
 
@@ -399,7 +399,7 @@ Todas opcionales y aditivas; sin ellas la columna se comporta como siempre.
 | `ajustada` | La columna ocupa lo justo para su contenido; el espacio sobrante va a las columnas que no lo son |
 | `alineacion` | `'inicio'` (por defecto), `'centro'` o `'fin'`, para el encabezado y las celdas |
 | `encabezadoEnLineas` | El encabezado puede partirse en varias líneas, balanceadas (por defecto va en una sola) |
-| `etiquetaOculta` | La etiqueta del encabezado no se ve pero la leen los lectores de pantalla (misma técnica que el título oculto de la tabla): para la columna de acciones, que tiene solo íconos |
+| `conDivisor` | El encabezado y todas las celdas de la columna llevan una línea vertical en su borde inicial (`border-inline-start`, con `--fz-tabla-borde` y `--fz-tabla-borde-ancho`, como las líneas de fila), continua de arriba a abajo. Las tablas con acciones la usan en la columna "Acciones" para separarla del resto. Por defecto no hay línea |
 
 ## Escala de tamaños
 

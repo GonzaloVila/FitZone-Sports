@@ -65,23 +65,27 @@ const accionesDelMenu = computed<AccionMenuFz[]>(() =>
     />
 
     <div v-else class="acciones-fila" role="group" :aria-label="etiqueta">
-      <!-- El `title` también va en el envoltorio: un botón deshabilitado no recibe el puntero y, sin él, perdería el tooltip. -->
-      <span v-for="accion in acciones" :key="accion.clave" class="acciones-fila__item" :title="accion.etiqueta">
-        <BotonFz
-          solo-icono
-          variante="fantasma"
-          tamano="sm"
-          :class="{ 'acciones-fila__boton--peligro': accion.peligro }"
-          :title="accion.etiqueta"
-          :aria-label="accion.etiquetaAccesible ?? accion.etiqueta"
-          :disabled="accion.deshabilitada"
-          :cargando="accion.cargando"
-          :data-identificador="identificador ? `${identificador}-${accion.clave}` : undefined"
-          @click="emit('seleccionar', accion.clave)"
-        >
-          <IconoFz v-if="!accion.cargando" :nombre="accion.icono" tamano="sm" />
-        </BotonFz>
-      </span>
+      <template v-for="(accion, indice) in acciones" :key="accion.clave">
+        <!-- Rayita decorativa entre íconos: oculta a los lectores de pantalla, no es un elemento del grupo. -->
+        <span v-if="indice > 0" class="acciones-fila__divisor" aria-hidden="true" />
+        <!-- El `title` también va en el envoltorio: un botón deshabilitado no recibe el puntero y, sin él, perdería el tooltip. -->
+        <span class="acciones-fila__item" :title="accion.etiqueta">
+          <BotonFz
+            solo-icono
+            variante="fantasma"
+            tamano="sm"
+            :class="{ 'acciones-fila__boton--peligro': accion.peligro }"
+            :title="accion.etiqueta"
+            :aria-label="accion.etiquetaAccesible ?? accion.etiqueta"
+            :disabled="accion.deshabilitada"
+            :cargando="accion.cargando"
+            :data-identificador="identificador ? `${identificador}-${accion.clave}` : undefined"
+            @click="emit('seleccionar', accion.clave)"
+          >
+            <IconoFz v-if="!accion.cargando" :nombre="accion.icono" tamano="sm" />
+          </BotonFz>
+        </span>
+      </template>
     </div>
   </template>
 </template>
@@ -90,12 +94,18 @@ const accionesDelMenu = computed<AccionMenuFz[]>(() =>
 .acciones-fila {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: var(--fz-espaciado-compacto);
 }
 
 .acciones-fila__item {
   display: inline-flex;
+}
+
+/* Rayita vertical fina y corta, centrada con los íconos (el borde sobrevive al modo de alto contraste). */
+.acciones-fila__divisor {
+  height: var(--fz-acciones-fila-divisor-alto);
+  border-inline-start: var(--fz-acciones-fila-divisor-ancho) solid var(--fz-acciones-fila-divisor-color);
 }
 
 .acciones-fila__boton--peligro:not(:disabled) {

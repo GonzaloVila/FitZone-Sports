@@ -29,7 +29,7 @@ const columnas: ColumnaTabla[] = [
   { clave: 'socio', etiqueta: 'Socio', encabezadoFila: true },
   { clave: 'dni', etiqueta: 'DNI', ajustada: true },
   { clave: 'ingreso', etiqueta: 'Hora de ingreso', ajustada: true },
-  { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' },
+  { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' },
 ]
 
 // Una sola acción por fila ("Registrar egreso"): es un ícono. Mientras se registra, muestra el estado de carga.

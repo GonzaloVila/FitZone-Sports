@@ -23,6 +23,7 @@ function clasesDeColumna(base: string, columna: ColumnaTabla) {
   return {
     [`${base}--ajustada`]: columna.ajustada,
     [`${base}--${columna.alineacion}`]: columna.alineacion !== undefined && columna.alineacion !== 'inicio',
+    [`${base}--divisor`]: columna.conDivisor,
   }
 }
 
@@ -45,8 +46,7 @@ function valorDeCelda(fila: T, clave: string): unknown {
             scope="col"
             :class="['tabla__encabezado', clasesDeColumna('tabla__encabezado', columna), { 'tabla__encabezado--en-lineas': columna.encabezadoEnLineas }]"
           >
-            <span v-if="columna.etiquetaOculta" class="tabla__etiqueta--oculta">{{ columna.etiqueta }}</span>
-            <template v-else>{{ columna.etiqueta }}</template>
+            {{ columna.etiqueta }}
           </th>
         </tr>
       </thead>
@@ -97,9 +97,8 @@ function valorDeCelda(fila: T, clave: string): unknown {
   text-align: left;
 }
 
-/* Oculto a la vista pero disponible para lectores de pantalla (el título y la etiqueta de una columna sin texto visible). */
-.tabla__titulo--oculto,
-.tabla__etiqueta--oculta {
+/* Oculto a la vista pero disponible para lectores de pantalla. */
+.tabla__titulo--oculto {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -146,6 +145,12 @@ function valorDeCelda(fila: T, clave: string): unknown {
 
 .tabla__celda--ajustada {
   white-space: nowrap;
+}
+
+/* Línea vertical con el color y el ancho de las líneas de fila: con `border-collapse` se une con ellas y corre continua. */
+.tabla__encabezado--divisor,
+.tabla__celda--divisor {
+  border-inline-start: var(--fz-tabla-borde-ancho) solid var(--fz-tabla-borde);
 }
 
 .tabla__encabezado--en-lineas {

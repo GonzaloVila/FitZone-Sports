@@ -12,7 +12,7 @@ const COLUMNAS: ColumnaTabla[] = [
   { clave: 'concepto', etiqueta: 'Concepto' },
   { clave: 'monto', etiqueta: 'Monto' },
   { clave: 'estado', etiqueta: 'Estado' },
-  { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' },
+  { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' },
 ]
 
 // Comprobante y anular: como mucho 2 acciones por fila, así que son íconos.

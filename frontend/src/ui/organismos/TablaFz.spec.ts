@@ -42,7 +42,25 @@ describe('TablaFz', () => {
     ])
     const clases = wrapper.findAll('th, td').flatMap((celda) => celda.classes())
 
-    expect(clases.filter((clase) => /--(ajustada|centro|fin|en-lineas)$/.test(clase))).toEqual([])
+    expect(clases.filter((clase) => /--(ajustada|centro|fin|en-lineas|divisor)$/.test(clase))).toEqual([])
+  })
+
+  it('conDivisor marca el encabezado y las celdas de esa columna, y solo de esa', () => {
+    const wrapper = montar([
+      { clave: 'nombre', etiqueta: 'Nombre' },
+      { clave: 'estado', etiqueta: 'Estado', conDivisor: true },
+    ])
+
+    expect(wrapper.findAll('thead th')[1]!.classes()).toContain('tabla__encabezado--divisor')
+    expect(wrapper.findAll('tbody td')[1]!.classes()).toContain('tabla__celda--divisor')
+    expect(wrapper.findAll('thead th')[0]!.classes()).not.toContain('tabla__encabezado--divisor')
+    expect(wrapper.findAll('tbody th, tbody td')[0]!.classes()).not.toContain('tabla__celda--divisor')
+  })
+
+  it('conDivisor también marca la celda cuando la columna es el encabezado de la fila', () => {
+    const wrapper = montar([{ clave: 'nombre', etiqueta: 'Nombre', encabezadoFila: true, conDivisor: true }])
+
+    expect(wrapper.get('tbody th').classes()).toContain('tabla__celda--divisor')
   })
 
   it('una columna ajustada, centrada y con encabezado en líneas lo refleja en encabezado y celdas', () => {
@@ -57,18 +75,6 @@ describe('TablaFz', () => {
     expect(wrapper.findAll('tbody td')[1]!.classes()).toEqual(
       expect.arrayContaining(['tabla__celda--ajustada', 'tabla__celda--centro']),
     )
-  })
-
-  it('etiquetaOculta deja la etiqueta en el encabezado para lectores de pantalla pero sin verse', () => {
-    const wrapper = montar([
-      { clave: 'nombre', etiqueta: 'Nombre' },
-      { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true },
-    ])
-    const encabezados = wrapper.findAll('thead th')
-
-    expect(encabezados[1]!.text()).toBe('Acciones')
-    expect(encabezados[1]!.get('.tabla__etiqueta--oculta').text()).toBe('Acciones')
-    expect(encabezados[0]!.find('.tabla__etiqueta--oculta').exists()).toBe(false)
   })
 
   it('alineación al fin y al inicio', () => {

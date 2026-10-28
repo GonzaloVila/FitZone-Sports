@@ -37,6 +37,11 @@
   --fz-menu-acciones-animacion-duracion: var(--fz-duracion-breve);
   --fz-menu-acciones-animacion-desplazamiento: 0.25rem;
 
+  /* ---- Acciones de fila (molécula) ---- */
+  --fz-acciones-fila-divisor-alto: calc(var(--fz-boton-alto-sm) * 0.6);
+  --fz-acciones-fila-divisor-ancho: var(--fz-boton-borde-ancho);
+  --fz-acciones-fila-divisor-color: var(--fz-color-borde-control);
+
   /* ---- Marca (molécula) ---- */
   --fz-marca-separacion: var(--fz-espaciado-compacto);
   --fz-marca-logo-tamano: 1.25rem;

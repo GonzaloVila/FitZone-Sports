@@ -10,7 +10,7 @@ export interface ColumnaTabla {
   alineacion?: 'inicio' | 'centro' | 'fin'
   // Si es true, el encabezado puede partirse en varias líneas (balanceadas); por defecto va en una sola.
   encabezadoEnLineas?: boolean
-  // Si es true, la etiqueta del encabezado no se ve pero la leen los lectores de pantalla (una columna de acciones con solo
-  // íconos, por ejemplo).
-  etiquetaOculta?: boolean
+  // Si es true, el encabezado y todas las celdas de la columna llevan una línea vertical en su borde inicial (separa, por
+  // ejemplo, la columna de acciones del resto). Por defecto no hay línea.
+  conDivisor?: boolean
 }

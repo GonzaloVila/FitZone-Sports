@@ -97,6 +97,54 @@ describe('AccionesFilaFz: hasta 2 acciones, botones de solo ícono', () => {
   })
 })
 
+describe('AccionesFilaFz: divisor corto entre íconos', () => {
+  const TRES: AccionFilaFz[] = [...ACCIONES, { clave: 'ver', etiqueta: 'Ver detalle', icono: 'ojo' }]
+
+  it('con 2 acciones hay una sola rayita, entre los dos botones', () => {
+    const grupo = montar().get('[role="group"]')
+    const hijos = Array.from(grupo.element.children).map((hijo) => (hijo.classList.contains('acciones-fila__divisor') ? 'divisor' : 'item'))
+
+    expect(hijos).toEqual(['item', 'divisor', 'item'])
+  })
+
+  it('con 1 acción no hay divisor', () => {
+    const wrapper = montar({ acciones: [ACCIONES[0]!], maximo: 1 })
+
+    expect(wrapper.find('.acciones-fila__divisor').exists()).toBe(false)
+  })
+
+  it('en modo menú no hay divisor', () => {
+    const wrapper = montar({ acciones: TRES, maximo: 3 })
+
+    expect(wrapper.find('.acciones-fila__divisor').exists()).toBe(false)
+  })
+
+  it('es decorativo: oculto a los lectores de pantalla, sin rol y fuera de la cuenta de botones', () => {
+    const wrapper = montar()
+    const divisor = wrapper.get('.acciones-fila__divisor')
+
+    expect(divisor.attributes('aria-hidden')).toBe('true')
+    expect(divisor.attributes('role')).toBeUndefined()
+    expect(divisor.text()).toBe('')
+    expect(wrapper.findAll('button')).toHaveLength(2)
+    expect(wrapper.findAll('[role="separator"]')).toHaveLength(0)
+  })
+
+  it('un botón deshabilitado conserva su divisor y su tooltip', () => {
+    const wrapper = montar({ acciones: [ACCIONES[0]!, { ...ACCIONES[1]!, deshabilitada: true }] })
+
+    expect(wrapper.findAll('.acciones-fila__divisor')).toHaveLength(1)
+    expect(wrapper.findAll('button')[1]!.attributes('disabled')).toBeDefined()
+    expect(wrapper.findAll('.acciones-fila__item')[1]!.attributes('title')).toBe('Cancelar reserva')
+  })
+
+  it('no cambia el orden de los botones ni sus data-identificador', () => {
+    const botones = montar().findAll('button')
+
+    expect(botones.map((boton) => boton.attributes('data-identificador'))).toEqual(['fila-2-pagar', 'fila-2-cancelar'])
+  })
+})
+
 describe('AccionesFilaFz: 3 o más acciones posibles, un menú', () => {
   const MUCHAS: AccionFilaFz[] = [
     { clave: 'ver', etiqueta: 'Ver detalle', icono: 'ojo' },

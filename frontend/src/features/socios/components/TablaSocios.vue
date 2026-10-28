@@ -31,7 +31,7 @@ const columnas: ColumnaTabla[] = [
   { clave: 'plan', etiqueta: 'Plan', ajustada: true },
   { clave: 'estado', etiqueta: 'Estado', ajustada: true },
   { clave: 'renovacion', etiqueta: 'Renovación automática', ajustada: true, alineacion: 'centro', encabezadoEnLineas: true },
-  { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' },
+  { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' },
 ]
 
 const claveFila = (fila: FilaSocio) => fila.socio.id

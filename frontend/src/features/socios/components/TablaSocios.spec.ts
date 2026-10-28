@@ -206,8 +206,8 @@ describe('TablaSocios', () => {
     expect(renovacion.classes()).toEqual(expect.arrayContaining(['tabla__encabezado--en-lineas', 'tabla__encabezado--centro']))
     expect(fila.findAll('td')[4]!.classes()).toContain('tabla__celda--centro')
 
-    expect(encabezados[6]!.classes()).toContain('tabla__encabezado--fin')
-    expect(fila.findAll('td')[5]!.classes()).toContain('tabla__celda--fin')
+    expect(encabezados[6]!.classes()).toContain('tabla__encabezado--centro')
+    expect(fila.findAll('td')[5]!.classes()).toContain('tabla__celda--centro')
     wrapper.unmount()
   })
 

@@ -27,7 +27,7 @@ const columnas: ColumnaTabla[] = [
   { clave: 'horario', etiqueta: 'Horario' },
   { clave: 'sede', etiqueta: 'Sede' },
   { clave: 'estado', etiqueta: 'Estado', ajustada: true },
-  { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' },
+  { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' },
 ]
 
 // "Ver detalle" y "Cancelar reserva": como mucho 2 acciones por fila, así que son íconos. El nombre es texto simple.

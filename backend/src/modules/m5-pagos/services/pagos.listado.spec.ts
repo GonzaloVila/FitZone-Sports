@@ -26,6 +26,16 @@ describe('PagosService - listado y consulta', () => {
       );
     });
 
+    it('con estado TODOS el repositorio recibe estado undefined (sin filtro de estado)', async () => {
+      const { service, pagos } = armar();
+
+      await service.listarPagos({ estado: 'TODOS', page: 1, perPage: 20 });
+
+      const [filtros] = pagos.listar.mock.calls[0] as [{ estado?: string }, unknown];
+      expect(filtros.estado).toBeUndefined();
+      expect(filtros).not.toHaveProperty('estado', 'TODOS');
+    });
+
     it('traduce desde/hasta a un rango semiabierto que incluye el último día', async () => {
       const { service, pagos } = armar();
 

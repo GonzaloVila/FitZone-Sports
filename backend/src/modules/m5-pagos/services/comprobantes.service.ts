@@ -204,7 +204,9 @@ export class ComprobantesService {
         return;
       }
 
-      dibujarFila(doc, 'Concepto', 'Reserva de clase');
+      // El concepto del pago es la penalidad (mismo nombre que el reporte de ingresos y el frontend); la fila "Reserva" de abajo
+      // sigue identificando la reserva de clase cancelada.
+      dibujarFila(doc, 'Concepto', 'Penalidad de clase');
       dibujarFila(doc, 'Clase', `N° ${clase.claseId}`);
       dibujarFila(doc, 'Horario', this.fechaLegible(clase.horarioInicio));
       dibujarFila(doc, 'Reserva', `#${clase.reservaClaseId}`);

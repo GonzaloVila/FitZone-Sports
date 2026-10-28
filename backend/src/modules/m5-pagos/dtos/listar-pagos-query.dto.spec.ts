@@ -103,6 +103,12 @@ describe('ListarPagosQueryDto', () => {
     expect(await errores({ usuarioId: 'tres' })).not.toEqual([]);
   });
 
+  it('acepta estado=TODOS (sin filtro de estado) y los cuatro estados del dominio', async () => {
+    for (const estado of ['TODOS', 'PENDIENTE', 'APROBADO', 'RECHAZADO', 'ANULADO']) {
+      expect(await errores({ estado })).toEqual([]);
+    }
+  });
+
   it('rechaza un estado fuera del enum', async () => {
     expect(await errores({ estado: 'COBRADO' })).not.toEqual([]);
   });

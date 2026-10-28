@@ -1,7 +1,16 @@
 import { Injectable } from '@nestjs/common';
 const PDFDocument = require('pdfkit');
 import { aFechaLocal } from '../../../commons/fechas';
+import type { ConceptoPago } from '../../m5-pagos/entities/pago.entity';
 import type { ReporteIngresos } from '../../m5-pagos/services/reporte-ingresos.service';
+
+// Etiqueta legible de cada concepto en la columna "Concepto". Es un Record sobre el tipo de la entidad: si se agrega un
+// concepto nuevo no compila hasta ponerle etiqueta. RESERVA_CLASE es siempre la penalidad por cancelacion tardia (RF-07).
+export const ETIQUETA_CONCEPTO: Record<ConceptoPago['tipo'], string> = {
+  RESERVA_CANCHA: 'Reserva de cancha',
+  MEMBRESIA: 'Membresía',
+  RESERVA_CLASE: 'Penalidad de clase',
+};
 
 // Misma paleta que el comprobante (comprobantes.service.ts): banda de marca azul,
 // etiquetas grises y pie tenue.
@@ -74,7 +83,7 @@ export class ReportesService {
         doc.rect(MARGEN, y - 4, doc.page.width - 2 * MARGEN, ALTO_FILA).fill(COLOR_FILA_ALTERNA);
       }
       doc.font('Helvetica').fillColor(COLOR_TITULO).fontSize(10);
-      this.celdas(doc, y, [fila.fechaLocal, fila.sedeNombre, fila.tipo, this.pesos(fila.monto)]);
+      this.celdas(doc, y, [fila.fechaLocal, fila.sedeNombre, ETIQUETA_CONCEPTO[fila.tipo], this.pesos(fila.monto)]);
       doc.y = y + ALTO_FILA;
     });
 
@@ -123,7 +132,7 @@ export class ReportesService {
       .fontSize(8)
       .fillColor(COLOR_PIE)
       .text(
-        `Reporte generado ${this.ahora()} (solo pagos APROBADO).${huerfanos}`,
+        `Reporte generado ${this.ahora()}.${huerfanos}`,
         MARGEN,
         doc.y,
         { align: 'center', width: doc.page.width - 2 * MARGEN },

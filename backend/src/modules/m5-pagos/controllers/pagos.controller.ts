@@ -124,7 +124,8 @@ export class PagosController {
       '(lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los APROBADO: ' +
       'es el único estado en el que el dinero se movió y existe comprobante. PENDIENTE, ' +
       'RECHAZADO y ANULADO se piden explícitamente con ?estado=, porque un pago anulado no ' +
-      'se borra del histórico: se repaga con una nueva Idempotency-Key. `tipo` es el ' +
+      'se borra del histórico: se repaga con una nueva Idempotency-Key. `estado=TODOS` ' +
+      'devuelve pagos en cualquier estado. `tipo` es el ' +
       'discriminante de ConceptoPago (RESERVA_CANCHA cruza con PagoReserva, MEMBRESIA con ' +
       'PagoMembresia). `desde` y `hasta` son días (YYYY-MM-DD) en hora local y forman un ' +
       'intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo.',

@@ -43,11 +43,37 @@ describe('ReportesService.armarPdf', () => {
     // `hasta` es exclusivo: el último día incluido es el 9.
     expect(texto).toContain('2026-10-08 a 2026-10-09');
     expect(texto).toContain('Sede Centro');
-    expect(texto).toContain('RESERVA_CANCHA');
+    expect(texto).toContain('Reserva de cancha');
     expect(texto).toContain('7.750,00');
     expect(texto).toContain('Total general');
     expect(texto).toContain('37.750,00');
-    expect(texto).toContain('solo pagos APROBADO');
+    expect(texto).toContain('Reporte generado');
+  });
+
+  it('imprime una etiqueta legible por concepto, no el valor del enum', () => {
+    const reporte: ReporteIngresos = {
+      filas: [
+        { fechaLocal: '2026-10-08', sedeId: 1, sedeNombre: 'Sede Centro', tipo: 'RESERVA_CANCHA', monto: 100 },
+        { fechaLocal: '2026-10-08', sedeId: 1, sedeNombre: 'Sede Centro', tipo: 'MEMBRESIA', monto: 200 },
+        { fechaLocal: '2026-10-08', sedeId: 1, sedeNombre: 'Sede Centro', tipo: 'RESERVA_CLASE', monto: 300 },
+      ],
+      total: 600,
+      huerfanos: 0,
+    };
+    const texto = textoDelPdf(service.armarPdf(reporte, {}));
+
+    expect(texto).toContain('Reserva de cancha');
+    expect(texto).toContain('Membresía');
+    expect(texto).toContain('Penalidad de clase');
+    for (const crudo of ['RESERVA_CANCHA', 'MEMBRESIA', 'RESERVA_CLASE']) expect(texto).not.toContain(crudo);
+  });
+
+  it('el pie dice "Reporte generado AAAA-MM-DD." sin la aclaración de pagos aprobados', () => {
+    const texto = textoDelPdf(service.armarPdf(REPORTE, {}));
+
+    expect(texto).toMatch(/Reporte generado \d{4}-\d{2}-\d{2}\./);
+    expect(texto).not.toContain('solo pagos');
+    expect(texto).not.toContain('APROBADO');
   });
 
   it('sin rango dice histórico', () => {

@@ -51,7 +51,9 @@ export interface ComprobanteParaDescargar {
  * misma separación que en M4, donde el service recibe `fecha?: string` y le pasa al
  * repositorio el `rangoDelDia()` de esa fecha.
  */
-export interface ListarPagos extends Omit<FiltrosListarPagos, 'desde' | 'hasta'> {
+export interface ListarPagos extends Omit<FiltrosListarPagos, 'desde' | 'hasta' | 'estado'> {
+  // `TODOS` es "sin filtro de estado"; sin `estado` el listado devuelve solo los APROBADO.
+  estado?: Pago['estado'] | 'TODOS';
   desde?: string;
   hasta?: string;
   page: number;
@@ -163,10 +165,13 @@ export class PagosService {
     const desde = filtros.desde !== undefined ? rangoDelDia(filtros.desde).desde : undefined;
     const hasta = filtros.hasta !== undefined ? rangoDelDia(filtros.hasta).hasta : undefined;
 
+    // Sin `estado` solo los APROBADO; `TODOS` quita el filtro (el repositorio no filtra con `undefined`); uno explícito se respeta.
+    const estado = filtros.estado === undefined ? 'APROBADO' : filtros.estado === 'TODOS' ? undefined : filtros.estado;
+
     const { items, total } = await this.pagos.listar(
       {
         ...filtros,
-        estado: filtros.estado ?? 'APROBADO',
+        estado,
         desde,
         hasta,
       },

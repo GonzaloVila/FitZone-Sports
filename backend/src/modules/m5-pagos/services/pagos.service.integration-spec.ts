@@ -87,7 +87,7 @@ describe('M5 PagosService (integration, BD real)', () => {
     );
   });
 
-  it('listar: default solo APROBADO; con estado explícito trae los demás', async () => {
+  it('listar: default solo APROBADO; TODOS trae todos los estados; con estado explícito trae solo ese', async () => {
     const aprobado = await pagos.procesarPago({ concepto: conceptoSocio(), token: 'tok_aprobado_3' } as never, nuevaKey());
     const rechazadoKey = nuevaKey();
     await expect(pagos.procesarPago({ concepto: conceptoSocio(), token: 'tok_rechazado' } as never, rechazadoKey)).rejects.toBeInstanceOf(
@@ -101,6 +101,18 @@ describe('M5 PagosService (integration, BD real)', () => {
     const rechazados = await pagos.listarPagos({ usuarioId, estado: 'RECHAZADO', page: 1, perPage: 100 });
     expect(rechazados.items.every((p) => p.estado === 'RECHAZADO')).toBe(true);
     expect(rechazados.items.length).toBeGreaterThan(0);
+
+    // TODOS quita el filtro: trae el aprobado y el rechazado de este test, y el total cuenta todos los del usuario.
+    const rechazado = await prisma.pago.findUniqueOrThrow({ where: { idempotencia_key: rechazadoKey } });
+    const todos = await pagos.listarPagos({ usuarioId, estado: 'TODOS', page: 1, perPage: 100 });
+    expect(todos.items.map((p) => p.id)).toEqual(expect.arrayContaining([aprobado.id, rechazado.id]));
+    expect(new Set(todos.items.map((p) => p.estado)).size).toBeGreaterThan(1);
+    expect(todos.total).toBe(await prisma.pago.count({ where: { usuario_id: usuarioId } }));
+    expect(todos.total).toBeGreaterThan(porDefecto.total);
+
+    // Un estado explícito devuelve solo ese: el aprobado no aparece entre los rechazados.
+    expect(rechazados.items.map((p) => p.id)).toContain(rechazado.id);
+    expect(rechazados.items.map((p) => p.id)).not.toContain(aprobado.id);
   });
 
   it('anular: APROBADO → ANULADO con reembolso; reanular es no-op (204)', async () => {

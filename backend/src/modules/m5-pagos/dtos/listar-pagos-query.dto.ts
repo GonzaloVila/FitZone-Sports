@@ -4,6 +4,9 @@ import { IsIn, IsInt, IsISO8601, IsOptional, Matches, Max, Min } from 'class-val
 import { ConceptoPago, Pago } from '../entities/pago.entity';
 
 const ESTADOS: Pago['estado'][] = ['PENDIENTE', 'APROBADO', 'RECHAZADO', 'ANULADO'];
+// `TODOS` no es un estado del dominio: es la forma de pedir "sin filtro de estado" (el listado sin `estado` devuelve solo los
+// APROBADO). Por eso vive acá y no en `EstadoPago`, que usan las respuestas.
+export const ESTADOS_FILTRO: (Pago['estado'] | 'TODOS')[] = [...ESTADOS, 'TODOS'];
 const TIPOS: ConceptoPago['tipo'][] = ['RESERVA_CANCHA', 'MEMBRESIA', 'RESERVA_CLASE'];
 
 /**
@@ -23,17 +26,19 @@ export class ListarPagosQueryDto {
   @Min(1)
   usuarioId?: number;
 
-  // Sin `default` en el Swagger a propósito: el contrato declara el filtro como
-  // `$ref: EstadoPago` sin default, y la regla "sin estado devuelve solo APROBADO"
-  // vive en el service porque es negocio. Mismo criterio que el listado de reservas
-  // de M4.
+  // Sin `default` en el Swagger a propósito: el contrato declara el filtro como un string
+  // con el enum de los estados más TODOS y sin default, y la regla "sin estado devuelve
+  // solo APROBADO" vive en el service porque es negocio. Mismo criterio que el listado de
+  // reservas de M4. El enum y la descripción tienen que coincidir con `docs/openapi.yaml`.
   @ApiPropertyOptional({
-    enum: ESTADOS,
-    description: 'Estado del pago. Sin este parámetro devuelve solo los APROBADO.',
+    type: 'string',
+    enum: ESTADOS_FILTRO,
+    description:
+      'Estado del pago. Sin este parámetro devuelve solo los APROBADO; con TODOS devuelve pagos en cualquier estado.',
   })
   @IsOptional()
-  @IsIn(ESTADOS)
-  estado?: Pago['estado'];
+  @IsIn(ESTADOS_FILTRO)
+  estado?: Pago['estado'] | 'TODOS';
 
   // El discriminante del `oneOf` de `ConceptoPago`. Es un filtro REDUNDANTE con
   // `reserva_cancha_id`/`membresia_id` para fines de resultado (si se cruza con uno de

@@ -195,7 +195,9 @@ describe('ComprobantesService', () => {
     const ruta = await service.generar(pago({ monto: 5000, concepto: RESERVA_CLASE }), RESERVA_CLASE);
     const texto = textoDelPdf((await service.leer(ruta))!);
 
-    expect(texto).toContain('Reserva de clase');
+    // El concepto se llama igual que en el reporte de ingresos y el frontend; ya no dice "Reserva de clase".
+    expect(texto).toContain('Concepto:Penalidad de clase');
+    expect(texto).not.toContain('Reserva de clase');
     expect(texto).toContain('Clase:');
     expect(texto).toContain('N° 9');
     expect(texto).toContain('Horario:');

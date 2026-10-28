@@ -69,6 +69,35 @@ describe('M5 - Pagos: contrato HTTP (RF-13)', () => {
     expect(await prisma.pago.count()).toBe(antes);
   });
 
+  it('GET /pagos?estado=TODOS incluye los no aprobados; sin estado sigue devolviendo solo los aprobados', async () => {
+    const aprobado = await ctx.cobroReserva(await ctx.crearReserva(), `lista-ok-${ctx.sufijo}`).expect(201);
+    // El rechazo responde 402 pero deja el pago persistido como RECHAZADO.
+    await ctx.cobroReserva(await ctx.crearReserva(), `lista-no-${ctx.sufijo}`, 'tok_rechazado').expect(402);
+    const filaRechazada = await prisma.pago.findUniqueOrThrow({ where: { idempotencia_key: `lista-no-${ctx.sufijo}` } });
+    expect(filaRechazada.estado).toBe('RECHAZADO');
+
+    const consulta = (estado?: string) =>
+      request(app.getHttpServer())
+        .get('/api/v1/pagos')
+        .query({ usuarioId: ctx.usuarioId, perPage: 100, ...(estado ? { estado } : {}) })
+        .expect(200);
+
+    const todos = await consulta('TODOS');
+    const idsTodos = todos.body.items.map((p: { id: number }) => p.id);
+    expect(idsTodos).toEqual(expect.arrayContaining([aprobado.body.id, filaRechazada.id]));
+    expect(todos.body.items.some((p: { estado: string }) => p.estado !== 'APROBADO')).toBe(true);
+
+    const porDefecto = await consulta();
+    const idsPorDefecto = porDefecto.body.items.map((p: { id: number }) => p.id);
+    expect(idsPorDefecto).toContain(aprobado.body.id);
+    expect(idsPorDefecto).not.toContain(filaRechazada.id);
+    expect(porDefecto.body.items.every((p: { estado: string }) => p.estado === 'APROBADO')).toBe(true);
+  });
+
+  it('GET /pagos con un estado fuera del enum sigue siendo 422', async () => {
+    await request(app.getHttpServer()).get('/api/v1/pagos').query({ estado: 'COBRADO' }).expect(422);
+  });
+
   it('anula un pago APROBADO con 204 sin cuerpo', async () => {
     const reservaId = await ctx.crearReserva();
     const cobrado = await ctx.cobroReserva(reservaId, `anular-${ctx.sufijo}`).expect(201);

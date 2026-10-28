@@ -356,6 +356,20 @@ describe('PagoRepository', () => {
       expect(where.pago_membresia).toEqual({ membresia_id: 3 });
     });
 
+    it('sin estado no filtra por estado en el where; con estado sí', async () => {
+      const { prisma, repository } = listado();
+
+      await repository.listar({}, { page: 1, perPage: 20 });
+      await repository.listar({ estado: undefined }, { page: 1, perPage: 20 });
+      await repository.listar({ estado: 'RECHAZADO' }, { page: 1, perPage: 20 });
+
+      expect(prisma.pago.findMany.mock.calls[0]![0].where).not.toHaveProperty('estado');
+      expect(prisma.pago.findMany.mock.calls[1]![0].where).not.toHaveProperty('estado');
+      expect(prisma.pago.findMany.mock.calls[2]![0].where!.estado).toBe('RECHAZADO');
+      // El conteo usa el mismo where: el total no puede quedar filtrado cuando la lista no lo está.
+      expect(prisma.pago.count.mock.calls[0]![0].where).not.toHaveProperty('estado');
+    });
+
     it('acota el rango de fechas solo si viene alguna de las dos puntas', async () => {
       const { prisma, repository } = listado();
       const desde = new Date('2026-03-01T03:00:00.000Z');

@@ -9,11 +9,12 @@ import ConfirmarReserva from '../components/ConfirmarReserva.vue'
 import GrillaTurnos from '../components/GrillaTurnos.vue'
 import { useFechaDeTurnos } from '../composables/useFechaDeTurnos'
 import { useGrillaTurnos } from '../composables/useGrillaTurnos'
+import { useReservantesDelDia } from '../composables/useReservantesDelDia'
 import { useReservarTurno } from '../composables/useReservarTurno'
 import { destinoVolver } from '../direccion'
 import { nombreDeCancha } from '../edicion'
 import { formatearMonto } from '../presentacion'
-import { puedeReservar } from '../reglas'
+import { puedeReservar, veQuienReservo } from '../reglas'
 import type { Disponibilidad } from '../services/servicioCanchas'
 import { clasificarTurnos } from '../turnos'
 
@@ -29,14 +30,18 @@ const { hoy, ultimo, fecha, campo } = useFechaDeTurnos()
 const reservaPermitida = computed(() => puedeReservar(rol.value))
 
 // "Volver" se arma con la dirección (de dónde se vino y con qué filtros), no con el historial: sirve igual al recargar.
-// "Mis reservas" existe para quien reserva.
-const volver = computed(() => destinoVolver(route.query, reservaPermitida.value))
+const volver = computed(() => destinoVolver(route.query))
 
 const { cancha, cargandoCancha, errorCancha, mantenimiento, turnos, cargando, error, ahora, recargar } = useGrillaTurnos(
   canchaId,
   fecha,
 )
 const { enviando, error: errorReserva, reserva: reservaHecha, reservar, limpiar } = useReservarTurno(recargar)
+
+// RECEPCION y GERENTE ven quién reservó cada turno ocupado (otra columna de la grilla). Se vuelve a pedir cuando cambia el día
+// o la cancha y cada vez que la grilla se refresca (se reemplaza su lista de turnos). SOCIO y EXTERNO no hacen ese pedido.
+const veReservantes = computed(() => veQuienReservo(rol.value))
+const { reservantes } = useReservantesDelDia(canchaId, fecha, veReservantes, turnos)
 
 // Un solo título (la cancha) y una línea suave debajo: "Sede · precio base por hora".
 const titulo = computed(() => (cancha.value ? nombreDeCancha(cancha.value) : 'Turnos'))
@@ -103,7 +108,13 @@ async function confirmar() {
       </div>
 
       <p v-if="cargando" class="turnos-pagina__estado" role="status">Cargando turnos…</p>
-      <GrillaTurnos v-else-if="clasificados.length > 0" :turnos="clasificados" :puede-reservar="reservaPermitida" @elegir="elegir" />
+      <GrillaTurnos
+        v-else-if="clasificados.length > 0"
+        :turnos="clasificados"
+        :puede-reservar="reservaPermitida"
+        :reservantes="veReservantes ? reservantes : undefined"
+        @elegir="elegir"
+      />
       <p v-else-if="!error" class="turnos-pagina__estado" role="status">No hay turnos para este día.</p>
     </template>
 

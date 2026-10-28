@@ -33,6 +33,8 @@ export type NombreIconoFz =
   | 'flecha-derecha'
   | 'reloj'
   | 'equipo'
+  | 'descargar'
+  | 'salida'
 </script>
 
 <script setup lang="ts">
@@ -133,6 +135,11 @@ const TRAZOS: Record<NombreIconoFz, readonly string[]> = {
   reloj: ['M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0', 'M12 7v5l3 2'],
   // Credencial con foto y enganche: el personal con puesto de trabajo.
   equipo: ['M4 6h16v14H4z', 'M9 3v3', 'M15 3v3', 'M12 10.5a2 2 0 1 0 0 4a2 2 0 0 0 0-4', 'M8.5 18a3.5 3.5 0 0 1 7 0'],
+  // Flecha hacia abajo sobre una bandeja: bajar el comprobante.
+  descargar: ['M12 4v11', 'M7.5 10.5L12 15l4.5-4.5', 'M5 19h14'],
+  // Una puerta con el picaporte y una flecha que sale hacia la derecha: registrar el egreso. Es más corta y maciza que
+  // `cerrar-sesion` (puerta abierta con una flecha larga), para no confundirse con salir de la sesión.
+  salida: ['M4 4h9v16H4z', 'M10 12v.01', 'M16 12h5', 'M18 9l3 3-3 3'],
 }
 
 const trazos = computed(() => TRAZOS[props.nombre])

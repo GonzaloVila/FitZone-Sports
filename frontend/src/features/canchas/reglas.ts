@@ -5,3 +5,8 @@ import type { Rol } from '@/features/sesion/tipos'
 export function puedeReservar(rol: Rol | null | undefined): boolean {
   return rol === 'SOCIO' || rol === 'EXTERNO'
 }
+
+// Quién reservó cada turno ocupado lo ven RECEPCION y GERENTE (atienden a los socios); SOCIO y EXTERNO no.
+export function veQuienReservo(rol: Rol | null | undefined): boolean {
+  return rol === 'RECEPCION' || rol === 'GERENTE'
+}

@@ -109,6 +109,12 @@ export function insigniaDePago(pago: EstadoPagoReserva, pestana: PestanaReservas
 
 export type AccionReserva = 'pagar' | 'cancelar'
 
+// Base de los `data-identificador` de las acciones de la fila de una reserva: la pantalla devuelve el foco ahí al cerrar el modal
+// de pago o de cancelación (ver `enfocarControlDeFila` del kit).
+export function identificadorDeAccionesReserva(reservaId: number): string {
+  return `acciones-reserva-${reservaId}`
+}
+
 export interface AccionDeReserva {
   clave: AccionReserva
   // Se ve pero no se puede elegir todavía (se está consultando el pago).

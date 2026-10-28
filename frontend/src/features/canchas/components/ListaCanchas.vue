@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
-import { BotonFz, IconoFz, InsigniaFz, MenuAccionesFz, TablaFz, type AccionMenuFz, type ColumnaTabla } from '@/ui'
-import { nombreDeCancha } from '../edicion'
+import { useRouter } from 'vue-router'
+import { AccionesFilaFz, InsigniaFz, TablaFz, type AccionFilaFz, type ColumnaTabla } from '@/ui'
+import { identificadorDeAccionesCancha, nombreDeCancha } from '../edicion'
 import { ETIQUETA_ESTADO_CANCHA, ETIQUETA_TIPO_CANCHA, formatearMonto } from '../presentacion'
 import type { Cancha } from '../services/servicioCanchas'
 
@@ -13,8 +13,7 @@ const props = defineProps<{
   // Suma la columna Sede (con "Todas las sedes" y para el RECEPCION, cuya sede es fija).
   mostrarSede?: boolean
   nombreDeSede?: (sedeId: number) => string
-  // Solo el GERENTE edita: tiene dos acciones por fila (Ver turnos y Editar), en un menú. Los demás tienen una sola ("Ver
-  // turnos") y va directa, sin menú.
+  // Solo el GERENTE edita: además de "Ver turnos" tiene "Editar".
   puedeEditar?: boolean
   ocupada?: boolean
 }>()
@@ -23,21 +22,16 @@ const emit = defineEmits<{ editar: [cancha: Cancha] }>()
 
 const router = useRouter()
 
-// Solo la última columna es ajustada (ocupa lo que necesita); las demás se reparten el resto del ancho, así Estado y Precio
-// base no quedan empujadas contra el borde derecho por una primera columna que se lleva todo el espacio sobrante.
-// La columna de acciones se llama "Turnos" cuando tiene una sola acción ("Ver turnos") y "Acciones" cuando tiene el menú.
+// Convención de las tablas: las acciones de la fila son botones de solo ícono (hasta 2 acciones posibles), con la columna de
+// acciones sin etiqueta a la vista; el nombre es texto simple. Solo la última columna es ajustada (ocupa lo que necesita): las
+// demás se reparten el resto del ancho, así Estado y Precio base no quedan empujadas contra el borde derecho.
 const columnas = computed<ColumnaTabla[]>(() => [
   { clave: 'tipo', etiqueta: 'Deporte', encabezadoFila: true },
   ...(props.mostrarSede ? [{ clave: 'sede', etiqueta: 'Sede' }] : []),
   { clave: 'estado', etiqueta: 'Estado' },
   { clave: 'costo', etiqueta: 'Precio base por hora' },
-  { clave: 'acciones', etiqueta: props.puedeEditar ? 'Acciones' : 'Turnos', ajustada: true, alineacion: 'fin' },
+  { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' },
 ])
-
-const ACCIONES_GERENTE: AccionMenuFz[] = [
-  { clave: 'ver-turnos', etiqueta: 'Ver turnos', icono: 'reloj' },
-  { clave: 'editar', etiqueta: 'Editar', icono: 'editar' },
-]
 
 const claveFila = (fila: Cancha) => fila.id
 const sedeDe = (cancha: Cancha) => props.nombreDeSede?.(cancha.sedeId) ?? `Sede ${cancha.sedeId}`
@@ -46,6 +40,18 @@ const destinoTurnos = (cancha: Cancha) => ({
   params: { canchaId: cancha.id },
   query: props.parametrosDetalle,
 })
+
+const maximoDeAcciones = computed(() => (props.puedeEditar ? 2 : 1))
+
+function accionesDe(cancha: Cancha): AccionFilaFz[] {
+  const nombre = nombreDeCancha(cancha)
+  return [
+    { clave: 'ver-turnos', etiqueta: 'Ver turnos', etiquetaAccesible: `Ver turnos de ${nombre}`, icono: 'reloj' },
+    ...(props.puedeEditar
+      ? [{ clave: 'editar', etiqueta: 'Editar', etiquetaAccesible: `Editar ${nombre}`, icono: 'editar' as const }]
+      : []),
+  ]
+}
 
 function alSeleccionar(cancha: Cancha, clave: string) {
   if (clave === 'ver-turnos') void router.push(destinoTurnos(cancha))
@@ -67,19 +73,13 @@ function alSeleccionar(cancha: Cancha, clave: string) {
     </template>
     <template #celda-costo="{ fila }">{{ formatearMonto(fila.costoPorHora) }}</template>
     <template #celda-acciones="{ fila }">
-      <MenuAccionesFz
-        v-if="puedeEditar"
+      <AccionesFilaFz
         :etiqueta="`Acciones de ${nombreDeCancha(fila)}`"
-        :identificador="`menu-cancha-${fila.id}`"
-        :acciones="ACCIONES_GERENTE"
+        :identificador="identificadorDeAccionesCancha(fila.id)"
+        :acciones="accionesDe(fila)"
+        :maximo="maximoDeAcciones"
         @seleccionar="(clave) => alSeleccionar(fila, clave)"
       />
-      <RouterLink v-else v-slot="{ href, navigate }" :to="destinoTurnos(fila)" custom>
-        <BotonFz como="a" variante="secundario" tamano="sm" :href="href" :aria-label="`Ver turnos de ${nombreDeCancha(fila)}`" @click="navigate">
-          <IconoFz nombre="reloj" tamano="sm" />
-          Ver turnos
-        </BotonFz>
-      </RouterLink>
     </template>
   </TablaFz>
 </template>

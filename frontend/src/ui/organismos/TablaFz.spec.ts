@@ -59,6 +59,18 @@ describe('TablaFz', () => {
     )
   })
 
+  it('etiquetaOculta deja la etiqueta en el encabezado para lectores de pantalla pero sin verse', () => {
+    const wrapper = montar([
+      { clave: 'nombre', etiqueta: 'Nombre' },
+      { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true },
+    ])
+    const encabezados = wrapper.findAll('thead th')
+
+    expect(encabezados[1]!.text()).toBe('Acciones')
+    expect(encabezados[1]!.get('.tabla__etiqueta--oculta').text()).toBe('Acciones')
+    expect(encabezados[0]!.find('.tabla__etiqueta--oculta').exists()).toBe(false)
+  })
+
   it('alineación al fin y al inicio', () => {
     const wrapper = montar([
       { clave: 'nombre', etiqueta: 'Nombre', alineacion: 'inicio' },

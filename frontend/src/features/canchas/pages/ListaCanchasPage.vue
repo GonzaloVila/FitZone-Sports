@@ -11,6 +11,7 @@ import {
   InsigniaFz,
   PaginacionFz,
   SelectorSegmentadoFz,
+  enfocarControlDeFila,
   type OpcionSegmentadaFz,
 } from '@/ui'
 import FiltrosCanchas from '../components/FiltrosCanchas.vue'
@@ -20,6 +21,7 @@ import ModalNuevaCancha from '../components/modales/ModalNuevaCancha.vue'
 import VistaMisReservas from '../components/VistaMisReservas.vue'
 import { POR_PAGINA_CANCHAS, useCanchas } from '../composables/useCanchas'
 import { useVistaCanchas } from '../composables/useVistaCanchas'
+import { identificadorDeAccionesCancha } from '../edicion'
 import { puedeReservar } from '../reglas'
 import type { Cancha } from '../services/servicioCanchas'
 
@@ -86,13 +88,13 @@ function editar(cancha: Cancha) {
   edicionAbierta.value = true
 }
 
-// Al cerrarse el modal de edición (Cancelar, X, Esc o éxito) el foco vuelve al botón "···" de esa fila: el ítem del menú
-// que lo abrió ya no existe. Se espera a que el modal termine de cerrarse para que su propia devolución de foco no pise esta.
+// Al cerrarse el modal de edición (Cancelar, X, Esc o éxito) el foco vuelve al botón "Editar" de esa fila. El modal ya
+// devuelve el foco a quien lo abrió, pero la lista se vuelve a pedir al guardar y se asegura de que quede en el botón de la
+// fila. Se espera a que el modal termine de cerrarse para que su propia devolución de foco no pise esta.
 watch(edicionAbierta, async (abierta) => {
   if (abierta || !canchaEnEdicion.value) return
-  const identificador = `menu-cancha-${canchaEnEdicion.value.id}`
   await nextTick()
-  document.querySelector<HTMLElement>(`[data-identificador="${identificador}"]`)?.focus()
+  enfocarControlDeFila(identificadorDeAccionesCancha(canchaEnEdicion.value.id), 'editar')
 })
 
 const hayFilas = computed(() => items.value.length > 0)

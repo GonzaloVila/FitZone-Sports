@@ -13,7 +13,7 @@ src/features/acceso/
 │   │   └── ModalRegistrarIngreso.vue # Modal de registro de ingreso (se abre desde el aforo y el historial)
 │   ├── ResultadoIngreso.vue        # Aviso del resultado (permitido o denegado) con su rol ARIA
 │   ├── TablaHistorial.vue          # Tabla paginada de accesos con Insignias de estado
-│   ├── TablaPersonasDentro.vue     # Socios actualmente en la sede con botón de egreso
+│   ├── TablaPersonasDentro.vue     # Socios actualmente en la sede con el ícono "Registrar egreso" (`salida`; una sola acción → ícono, con estado de carga mientras se registra)
 │   └── TarjetaAforo.vue            # Resumen de aforo con medidor y aviso persistente
 ├── composables/
 │   ├── useAforo.ts                 # Aforo en tiempo real con actualización periódica (10s)

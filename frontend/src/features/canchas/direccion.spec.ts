@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  PARAMETROS_DESDE_MIS_RESERVAS,
   destinoVolver,
   leerConsultaCanchas,
   leerConsultaMisReservas,
@@ -158,57 +157,39 @@ describe('parámetros de los enlaces a la grilla', () => {
     expect(parametrosDesdeCanchas(consultaVacia)).toEqual({ desde: 'canchas' })
     expect(parametrosDesdeCanchas({ ...consultaVacia, sede: '' })).toEqual({ desde: 'canchas', sede: 'todas' })
   })
-
-  it('desde "Mis reservas" lleva solo el origen', () => {
-    expect(PARAMETROS_DESDE_MIS_RESERVAS).toEqual({ desde: 'mis-reservas' })
-  })
 })
 
 describe('destinoVolver', () => {
-  it('desde "Mis reservas" dice "Volver a mis reservas" y vuelve a esa vista', () => {
-    expect(destinoVolver({ desde: 'mis-reservas' }, true)).toEqual({
-      texto: 'Volver a mis reservas',
-      a: { name: 'canchas', query: { vista: 'mis-reservas' } },
-    })
-  })
-
   it('desde la lista vuelve con sus filtros intactos', () => {
-    expect(destinoVolver({ desde: 'canchas', sede: '3', tipo: 'PADDLE', estado: 'OPERATIVA', pagina: '3' }, true)).toEqual({
+    expect(destinoVolver({ desde: 'canchas', sede: '3', tipo: 'PADDLE', estado: 'OPERATIVA', pagina: '3' })).toEqual({
       texto: 'Volver a canchas',
       a: { name: 'canchas', query: { sede: '3', tipo: 'PADDLE', estado: 'OPERATIVA', pagina: '3' } },
     })
   })
 
   it('desde la lista con "todas las sedes" elegida a propósito vuelve con sede=todas', () => {
-    expect(destinoVolver({ desde: 'canchas', sede: 'todas' }, true).a.query).toEqual({ sede: 'todas' })
+    expect(destinoVolver({ desde: 'canchas', sede: 'todas' }).a.query).toEqual({ sede: 'todas' })
   })
 
   it('desde la lista, los filtros inválidos se descartan sin romper', () => {
-    expect(destinoVolver({ desde: 'canchas', sede: 'xx', tipo: 'tenis', estado: 'raro', pagina: '-1' }, false).a.query).toEqual({})
+    expect(destinoVolver({ desde: 'canchas', sede: 'xx', tipo: 'tenis', estado: 'raro', pagina: '-1' }).a.query).toEqual({})
   })
 
   it('la fecha de la grilla no se arrastra al volver a la lista', () => {
-    expect(destinoVolver({ desde: 'canchas', sede: '3', fecha: '2026-11-12' }, true).a.query).toEqual({ sede: '3' })
+    expect(destinoVolver({ desde: 'canchas', sede: '3', fecha: '2026-11-12' }).a.query).toEqual({ sede: '3' })
   })
 
   it('sin origen (entrada directa) vuelve a la lista sin filtros, aunque haya otros parámetros', () => {
-    expect(destinoVolver({}, true)).toEqual({ texto: 'Volver a canchas', a: { name: 'canchas', query: {} } })
-    expect(destinoVolver({ sede: '2', pagina: '2' }, true).a.query).toEqual({})
+    expect(destinoVolver({})).toEqual({ texto: 'Volver a canchas', a: { name: 'canchas', query: {} } })
+    expect(destinoVolver({ sede: '2', pagina: '2' }).a.query).toEqual({})
   })
 
-  it('un origen desconocido se trata como entrada directa', () => {
-    for (const desde of ['otra-cosa', '', 'CANCHAS', 'mis-reservas ', '__proto__']) {
-      expect(destinoVolver({ desde, sede: '2' }, true)).toEqual({
+  it('un origen desconocido se trata como entrada directa (también el viejo "mis-reservas", que ya nadie genera)', () => {
+    for (const desde of ['otra-cosa', '', 'CANCHAS', 'mis-reservas', 'mis-reservas ', '__proto__']) {
+      expect(destinoVolver({ desde, sede: '2' })).toEqual({
         texto: 'Volver a canchas',
         a: { name: 'canchas', query: {} },
       })
     }
-  })
-
-  it('"Mis reservas" es de quien reserva: para el personal ese origen se ignora', () => {
-    expect(destinoVolver({ desde: 'mis-reservas' }, false)).toEqual({
-      texto: 'Volver a canchas',
-      a: { name: 'canchas', query: {} },
-    })
   })
 })

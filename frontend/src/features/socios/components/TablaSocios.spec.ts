@@ -111,14 +111,13 @@ describe('TablaSocios', () => {
     wrapper.unmount()
   })
 
-  it('la celda del socio tiene avatar decorativo, nombre como enlace a la ficha, #id con su title y email', () => {
+  it('la celda del socio tiene avatar decorativo, nombre como texto simple (la ficha se abre desde las acciones), #id con su title y email', () => {
     const wrapper = montar()
     const celda = filaDe(wrapper, 'Camila Domínguez').get('th')
 
     expect(celda.get('[aria-hidden="true"]').text()).toBe('CD')
-    const enlace = celda.get('a')
-    expect(enlace.text()).toBe('Camila Domínguez')
-    expect(enlace.attributes('href')).toBe('/socios/1')
+    expect(celda.get('.socio__nombre').text()).toBe('Camila Domínguez')
+    expect(celda.find('a').exists()).toBe(false)
     expect(celda.get('[title="ID de socio para registrar accesos"]').text()).toBe('#1')
     expect(celda.get('[title="camila@fitzone.com"]').text()).toBe('camila@fitzone.com')
     wrapper.unmount()

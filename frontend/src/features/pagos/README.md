@@ -12,7 +12,7 @@ src/features/pagos/
 │   ├── ConfirmarAnulacion.vue   # ModalFz con el aviso de que no se deshace
 │   ├── FiltrosPagos.vue         # Estado, concepto y período
 │   ├── FormularioReporte.vue    # Desde y hasta
-│   └── TablaPagos.vue           # Lista con comprobante y anulación
+│   └── TablaPagos.vue           # Lista; acciones de solo ícono: comprobante (`descargar`) y anulación (`cerrar`, rojo)
 ├── composables/
 │   ├── useAnularPago.ts         # Anula y refresca la lista
 │   ├── useDescargaPdf.ts        # Blob → URL temporal → descarga → revoke
@@ -52,6 +52,10 @@ src/features/pagos/
 10. **El pago es un modal, no una pantalla** (`ModalPagarReserva`): lo abren "Mis reservas" (acción "Pagar" del menú de cada reserva) y el aviso de reserva confirmada de la grilla de turnos ("Pagar ahora"), así que la persona no sale de la pantalla donde está. Contenido: resumen compacto (`ListaDatosFz` del kit: cancha, día, turno y el monto destacado), el select "Medio de pago" y los botones "Cancelar" y "Pagar". Los errores (402, 409, red, 422) se muestran dentro del modal, que sigue abierto para reintentar (un aviso flotante quedaría detrás del `<dialog>`). Si sale bien, el mismo modal pasa a "Pago aprobado por $X." con "Descargar comprobante" y "Cerrar"; al cerrarlo emite `pagado` y la pantalla que lo abrió se actualiza para reflejar "Pagada". No hay ninguna aclaración de que el cobro es simulado.
 11. **Entre features:** `ModalPagarReserva` vive en pagos (es del dominio del cobro) y lo importa `features/canchas`, igual que `clases` ya importa `useDescargaPdf` de acá. Para no crear una dependencia circular, pagos solo importa de canchas el **tipo** `ReservaCancha` (se borra al compilar): el modal recibe la reserva y el nombre de su cancha ("Fútbol 5 #2", que arma `canchas/etiquetas.ts`) por props y no llama a nada de canchas.
 12. **`/pagos/nuevo?reservaId=`:** `PagarReservaPage` se eliminó. La ruta queda como redirección (`destinoDePagoDeReserva`) a `/canchas?vista=mis-reservas&pagar=<reservaId>`; `VistaMisReservas` lee `?pagar=` (`useReservaAPagar` de canchas), trae esa reserva, abre el modal y quita el parámetro de la dirección. Sin un id válido solo se llega a "Mis reservas". Al ser una vista de quien reserva, la ruta quedó para SOCIO y EXTERNO.
+
+13. **Foco al pagar:** al aparecer el resultado el formulario (y el botón "Pagar" que tenía el foco) desaparece, así que el foco pasa a la región del resultado (`role="group"`, `tabindex="-1"`, "Resultado del pago", sin contorno porque no es un control). Se anuncia por su nombre y por la descripción (el texto del resultado) y el aviso de adentro lleva `aria-live="off"` para no repetirse; el aviso de error de la descarga, que aparece después, sí se anuncia solo. El foco no va a un botón (un Enter de más descargaría o cerraría sin querer). No tiene test: es comportamiento de pantalla y el repo no prueba pantallas completas.
+
+14. **Acciones de la lista (convención de las tablas):** "Comprobante" (solo APROBADO) y "Anular" (APROBADO o PENDIENTE) son botones de solo ícono (`AccionesFilaFz`, máximo 2 → íconos) con la columna "Acciones" sin etiqueta a la vista; los pagos RECHAZADO y ANULADO siguen mostrando "—". Al anular, el foco vuelve al primer control que siga en la fila.
 
 ## Verificación
 

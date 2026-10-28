@@ -11,6 +11,9 @@ const props = withDefaults(
     tipo?: 'button' | 'submit' | 'reset'
     // 'a' lo dibuja como enlace (el `href` llega por atributos) con el aspecto de un botón.
     como?: 'button' | 'a'
+    // Botón cuadrado con solo un ícono (sin relleno de texto), del alto de su tamaño (sm = 28 px, más que el mínimo de 24 px
+    // de WCAG 2.2, 2.5.8). Sin texto visible, el nombre accesible es obligatorio: hay que pasar `aria-label`.
+    soloIcono?: boolean
   }>(),
   {
     variante: 'primario',
@@ -18,10 +21,15 @@ const props = withDefaults(
     cargando: false,
     tipo: 'button',
     como: 'button',
+    soloIcono: false,
   },
 )
 
 const attrs = useAttrs()
+
+if (import.meta.env.DEV && props.soloIcono && !attrs['aria-label'] && !attrs['aria-labelledby']) {
+  console.warn('BotonFz con soloIcono necesita aria-label: sin texto visible no tiene nombre accesible.')
+}
 
 // `disabled` llega por atributos (presente sin valor = ''), y `cargando` también bloquea el botón.
 const deshabilitado = computed(
@@ -36,7 +44,7 @@ const deshabilitado = computed(
     :type="como === 'button' ? tipo : undefined"
     :disabled="como === 'button' ? deshabilitado : undefined"
     :aria-busy="cargando || undefined"
-    :class="['boton', `boton--${variante}`, `boton--${tamano}`, { 'boton--cargando': cargando }]"
+    :class="['boton', `boton--${variante}`, `boton--${tamano}`, { 'boton--cargando': cargando, 'boton--solo-icono': soloIcono }]"
   >
     <span v-if="cargando" class="boton__spinner" aria-hidden="true" />
     <slot />
@@ -80,6 +88,23 @@ const deshabilitado = computed(
   min-height: var(--fz-boton-alto-lg);
   padding: 0 var(--fz-boton-relleno-x-lg);
   font-size: var(--fz-boton-texto-lg);
+}
+
+/* Solo ícono: cuadrado del alto de su tamaño y sin relleno de texto. */
+.boton--solo-icono {
+  padding: 0;
+}
+
+.boton--solo-icono.boton--sm {
+  width: var(--fz-boton-alto-sm);
+}
+
+.boton--solo-icono.boton--md {
+  width: var(--fz-boton-alto-md);
+}
+
+.boton--solo-icono.boton--lg {
+  width: var(--fz-boton-alto-lg);
 }
 
 /* Variantes */

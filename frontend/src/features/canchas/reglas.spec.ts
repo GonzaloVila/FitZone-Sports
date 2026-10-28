@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { puedeReservar } from './reglas'
+import { puedeReservar, veQuienReservo } from './reglas'
+
+describe('veQuienReservo', () => {
+  it('lo ven RECEPCION y GERENTE', () => {
+    expect(veQuienReservo('RECEPCION')).toBe(true)
+    expect(veQuienReservo('GERENTE')).toBe(true)
+  })
+
+  it('SOCIO, EXTERNO y sin rol no lo ven', () => {
+    expect(veQuienReservo('SOCIO')).toBe(false)
+    expect(veQuienReservo('EXTERNO')).toBe(false)
+    expect(veQuienReservo(null)).toBe(false)
+    expect(veQuienReservo(undefined)).toBe(false)
+  })
+})
 
 describe('puedeReservar', () => {
   it('reservan el SOCIO y el EXTERNO', () => {

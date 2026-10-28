@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useServicios } from '@/compartido/servicios'
-import { AvisoFz, PaginacionFz } from '@/ui'
+import { AvisoFz, PaginacionFz, enfocarControlDeFila } from '@/ui'
 import ConfirmarAnulacion from '../components/ConfirmarAnulacion.vue'
 import FiltrosPagos from '../components/FiltrosPagos.vue'
 import TablaPagos from '../components/TablaPagos.vue'
@@ -32,6 +32,10 @@ async function confirmarAnulacion() {
   if (ok) {
     modalAnular.value = false
     aAnular.value = null
+    // El pago pasó a ANULADO y su fila ya no tiene acciones: el foco vuelve al primer control que siga en esa fila, o a
+    // ninguno si no queda (el modal ya devolvió el foco al botón que ya no existe).
+    await nextTick()
+    enfocarControlDeFila(`acciones-pago-${actual.id}`, 'anular')
   }
 }
 

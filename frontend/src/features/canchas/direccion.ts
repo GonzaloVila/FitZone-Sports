@@ -113,16 +113,13 @@ export function sinReservaAPagar<T extends ConsultaCruda>(query: T): Partial<T> 
 
 // ---- Grilla de turnos: de dónde se llegó ----
 
-// Lista cerrada: cualquier otro valor de ?desde= se trata como entrada directa.
-const ORIGENES = ['canchas', 'mis-reservas'] as const
-type OrigenGrilla = (typeof ORIGENES)[number]
+// Es el único origen: cualquier otro valor de ?desde= se trata como entrada directa.
+const ORIGEN_LISTA = 'canchas'
 
 // Parámetros del enlace a la grilla: la lista lleva sus filtros para poder reconstruirse al volver.
 export function parametrosDesdeCanchas(consulta: ConsultaCanchas): Parametros {
-  return { desde: 'canchas', ...parametrosDeConsultaCanchas(consulta) }
+  return { desde: ORIGEN_LISTA, ...parametrosDeConsultaCanchas(consulta) }
 }
-
-export const PARAMETROS_DESDE_MIS_RESERVAS: Readonly<Parametros> = { desde: 'mis-reservas' }
 
 export interface DestinoVolver {
   texto: string
@@ -130,13 +127,8 @@ export interface DestinoVolver {
 }
 
 // El enlace de "volver" de la grilla, armado solo con la dirección (sin el historial del navegador): sirve igual al
-// recargar o entrar por un enlace guardado. "Mis reservas" es de quien reserva: para los demás ese origen se ignora.
-export function destinoVolver(query: ConsultaCruda, tieneMisReservas: boolean): DestinoVolver {
-  const desde = textoDe(query, 'desde')
-  const origen: OrigenGrilla | undefined = ORIGENES.find((valor) => valor === desde)
-  if (origen === 'mis-reservas' && tieneMisReservas) {
-    return { texto: 'Volver a mis reservas', a: { name: 'canchas', query: { vista: 'mis-reservas' } } }
-  }
-  const filtros = origen === 'canchas' ? parametrosDeConsultaCanchas(leerConsultaCanchas(query)) : {}
+// recargar o entrar por un enlace guardado.
+export function destinoVolver(query: ConsultaCruda): DestinoVolver {
+  const filtros = textoDe(query, 'desde') === ORIGEN_LISTA ? parametrosDeConsultaCanchas(leerConsultaCanchas(query)) : {}
   return { texto: 'Volver a canchas', a: { name: 'canchas', query: filtros } }
 }

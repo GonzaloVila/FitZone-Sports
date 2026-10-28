@@ -11,6 +11,24 @@ describe('BotonFz', () => {
     expect(wrapper.attributes('type')).toBe('button')
   })
 
+  it('soloIcono lo hace cuadrado (clase propia), conserva el nombre accesible y sigue siendo un botón', async () => {
+    const wrapper = mount(BotonFz, {
+      props: { soloIcono: true, variante: 'fantasma', tamano: 'sm' },
+      attrs: { 'aria-label': 'Editar Fútbol 5 #2' },
+      slots: { default: '<svg />' },
+    })
+
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['boton--solo-icono', 'boton--sm', 'boton--fantasma']))
+    expect(wrapper.attributes('aria-label')).toBe('Editar Fútbol 5 #2')
+    expect(wrapper.attributes('type')).toBe('button')
+    await wrapper.trigger('click')
+    expect(wrapper.emitted('click')).toHaveLength(1)
+  })
+
+  it('sin soloIcono no agrega la clase cuadrada', () => {
+    expect(mount(BotonFz, { slots: { default: 'Guardar' } }).classes()).not.toContain('boton--solo-icono')
+  })
+
   it('con cargando queda deshabilitado y con aria-busy', () => {
     const wrapper = mount(BotonFz, { props: { cargando: true } })
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { AvatarFz, BotonFz, CampoTextoFz, ModalFz, TablaFz, type ColumnaTabla } from '@/ui'
+import { AccionesFilaFz, AvatarFz, BotonFz, CampoTextoFz, ModalFz, TablaFz, type AccionFilaFz, type ColumnaTabla } from '@/ui'
 import type { Ingreso } from '../services/servicioAcceso'
 
 const props = defineProps<{
@@ -29,7 +29,20 @@ const columnas: ColumnaTabla[] = [
   { clave: 'socio', etiqueta: 'Socio', encabezadoFila: true },
   { clave: 'dni', etiqueta: 'DNI', ajustada: true },
   { clave: 'ingreso', etiqueta: 'Hora de ingreso', ajustada: true },
-  { clave: 'acciones', etiqueta: 'Acciones', ajustada: true, alineacion: 'fin' },
+  { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' },
+]
+
+// Una sola acción por fila ("Registrar egreso"): es un ícono. Mientras se registra, muestra el estado de carga.
+const MAXIMO_DE_ACCIONES = 1
+
+const accionesDe = (persona: Ingreso): AccionFilaFz[] => [
+  {
+    clave: 'egresar',
+    etiqueta: 'Registrar egreso',
+    etiquetaAccesible: `Registrar egreso de ${persona.nombre}`,
+    icono: 'salida',
+    cargando: props.egresandoId === persona.id,
+  },
 ]
 
 const claveFila = (fila: Ingreso) => fila.id
@@ -114,14 +127,13 @@ function formatearHora(iso: string) {
         </template>
 
         <template #celda-acciones="{ fila }">
-          <BotonFz
-            variante="secundario"
-            tamano="sm"
-            :disabled="egresandoId === (fila as Ingreso).id"
-            @click="confirmarEgreso(fila as Ingreso)"
-          >
-            {{ egresandoId === (fila as Ingreso).id ? 'Registrando…' : 'Registrar egreso' }}
-          </BotonFz>
+          <AccionesFilaFz
+            :etiqueta="`Acciones de ${(fila as Ingreso).nombre}`"
+            :identificador="`acciones-ingreso-${(fila as Ingreso).id}`"
+            :acciones="accionesDe(fila as Ingreso)"
+            :maximo="MAXIMO_DE_ACCIONES"
+            @seleccionar="confirmarEgreso(fila as Ingreso)"
+          />
         </template>
       </TablaFz>
     </template>

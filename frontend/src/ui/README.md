@@ -41,7 +41,7 @@ Reglas centrales:
 | `nombre` | `NombreIconoFz` (unión cerrada, se exporta desde `ui/index.ts`) | requerida |
 | `tamano` | `'sm' \| 'md' \| 'lg'` (1 / 1.25 / 1.5 rem, por token `--fz-icono-tamano-*`) | `'md'` |
 
-Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas` (una cancha vista desde arriba: rectángulo, línea central y un área chica en cada extremo), `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`, `advertencia` (triángulo con exclamación), `tilde` (check simple, sin círculo), `flecha-izquierda`, `lugar` (marcador de mapa, para sedes), `correo` (sobre), `telefono` (auricular), `identificador` (numeral `#`), `editar` (lápiz), `flecha-derecha`, `reloj` (esfera con agujas). Para fechas y calendarios se reutiliza `clases`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
+Nombres: `carnet`, `socios`, `acceso`, `clases`, `canchas` (una cancha vista desde arriba: rectángulo, línea central y un área chica en cada extremo), `pagos`, `reportes`, `cerrar-sesion`, `menu`, `cerrar`, `acciones`, `exito`, `error`, `info`, `ojo`, `ojo-tachado`, `buscar`, `mas`, `cambiar` (dos flechas circulares), `pausa`, `reproducir`, `quitar-usuario`, `advertencia` (triángulo con exclamación), `tilde` (check simple, sin círculo), `flecha-izquierda`, `lugar` (marcador de mapa, para sedes), `correo` (sobre), `telefono` (auricular), `identificador` (numeral `#`), `editar` (lápiz), `flecha-derecha`, `reloj` (esfera con agujas), `descargar` (flecha hacia abajo sobre una bandeja: el comprobante), `salida` (puerta con una flecha que sale: registrar un egreso; no es `cerrar-sesion`). `ojo` es "ver detalle" en las acciones de las tablas. Para fechas y calendarios se reutiliza `clases`. Para sumar uno hay que agregarlo a la unión y dibujarlo en `TRAZOS` (el tipo `Record` no deja olvidarse). Al ser decorativo, el texto accesible lo pone quien lo usa (el texto vecino o un `aria-label` en el botón).
 
 ## Interruptor y avatar (átomos)
 
@@ -235,6 +235,30 @@ Para navegar sin poner un botón dentro de un enlace (HTML inválido y dos parad
 
 Un enlace se activa con Enter (no con Espacio) y no puede deshabilitarse: para acciones que no navegan, seguir usando el botón.
 
+### `BotonFz` con `soloIcono`
+
+Prop opcional `soloIcono`: el botón queda cuadrado (del alto de su tamaño: `sm` son 1.75 rem, más que el mínimo de 24 px de WCAG 2.2, 2.5.8) y sin relleno de texto. Como no tiene texto visible, el nombre accesible es obligatorio: hay que pasar `aria-label` (en desarrollo avisa por consola si falta). Se usa con `variante="fantasma"` y `tamano="sm"`; el foco visible es el de siempre.
+
+```vue
+<BotonFz solo-icono variante="fantasma" tamano="sm" aria-label="Editar Fútbol 5 #2" title="Editar"><IconoFz nombre="editar" tamano="sm" /></BotonFz>
+```
+
+### `AccionesFilaFz` (molécula)
+
+Las acciones de una fila de tabla. Concentra la regla en un solo lugar: según la CANTIDAD MÁXIMA de acciones que puede tener cualquier fila de esa tabla (`maximo`, no las de cada fila, para que todas se vean iguales), dibuja **botones de solo ícono** sueltos (`maximo` de 2 o menos) o **un único menú "⋯"** (`MenuAccionesFz`, con 3 o más). Va con la columna `etiquetaOculta`, `ajustada` y alineada al final.
+
+| Prop / evento | |
+| --- | --- |
+| `acciones` | `AccionFilaFz[]`: `clave`, `etiqueta` (texto corto: tooltip y ítem del menú), `etiquetaAccesible?` (el `aria-label` del ícono; por defecto la `etiqueta`; la tabla la completa con el dato de la fila), `icono`, `peligro?`, `deshabilitada?`, `cargando?`, `separada?` (solo en el menú) |
+| `maximo` | Cantidad máxima de acciones de cualquier fila de esa tabla |
+| `etiqueta` | Nombre accesible del grupo ("Acciones de Fútbol 5 #2") |
+| `identificador?` | Base para devolver el foco (ver abajo) |
+| evento `seleccionar` | `(clave)`, en los dos modos. Las acciones de navegación también emiten: la tabla hace el `router.push` |
+
+En modo íconos hay un `<div role="group">` con un botón por acción: `title` (tooltip nativo) = `etiqueta` (también en uno deshabilitado, que se ve apagado), `aria-label` = `etiquetaAccesible` y, si está `cargando`, el spinner del botón en lugar del ícono. **Foco:** cada botón lleva `data-identificador="<identificador>-<clave>"` y, en modo menú, el disparador lleva `data-identificador="<identificador>"`. Para devolver el foco al cerrar un modal abierto desde una fila, `enfocarControlDeFila(identificador, clave)` busca el botón de esa acción y, si ya no existe (se pagó, por ejemplo), el disparador del menú o el primer control habilitado que siga en esa fila.
+
+Convención de las tablas: las acciones de cada fila son botones de solo ícono, sin la palabra "Acciones" a la vista; los nombres en las filas son texto simple y abrir un detalle es una acción más ("Ver detalle", ícono `ojo`). Única excepción: "Reservar" de la grilla de turnos, que mantiene su texto por ser la acción principal.
+
 ### `CampoTextoFz` con `icono`
 
 Prop opcional `icono` (un `NombreIconoFz`, ej. `"buscar"`): dibuja el ícono decorativo a la izquierda, dentro del campo, y deja lugar al texto con el token `--fz-campo-icono-relleno`. Sin la prop, el componente es el `<input>` de siempre; con ella, la raíz pasa a ser un envoltorio y los atributos (`class` incluida) siguen yendo al `<input>`. El nombre accesible lo da una etiqueta o un `aria-label`, no el ícono.
@@ -375,6 +399,7 @@ Todas opcionales y aditivas; sin ellas la columna se comporta como siempre.
 | `ajustada` | La columna ocupa lo justo para su contenido; el espacio sobrante va a las columnas que no lo son |
 | `alineacion` | `'inicio'` (por defecto), `'centro'` o `'fin'`, para el encabezado y las celdas |
 | `encabezadoEnLineas` | El encabezado puede partirse en varias líneas, balanceadas (por defecto va en una sola) |
+| `etiquetaOculta` | La etiqueta del encabezado no se ve pero la leen los lectores de pantalla (misma técnica que el título oculto de la tabla): para la columna de acciones, que tiene solo íconos |
 
 ## Escala de tamaños
 

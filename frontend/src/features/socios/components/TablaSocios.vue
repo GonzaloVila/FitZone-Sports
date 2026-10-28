@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
-import { AvatarFz, InsigniaFz, InterruptorFz, MenuAccionesFz, TablaFz, type ColumnaTabla } from '@/ui'
+import { AccionesFilaFz, AvatarFz, InsigniaFz, InterruptorFz, TablaFz, type AccionFilaFz, type ColumnaTabla } from '@/ui'
 import {
   ETIQUETAS_ESTADO,
   ETIQUETAS_PLAN,
@@ -32,7 +31,7 @@ const columnas: ColumnaTabla[] = [
   { clave: 'plan', etiqueta: 'Plan', ajustada: true },
   { clave: 'estado', etiqueta: 'Estado', ajustada: true },
   { clave: 'renovacion', etiqueta: 'Renovación automática', ajustada: true, alineacion: 'centro', encabezadoEnLineas: true },
-  { clave: 'acciones', etiqueta: 'Acciones', ajustada: true, alineacion: 'fin' },
+  { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' },
 ]
 
 const claveFila = (fila: FilaSocio) => fila.socio.id
@@ -41,8 +40,13 @@ function estadoDe(fila: FilaSocio): EstadoMembresia | null {
   return fila.membresia.situacion === 'disponible' ? fila.membresia.membresia.estado : null
 }
 
-// El menú es el mismo que el de la ficha (accionesDeMenuSocio): sin membresía disponible, estado = null.
-const accionesDe = (fila: FilaSocio) => accionesDeMenuSocio(estadoDe(fila), 'lista')
+// Ver ficha, Cambiar plan, Suspender o Reactivar, y Dejar de ser socio: hasta 4 acciones posibles, así que van todas en el menú
+// "···" (con 3 o más, `AccionesFilaFz` usa el menú). Es el mismo contenido que el de la ficha (accionesDeMenuSocio): sin
+// membresía disponible, estado = null.
+const MAXIMO_DE_ACCIONES = 4
+
+const accionesDe = (fila: FilaSocio): AccionFilaFz[] =>
+  accionesDeMenuSocio(estadoDe(fila), 'lista').map((accion) => ({ ...accion, icono: accion.icono ?? 'acciones' }))
 
 function alSeleccionar(fila: FilaSocio, clave: string) {
   if (esAccionFila(clave)) emit('abrir-accion', { socioId: fila.socio.id, accion: clave })
@@ -63,9 +67,7 @@ function alSeleccionar(fila: FilaSocio, clave: string) {
         <AvatarFz :nombre="fila.socio.nombre" />
         <div class="socio__datos">
           <div class="socio__linea">
-            <RouterLink :to="{ name: 'socio-detalle', params: { socioId: fila.socio.id } }" class="socio__nombre">
-              {{ fila.socio.nombre }}
-            </RouterLink>
+            <span class="socio__nombre">{{ fila.socio.nombre }}</span>
             <span class="socio__id" title="ID de socio para registrar accesos">#{{ fila.socio.id }}</span>
           </div>
           <span class="socio__email" :title="fila.socio.email">{{ fila.socio.email }}</span>
@@ -110,10 +112,11 @@ function alSeleccionar(fila: FilaSocio, clave: string) {
     </template>
 
     <template #celda-acciones="{ fila }">
-      <MenuAccionesFz
+      <AccionesFilaFz
         :etiqueta="`Acciones de ${fila.socio.nombre}`"
         :identificador="`menu-socio-${fila.socio.id}`"
         :acciones="accionesDe(fila)"
+        :maximo="MAXIMO_DE_ACCIONES"
         @seleccionar="(clave) => alSeleccionar(fila, clave)"
       />
     </template>
@@ -143,16 +146,6 @@ function alSeleccionar(fila: FilaSocio, clave: string) {
 .socio__nombre {
   color: var(--fz-color-texto);
   font-weight: var(--fz-peso-enfasis);
-  text-decoration: none;
-}
-
-.socio__nombre:hover {
-  text-decoration: underline;
-}
-
-.socio__nombre:focus-visible {
-  outline: 2px solid var(--fz-color-foco);
-  outline-offset: 2px;
 }
 
 .socio__id,

@@ -45,7 +45,8 @@ function valorDeCelda(fila: T, clave: string): unknown {
             scope="col"
             :class="['tabla__encabezado', clasesDeColumna('tabla__encabezado', columna), { 'tabla__encabezado--en-lineas': columna.encabezadoEnLineas }]"
           >
-            {{ columna.etiqueta }}
+            <span v-if="columna.etiquetaOculta" class="tabla__etiqueta--oculta">{{ columna.etiqueta }}</span>
+            <template v-else>{{ columna.etiqueta }}</template>
           </th>
         </tr>
       </thead>
@@ -96,8 +97,9 @@ function valorDeCelda(fila: T, clave: string): unknown {
   text-align: left;
 }
 
-/* Oculto a la vista pero disponible para lectores de pantalla. */
-.tabla__titulo--oculto {
+/* Oculto a la vista pero disponible para lectores de pantalla (el título y la etiqueta de una columna sin texto visible). */
+.tabla__titulo--oculto,
+.tabla__etiqueta--oculta {
   position: absolute;
   width: 1px;
   height: 1px;

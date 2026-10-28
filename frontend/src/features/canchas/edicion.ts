@@ -35,6 +35,12 @@ export function cambiosDe(cancha: Cancha, form: FormularioEdicionCancha): Cancha
   return cambios
 }
 
+// Base de los `data-identificador` de las acciones de la fila de una cancha: la pantalla devuelve el foco a "Editar" al cerrar el
+// modal de edición (ver `enfocarControlDeFila` del kit).
+export function identificadorDeAccionesCancha(canchaId: number): string {
+  return `acciones-cancha-${canchaId}`
+}
+
 export function nombreDeCancha(cancha: Pick<Cancha, 'tipo' | 'id'>): string {
   return `${ETIQUETA_TIPO_CANCHA[cancha.tipo]} #${cancha.id}`
 }

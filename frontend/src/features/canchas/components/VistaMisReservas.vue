@@ -2,10 +2,11 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import ModalPagarReserva from '@/features/pagos/components/modales/ModalPagarReserva.vue'
 import { useSedes } from '@/features/sedes/composables/useSedes'
-import { AvisoFz, PaginacionFz, PestanasFz } from '@/ui'
+import { AvisoFz, PaginacionFz, PestanasFz, enfocarControlDeFila } from '@/ui'
 import { useEtiquetasCanchas } from '../composables/useEtiquetasCanchas'
 import { POR_PAGINA_RESERVAS, useMisReservas } from '../composables/useMisReservas'
 import { useReservaAPagar } from '../composables/useReservaAPagar'
+import { identificadorDeAccionesReserva, type AccionReserva } from '../presentacion'
 import type { ReservaCancha } from '../services/servicioCanchas'
 import type { FilaReserva } from '../tipos'
 import ModalCancelarReserva from './ModalCancelarReserva.vue'
@@ -90,19 +91,27 @@ function pedirPago(reserva: ReservaCancha) {
 // ?pagar=<id> (la redirección de /pagos/nuevo) abre el mismo modal.
 const { error: errorReservaAPagar } = useReservaAPagar(pedirPago)
 
-// Al cerrarse un modal abierto desde el menú de una fila, el foco vuelve al botón "···" de esa fila: el ítem que lo abrió ya
-// no existe. Se espera a que el modal termine de cerrarse para que su propia devolución de foco no pise esta.
-async function devolverFoco(reservaId: number | undefined) {
+// Al cerrarse un modal abierto desde una acción de la fila, el foco vuelve a esa acción; si ya no existe (se pagó o se canceló),
+// al primer control que siga en la fila. Se espera a que el modal termine de cerrarse para que su propia devolución de foco no
+// pise esta.
+async function devolverFoco(reservaId: number | undefined, accion: AccionReserva) {
   if (reservaId === undefined) return
   await nextTick()
-  document.querySelector<HTMLElement>(`[data-identificador="menu-reserva-${reservaId}"]`)?.focus()
+  enfocarControlDeFila(identificadorDeAccionesReserva(reservaId), accion)
 }
 watch(modalCancelar, (abierto) => {
-  if (!abierto) void devolverFoco(aCancelar.value?.reserva.id)
+  if (!abierto) void devolverFoco(aCancelar.value?.reserva.id, 'cancelar')
 })
 watch(modalPagar, (abierto) => {
-  if (!abierto) void devolverFoco(aPagar.value?.id)
+  if (!abierto) void devolverFoco(aPagar.value?.id, 'pagar')
 })
+
+// Pagada: la lista se vuelve a pedir (la fila pasa a "Pagada" y "Pagar" desaparece) y recién ahí vuelve el foco a la fila.
+async function alPagar() {
+  const reservaId = aPagar.value?.id
+  await recargar()
+  await devolverFoco(reservaId, 'pagar')
+}
 </script>
 
 <template>
@@ -149,7 +158,7 @@ watch(modalPagar, (abierto) => {
       v-model:abierto="modalPagar"
       :reserva="aPagar"
       :nombre-cancha="aPagar ? etiquetaDe(aPagar.canchaId) : ''"
-      @pagado="recargar"
+      @pagado="alPagar"
     />
   </div>
 </template>

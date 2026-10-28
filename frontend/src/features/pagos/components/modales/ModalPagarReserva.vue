@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useId, watch } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 import { useServicios } from '@/compartido/servicios'
 import type { ReservaCancha } from '@/features/canchas/services/servicioCanchas'
 import { AvisoFz, BotonFz, CampoFormularioFz, ListaDatosFz, ModalFz, SelectFz, type DatoFz } from '@/ui'
@@ -44,6 +44,18 @@ const datos = computed<DatoFz[]>(() => {
   ]
 })
 
+// Al pagar, el formulario (con el botón "Pagar" que tenía el foco) desaparece y aparece el resultado: sin hacer nada, el foco
+// se perdería en el documento. Se lo lleva a la región del resultado (no a un botón: un Enter de más descargaría o cerraría
+// sin querer). La región se anuncia por su nombre y su descripción (el texto del resultado), así que el aviso de adentro
+// no repite el anuncio con su propio aria-live.
+const regionResultado = ref<HTMLElement | null>(null)
+const idTextoResultado = useId()
+watch(pago, async (nuevo, anterior) => {
+  if (!nuevo || anterior) return
+  await nextTick()
+  regionResultado.value?.focus()
+})
+
 const aprobado = computed(() => pago.value?.estado === 'APROBADO')
 const varianteResultado = computed(() => {
   if (aprobado.value) return 'exito' as const
@@ -70,10 +82,19 @@ function descargarComprobante() {
     ancho="angosto"
     :ocupado="enviando"
   >
-    <template v-if="pago">
-      <AvisoFz :variante="varianteResultado">{{ textoResultado }}</AvisoFz>
+    <div
+      v-if="pago"
+      ref="regionResultado"
+      class="resultado"
+      role="group"
+      aria-label="Resultado del pago"
+      :aria-describedby="idTextoResultado"
+      tabindex="-1"
+    >
+      <AvisoFz :id="idTextoResultado" :variante="varianteResultado" aria-live="off">{{ textoResultado }}</AvisoFz>
+      <!-- Este sí se anuncia solo (role="alert"): aparece después, con el foco ya en la región. -->
       <AvisoFz v-if="errorDescarga" variante="peligro">{{ errorDescarga }}</AvisoFz>
-    </template>
+    </div>
 
     <template v-else>
       <ListaDatosFz :datos="datos" />
@@ -116,3 +137,17 @@ function descargarComprobante() {
     </template>
   </ModalFz>
 </template>
+
+<style scoped>
+.resultado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fz-espaciado-compacto);
+}
+
+/* Solo recibe el foco por programa (tabindex="-1", no está en el orden del Tab) y no es un control: no necesita contorno.
+   Los botones del modal conservan su anillo de foco. */
+.resultado:focus {
+  outline: none;
+}
+</style>

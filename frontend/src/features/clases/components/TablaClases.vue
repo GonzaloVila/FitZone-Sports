@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
-import { InsigniaFz, TablaFz, type ColumnaTabla } from '@/ui'
+import { useRouter } from 'vue-router'
+import { AccionesFilaFz, InsigniaFz, TablaFz, type AccionFilaFz, type ColumnaTabla } from '@/ui'
 import type { MarcaClase } from '../marcasClases'
 import { estadoDeClase, formatearHorario } from '../presentacion'
 import type { Clase } from '../services/servicioClases'
@@ -9,12 +9,14 @@ import MarcaDeClase from './MarcaDeClase.vue'
 const props = defineProps<{
   clases: Clase[]
   nombreSede: (sedeId: number) => string
-  // Parámetros de dirección del enlace al detalle (de dónde se vino y con qué filtros).
+  // Parámetros de dirección del detalle (de dónde se vino y con qué filtros).
   parametrosDetalle?: Record<string, string>
   // Marca de las clases que el socio ya tiene reservadas o en espera (solo para el socio).
   marcas?: ReadonlyMap<number, MarcaClase>
   ocupada?: boolean
 }>()
+
+const router = useRouter()
 
 const columnas: ColumnaTabla[] = [
   { clave: 'tipo', etiqueta: 'Clase', encabezadoFila: true },
@@ -23,22 +25,28 @@ const columnas: ColumnaTabla[] = [
   { clave: 'sede', etiqueta: 'Sede' },
   { clave: 'cupos', etiqueta: 'Cupos libres', ajustada: true },
   { clave: 'estado', etiqueta: 'Estado', ajustada: true },
+  { clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' },
 ]
+
+// Una sola acción por fila ("Ver detalle"): es un ícono. El nombre de la clase es texto simple.
+const MAXIMO_DE_ACCIONES = 1
 
 const claveFila = (fila: Clase) => fila.id
 const marcaDe = (claseId: number) => props.marcas?.get(claseId)
+const accionesDe = (clase: Clase): AccionFilaFz[] => [
+  { clave: 'ver-detalle', etiqueta: 'Ver detalle', etiquetaAccesible: `Ver el detalle de la clase ${clase.tipo}`, icono: 'ojo' },
+]
+
+function alSeleccionar(clase: Clase) {
+  void router.push({ name: 'clase-detalle', params: { claseId: clase.id }, query: props.parametrosDetalle })
+}
 </script>
 
 <template>
   <TablaFz titulo="Agenda de clases" ocultar-titulo :columnas="columnas" :filas="clases" :clave-fila="claveFila" :ocupada="ocupada">
     <template #celda-tipo="{ fila }">
       <span class="tabla-clases__clase">
-        <RouterLink
-          :to="{ name: 'clase-detalle', params: { claseId: fila.id }, query: parametrosDetalle }"
-          class="tabla-clases__enlace"
-        >
-          {{ fila.tipo }}
-        </RouterLink>
+        <span class="tabla-clases__nombre">{{ fila.tipo }}</span>
         <MarcaDeClase v-if="marcaDe(fila.id)" :marca="marcaDe(fila.id)!" />
       </span>
     </template>
@@ -47,6 +55,15 @@ const marcaDe = (claseId: number) => props.marcas?.get(claseId)
     <template #celda-cupos="{ fila }">{{ fila.cupoDisponible }} de {{ fila.capacidad }}</template>
     <template #celda-estado="{ fila }">
       <InsigniaFz :variante="estadoDeClase(fila).variante">{{ estadoDeClase(fila).etiqueta }}</InsigniaFz>
+    </template>
+    <template #celda-acciones="{ fila }">
+      <AccionesFilaFz
+        :etiqueta="`Acciones de la clase ${fila.tipo}`"
+        :identificador="`acciones-clase-${fila.id}`"
+        :acciones="accionesDe(fila)"
+        :maximo="MAXIMO_DE_ACCIONES"
+        @seleccionar="alSeleccionar(fila)"
+      />
     </template>
   </TablaFz>
 </template>
@@ -59,18 +76,7 @@ const marcaDe = (claseId: number) => props.marcas?.get(claseId)
   gap: var(--fz-espaciado-compacto);
 }
 
-.tabla-clases__enlace {
-  color: var(--fz-color-texto);
+.tabla-clases__nombre {
   font-weight: var(--fz-peso-enfasis);
-  text-decoration: none;
-}
-
-.tabla-clases__enlace:hover {
-  text-decoration: underline;
-}
-
-.tabla-clases__enlace:focus-visible {
-  outline: 2px solid var(--fz-color-foco);
-  outline-offset: 2px;
 }
 </style>

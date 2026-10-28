@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
-import { InsigniaFz, MenuAccionesFz, TablaFz, type AccionMenuFz, type ColumnaTabla } from '@/ui'
-import { PARAMETROS_DESDE_MIS_RESERVAS } from '../direccion'
+import { AccionesFilaFz, InsigniaFz, TablaFz, type AccionFilaFz, type ColumnaTabla } from '@/ui'
 import {
   accionesDeReserva,
   formatearFechaHora,
   formatearHora,
   formatearMonto,
+  identificadorDeAccionesReserva,
   insigniaDePago,
   type AccionReserva,
   type PestanaReservas,
@@ -29,20 +28,21 @@ const props = defineProps<{
 
 const emit = defineEmits<{ pagar: [fila: FilaReserva]; cancelar: [fila: FilaReserva] }>()
 
-// Como en la lista de canchas: las columnas se reparten el ancho y solo la última (las acciones) ocupa lo que necesita.
+// Como en la lista de canchas: las columnas se reparten el ancho y solo la última (las acciones, sin etiqueta a la vista)
+// ocupa lo que necesita.
 const columnas = computed<ColumnaTabla[]>(() => [
   { clave: 'cancha', etiqueta: 'Cancha', encabezadoFila: true },
   { clave: 'sede', etiqueta: 'Sede' },
   { clave: 'turno', etiqueta: 'Turno' },
   { clave: 'pago', etiqueta: 'Pago' },
   { clave: 'precio', etiqueta: 'Precio' },
-  ...(props.pestana === 'proximas' ? [{ clave: 'acciones', etiqueta: 'Acciones', ajustada: true, alineacion: 'fin' as const }] : []),
+  ...(props.pestana === 'proximas'
+    ? [{ clave: 'acciones', etiqueta: 'Acciones', etiquetaOculta: true, ajustada: true, alineacion: 'fin' as const }]
+    : []),
 ])
 
-const ETIQUETA_ACCION: Record<AccionReserva, { etiqueta: string; icono: AccionMenuFz['icono'] }> = {
-  pagar: { etiqueta: 'Pagar', icono: 'pagos' },
-  cancelar: { etiqueta: 'Cancelar', icono: 'cerrar' },
-}
+// Pagar y cancelar: como mucho 2 acciones por fila, así que son íconos.
+const MAXIMO_DE_ACCIONES = 2
 
 const claveFila = (fila: FilaReserva) => fila.reserva.id
 const turno = (reserva: ReservaCancha) =>
@@ -50,16 +50,20 @@ const turno = (reserva: ReservaCancha) =>
 const insignia = (fila: FilaReserva) => insigniaDePago(fila.pago, props.pestana)
 const textoSinInsignia = (fila: FilaReserva) => (fila.pago === 'cargando' ? 'Consultando…' : 'Sin dato')
 
-// El menú de una reserva: solo las acciones que se pueden hacer ahora (ninguna → sin menú).
-const accionesDe = (fila: FilaReserva): AccionMenuFz[] =>
-  accionesDeReserva(fila.reserva, fila.pago, new Date(props.ahora)).map((accion, posicion) => ({
+// Las acciones de una reserva: solo las que se pueden hacer ahora, con el dato de la fila en el nombre accesible.
+function accionesDe(fila: FilaReserva): AccionFilaFz[] {
+  const reserva = `la reserva de ${props.etiquetaDeCancha(fila.reserva.canchaId)} (${turno(fila.reserva)})`
+  const textos: Record<AccionReserva, Pick<AccionFilaFz, 'etiqueta' | 'etiquetaAccesible' | 'icono'>> = {
+    pagar: { etiqueta: 'Pagar', etiquetaAccesible: `Pagar ${reserva}`, icono: 'pagos' },
+    cancelar: { etiqueta: 'Cancelar reserva', etiquetaAccesible: `Cancelar ${reserva}`, icono: 'cerrar' },
+  }
+  return accionesDeReserva(fila.reserva, fila.pago, new Date(props.ahora)).map((accion) => ({
     clave: accion.clave,
-    ...ETIQUETA_ACCION[accion.clave],
+    ...textos[accion.clave],
     deshabilitada: accion.deshabilitada,
-    // "Cancelar" va aparte y en rojo, salvo que sea la única.
     peligro: accion.clave === 'cancelar',
-    separada: accion.clave === 'cancelar' && posicion > 0,
   }))
+}
 
 function alSeleccionar(fila: FilaReserva, clave: string) {
   if (clave === 'pagar') emit('pagar', fila)
@@ -70,12 +74,7 @@ function alSeleccionar(fila: FilaReserva, clave: string) {
 <template>
   <TablaFz titulo="Reservas de cancha" ocultar-titulo :columnas="columnas" :filas="filas" :clave-fila="claveFila" :ocupada="ocupada">
     <template #celda-cancha="{ fila }">
-      <RouterLink
-        :to="{ name: 'cancha-turnos', params: { canchaId: fila.reserva.canchaId }, query: PARAMETROS_DESDE_MIS_RESERVAS }"
-        class="tabla-reservas__enlace"
-      >
-        {{ etiquetaDeCancha(fila.reserva.canchaId) }}
-      </RouterLink>
+      <span class="tabla-reservas__nombre">{{ etiquetaDeCancha(fila.reserva.canchaId) }}</span>
     </template>
     <template #celda-sede="{ fila }">{{ nombreDeSede(fila.reserva.canchaId) }}</template>
     <template #celda-turno="{ fila }">{{ turno(fila.reserva) }}</template>
@@ -85,11 +84,11 @@ function alSeleccionar(fila: FilaReserva, clave: string) {
     </template>
     <template #celda-precio="{ fila }">{{ formatearMonto(fila.reserva.precioAplicado) }}</template>
     <template #celda-acciones="{ fila }">
-      <MenuAccionesFz
-        v-if="accionesDe(fila).length > 0"
+      <AccionesFilaFz
         :etiqueta="`Acciones de la reserva de ${etiquetaDeCancha(fila.reserva.canchaId)} (${turno(fila.reserva)})`"
-        :identificador="`menu-reserva-${fila.reserva.id}`"
+        :identificador="identificadorDeAccionesReserva(fila.reserva.id)"
         :acciones="accionesDe(fila)"
+        :maximo="MAXIMO_DE_ACCIONES"
         @seleccionar="(clave) => alSeleccionar(fila, clave)"
       />
     </template>
@@ -97,19 +96,8 @@ function alSeleccionar(fila: FilaReserva, clave: string) {
 </template>
 
 <style scoped>
-.tabla-reservas__enlace {
-  color: var(--fz-color-texto);
+.tabla-reservas__nombre {
   font-weight: var(--fz-peso-enfasis);
-  text-decoration: none;
-}
-
-.tabla-reservas__enlace:hover {
-  text-decoration: underline;
-}
-
-.tabla-reservas__enlace:focus-visible {
-  outline: 2px solid var(--fz-color-foco);
-  outline-offset: 2px;
 }
 
 .tabla-reservas__tenue {

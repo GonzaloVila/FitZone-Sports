@@ -4444,3 +4444,105 @@ El alta de RECEPCION con sede (A3) solo existía por API: el front no tenía pan
 5. **Reintegro al cancelar una reserva de cancha ya pagada** y caso ANULADO del repago: definir con Santiago y Exe.
 6. Partir `ArmazonApp.vue` (335 líneas), `useListaSocios.spec.ts` (371) y `ui/README.md` (más de 420) para que queden por debajo de 300.
 7. Los pendientes de backend de la entrada 8b-2.
+
+---
+
+## 2026-10-28 - Backend: opción `estado=TODOS` en el listado de pagos
+
+**Fecha:** 28/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `0834201` (código) y `1933d4c` (contrato)
+
+### Actividades
+
+1. `GET /pagos` acepta `estado=TODOS`, que devuelve los pagos de cualquier estado. Sin `estado` sigue devolviendo solo los APROBADO, y un estado explícito se respeta.
+2. DTO de la consulta (`listar-pagos-query.dto.ts`): `ESTADOS_FILTRO` incluye `'TODOS'` y el tipo es `Pago['estado'] | 'TODOS'`.
+3. `pagos.service.ts`: `TODOS` se traduce a "sin filtro de estado" para el repositorio; sin `estado` se aplica `'APROBADO'`. El repositorio no se tocó.
+4. Contrato `docs/openapi.yaml`: el parámetro `estado` de `listarPagos` pasó a un enum propio que incluye `TODOS`, y la descripción del controller lo aclara. El esquema `EstadoPago` no cambió. Los tipos del frontend (`api.d.ts`) se regeneraron con `npm run types:api`.
+5. Tests: DTO, listado del service, repositorio, integración (`pagos.service.integration-spec.ts` ampliado) y un caso 422 en el e2e de pagos.
+
+### Decisiones tomadas
+
+1. **El comportamiento por defecto no cambia:** sin `estado` el listado sigue siendo solo APROBADO. Los e2e de socios (M1) y reservas (M3) llaman a `GET /pagos` y dependen de eso.
+2. **`TODOS` no es un estado de pago:** por eso vive en el parámetro del listado y no en el esquema `EstadoPago`.
+3. **El motivo del cambio:** el filtro de la pantalla de Pagos necesitaba la opción "Todos los estados", y el contrato no tenía forma de pedirla.
+
+### Verificación
+
+- Backend: `npx tsc --noEmit` sin errores; `npm run test:unit` 345 tests (más 1 salteado); `npm run test:integration` 75 tests en 13 archivos; `npm run test:e2e` 103 tests en 20 archivos.
+- Frontend con los tipos regenerados: `npm run type-check` y `npm run build` sin errores; 95 archivos y 967 tests en verde.
+
+### Pendientes que siguen abiertos
+
+1. El contrato se commiteó aparte (`1933d4c`) porque quedó fuera del commit del código.
+
+---
+
+## 2026-10-28 - Pagos, reporte de ingresos, anulación y Mis pagos (Paso 9c-2)
+
+**Fecha:** 28/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `64b4068`
+
+### Actividades
+
+1. **Lista de pagos compartida:** `ListaPagos.vue` (encabezado con insignia "N pagos", filtros, tabla, estados vacío/error, pie con rango y paginación, descarga de comprobante y anulación). `PagosPage` y `MisPagosPage` son envoltorios finos sobre ella.
+2. **Mis pagos (SOCIO y EXTERNO):** ruta `/mis-pagos` (nombre `mis-pagos`, roles SOCIO y EXTERNO). Muestra los pagos del propio usuario con `useListaPagos({ usuarioId })` y sin la columna Usuario; una sesión sin usuario no consulta. Es la última opción del menú de la barra superior (`orden: 7`). Orden de menú: Socios 2, Acceso 3, Clases 4, Canchas 6, Mis pagos 7, Pagos 8, Reportes 9, Personal 10, Mi carnet 1. Dos tests nuevos en `rutas.spec.ts` fijan el orden por rol.
+3. **Filtros en una sola fila** (`FiltrosPagos.vue`, `role="search"`): ID de usuario (con ícono de búsqueda y espera de 300 ms), Concepto, Estado, Desde, Hasta y "Limpiar". El estado arranca en "Todos los estados". Orden de conceptos: Todos los conceptos, Reserva de cancha, Membresía, Penalidad de clase. `ESTADOS_FILTRO` y `ETIQUETA_FILTRO_ESTADO` son la única fuente de los estados; se eliminaron `ESTADOS_PAGO` y `ESTADOS_PAGO_ELEGIBLES`.
+4. **Tabla** (`TablaPagos.vue`): columnas Usuario, Fecha, Concepto, Estado, Monto y Acciones (Usuario solo para quien ve los pagos de todos).
+5. **Rango de resultados:** "Mostrando X a Y de Z pagos" con `PaginacionFz`. Helper nuevo `compartido/paginacion.ts` (`rangoDePagina`, `textoDeRango`) con su spec; lo usan solo Pagos y Mis pagos.
+6. **Modal de anulación** (`ConfirmarAnulacion.vue`): `ModalFz` de tono peligro, ancho angosto, ícono `advertencia`, resumen del pago con `ListaDatosFz`, aviso "La anulación no se puede deshacer", botones "Cancelar" y "Anular pago". El éxito es un aviso flotante (`useAvisosFz().exito('Pago anulado', ...)`); `useAnularPago` dejó de exponer `exito`.
+7. **Reporte de ingresos** (`ReporteIngresosPage` y `FormularioReporte`): `EncabezadoPaginaFz` y una fila con Desde, Hasta y "Descargar PDF" (ícono `descargar`).
+8. README de `features/pagos` actualizado (reglas 14 a 16, árbol de archivos y rutas).
+
+### Decisiones tomadas
+
+1. **Búsqueda por ID exacto de usuario**, sin búsqueda por nombre: `PagoOut` solo trae `usuarioId`. Se evaluó y se dejó así.
+2. **Etiqueta "Penalidad de clase"** para `RESERVA_CLASE`: ese concepto es siempre la penalidad por cancelación tardía (RF-07). Se ubicó casi al final de la lista de conceptos por ser el más atípico.
+3. **Mis pagos reutiliza la misma lista** que Pagos, limitada al usuario de la sesión, en vez de duplicar la pantalla.
+4. **Menú:** "Mis pagos" va al final de la barra superior de SOCIO y EXTERNO.
+
+### Problemas encontrados
+
+1. **El filtro "ID de usuario" no filtraba y no aparecía "Limpiar".** `CampoTextoFz tipo="number"` emite un número (o `null`) en ejecución aunque el modelo esté tipado como texto, y el código hacía `.trim()` sobre ese valor: `TypeError: texto.trim is not a function`, tanto en la espera como en `hayFiltrosActivos`. Se corrigió con un único punto de normalización (`compartido/comoTexto.ts`, usado por `usuarioIdTexto` en `useListaPagos`). La prueba nueva reprodujo el fallo antes del arreglo (4 tests fallaban).
+2. **Faltaba "Todos los estados":** el contrato no tenía esa opción. Se resolvió con `estado=TODOS` en el backend (entrada anterior) y con el valor por defecto `'TODOS'` en el frontend.
+
+### Verificación
+
+- `npm run type-check` y `npm run build` sin errores; `npm run test -- --run`: 95 archivos y 967 tests en verde.
+- Verificado a mano con un usuario SOCIO. El orden del menú por rol queda cubierto por los tests de rutas.
+
+### Pendientes que siguen abiertos
+
+1. El texto del rango ("Mostrando X a Y de Z ...") sigue copiado en otras siete pantallas (Canchas, Mis reservas de cancha, Agenda de clases, Mis clases, Socios, Personal e Historial de acceso): se podrían migrar a `compartido/paginacion.ts`.
+2. Siguen pasando el límite de 300 líneas: `ui/README.md` (más de 420), `ArmazonApp.vue` (335) y `useListaSocios.spec.ts` (371).
+
+---
+
+## 2026-10-28 - Etiquetas legibles en el reporte y el comprobante, y aviso de penalidad sin porcentaje
+
+**Fecha:** 28/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `0834201` (backend) y `a4b9f12` (frontend)
+
+### Actividades
+
+1. **Reporte de ingresos (PDF):** el pie dice ahora "Reporte generado AAAA-MM-DD." (se quitó la aclaración "solo pagos APROBADO"). La columna Concepto imprime etiquetas legibles en lugar del enum: "Reserva de cancha", "Membresía" y "Penalidad de clase". `ETIQUETA_CONCEPTO` es un `Record` tipado con el tipo de concepto, así que un concepto nuevo no compila hasta tener etiqueta.
+2. **Comprobante de pago:** para un pago `RESERVA_CLASE` la fila "Concepto" dice ahora "Penalidad de clase", igual que el reporte y el frontend. La fila "Reserva: #id", las filas de clase y horario y la nota "Penalidad por cancelación tardía" no cambiaron.
+3. **Aviso previo a cancelar una clase** (`textosPenalidad.ts`): "Cancelás con menos de 2 horas de anticipación: se cobrará al instante una penalidad fija por cancelación tardía." Ya no muestra el porcentaje. Se eliminó `PORCENTAJE_PENALIDAD` (sin otros usos). Los avisos posteriores a la cancelación siguen mostrando el importe cobrado.
+4. Tests actualizados y nuevos (etiquetas del reporte, pie sin "solo pagos", concepto del comprobante, texto del aviso) y README de `features/clases` ajustado.
+
+### Decisiones tomadas
+
+1. **Las clases van incluidas en la membresía y no tienen precio:** la penalidad sale de un valor de referencia interno (`VALOR_REFERENCIA_CLASE_ARS` = 10.000 por 50% = $5.000). Decir "50% del valor de la clase" sugería un precio que no existe, por eso el aviso previo no muestra ni porcentaje ni monto.
+2. **Las etiquetas del comprobante y del reporte quedan separadas:** unificarlas cruzaría los módulos de reportes y de pagos, y no es trivial.
+
+### Problemas encontrados
+
+1. **Comprobantes viejos sin archivo:** al descargar el comprobante de un pago anterior al 27/10 alrededor de las 23:30 sale "El comprobante del pago N no está disponible" (404: el pago existe pero falta `storage/comprobantes/N.pdf`). No depende del rol ni del concepto. Causa más probable: el spec de comprobantes vaciaba toda la carpeta `storage/comprobantes` antes y después de cada test (bug ya corregido en `ab6436a`). Los pagos nuevos generan y conservan su PDF, incluso después de correr las suites completas.
+
+### Verificación
+
+- Backend: `npx tsc --noEmit` sin errores; `npm run test:unit` 347 tests (más 1 salteado: las muestras de PDF, que solo corren con `MUESTRAS_COMPROBANTE=1`); `npm run test:integration` 75 tests en 13 archivos; `npm run test:e2e` 103 tests en 20 archivos.
+- Frontend: `npm run type-check` y `npm run build` sin errores; 95 archivos y 967 tests en verde.
+- Reporte y modal de cancelación revisados a ojo.
+
+### Pendientes que siguen abiertos
+
+1. Comprobantes viejos sin archivo: se deja como está (son datos de prueba). Opción a futuro: que el backend regenere el comprobante cuando falte el archivo; el monto sale del pago, que está congelado. También protegería ante un despliegue sin volumen persistente para `storage/`, a hablar con Gonza antes del Demo Day, y cambia la decisión "el comprobante se genera una sola vez".
+2. Quedan unos 70 PDF de tests (ids 119 a 292) sin limpiar en `backend/storage/comprobantes`: algunos tests generan comprobantes y no los borran. Los tests de comprobantes podrían usar una carpeta propia.
+3. La descripción de Swagger de `pago-in.dto.ts` todavía menciona el 50% del valor nominal (es documentación del contrato; no se tocó).

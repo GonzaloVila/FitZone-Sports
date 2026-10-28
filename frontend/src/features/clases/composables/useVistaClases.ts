@@ -1,5 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { sinParametrosDeMisClases } from '../direccion'
 
 export type VistaClases = 'agenda' | 'mis-clases'
 
@@ -16,7 +17,8 @@ export function useVistaClases(esSocio: MaybeRefOrGetter<boolean>) {
     get: () => (toValue(esSocio) && route.query.vista === VISTA_MIS_CLASES ? VISTA_MIS_CLASES : 'agenda'),
     set: (nueva) => {
       if (nueva === vista.value) return
-      const query = { ...route.query }
+      // La pestaña y la página de Mis clases no pasan de una vista a la otra (no quedan colgadas en la agenda).
+      const query = sinParametrosDeMisClases(route.query)
       delete query.vista
       void router.push({ query: nueva === VISTA_MIS_CLASES ? { ...query, vista: VISTA_MIS_CLASES } : query })
     },

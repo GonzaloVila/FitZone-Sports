@@ -22,25 +22,26 @@ src/features/clases/
 │   ├── TablaClases.vue          # Agenda con cupos libres y estado
 │   ├── TablaMisEsperas.vue      # Esperas del socio con posición y acciones
 │   ├── TablaMisReservas.vue     # Reservas del socio (próximas / pasadas)
-│   └── VistaMisClases.vue       # Vista "Mis clases" del socio: esperas, reservas y cancelación
+│   └── VistaMisClases.vue       # Vista "Mis clases" del socio: esperas, reservas (Próximas / Pasadas paginadas) y cancelación
 ├── composables/
 │   ├── useAgendaClases.ts       # Filtros y página en la dirección, sede por defecto, descarte de respuestas viejas
 │   ├── useAltaClase.ts          # Validación de ayuda de uso (incluida la fecha pasada), sede por defecto y 409 de horario
 │   ├── useAvisoPenalidad.ts     # Registro de la penalidad (con su clase) tras cancelar y descarga de su comprobante
 │   ├── useDetalleClase.ts       # Clase, reserva y espera vigentes del socio, acciones, actualización periódica
 │   ├── useMarcasClases.ts       # Reservas y esperas vigentes del socio, para marcar su agenda (dos consultas extra)
-│   ├── useMisClases.ts          # Reservas y esperas del socio logueado, actualización periódica
+│   ├── useMisClases.ts          # Reservas y esperas del socio logueado, actualización periódica, caché de clases ya comenzadas
+│   ├── usePestanasMisClases.ts  # Pestaña (Próximas / Pasadas) y página de las pasadas en la dirección
 │   └── useVistaClases.ts        # Vista activa (Agenda / Mis clases) en la dirección
 ├── pages/
 │   ├── AgendaClasesPage.vue     # /clases (con el selector Agenda / Mis clases para el SOCIO)
 │   └── DetalleClasePage.vue     # /clases/:claseId
 ├── services/
 │   └── servicioClases.ts        # Clases, reservas de clase y esperas contra api.d.ts
-├── direccion.ts                 # Filtros, página y origen del detalle ↔ parámetros de la dirección (lógica pura)
+├── direccion.ts                 # Filtros, página, pestaña de Mis clases y origen del detalle ↔ parámetros de la dirección (lógica pura)
 ├── errores.ts                   # Traducción de errores por el campo `type` del problem+json
 ├── marcasClases.ts              # Marca de cada clase de la agenda según lo que el socio tiene vigente (lógica pura)
 ├── presentacion.ts              # Etiquetas, variantes, estado de la clase y formato de fechas
-├── reglas.ts                    # Ventana de 48 hs, penalidad (2 hs, 50%), fecha pasada y reservas/esperas vigentes
+├── reglas.ts                    # Ventana de 48 hs, penalidad (2 hs, 50%), fecha pasada, reservas/esperas vigentes y `paginar`
 ├── rutas.ts
 ├── textosPenalidad.ts           # Textos de la penalidad: advertencia del modal y aviso posterior según la pantalla
 └── tipos.ts
@@ -64,6 +65,7 @@ src/features/clases/
 5. **Lista de espera:** el servidor marca `NOTIFICADO`; el front lo ve porque el detalle y la vista "Mis clases" se actualizan cada 5 s (`useActualizacionPeriodica`, se corta al salir). "Confirmar cupo" solo aparece en `NOTIFICADO`.
 6. **Socio de la sesión:** `useUsuarioSesion().socioId`. RECEPCION usa su `sedeId`; el GERENTE elige.
 7. **Estado "cumplida":** lo calcula el servidor y el front lo muestra tal cual.
+7b. **Mis clases: pestañas, paginación y caché.** Las pestañas dicen solo "Próximas" y "Pasadas" (sin número). La pestaña y la página viven en la dirección (`?pestana=pasadas`, `?pagina-clases=2`; sin parámetros, Próximas página 1, y solo se escribe lo que se aparta de eso; el parámetro de la página NO es `pagina`, que es el de la agenda; `usePestanasMisClases`, `router.replace`, cambiar de pestaña vuelve a la página 1, un valor inválido se ignora) y cambiar de vista las quita (`useVistaClases`). "Pasadas" se pagina en el cliente, 10 por página, con `paginar` (`reglas.ts`) sobre lo que `useMisClases` ya trajo (hasta 100 + 100 reservas): sin pedidos nuevos, con "Mostrando X a Y de Z reservas" y `PaginacionFz` solo con más de 10; una página que supera el total muestra la última válida (y la corrige en la dirección al terminar de cargar). "Próximas" no se pagina. Para no pedir el detalle de cada clase cada 5 s, `useMisClases` guarda en una caché las clases cuyo `horarioInicio` ya pasó (una clase que ya empezó no cambia); las futuras se piden en cada carga y las que fallan no se guardan, así que se reintentan.
 8. **Limitaciones del contrato:** `GET /clases` no filtra por fecha (la agenda es el listado paginado) y las reservas y esperas no traen el nombre del socio (se muestra "Socio #id").
 9. **Kit:** se usa `PestanasFz` (reservas próximas / pasadas) y `CampoTextoFz` acepta `tipo="time"`.
 10. **Accesibilidad:** foco visible, etiquetas en todos los campos, errores asociados con `aria-describedby`, tablas con título, pestañas con teclado.

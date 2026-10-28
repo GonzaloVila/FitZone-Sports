@@ -36,13 +36,22 @@ export function useMisClases() {
   let ultimaCarga = 0
   let controlador: AbortController | undefined
 
-  // Trae cada clase una sola vez por carga; una que no se pueda leer queda en null y la fila lo avisa.
+  // Las clases que ya empezaron: una clase que ya comenzó no cambia, así que no se vuelve a pedir en cada actualización (cada
+  // 5 s, con hasta 200 reservas). Las futuras se piden siempre (pueden cambiar o cancelarse) y las que fallan no se guardan.
+  const clasesComenzadas = new Map<number, Clase>()
+
+  // Trae cada clase una sola vez por carga (salvo las ya comenzadas, que salen de la caché); una que no se pueda leer queda en
+  // null y la fila lo avisa.
   async function cargarClases(ids: number[], signal: AbortSignal): Promise<Map<number, Clase | null>> {
     const unicos = [...new Set(ids)]
     const pares = await Promise.all(
       unicos.map(async (id): Promise<[number, Clase | null]> => {
+        const guardada = clasesComenzadas.get(id)
+        if (guardada) return [id, guardada]
         try {
-          return [id, await servicio.obtener(id, signal)]
+          const clase = await servicio.obtener(id, signal)
+          if (clase && new Date(clase.horarioInicio).getTime() <= Date.now()) clasesComenzadas.set(id, clase)
+          return [id, clase]
         } catch (e) {
           if (signal.aborted) throw e
           return [id, null]

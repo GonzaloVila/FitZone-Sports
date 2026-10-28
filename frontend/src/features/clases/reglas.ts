@@ -65,6 +65,34 @@ export function inscriptosVigentes<T extends { estado: string }>(reservas: reado
   return reservas.filter((reserva) => reserva.estado !== 'CANCELADA')
 }
 
+export interface PaginaDeFilas<T> {
+  items: T[]
+  // La página ya acotada: si la pedida supera el total (la lista se achicó) es la última válida.
+  pagina: number
+  totalPaginas: number
+  // Posición (desde 1) de la primera y la última fila de la página, para "Mostrando X a Y de Z"; 0 y 0 si no hay filas.
+  desde: number
+  hasta: number
+  total: number
+}
+
+// Pagina una lista que ya está en el cliente ("Pasadas" de Mis clases: el servidor no la pagina por separado).
+export function paginar<T>(filas: readonly T[], pagina: number, porPagina: number): PaginaDeFilas<T> {
+  const total = filas.length
+  const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
+  const acotada = Math.min(Math.max(1, Math.trunc(pagina) || 1), totalPaginas)
+  const inicio = (acotada - 1) * porPagina
+  const items = filas.slice(inicio, inicio + porPagina)
+  return {
+    items,
+    pagina: acotada,
+    totalPaginas,
+    desde: total === 0 ? 0 : inicio + 1,
+    hasta: inicio + items.length,
+    total,
+  }
+}
+
 // Faltan menos de 2 hs (y la clase no comenzó): la cancelación tiene penalidad del 50%.
 export function cancelacionConPenalidad(clase: Pick<Clase, 'horarioInicio'>, ahora: number): boolean {
   const inicio = new Date(clase.horarioInicio).getTime()

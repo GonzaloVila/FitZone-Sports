@@ -104,6 +104,80 @@ describe('useMisClases: cancelación con penalidad (RF-07)', () => {
   })
 })
 
+describe('useMisClases: caché de clases que ya comenzaron', () => {
+  const PASADA = { id: 10, tipo: 'Yoga', horarioInicio: '2020-01-01T18:00:00-03:00', horarioFin: '2020-01-01T19:00:00-03:00' }
+  const FUTURA = { id: 11, tipo: 'Spinning', horarioInicio: '2999-01-01T18:00:00-03:00', horarioFin: '2999-01-01T19:00:00-03:00' }
+  const reservas = [
+    { id: 1, claseId: 10, socioId: 1, estado: 'CONFIRMADA' },
+    { id: 2, claseId: 11, socioId: 1, estado: 'CONFIRMADA' },
+    { id: 3, claseId: 12, socioId: 1, estado: 'CONFIRMADA' },
+  ]
+  const pedidasDe = (claseId: number) => mocks.obtener.mock.calls.filter((llamada) => llamada[0] === claseId).length
+
+  beforeEach(() => {
+    limpiarPenalidadCobrada()
+    mocks.listarReservas.mockReset().mockImplementation(async (filtros: { estado?: string }) =>
+      filtros.estado === 'CANCELADA' ? { items: [], total: 0 } : { items: reservas, total: reservas.length },
+    )
+    mocks.listarEsperas.mockReset().mockResolvedValue({ items: [], total: 0 })
+    mocks.listarEsperaDeClase.mockReset().mockResolvedValue({ items: [], total: 0 })
+    mocks.cancelarReserva.mockReset().mockResolvedValue(undefined)
+    mocks.listarPagos.mockReset().mockResolvedValue({ items: [], total: 0 })
+    mocks.obtener.mockReset().mockImplementation(async (id: number) => {
+      if (id === 10) return PASADA
+      if (id === 11) return FUTURA
+      throw new Error('sin conexión')
+    })
+    mocks.socioId.value = 1
+  })
+
+  // Dispara una segunda carga completa (la que hace cualquier acción al terminar).
+  async function recargar(estado: Awaited<ReturnType<typeof armar>>) {
+    await vi.waitFor(() => expect(estado.proximas.value).toHaveLength(3))
+    await estado.cancelarReserva(99)
+  }
+
+  it('una clase que ya empezó no se vuelve a pedir en la carga siguiente', async () => {
+    const estado = await armar()
+
+    await recargar(estado)
+
+    expect(pedidasDe(10)).toBe(1)
+    estado.detener()
+  })
+
+  it('una clase futura se pide de nuevo en cada carga (puede cambiar o cancelarse)', async () => {
+    const estado = await armar()
+
+    await recargar(estado)
+
+    expect(pedidasDe(11)).toBe(2)
+    estado.detener()
+  })
+
+  it('una clase cuyo pedido falló se vuelve a intentar en la carga siguiente', async () => {
+    const estado = await armar()
+
+    await recargar(estado)
+
+    expect(pedidasDe(12)).toBe(2)
+    estado.detener()
+  })
+
+  it('el resultado no cambia: la clase de la caché sigue en su fila, igual que las demás', async () => {
+    const estado = await armar()
+
+    await recargar(estado)
+    await vi.waitFor(() => expect(pedidasDe(10)).toBe(1))
+
+    const porReserva = Object.fromEntries(estado.proximas.value.map((fila) => [fila.reserva.id, fila.clase]))
+    expect(porReserva[1]).toEqual(PASADA)
+    expect(porReserva[2]).toEqual(FUTURA)
+    expect(porReserva[3]).toBeNull()
+    estado.detener()
+  })
+})
+
 describe('useMisClases: listados', () => {
   beforeEach(() => {
     limpiarPenalidadCobrada()

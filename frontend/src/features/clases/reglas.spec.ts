@@ -5,6 +5,7 @@ import {
   esperasVigentes,
   esperaVigente,
   inscriptosVigentes,
+  paginar,
   reservaVigente,
 } from './reglas'
 import type { EstadoEspera, EstadoReservaClase } from './services/servicioClases'
@@ -94,5 +95,49 @@ describe('inscriptosVigentes', () => {
       { id: 4, estado: 'CONFIRMADA' },
     ]
     expect(inscriptosVigentes(reservas).map((r) => r.id)).toEqual([2, 4])
+  })
+})
+
+describe('paginar', () => {
+  const filas = Array.from({ length: 23 }, (_, i) => i + 1)
+
+  it('devuelve la página pedida con su rango y el total', () => {
+    expect(paginar(filas, 2, 10)).toEqual({
+      items: [11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+      pagina: 2,
+      totalPaginas: 3,
+      desde: 11,
+      hasta: 20,
+      total: 23,
+    })
+  })
+
+  it('la última página puede tener menos filas', () => {
+    const pagina = paginar(filas, 3, 10)
+
+    expect(pagina.items).toEqual([21, 22, 23])
+    expect([pagina.desde, pagina.hasta]).toEqual([21, 23])
+  })
+
+  it('si la página pedida supera el total devuelve la última válida', () => {
+    const pagina = paginar(filas, 9, 10)
+
+    expect(pagina.pagina).toBe(3)
+    expect(pagina.items).toEqual([21, 22, 23])
+  })
+
+  it('una página menor que 1 o inválida vale 1', () => {
+    for (const invalida of [0, -2, Number.NaN]) {
+      expect(paginar(filas, invalida, 10).pagina, String(invalida)).toBe(1)
+    }
+  })
+
+  it('con 10 o menos filas hay una sola página', () => {
+    expect(paginar(filas.slice(0, 10), 1, 10)).toMatchObject({ totalPaginas: 1, desde: 1, hasta: 10, total: 10 })
+    expect(paginar(filas.slice(0, 1), 5, 10)).toMatchObject({ pagina: 1, totalPaginas: 1, desde: 1, hasta: 1, total: 1 })
+  })
+
+  it('sin filas: una página vacía, sin rango', () => {
+    expect(paginar([], 3, 10)).toEqual({ items: [], pagina: 1, totalPaginas: 1, desde: 0, hasta: 0, total: 0 })
   })
 })

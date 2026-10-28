@@ -49,6 +49,46 @@ export function sinParametrosDeAgenda<T extends ConsultaCruda>(query: T): Partia
   return resto
 }
 
+// ---- Mis clases: pestaña y página de las pasadas ----
+
+// La página lleva su propio nombre: `pagina` es la de la agenda y las dos vistas comparten la dirección.
+const PARAMETRO_PESTANA = 'pestana'
+const PARAMETRO_PAGINA = 'pagina-clases'
+
+export type PestanaMisClases = 'proximas' | 'pasadas'
+export const PESTANAS_MIS_CLASES: PestanaMisClases[] = ['proximas', 'pasadas']
+
+export interface ConsultaMisClases {
+  pestana: PestanaMisClases
+  pagina: number
+}
+
+export function leerConsultaMisClases(query: ConsultaCruda): ConsultaMisClases {
+  const pestana = textoDe(query, PARAMETRO_PESTANA)
+  const pagina = textoDe(query, PARAMETRO_PAGINA)
+  return {
+    pestana: PESTANAS_MIS_CLASES.find((valor) => valor === pestana) ?? 'proximas',
+    pagina: pagina !== null && esEnteroPositivo(pagina) ? Number(pagina) : 1,
+  }
+}
+
+// Solo lo que se aparta de "Próximas, página 1".
+export function parametrosDeConsultaMisClases(consulta: ConsultaMisClases): Parametros {
+  const parametros: Parametros = {}
+  if (consulta.pestana !== 'proximas') parametros[PARAMETRO_PESTANA] = consulta.pestana
+  if (consulta.pagina > 1) parametros[PARAMETRO_PAGINA] = String(consulta.pagina)
+  return parametros
+}
+
+// La dirección sin la pestaña ni la página de Mis clases (queda, por ejemplo, la vista), para escribir las nuevas encima o
+// para no dejarlas colgadas al volver a la agenda.
+export function sinParametrosDeMisClases<T extends ConsultaCruda>(query: T): Partial<T> {
+  const resto: Partial<T> = { ...query }
+  delete resto[PARAMETRO_PESTANA]
+  delete resto[PARAMETRO_PAGINA]
+  return resto
+}
+
 // ---- Detalle: de dónde se llegó ----
 
 // Lista cerrada: cualquier otro valor de ?desde= se trata como entrada directa.

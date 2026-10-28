@@ -62,6 +62,24 @@ describe('useVistaClases', () => {
     expect(mocks.push).toHaveBeenCalledWith({ query: { otra: '1' } })
   })
 
+  it('cambiar de vista quita la pestaña y la página de Mis clases, pero no la página de la agenda', () => {
+    mocks.route.query = { vista: 'mis-clases', pestana: 'pasadas', 'pagina-clases': '2', pagina: '3', sede: '1' }
+    const { vista } = armar(true)
+
+    vista.value = 'agenda'
+
+    expect(mocks.push).toHaveBeenCalledWith({ query: { pagina: '3', sede: '1' } })
+  })
+
+  it('pasar a Mis clases tampoco arrastra una pestaña o página que hubieran quedado', () => {
+    mocks.route.query = { pestana: 'pasadas', 'pagina-clases': '2', tipo: 'Yoga' }
+    const { vista } = armar(true)
+
+    vista.value = 'mis-clases'
+
+    expect(mocks.push).toHaveBeenCalledWith({ query: { tipo: 'Yoga', vista: 'mis-clases' } })
+  })
+
   it('elegir la vista que ya está activa no navega', () => {
     const { vista } = armar(true)
 

@@ -3,10 +3,46 @@ import {
   PARAMETROS_DESDE_MIS_CLASES,
   destinoVolver,
   leerConsultaAgenda,
+  leerConsultaMisClases,
   parametrosDeConsulta,
+  parametrosDeConsultaMisClases,
   parametrosDesdeAgenda,
   sinParametrosDeAgenda,
+  sinParametrosDeMisClases,
 } from './direccion'
+
+describe('Mis clases en la dirección', () => {
+  it('sin parámetros: Próximas, página 1', () => {
+    expect(leerConsultaMisClases({})).toEqual({ pestana: 'proximas', pagina: 1 })
+  })
+
+  it('lee la pestaña y la página (que lleva su propio nombre: `pagina` es la de la agenda)', () => {
+    expect(leerConsultaMisClases({ pestana: 'pasadas', 'pagina-clases': '2' })).toEqual({ pestana: 'pasadas', pagina: 2 })
+    expect(leerConsultaMisClases({ pagina: '5' }).pagina).toBe(1)
+  })
+
+  it('una pestaña desconocida o una página inválida se ignoran como si no estuvieran', () => {
+    expect(leerConsultaMisClases({ pestana: 'futuras' }).pestana).toBe('proximas')
+    for (const pagina of ['0', '-1', 'abc', '1.5', '', ' 2']) {
+      expect(leerConsultaMisClases({ 'pagina-clases': pagina }).pagina, pagina).toBe(1)
+    }
+  })
+
+  it('solo escribe lo que se aparta de Próximas, página 1', () => {
+    expect(parametrosDeConsultaMisClases({ pestana: 'proximas', pagina: 1 })).toEqual({})
+    expect(parametrosDeConsultaMisClases({ pestana: 'pasadas', pagina: 1 })).toEqual({ pestana: 'pasadas' })
+    expect(parametrosDeConsultaMisClases({ pestana: 'pasadas', pagina: 3 })).toEqual({
+      pestana: 'pasadas',
+      'pagina-clases': '3',
+    })
+  })
+
+  it('sacar la pestaña y la página deja lo demás, incluida la página de la agenda', () => {
+    const query = { vista: 'mis-clases', pestana: 'pasadas', 'pagina-clases': '2', pagina: '4', sede: '1' }
+
+    expect(sinParametrosDeMisClases(query)).toEqual({ vista: 'mis-clases', pagina: '4', sede: '1' })
+  })
+})
 
 describe('leerConsultaAgenda', () => {
   it('sin parámetros: sin filtro de disciplina, sede por defecto (null) y página 1', () => {

@@ -1,10 +1,11 @@
 import type { PenalidadCobrada } from '@/compartido/composables/usePenalidadCobrada'
 import { formatearMonto } from './presentacion'
-import { HORAS_SIN_PENALIDAD, PORCENTAJE_PENALIDAD, momentoDeClase } from './reglas'
+import { HORAS_SIN_PENALIDAD, momentoDeClase } from './reglas'
 import type { Clase } from './services/servicioClases'
 
-// Antes de cancelar con menos de 2 hs de anticipación: la penalidad se cobra al instante, al confirmar.
-export const TEXTO_ADVERTENCIA_PENALIDAD = `Cancelás con menos de ${HORAS_SIN_PENALIDAD} horas de anticipación: se cobrará al instante una penalidad del ${PORCENTAJE_PENALIDAD}% del valor de la clase.`
+// Antes de cancelar con menos de 2 hs de anticipación: la penalidad se cobra al instante, al confirmar. No muestra monto ni
+// porcentaje: las clases van incluidas en la membresía y no tienen precio.
+export const TEXTO_ADVERTENCIA_PENALIDAD = `Cancelás con menos de ${HORAS_SIN_PENALIDAD} horas de anticipación: se cobrará al instante una penalidad fija por cancelación tardía.`
 
 // La clase que se está mirando en el detalle (null en la agenda, que no tiene una clase puntual).
 export interface ClaseVista {

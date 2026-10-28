@@ -6,8 +6,6 @@ const MS_HORA = 60 * 60 * 1000
 export const HORAS_VENTANA_RESERVA = 48
 // Cancelación sin cargo hasta 2 hs antes del inicio; después se cobra penalidad.
 export const HORAS_SIN_PENALIDAD = 2
-// Porcentaje del valor de la clase que se cobra como penalidad (lo calcula y cobra el servidor).
-export const PORCENTAJE_PENALIDAD = 50
 
 export const MOTIVO_VENTANA_NO_ABIERTA = 'La reserva se abre 48 hs antes'
 export const MOTIVO_CLASE_COMENZADA = 'La clase ya comenzó'
@@ -93,7 +91,7 @@ export function paginar<T>(filas: readonly T[], pagina: number, porPagina: numbe
   }
 }
 
-// Faltan menos de 2 hs (y la clase no comenzó): la cancelación tiene penalidad del 50%.
+// Faltan menos de 2 hs (y la clase no comenzó): la cancelación tiene penalidad (la calcula y cobra el servidor).
 export function cancelacionConPenalidad(clase: Pick<Clase, 'horarioInicio'>, ahora: number): boolean {
   const inicio = new Date(clase.horarioInicio).getTime()
   return ahora < inicio && inicio - ahora < HORAS_SIN_PENALIDAD * MS_HORA

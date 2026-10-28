@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PenalidadCobrada } from '@/compartido/composables/usePenalidadCobrada'
 import { formatearMonto } from './presentacion'
-import { HORAS_SIN_PENALIDAD, PORCENTAJE_PENALIDAD } from './reglas'
+import { HORAS_SIN_PENALIDAD } from './reglas'
 import { TEXTO_ADVERTENCIA_PENALIDAD, textoAvisoPenalidad } from './textosPenalidad'
 
 const INICIO = new Date('2026-10-24T18:00:00-03:00').getTime()
@@ -20,12 +20,12 @@ const claseVista = (id: number, ahora: number) => ({
 })
 
 describe('TEXTO_ADVERTENCIA_PENALIDAD', () => {
-  it('sale de las constantes de la regla, con el porcentaje pegado al símbolo y en futuro (todavía no se cobró)', () => {
+  it('las horas salen de la regla, va en futuro (todavía no se cobró) y no muestra monto ni porcentaje', () => {
     expect(TEXTO_ADVERTENCIA_PENALIDAD).toBe(
-      `Cancelás con menos de ${HORAS_SIN_PENALIDAD} horas de anticipación: se cobrará al instante una penalidad del ${PORCENTAJE_PENALIDAD}% del valor de la clase.`,
+      `Cancelás con menos de ${HORAS_SIN_PENALIDAD} horas de anticipación: se cobrará al instante una penalidad fija por cancelación tardía.`,
     )
     expect(TEXTO_ADVERTENCIA_PENALIDAD).toContain('2 horas')
-    expect(TEXTO_ADVERTENCIA_PENALIDAD).toContain('50%')
+    expect(TEXTO_ADVERTENCIA_PENALIDAD).not.toMatch(/%|\$|valor de la clase/)
   })
 })
 

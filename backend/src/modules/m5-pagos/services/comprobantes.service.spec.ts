@@ -110,12 +110,16 @@ describe('ComprobantesService', () => {
     return { service, usuarios, reservasClases };
   }
 
+  // Solo se borra el archivo que este spec escribe (el del pago 8), no la carpeta entera:
+  // ahí también viven los comprobantes reales y las muestras de diseño (`muestras/`).
+  const archivoDelSpec = join(directorio, '8.pdf');
+
   beforeEach(async () => {
-    await rm(directorio, { recursive: true, force: true });
+    await rm(archivoDelSpec, { force: true });
   });
 
   afterEach(async () => {
-    await rm(directorio, { recursive: true, force: true });
+    await rm(archivoDelSpec, { force: true });
   });
 
   it('escribe un PDF real y devuelve la ruta pública', async () => {
@@ -177,7 +181,9 @@ describe('ComprobantesService', () => {
     const texto = textoDelPdf((await service.leer(ruta))!);
 
     expect(texto).toContain('Membresía');
-    expect(texto).toContain('MENSUAL');
+    expect(texto).toContain('Plan:');
+    expect(texto).toContain('Mensual');
+    expect(texto).not.toContain('MENSUAL');
     expect(texto).toContain('ARS 30.000,00');
     expect(texto).not.toContain('Cancha:');
   });
@@ -194,6 +200,8 @@ describe('ComprobantesService', () => {
     expect(texto).toContain('N° 9');
     expect(texto).toContain('Horario:');
     expect(texto).toContain('Penalidad por cancelación tardía');
+    // El código interno del requisito no se imprime en el papel del cliente.
+    expect(texto).not.toContain('RF-07');
     expect(texto).toContain('ARS 5.000,00');
   });
 
@@ -219,6 +227,44 @@ it('imprime "no disponible" si el usuario no existe, sin cortar el PDF', async (
 
     expect(texto).toContain('no disponible');
     expect(texto).toContain('ARS 9.500,00');
+  });
+
+  // El diseño tiene dos secciones con título: los tres conceptos usan el mismo esquema.
+  it.each([
+    ['cancha', pago(), RESERVA_CANCHA as ConceptoPago],
+    ['clase', pago({ monto: 5000, concepto: RESERVA_CLASE }), RESERVA_CLASE as ConceptoPago],
+    ['membresía', pago({ monto: 30000, concepto: MEMBRESIA }), MEMBRESIA as ConceptoPago],
+  ])('el comprobante de %s lleva los títulos "Datos del pago" y "Detalle", en ese orden', async (_nombre, unPago, concepto) => {
+    const { service } = armar();
+
+    const ruta = await service.generar(unPago, concepto);
+    const texto = textoDelPdf((await service.leer(ruta))!);
+
+    expect(texto).toContain('Datos del pago');
+    expect(texto).toContain('Detalle');
+    expect(texto.indexOf('Datos del pago')).toBeLessThan(texto.indexOf('Detalle'));
+  });
+
+  it('dice el estado con la primera letra en mayúscula y el monto va al final, sin el prefijo "Monto: "', async () => {
+    const { service } = armar();
+
+    const ruta = await service.generar(pago(), RESERVA_CANCHA as ConceptoPago);
+    const texto = textoDelPdf((await service.leer(ruta))!);
+
+    expect(texto).toContain('Estado: Aprobado');
+    expect(texto).not.toContain('APROBADO');
+    expect(texto).not.toContain('Monto: ');
+    // Después del detalle y antes del pie.
+    expect(texto.indexOf('ARS 9.500,00')).toBeGreaterThan(texto.indexOf('Reserva'));
+    expect(texto.indexOf('ARS 9.500,00')).toBeLessThan(texto.indexOf('Documento generado'));
+  });
+
+  it('un pago pendiente dice "Estado: Pendiente"', async () => {
+    const { service } = armar();
+
+    const ruta = await service.generar(pago({ estado: 'PENDIENTE' }), RESERVA_CANCHA as ConceptoPago);
+
+    expect(textoDelPdf((await service.leer(ruta))!)).toContain('Estado: Pendiente');
   });
 
   it('devuelve null al leer un archivo que no está, en vez de romper', async () => {

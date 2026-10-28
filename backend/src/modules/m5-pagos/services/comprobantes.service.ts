@@ -8,6 +8,17 @@ import { MembresiaPrecioService } from '../../m1-usuarios/services/membresia-pre
 import { ReservaClasePrecioService } from '../../m3-clases/services/reserva-clase-precio.service';
 import { ReservaPrecioService } from '../../m4-canchas/services/reserva-precio.service';
 import { ConceptoPago, Pago } from '../entities/pago.entity';
+import {
+  COLOR_CABECERA,
+  MARGEN,
+  dibujarBadge,
+  dibujarFila,
+  dibujarMonto,
+  dibujarPie,
+  dibujarTitulo,
+  etiquetaDelPlan,
+  separarSecciones,
+} from './comprobantes.estilo';
 
 /**
  * FRONTERA (RF-14): arma el PDF y lo deja escrito en disco.
@@ -19,6 +30,9 @@ import { ConceptoPago, Pago } from '../entities/pago.entity';
  *
  * Las dos fronteras externas de M5 están separadas a propósito y se parecen en poco:
  * esta es determinista y local, la pasarela es el mock de MercadoPago/Modo.
+ *
+ * QUÉ se imprime vive acá; CÓMO se ve (colores, medidas, filas, badge, recuadro del monto)
+ * vive en `comprobantes.estilo.ts`.
  */
 
 /**
@@ -35,18 +49,6 @@ import { ConceptoPago, Pago } from '../entities/pago.entity';
  */
 export const RUTA_COMPROBANTES = '/storage/comprobantes';
 const DIRECTORIO_COMPROBANTES = 'storage/comprobantes';
-
-// Paleta del comprobante (RF-14 / estetica). Colores planos de la marca para que
-// el PDF se lea sin un diseño de tablas complejo: banda de marca arriba, filas de
-// etiqueta/valor con acento y un badge de estado. Los tests leen el TEXTO del PDF
-// (leer texto en claro, `compress: false`), asi que el color no afecta las
-// aserciones; lo que si se preserva son las etiquetas literales (Cancha:, Pago:...).
-const COLOR_CABECERA = '#0e3a5d';
-const COLOR_TITULO = '#111111';
-const COLOR_ETIQUETA = '#5a6b7b';
-const COLOR_APROBADO = '#2e7d32';
-const COLOR_OTRO_ESTADO = '#b26a00';
-const COLOR_PIE = '#8a97a3';
 
 @Injectable()
 export class ComprobantesService {
@@ -109,7 +111,12 @@ export class ComprobantesService {
   // Armado del PDF
   // --------------------------------------------------------------------------------------
 
-  private async armarPdf(pago: Pago, concepto: ConceptoPago): Promise<Buffer> {
+  /**
+   * El PDF en memoria, sin escribirlo a disco. Es lo mismo que `generar()` usa por dentro;
+   * queda accesible para quien necesite ver el resultado sin tocar `storage/` (las muestras
+   * para revisar el diseño).
+   */
+  armarPdf(pago: Pago, concepto: ConceptoPago): Promise<Buffer> {
     // pdfkit es un stream: se le escriben trozos y se escucha `end`. Por eso el Buffer
     // se acumula a mano en vez de usar `doc.pipe()`, que escribiría directo a un archivo y
     // no dejaría revisar el resultado antes de tocar disco.
@@ -118,7 +125,7 @@ export class ComprobantesService {
       // puede leer y verificar (los tests comprueban que el monto impreso sea el congelado, y
       // con streams comprimidos no se puede assertar nada del contenido). Para un ticket de
       // una hoja, el tamaño no es un problema; la ofuscación del PDF no aporta nada acá.
-      const doc = new PDFDocument({ size: 'A4', margin: 50, compress: false });
+      const doc = new PDFDocument({ size: 'A4', margin: MARGEN, compress: false });
       const trozos: Buffer[] = [];
       doc.on('data', (trozo: Buffer) => trozos.push(trozo));
       doc.on('end', () => resolve(Buffer.concat(trozos)));
@@ -126,67 +133,48 @@ export class ComprobantesService {
 
       this.cabeza(doc, pago)
         .then(() => this.detalle(doc, concepto))
-        .then(() => this.pie(doc))
+        .then(() => {
+          // El importe SIEMPRE sale de `pago.monto` (congelado al cobrar), nunca de una
+          // recotización (decisión 4).
+          dibujarMonto(doc, this.pesos(pago.monto, pago.moneda));
+          dibujarPie(doc, 'Documento generado al momento del cobro.');
+        })
         .then(() => doc.end())
         .catch(reject);
     });
   }
 
   private async cabeza(doc: PDFKit.PDFDocument, pago: Pago): Promise<void> {
-    const ancho = doc.page.width;
-
     // Banda de marca: el bloque de color cruza toda la hoja y lleva el nombre y el
-    // subtítulo en blanco. Es lo que convierte un recibo plano en un comprobante con
-    // identidad visual, sin tocar el texto que los tests leen.
-    doc.rect(0, 0, ancho, 78).fill(COLOR_CABECERA);
-    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(22).text('FitZone Sports', 50, 20);
-    doc.font('Helvetica').fontSize(11).text('Comprobante de pago', 50, 48);
-
-    // Badge de estado: un chip redondeado en la esquina de la banda. Conserva el
-    // texto "Estado: ..." para que el comprobante siga diciendo el estado, que es
-    // dato del snapshot (RF-02). El texto se centra dentro del ancho del chip.
-    const textoEstado = `Estado: ${pago.estado}`;
-    const colorEstado = pago.estado === 'APROBADO' ? COLOR_APROBADO : COLOR_OTRO_ESTADO;
-    doc.font('Helvetica').fontSize(9);
-    const anchoBadge = doc.widthOfString(textoEstado) + 26;
-    const xBadge = ancho - anchoBadge - 50;
-    doc.roundedRect(xBadge, 28, anchoBadge, 24, 12).fill(colorEstado);
-    doc.fillColor('#ffffff').text(textoEstado, xBadge, 34, {
-      width: anchoBadge,
-      align: 'center',
-    });
+    // subtítulo en blanco, con el estado como badge en la esquina derecha.
+    doc.rect(0, 0, doc.page.width, 78).fill(COLOR_CABECERA);
+    doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(22).text('FitZone Sports', MARGEN, 20);
+    doc.font('Helvetica').fontSize(11).text('Comprobante de pago', MARGEN, 48);
+    dibujarBadge(doc, pago.estado);
 
     doc.y = 96;
-    doc.font('Helvetica').fontSize(10);
-    this.linea(doc, 'Pago', `#${pago.id}`);
-    this.linea(doc, 'Fecha', this.fechaLegible(pago.fechaPago));
-    this.linea(doc, 'Usuario', `#${pago.usuarioId}`);
+    dibujarTitulo(doc, 'Datos del pago');
+    dibujarFila(doc, 'Pago', `#${pago.id}`);
+    dibujarFila(doc, 'Fecha', this.fechaLegible(pago.fechaPago));
+    dibujarFila(doc, 'Usuario', `#${pago.usuarioId}`);
 
     // Nombre y email del socio, resueltos al momento del cobro. Son el snapshot de
     // identidad del comprobante: si la fila del usuario no está (no debería, el
     // usuario no se borra aunque el socio sí), el PDF imprime "no disponible" en
     // vez de cortarse.
     const usuario = await this.usuarios.buscarDatosParaComprobante(pago.usuarioId);
-    this.linea(doc, 'Nombre', usuario ? usuario.nombre : '(no disponible)');
-    this.linea(doc, 'Email', usuario ? usuario.email : '(no disponible)');
-
-    // El monto destacado, al cierre de la cabeza. El importe SIEMPRE sale de
-    // `pago.monto` (congelado al cobrar), nunca de una recotización (decisión 4).
-    doc.fillColor(COLOR_CABECERA).font('Helvetica-Bold').fontSize(13);
-    doc.text(`Monto: ${this.pesos(pago.monto, pago.moneda)}`, 50, doc.y + 4);
+    dibujarFila(doc, 'Nombre', usuario ? usuario.nombre : '(no disponible)');
+    dibujarFila(doc, 'Email', usuario ? usuario.email : '(no disponible)');
   }
 
   /**
-   * RF-14 pide "cancha, horario y monto". El monto ya salió arriba; acá va el detalle de
-   * qué se cobró, que es lo que hace que el comprobante sea comprobante y no un recibo.
+   * RF-14 pide "cancha, horario y monto". El monto va al cierre del documento; acá va el
+   * detalle de qué se cobró, que es lo que hace que el comprobante sea comprobante y no un
+   * recibo.
    */
   private async detalle(doc: PDFKit.PDFDocument, concepto: ConceptoPago): Promise<void> {
-    doc.fillColor(COLOR_CABECERA).font('Helvetica-Bold').fontSize(14).text('Detalle');
-    // La barra de acento va DEBAJO del título, no sobre él: `doc.y` recién bajó
-    // del texto y dibujar a `doc.y - n` tapa la línea.
-    doc.rect(50, doc.y + 3, 26, 3).fill(COLOR_CABECERA);
-    doc.moveDown(0.8);
-    doc.font('Helvetica').fontSize(10);
+    separarSecciones(doc);
+    dibujarTitulo(doc, 'Detalle');
 
     if (concepto.tipo === 'RESERVA_CANCHA') {
       const reserva = await this.reservas.obtenerParaCobro(concepto.reservaCanchaId);
@@ -194,92 +182,68 @@ export class ComprobantesService {
         // No debería pasar: el cobro ya validó que la reserva existe y las reservas no se
         // borran. Si igual pasa, sale un PDF sin detalle en vez de cortarse a mitad de
         // escritura, que dejaría un archivo corrupto y un comprobante inútil.
-        doc.fontSize(11).text(`Reserva ${concepto.reservaCanchaId} (no disponible).`);
+        dibujarFila(doc, 'Reserva', `${concepto.reservaCanchaId} (no disponible).`);
         return;
       }
 
-      this.linea(doc, 'Concepto', 'Reserva de cancha');
-      this.linea(doc, 'Cancha', `N° ${reserva.canchaId}`);
-      this.linea(
+      dibujarFila(doc, 'Concepto', 'Reserva de cancha');
+      dibujarFila(doc, 'Cancha', `N° ${reserva.canchaId}`);
+      dibujarFila(
         doc,
         'Horario',
         `${this.fechaLegible(reserva.fechaHoraInicio)} - ${this.fechaLegible(reserva.fechaHoraFin)}`,
       );
-      this.linea(doc, 'Reserva', `#${reserva.reservaId}`);
+      dibujarFila(doc, 'Reserva', `#${reserva.reservaId}`);
       return;
     }
 
     if (concepto.tipo === 'RESERVA_CLASE') {
       const clase = await this.reservaClases.obtenerParaCobro(concepto.reservaClaseId);
       if (!clase) {
-        doc.fontSize(11).text(`Reserva de clase ${concepto.reservaClaseId} (no disponible).`);
+        dibujarFila(doc, 'Reserva de clase', `${concepto.reservaClaseId} (no disponible).`);
         return;
       }
 
-      this.linea(doc, 'Concepto', 'Reserva de clase');
-      this.linea(doc, 'Clase', `N° ${clase.claseId}`);
-      this.linea(doc, 'Horario', this.fechaLegible(clase.horarioInicio));
-      this.linea(doc, 'Reserva', `#${clase.reservaClaseId}`);
-      this.linea(doc, 'Nota', 'Penalidad por cancelación tardía (RF-07).');
+      dibujarFila(doc, 'Concepto', 'Reserva de clase');
+      dibujarFila(doc, 'Clase', `N° ${clase.claseId}`);
+      dibujarFila(doc, 'Horario', this.fechaLegible(clase.horarioInicio));
+      dibujarFila(doc, 'Reserva', `#${clase.reservaClaseId}`);
+      // El código del requisito (RF-07) queda en los comentarios: no se imprime en el papel del cliente.
+      dibujarFila(doc, 'Nota', 'Penalidad por cancelación tardía.');
       return;
     }
 
     const membresia = await this.membresias.obtenerParaCobro(concepto.membresiaId);
     if (!membresia) {
-      doc.fontSize(11).text(`Membresía ${concepto.membresiaId} (no disponible).`);
+      dibujarFila(doc, 'Membresía', `${concepto.membresiaId} (no disponible).`);
       return;
     }
 
-    this.linea(doc, 'Concepto', 'Membresía');
-    this.linea(doc, 'Plan', membresia.plan);
-    this.linea(doc, 'Membresía', `#${membresia.membresiaId}`);
+    dibujarFila(doc, 'Concepto', 'Membresía');
+    dibujarFila(doc, 'Plan', etiquetaDelPlan(membresia.plan));
+    dibujarFila(doc, 'Membresía', `#${membresia.membresiaId}`);
   }
 
-  // El PDF tiene que dejar constancia de que es una copia: el snapshot conserva lo que se
-  // cobró, y después de una anulación el archivo sigue siendo el comprobante del cobro
-  // que ocurrió. Por eso dice "generado al cobrar" y no "válido" ni "emitido hoy".
-  // El pie se cierra con una línea fina para dejar la página "terminada" visualmente.
-  private pie(doc: PDFKit.PDFDocument): void {
-    doc.moveDown();
-    doc
-      .moveTo(50, doc.y)
-      .lineTo(doc.page.width - 50, doc.y)
-      .lineWidth(0.5)
-      .strokeColor(COLOR_PIE)
-      .stroke();
-    doc.moveDown(0.4);
-    doc
-      .font('Helvetica')
-      .fontSize(8)
-      .fillColor(COLOR_PIE)
-      .text('Documento generado al momento del cobro.', { align: 'center' });
+  // Fecha entendible en el comprobante: YYYY-MM-DD HH:MM, en hora local de la sede
+  // (America/Argentina/Buenos_Aires) y sin sufijo de zona. Es el mismo criterio que
+  // el resto del proyecto (commons/fechas.ts): la hora que ve el socio tiene que ser
+  // la de la sede, no la UTC que daba `toISOString()` (Argentina está en UTC-3 y un
+  // "22:00" local parecería "01:00" del día siguiente en UTC).
+  private fechaLegible(momento: Date | string): string {
+    const fecha = typeof momento === 'string' ? new Date(momento) : momento;
+    const partes = new Intl.DateTimeFormat('en-CA', {
+      timeZone: ZONA_SEDE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(fecha);
+    const parte = (tipo: Intl.DateTimeFormatPartTypes): string =>
+      partes.find((p) => p.type === tipo)?.value ?? '';
+    return `${parte('year')}-${parte('month')}-${parte('day')} ${parte('hour')}:${parte('minute')}`;
   }
-
-  private linea(doc: PDFKit.PDFDocument, etiqueta: string, valor: string): void {
-    doc.font('Helvetica').fillColor(COLOR_ETIQUETA).fontSize(10).text(`${etiqueta}: `, { continued: true });
-    doc.fillColor(COLOR_TITULO).text(valor);
-  }
-
-// Fecha entendible en el comprobante: YYYY-MM-DD HH:MM, en hora local de la sede
-// (America/Argentina/Buenos_Aires) y sin sufijo de zona. Es el mismo criterio que
-// el resto del proyecto (commons/fechas.ts): la hora que ve el socio tiene que ser
-// la de la sede, no la UTC que daba `toISOString()` (Argentina está en UTC-3 y un
-// "22:00" local parecería "01:00" del día siguiente en UTC).
-private fechaLegible(momento: Date | string): string {
-  const fecha = typeof momento === 'string' ? new Date(momento) : momento;
-  const partes = new Intl.DateTimeFormat('en-CA', {
-    timeZone: ZONA_SEDE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(fecha);
-  const parte = (tipo: Intl.DateTimeFormatPartTypes): string =>
-    partes.find((p) => p.type === tipo)?.value ?? '';
-  return `${parte('year')}-${parte('month')}-${parte('day')} ${parte('hour')}:${parte('minute')}`;
-}
 
   // `Intl` y no un `toFixed` con signo: el monto viene de `Decimal` de Prisma y puede
   // traer decimales; el símbolo va explícito porque el PDF no depende del locale del

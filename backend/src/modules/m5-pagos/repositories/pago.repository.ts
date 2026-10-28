@@ -38,6 +38,13 @@ export interface FiltrosListarPagos {
  *    y por eso el detalle tiene que decirlo. (Una membresía NO cae acá:
  *    `PagoMembresia.membresia_id` no es unique a propósito, porque una membresía
  *    admite un pago por renovación.)
+ *
+ * Excepción a lo anterior, SOLO para un pago RECHAZADO: como `reserva_id` /
+ * `reserva_clase_id` son únicos, una reserva admite una sola fila de pago en toda su
+ * vida, y sin esto un primer intento rechazado (402) bloquearía la reserva para
+ * siempre. Si el `@unique` de la reserva salta y la fila existente está RECHAZADO,
+ * `crear` la REUTILIZA para el intento nuevo (ver `reutilizarRechazado`) en vez de
+ * devolver `RESERVA_YA_COBRADA`.
  */
 export type ResultadoCrearPago =
   | { ok: true; pago: Pago }
@@ -63,6 +70,14 @@ export class PagoRepository {
    *
    * El orden importa para la idempotencia: esta es la ÚNICA escritura que bloquea
    * el cobro. Recién después de que salió `ok: true` se invoca a la pasarela.
+   *
+   * Si el INSERT choca con el `@unique` de la reserva (ya hay una fila de pago para
+   * ella) no se rinde de inmediato: intenta reutilizar la fila si está RECHAZADO.
+   * Se limita a RECHAZADO porque es un cobro que nunca se hizo, así que reusar la
+   * fila no pierde nada. ANULADO queda afuera a propósito: conserva el rastro de una
+   * corrección de cobro (pendiente de decidir con Exe y Santiago). Consecuencia: al
+   * reutilizar se pisan la clave y el token del intento rechazado, o sea que el
+   * histórico guarda solo el último intento por reserva.
    */
   async crear(pago: PagoNuevo): Promise<ResultadoCrearPago> {
     // Se usa la variante UNCHECKED (`usuario_id` plano y no `usuario: {connect}`)
@@ -90,10 +105,56 @@ export class PagoRepository {
       return { ok: true, pago: this.aDominio(fila) };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        return {
-          ok: false,
-          motivo: this.motivoDe(error.meta),
-        };
+        const motivo = this.motivoDe(error.meta);
+        return motivo === 'RESERVA_YA_COBRADA' ? this.reutilizarRechazado(pago) : { ok: false, motivo };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Reusa la fila RECHAZADO de la reserva para el intento nuevo, con un único UPDATE
+   * condicional. El filtro por estado va en el WHERE (no en un `find` previo), igual
+   * que en `anular`: dos reintentos simultáneos no pueden ganar los dos.
+   *
+   * `count === 0` es una fila PENDIENTE, APROBADO o ANULADO: sigue siendo
+   * `RESERVA_YA_COBRADA`, salvo que ya exista un pago con esta misma clave (es el
+   * mismo reintento, no una doble cobranza): entonces es `IDEMPOTENCIA_REPETIDA`.
+   * Membresía no pasa por acá: su FK no es única, nunca cae en `RESERVA_YA_COBRADA`.
+   */
+  private async reutilizarRechazado(pago: PagoNuevo): Promise<ResultadoCrearPago> {
+    const concepto = pago.concepto;
+    if (concepto.tipo === 'MEMBRESIA') return { ok: false, motivo: 'RESERVA_YA_COBRADA' };
+
+    const delConcepto: Prisma.PagoWhereInput =
+      concepto.tipo === 'RESERVA_CANCHA'
+        ? { pago_reserva: { reserva_id: concepto.reservaCanchaId } }
+        : { pago_reserva_clase: { reserva_clase_id: concepto.reservaClaseId } };
+
+    try {
+      const { count } = await this.prisma.pago.updateMany({
+        where: { estado: 'RECHAZADO', idempotencia_key: { not: pago.idempotenciaKey }, ...delConcepto },
+        data: {
+          estado: 'PENDIENTE',
+          idempotencia_key: pago.idempotenciaKey,
+          token: pago.token,
+          monto: new Prisma.Decimal(pago.monto),
+          moneda: pago.moneda,
+          // Es `@default(now())`: hay que refrescarlo a mano o quedaría la fecha del rechazo.
+          fecha_pago: new Date(),
+        },
+      });
+
+      if (count === 1) {
+        const reutilizado = await this.buscarPorIdempotenciaKey(pago.idempotenciaKey);
+        if (reutilizado) return { ok: true, pago: reutilizado };
+      }
+
+      const mismoReintento = await this.buscarPorIdempotenciaKey(pago.idempotenciaKey);
+      return { ok: false, motivo: mismoReintento ? 'IDEMPOTENCIA_REPETIDA' : 'RESERVA_YA_COBRADA' };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return { ok: false, motivo: this.motivoDe(error.meta) };
       }
       throw error;
     }

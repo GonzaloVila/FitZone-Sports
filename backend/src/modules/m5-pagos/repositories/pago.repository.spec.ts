@@ -33,14 +33,27 @@ describe('PagoRepository', () => {
     };
   }
 
-  function repo(create: () => unknown) {
+  // `updateMany` y `findUnique` son opcionales: solo los usa la reutilización de un pago RECHAZADO.
+  function repo(
+    create: () => unknown,
+    extra: { updateMany?: () => unknown; findUnique?: () => unknown } = {},
+  ) {
     const create_ = vi.fn(async (_args: { data: Record<string, unknown> }) => create());
-    const prisma = { pago: { create: create_ } };
+    const updateMany = vi.fn(
+      async (_args: { where: Record<string, unknown>; data: Record<string, unknown> }) =>
+        extra.updateMany?.() ?? { count: 0 },
+    );
+    const findUnique = vi.fn(async (_args: unknown) => extra.findUnique?.() ?? null);
+    const prisma = { pago: { create: create_, updateMany, findUnique } };
     return {
       prisma,
       repository: new PagoRepository(prisma as never),
     };
   }
+
+  const duplicadaLaReserva = () => {
+    throw p2002(['reserva_id']);
+  };
 
   const nuevo: PagoNuevo = {
     usuarioId: 1,
@@ -95,13 +108,114 @@ describe('PagoRepository', () => {
     });
 
     it('traduce la violación de reserva_id a RESERVA_YA_COBRADA, no a idempotencia', async () => {
-      const { repository } = repo(() => {
-        throw p2002(['reserva_id']);
+      const { repository } = repo(duplicadaLaReserva, {
+        updateMany: () => ({ count: 0 }),
+        findUnique: () => null,
       });
 
       const resultado = await repository.crear(nuevo);
 
       expect(resultado).toEqual({ ok: false, motivo: 'RESERVA_YA_COBRADA' });
+    });
+
+    describe('reutilización de un pago RECHAZADO', () => {
+      it('reserva de cancha: un UPDATE condicional sobre la fila RECHAZADO y devuelve el pago reutilizado', async () => {
+        const { prisma, repository } = repo(duplicadaLaReserva, {
+          updateMany: () => ({ count: 1 }),
+          findUnique: () => fila(),
+        });
+
+        const resultado = await repository.crear(nuevo);
+
+        expect(resultado.ok).toBe(true);
+        if (resultado.ok) {
+          expect(resultado.pago.id).toBe(8);
+          expect(resultado.pago.estado).toBe('PENDIENTE');
+        }
+        const { where, data } = prisma.pago.updateMany.mock.calls[0]![0];
+        // El estado va en el WHERE del propio UPDATE: dos reintentos simultáneos no pueden ganar los dos.
+        expect(where).toEqual({
+          estado: 'RECHAZADO',
+          idempotencia_key: { not: 'clave-1' },
+          pago_reserva: { reserva_id: 7 },
+        });
+        expect(data).toMatchObject({
+          estado: 'PENDIENTE',
+          idempotencia_key: 'clave-1',
+          token: 'tok_aprobado_1',
+          moneda: 'ARS',
+        });
+        expect(Number(data.monto)).toBe(4250);
+        // `fecha_pago` es @default(now()): hay que refrescarlo a mano.
+        expect(data.fecha_pago).toBeInstanceOf(Date);
+      });
+
+      it('reserva de clase: filtra por la relación pago_reserva_clase', async () => {
+        const { prisma, repository } = repo(duplicadaLaReserva, {
+          updateMany: () => ({ count: 1 }),
+          findUnique: () =>
+            fila({ pago_reserva: null, pago_reserva_clase: { id_pago: 8, reserva_clase_id: 5 } }),
+        });
+
+        const resultado = await repository.crear({
+          ...nuevo,
+          concepto: { tipo: 'RESERVA_CLASE', reservaClaseId: 5 },
+        });
+
+        expect(resultado.ok).toBe(true);
+        expect(prisma.pago.updateMany.mock.calls[0]![0].where).toEqual({
+          estado: 'RECHAZADO',
+          idempotencia_key: { not: 'clave-1' },
+          pago_reserva_clase: { reserva_clase_id: 5 },
+        });
+      });
+
+      it('si la fila no está RECHAZADO (count 0) y no hay pago con esa clave, sigue siendo RESERVA_YA_COBRADA', async () => {
+        const { repository } = repo(duplicadaLaReserva, {
+          updateMany: () => ({ count: 0 }),
+          findUnique: () => null,
+        });
+
+        await expect(repository.crear(nuevo)).resolves.toEqual({ ok: false, motivo: 'RESERVA_YA_COBRADA' });
+      });
+
+      it('si la fila no se pudo reutilizar pero ya hay un pago con esa clave es el mismo reintento: IDEMPOTENCIA_REPETIDA', async () => {
+        const { repository } = repo(duplicadaLaReserva, {
+          updateMany: () => ({ count: 0 }),
+          findUnique: () => fila(),
+        });
+
+        await expect(repository.crear(nuevo)).resolves.toEqual({ ok: false, motivo: 'IDEMPOTENCIA_REPETIDA' });
+      });
+
+      it('si el INSERT choca por idempotencia_key no intenta reutilizar nada', async () => {
+        const { prisma, repository } = repo(() => {
+          throw p2002('Pago_idempotencia_key_key');
+        });
+
+        await expect(repository.crear(nuevo)).resolves.toEqual({ ok: false, motivo: 'IDEMPOTENCIA_REPETIDA' });
+        expect(prisma.pago.updateMany).not.toHaveBeenCalled();
+      });
+
+      it('si el propio UPDATE choca por idempotencia_key es IDEMPOTENCIA_REPETIDA', async () => {
+        const { repository } = repo(duplicadaLaReserva, {
+          updateMany: () => {
+            throw p2002('Pago_idempotencia_key_key');
+          },
+        });
+
+        await expect(repository.crear(nuevo)).resolves.toEqual({ ok: false, motivo: 'IDEMPOTENCIA_REPETIDA' });
+      });
+
+      it('cualquier otro error del UPDATE se relanza', async () => {
+        const { repository } = repo(duplicadaLaReserva, {
+          updateMany: () => {
+            throw new Error('se cayó la base');
+          },
+        });
+
+        await expect(repository.crear(nuevo)).rejects.toThrow('se cayó la base');
+      });
     });
 
     it('re-lanza cualquier otro error: un P2002 ajeno no se come', async () => {

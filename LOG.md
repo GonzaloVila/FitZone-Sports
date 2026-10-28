@@ -4250,3 +4250,197 @@ El alta de RECEPCION con sede (A3) solo existía por API: el front no tenía pan
 6. Filtro de estado en Clases: el contrato de `GET /clases` hoy solo filtra por `tipo` y `sedeId`.
 7. Reintegro al cancelar una reserva de cancha ya pagada: hoy solo se cancela; definir con Santiago.
 8. Los pendientes de la entrada anterior (partir `ArmazonApp.vue`, `useListaSocios.spec.ts` y `ui/README.md`, y los de backend de la entrada 8b-2).
+
+---
+
+## 2026-10-27 - Frontend: rediseño visual, Paso 9d (correcciones de la prueba manual de Canchas)
+
+**Fecha:** 27/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `48deafb`
+
+### Actividades
+
+1. **Botón "Limpiar" en los filtros de Canchas:** aparece solo cuando hay algún filtro aplicado (`hayFiltrosActivos`) y los devuelve a su valor inicial (`limpiarFiltros` en `useCanchas`). Quien limpia es la página, por el evento `limpiar` de `FiltrosCanchas`.
+2. **Sede visible para RECEPCION:** la columna Sede de la tabla se muestra con "Todas las sedes" y también cuando la sede es fija (RECEPCION con sede en el token), aunque no tenga selector.
+3. **Nombre de la cancha en "Mis reservas":** "Fútbol 5 #2" en vez de "Cancha #2", también en el modal de cancelar y en los `aria-label`. `useEtiquetasCanchas` hace una sola consulta a `GET /canchas` al montarse y arma un mapa (`armarEtiquetasCanchas`, `etiquetaDeCancha`); si la consulta falla o la cancha no aparece, cae a "Cancha #N".
+4. **"Pagada" como estado:** pasa a ser una insignia junto al estado de la reserva. "Pagar" queda como acción solo si falta pagar y no se ofrece mientras se consulta el pago. "Cancelar" pasa de la variante peligro a la secundaria.
+5. **Aviso de penalidad acotado:** `textoAvisoPenalidad` lo muestra solo en la agenda (texto informativo con la clase cancelada) y en el detalle de la clase cuya reserva se canceló. No aparece en el detalle de otra clase ni en el de una clase que ya comenzó.
+6. **Ícono `canchas` nuevo:** el anterior, a 16 px, se leía como un billete.
+
+### Decisiones tomadas
+
+1. **Los nombres de cancha de "Mis reservas" se resuelven en el front:** `ReservaCanchaOut` no trae la cancha, así que se pide la lista una vez (hasta 100 canchas, todas las sedes) y se busca por id. No cambia el contrato. Si hubiera más de 100 canchas, las que no entran caen a "Cancha #N".
+2. **El aviso de penalidad se muestra solo donde se sabe de qué clase habla:** la agenda y el detalle de la clase cancelada.
+
+### Verificación
+
+- `npm run test`: **838 tests** en 88 archivos (medido sobre el commit).
+
+### Pendientes que siguen abiertos
+
+1. Las correcciones de reserva y pago (enlace "Pagar ahora", enlace de volver y "Canchas" activo en el menú durante el pago) se resuelven al pasar el pago a un modal (entrada siguiente).
+2. Comprobante PDF: maquetación (entradas del 28/10).
+
+---
+
+## 2026-10-27 - Frontend: rediseño visual, Paso 9c-1 (pago de reservas como modal)
+
+**Fecha:** 27/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `8ca7da5`
+
+### Actividades
+
+1. **Pago como modal:** `ModalPagarReserva` con el resumen en `ListaDatosFz` (componente nuevo del kit, con spec), el selector de medio de pago y el resultado en el mismo modal. Se borran `PagarReservaPage`, `FormularioPago`, `ResultadoPago` y `ResumenPago`. `?pagar=<id>` abre el modal desde Mis reservas y la ruta vieja redirige.
+2. **Clave de idempotencia ligada a la reserva:** en `usePagarReserva`, `claveActual(reservaId)` devuelve la misma clave mientras el cobro puede ser el mismo intento. Se descarta al reiniciar, ante un 402 y ante un 409 `idempotencia-repetida` sin pago existente. Mensaje nuevo: "No se pudo procesar el pago. Probá de nuevo." (`MENSAJE_PAGO_NO_PROCESADO`).
+3. **Mis reservas:** estado pagada o pendiente, menú "⋯" con Pagar y Cancelar (luego reemplazado por íconos, ver la entrada de acciones de fila), sede visible y paginación.
+4. **Confirmar reserva:** el modal muestra los datos de forma compacta.
+
+### Decisiones tomadas
+
+1. **El pago es un modal y no una página:** se hace sin salir de "Mis reservas" ni de la grilla. Dejan de existir la página de pago, su enlace de volver y su ítem de menú activo.
+2. **La clave de idempotencia es de la reserva, no del intento:** repetir el mismo cobro no lo duplica, y la clave se renueva solo cuando el cobro puede reintentarse con otra.
+
+### Problemas encontrados
+
+1. **Reintento tras un pago rechazado:** en la prueba manual, el segundo intento devolvía 409 "Ese cobro ya fue procesado." El origen estaba en el backend (restricción única por reserva). Se corrige en la entrada siguiente.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **877 tests** en 90 archivos.
+
+### Pendientes que siguen abiertos
+
+1. Reintento de pago rechazado (backend, entrada siguiente).
+2. Paso 9c restante: `PagosPage`, `ReporteIngresosPage` y el modal de anulación.
+
+---
+
+## 2026-10-27 - Backend: reintentar el pago de una reserva con pago rechazado (M5)
+
+**Fecha:** 27/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `3373b70`
+
+### Actividades
+
+1. **`PagoRepository.crear`:** si el INSERT choca con la restricción única de la reserva (`PagoReserva.reserva_id` o `PagoReservaClase.reserva_clase_id`), llama a `reutilizarRechazado`. Ese método hace un `updateMany` condicional por estado: si la fila existente está RECHAZADA y tiene otra clave de idempotencia, pasa a PENDIENTE con la clave, el token, el monto y la fecha nuevos, y sigue el cobro normal contra la pasarela.
+2. **Errores:** si el UPDATE no aplica, `RESERVA_YA_COBRADA`; si ya existe un pago con esa clave, `IDEMPOTENCIA_REPETIDA`.
+3. **Tests:** casos nuevos en `pago.repository.spec.ts` y archivo nuevo `reintento-pago-rechazado.integration-spec.ts`, contra la base de test.
+
+### Decisiones tomadas
+
+1. **Se reutiliza la fila rechazada y no se permiten varias por reserva:** permitir varias exigiría cambiar el esquema y el contrato; la reutilización no toca ninguno de los dos. Consecuencia asumida: el histórico guarda solo el último intento por reserva.
+2. **El UPDATE es condicional por estado:** si dos reintentos llegan a la vez, solo uno reutiliza la fila.
+3. **El caso ANULADO no se reutiliza:** reutilizar esa fila borraría el rastro de la anulación.
+
+### Problemas encontrados
+
+1. **409 "reserva ya cobrada" tras un pago rechazado:** una reserva admite una sola fila de pago (`@unique`), así que el segundo intento con otra clave chocaba. Detectado en la prueba manual del modal de pago.
+
+### Verificación
+
+- `npx tsc --noEmit` en verde.
+- `npm run test:unit`: **328 tests** en 41 archivos. `npm run test:integration`: **75 tests** en 13 archivos, incluido el nuevo.
+
+### Pendientes que siguen abiertos
+
+1. **Caso ANULADO ("corrección de cobro": anular y volver a pagar):** tiene el mismo bloqueo y no se tocó. A definir con Exe y Santiago.
+
+---
+
+## 2026-10-27 - Frontend: Mis clases con pestañas, pasadas paginadas y caché de clases ya dictadas
+
+**Fecha:** 27/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `1576bcf`
+
+### Actividades
+
+1. **Pestañas "Próximas" y "Pasadas" sin números.**
+2. **Pasadas paginada en el cliente:** 10 por página, con `PaginacionFz` y "Mostrando X a Y de Z reservas". `paginar` vive en `reglas.ts`.
+3. **Pestaña y página en la dirección:** `?pestana=pasadas` y `?pagina-clases=N` (`pagina` ya es de la agenda). Se quitan al cambiar de vista. Lo resuelve `usePestanasMisClases` (nuevo).
+4. **Caché de clases ya dictadas en `useMisClases`:** una clase cuyo `horarioInicio` ya pasó no se vuelve a pedir en cada actualización de 5 segundos. Las futuras, y las que fallaron, se piden de nuevo.
+
+### Decisiones tomadas
+
+1. **Se paginan solo las pasadas, en el cliente:** ya se tiene la lista completa de reservas y las próximas son pocas.
+2. **Solo se cachean las clases ya dictadas:** una clase futura puede cambiar (cupo, cancelación); una ya dictada no.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **903 tests** en 91 archivos (antes 877).
+- Prueba manual: en la pestaña Red solo se repite el pedido de las clases futuras.
+
+### Pendientes que siguen abiertos
+
+1. **Filtro de estado en Clases:** el contrato de `GET /clases` solo filtra por `tipo` y `sedeId`.
+
+---
+
+## 2026-10-28 - Backend: rediseño visual del comprobante PDF (M5)
+
+**Fecha:** 28/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `ab6436a`
+
+### Actividades
+
+1. **Nuevo diseño:** dos secciones ("Datos del pago" y "Detalle") con filas de dos columnas y separadores, insignia de estado centrada en los dos ejes ("Estado: Aprobado", ya no en mayúsculas) y el monto en un recuadro al final.
+2. **Textos sin códigos internos:** la penalidad ya no muestra "(RF-07)" y el plan sale como "Mensual".
+3. **Código:** estilos en `comprobantes.estilo.ts` (con spec) y `armarPdf` pasa a ser público en `comprobantes.service.ts`.
+4. **Muestras:** `comprobantes.muestras.spec.ts` genera 6 PDF de ejemplo en `backend/storage/comprobantes/muestras/` solo si existe la variable `MUESTRAS_COMPROBANTE=1`. La carpeta está ignorada por Git.
+
+### Decisiones tomadas
+
+1. **Solo cambia lo visual:** los datos impresos son los mismos de antes (incluida la fila "Usuario"). No se agregó la cancha, la sede ni la disciplina con nombre, porque eso implica cambios de datos en M3, M4 y M5.
+2. **Los comprobantes ya emitidos no cambian:** son snapshots; solo los pagos nuevos usan el diseño nuevo.
+
+### Problemas encontrados
+
+1. **Aspecto roto:** tras dibujar la insignia, la posición `doc.x` quedaba a la derecha y los datos salían pegados y cortados; además `linea()` con `continued` no alineaba. Se reemplazó por filas con posiciones fijas.
+2. **El spec de comprobantes borraba toda la carpeta `storage/comprobantes`** antes y después de cada test, y se llevaba PDF reales de pagos de prueba. Ahora borra solo su archivo de prueba.
+
+### Verificación
+
+- `npx tsc --noEmit` en verde.
+- `npm run test:unit`: **342 tests** en 42 archivos (1 archivo y 1 test saltados: las muestras, sin la variable). `npm run test:integration`: **75 tests** en 13 archivos. `npm run test:e2e -- test/e2e/m5-pagos`: **10 tests** en 3 archivos.
+- Revisión a la vista de los 6 PDF de muestra.
+
+### Pendientes que siguen abiertos
+
+1. **Comprobante:** fechas en formato local y deporte o sede de la cancha en el PDF (requiere datos de M3, M4 y M5).
+
+---
+
+## 2026-10-28 - Frontend: acciones de fila como íconos o menú, columna "Reservó" y foco del pago
+
+**Fecha:** 28/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commits:** `bbe7451`, `17fe830`
+
+### Actividades
+
+1. **Convención de acciones por fila:** hasta 2 acciones posibles en la tabla, botones de solo ícono con tooltip y `aria-label`; 3 o más, menú "⋯". El criterio es el máximo de acciones de la tabla, no el de cada fila.
+2. **Kit nuevo:** `AccionesFilaFz` (decide entre íconos y menú), `BotonFz` con `soloIcono` (28 px en `sm`), `enfocarControlDeFila` (devuelve el foco a la fila tras cerrar un modal, incluso si la acción desapareció) y los íconos `descargar` y `salida`.
+3. **Ocho tablas migradas:** Canchas (reloj y lápiz, el lápiz solo para GERENTE), Clases agenda (ojo), Mis clases (ojo y cancelar, también en Pasadas), Mis esperas (3 acciones, menú con "Confirmar cupo" primero), Mis reservas de cancha (pagar y cancelar), Pagos (comprobante y anular), Personas dentro (egreso) y Socios (4 acciones, menú). Los nombres pasan a texto simple y el detalle se abre con el ícono del ojo. "Reservar" en la grilla de turnos conserva su texto.
+4. **Columna "Reservó" en la grilla de turnos** para RECEPCION y GERENTE: `useReservantesDelDia` obtiene el nombre con `GET /usuarios/{id}`, con caché, y muestra "Usuario #id" si falla.
+5. **Foco del modal de pago:** al aparecer el resultado, el foco va a la región "Resultado del pago".
+6. **Columna de acciones:** el encabezado "Acciones" se mantiene visible, con una rayita corta entre los íconos (tokens `--fz-acciones-fila-divisor-*`) y una línea de alto completo que separa la columna (`ColumnaTabla.conDivisor`). La columna queda centrada en las 8 tablas.
+7. **Código muerto eliminado:** `PARAMETROS_DESDE_MIS_RESERVAS` y el origen `mis-reservas` de `destinoVolver`.
+
+### Decisiones tomadas
+
+1. **Íconos en vez de menú cuando son pocas acciones:** un menú con una o dos opciones esconde acciones que caben a la vista.
+2. **Los nombres no son enlaces:** `EnlaceFz` se creó y se eliminó antes de commitearse, porque los enlaces se veían con el estilo del navegador (azul y violeta).
+3. **Se mantiene la palabra "Acciones":** se probó ocultar el encabezado (`etiquetaOculta`) y se quitó; con la rayita corta entre íconos y la línea de la columna, las acciones no chocan con el texto.
+4. **Columna "Reservó" limitada por el contrato:** `GET /reservas-canchas` solo devuelve reservas vigentes (fin futuro), así que los turnos ya terminados quedan con la celda vacía.
+
+### Problemas encontrados
+
+1. **Divisor entre íconos casi invisible:** se aumentó su alto y contraste con tokens propios.
+2. **Con la columna alineada al final, el encabezado y los íconos no coincidían:** con 1 ícono quedaba bajo la cola de la palabra y con 2 la palabra quedaba corrida. Al centrarla, la palabra y los íconos quedan alineados en todas las tablas.
+
+### Verificación
+
+- `npm run type-check`, `npm run build` y `npm run test` en verde: **935 tests** en 94 archivos en `bbe7451` y **942** en 94 archivos en `17fe830`.
+- Prueba visual de Santino sobre las tablas con 1 y con 2 íconos (Clases y Canchas).
+
+### Pendientes que siguen abiertos
+
+1. **Paso 9c restante:** `PagosPage`, `ReporteIngresosPage` y el modal de anulación.
+2. **A revisar a la vista:** el ícono `salida` se parece a `cerrar-sesion`, el tooltip del botón deshabilitado y el aspecto de la columna "Reservó".
+3. **"Confirmar cupo" en Mis esperas** pasó de botón visible a ítem del menú; decidir si vuelve como botón.
+4. `GET /usuarios/{id}` para RECEPCION y GERENTE no se probó contra un backend real (el controller no restringe por rol).
+5. **Reintegro al cancelar una reserva de cancha ya pagada** y caso ANULADO del repago: definir con Santiago y Exe.
+6. Partir `ArmazonApp.vue` (335 líneas), `useListaSocios.spec.ts` (371) y `ui/README.md` (más de 420) para que queden por debajo de 300.
+7. Los pendientes de backend de la entrada 8b-2.

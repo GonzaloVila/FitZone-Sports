@@ -1,4 +1,13 @@
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteLocationRaw, RouteRecordRaw } from 'vue-router'
+import { esEnteroPositivo, textoDe, type ConsultaCruda } from '@/compartido/parametrosDeDireccion'
+
+// El pago de una reserva ya no es una pantalla sino un modal de "Mis reservas": el enlace viejo /pagos/nuevo?reservaId=<id>
+// redirige a /canchas?vista=mis-reservas&pagar=<id>, que abre ese modal. Sin un id válido, solo a "Mis reservas".
+export function destinoDePagoDeReserva(query: ConsultaCruda): RouteLocationRaw {
+  const reservaId = textoDe(query, 'reservaId')
+  const pagar = reservaId !== null && esEnteroPositivo(reservaId) ? { pagar: reservaId } : {}
+  return { name: 'canchas', query: { vista: 'mis-reservas', ...pagar } }
+}
 
 export const rutasPagos: RouteRecordRaw[] = [
   {
@@ -11,10 +20,11 @@ export const rutasPagos: RouteRecordRaw[] = [
     },
   },
   {
+    // Enlace viejo: sigue funcionando como redirección.
     path: '/pagos/nuevo',
     name: 'pagar-reserva',
-    component: () => import('./pages/PagarReservaPage.vue'),
-    meta: { roles: ['SOCIO', 'RECEPCION', 'GERENTE', 'EXTERNO'] },
+    redirect: (to) => destinoDePagoDeReserva(to.query),
+    meta: { roles: ['SOCIO', 'EXTERNO'] },
   },
   {
     path: '/reportes/ingresos',

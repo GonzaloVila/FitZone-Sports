@@ -62,6 +62,15 @@ describe('useVistaCanchas', () => {
     expect(mocks.push).toHaveBeenCalledWith({ query: { otra: '1' } })
   })
 
+  it('cambiar de vista no arrastra la pestaña, la página ni la reserva a pagar de Mis reservas', () => {
+    mocks.route.query = { vista: 'mis-reservas', pestana: 'pasadas', 'pagina-reservas': '2', pagar: '9' }
+    const { vista } = armar(true)
+
+    vista.value = 'canchas'
+
+    expect(mocks.push).toHaveBeenCalledWith({ query: {} })
+  })
+
   it('elegir la vista que ya está activa no navega', () => {
     const { vista } = armar(true)
 

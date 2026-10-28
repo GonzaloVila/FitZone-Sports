@@ -1,16 +1,16 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { BotonFz, InsigniaFz, TablaFz, type ColumnaTabla } from '@/ui'
+import { InsigniaFz, MenuAccionesFz, TablaFz, type AccionMenuFz, type ColumnaTabla } from '@/ui'
 import { PARAMETROS_DESDE_MIS_RESERVAS } from '../direccion'
 import {
-  ETIQUETA_SITUACION,
+  accionesDeReserva,
   formatearFechaHora,
   formatearHora,
   formatearMonto,
-  puedeCancelarse,
-  puedePagarse,
-  situacionDeReserva,
-  type SituacionReserva,
+  insigniaDePago,
+  type AccionReserva,
+  type PestanaReservas,
 } from '../presentacion'
 import type { ReservaCancha } from '../services/servicioCanchas'
 import type { FilaReserva } from '../tipos'
@@ -18,41 +18,53 @@ import type { FilaReserva } from '../tipos'
 const props = defineProps<{
   filas: FilaReserva[]
   ahora: number
-  // El nombre de la cancha de una reserva ("Fútbol 5 #2"), que la reserva no trae.
+  // La pestaña dice si las reservas son próximas, pasadas o canceladas: la tabla solo dice si están pagas. Solo Próximas
+  // tiene columna de acciones.
+  pestana: PestanaReservas
+  // El nombre ("Fútbol 5 #2") y la sede de la cancha de una reserva, que la reserva no trae.
   etiquetaDeCancha: (canchaId: number) => string
+  nombreDeSede: (canchaId: number) => string
   ocupada?: boolean
 }>()
 
-const emit = defineEmits<{ cancelar: [fila: FilaReserva] }>()
+const emit = defineEmits<{ pagar: [fila: FilaReserva]; cancelar: [fila: FilaReserva] }>()
 
-const columnas: ColumnaTabla[] = [
+// Como en la lista de canchas: las columnas se reparten el ancho y solo la última (las acciones) ocupa lo que necesita.
+const columnas = computed<ColumnaTabla[]>(() => [
   { clave: 'cancha', etiqueta: 'Cancha', encabezadoFila: true },
+  { clave: 'sede', etiqueta: 'Sede' },
   { clave: 'turno', etiqueta: 'Turno' },
-  { clave: 'estado', etiqueta: 'Estado', ajustada: true },
-  { clave: 'precio', etiqueta: 'Precio', ajustada: true },
-  { clave: 'acciones', etiqueta: 'Acciones', ajustada: true, alineacion: 'fin' },
-]
+  { clave: 'pago', etiqueta: 'Pago' },
+  { clave: 'precio', etiqueta: 'Precio' },
+  ...(props.pestana === 'proximas' ? [{ clave: 'acciones', etiqueta: 'Acciones', ajustada: true, alineacion: 'fin' as const }] : []),
+])
 
-const VARIANTES: Record<SituacionReserva, 'exito' | 'peligro' | 'advertencia' | 'neutra'> = {
-  proxima: 'exito',
-  'en-curso': 'advertencia',
-  cumplida: 'neutra',
-  cancelada: 'peligro',
+const ETIQUETA_ACCION: Record<AccionReserva, { etiqueta: string; icono: AccionMenuFz['icono'] }> = {
+  pagar: { etiqueta: 'Pagar', icono: 'pagos' },
+  cancelar: { etiqueta: 'Cancelar', icono: 'cerrar' },
 }
 
 const claveFila = (fila: FilaReserva) => fila.reserva.id
-const situacion = (reserva: ReservaCancha) => situacionDeReserva(reserva, new Date(props.ahora))
-const cancelable = (reserva: ReservaCancha) => puedeCancelarse(reserva, new Date(props.ahora))
 const turno = (reserva: ReservaCancha) =>
   `${formatearFechaHora(reserva.fechaHoraInicio)} a ${formatearHora(reserva.fechaHoraFin)}`
+const insignia = (fila: FilaReserva) => insigniaDePago(fila.pago, props.pestana)
+const textoSinInsignia = (fila: FilaReserva) => (fila.pago === 'cargando' ? 'Consultando…' : 'Sin dato')
 
-// "Pagada" es un estado (va junto a "Próxima" etc.); "Pagar" es una acción y solo se ofrece si falta pagar. Mientras se
-// consulta el pago no se ofrece ninguna de las dos.
-const estaPagada = (fila: FilaReserva) => puedePagarse(fila.reserva.estado) && fila.pago === 'pagada'
-const puedePagar = (fila: FilaReserva) =>
-  puedePagarse(fila.reserva.estado) && fila.pago !== 'pagada' && fila.pago !== 'cargando'
-const sinAcciones = (fila: FilaReserva) =>
-  !cancelable(fila.reserva) && !puedePagar(fila) && !(puedePagarse(fila.reserva.estado) && fila.pago === 'cargando')
+// El menú de una reserva: solo las acciones que se pueden hacer ahora (ninguna → sin menú).
+const accionesDe = (fila: FilaReserva): AccionMenuFz[] =>
+  accionesDeReserva(fila.reserva, fila.pago, new Date(props.ahora)).map((accion, posicion) => ({
+    clave: accion.clave,
+    ...ETIQUETA_ACCION[accion.clave],
+    deshabilitada: accion.deshabilitada,
+    // "Cancelar" va aparte y en rojo, salvo que sea la única.
+    peligro: accion.clave === 'cancelar',
+    separada: accion.clave === 'cancelar' && posicion > 0,
+  }))
+
+function alSeleccionar(fila: FilaReserva, clave: string) {
+  if (clave === 'pagar') emit('pagar', fila)
+  else if (clave === 'cancelar') emit('cancelar', fila)
+}
 </script>
 
 <template>
@@ -65,45 +77,21 @@ const sinAcciones = (fila: FilaReserva) =>
         {{ etiquetaDeCancha(fila.reserva.canchaId) }}
       </RouterLink>
     </template>
+    <template #celda-sede="{ fila }">{{ nombreDeSede(fila.reserva.canchaId) }}</template>
     <template #celda-turno="{ fila }">{{ turno(fila.reserva) }}</template>
-    <template #celda-estado="{ fila }">
-      <div class="tabla-reservas__estado">
-        <InsigniaFz :variante="VARIANTES[situacion(fila.reserva)]">{{ ETIQUETA_SITUACION[situacion(fila.reserva)] }}</InsigniaFz>
-        <InsigniaFz v-if="estaPagada(fila)" variante="exito">Pagada</InsigniaFz>
-      </div>
+    <template #celda-pago="{ fila }">
+      <InsigniaFz v-if="insignia(fila)" :variante="insignia(fila)?.variante">{{ insignia(fila)?.texto }}</InsigniaFz>
+      <span v-else class="tabla-reservas__tenue">{{ textoSinInsignia(fila) }}</span>
     </template>
     <template #celda-precio="{ fila }">{{ formatearMonto(fila.reserva.precioAplicado) }}</template>
     <template #celda-acciones="{ fila }">
-      <div class="tabla-reservas__acciones">
-        <BotonFz
-          v-if="cancelable(fila.reserva)"
-          tamano="sm"
-          variante="secundario"
-          :disabled="ocupada"
-          :aria-label="`Cancelar la reserva de ${etiquetaDeCancha(fila.reserva.canchaId)} (${turno(fila.reserva)})`"
-          @click="emit('cancelar', fila)"
-        >
-          Cancelar
-        </BotonFz>
-        <RouterLink
-          v-if="puedePagar(fila)"
-          v-slot="{ href, navigate }"
-          :to="{ name: 'pagar-reserva', query: { reservaId: fila.reserva.id } }"
-          custom
-        >
-          <BotonFz
-            como="a"
-            variante="secundario"
-            tamano="sm"
-            :href="href"
-            :aria-label="`Pagar la reserva de ${etiquetaDeCancha(fila.reserva.canchaId)} (${turno(fila.reserva)})`"
-            @click="navigate"
-          >
-            Pagar
-          </BotonFz>
-        </RouterLink>
-        <span v-if="sinAcciones(fila)" class="tabla-reservas__tenue">—</span>
-      </div>
+      <MenuAccionesFz
+        v-if="accionesDe(fila).length > 0"
+        :etiqueta="`Acciones de la reserva de ${etiquetaDeCancha(fila.reserva.canchaId)} (${turno(fila.reserva)})`"
+        :identificador="`menu-reserva-${fila.reserva.id}`"
+        :acciones="accionesDe(fila)"
+        @seleccionar="(clave) => alSeleccionar(fila, clave)"
+      />
     </template>
   </TablaFz>
 </template>
@@ -122,18 +110,6 @@ const sinAcciones = (fila: FilaReserva) =>
 .tabla-reservas__enlace:focus-visible {
   outline: 2px solid var(--fz-color-foco);
   outline-offset: 2px;
-}
-
-.tabla-reservas__estado,
-.tabla-reservas__acciones {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--fz-espaciado-compacto);
-}
-
-.tabla-reservas__acciones {
-  justify-content: flex-end;
 }
 
 .tabla-reservas__tenue {

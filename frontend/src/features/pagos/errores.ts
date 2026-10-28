@@ -6,6 +6,9 @@ export function esIdempotenciaRepetida(e: unknown): boolean {
   return esErrorApi(e) && e.status === 409 && e.problema?.type === TIPO_IDEMPOTENCIA_REPETIDA
 }
 
+// Un 409 de idempotencia sin ningún pago de la reserva: no hubo cobro, se puede reintentar.
+export const MENSAJE_PAGO_NO_PROCESADO = 'No se pudo procesar el pago. Probá de nuevo.'
+
 export function mensajePago(e: unknown): string {
   if (!esErrorApi(e)) return mensajeDeError(e, 'No se pudo procesar el pago.')
   if (e.status === 400) return 'Falta la clave de idempotencia del cobro. Recargá la página e intentá de nuevo.'

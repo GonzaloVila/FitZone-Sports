@@ -178,6 +178,20 @@ El enlace de volver usa `<RouterLink>` **registrado globalmente por el router de
 </EncabezadoPaginaFz>
 ```
 
+### `ListaDatosFz` (molécula)
+
+Pares etiqueta / valor compactos (el resumen de un modal, por ejemplo). Es un `<dl>` en una grilla de dos columnas: la de las etiquetas mide la etiqueta más larga (un ancho común para todas) y el valor queda justo al lado, en peso normal y sin separarse hacia el borde derecho.
+
+| Prop | Tipo | |
+| --- | --- | --- |
+| `datos` | `DatoFz[]` | `{ etiqueta, valor, destacado? }`; `destacado` agranda el valor y le da énfasis (un monto). Se exporta el tipo `DatoFz` |
+
+La etiqueta va en gris suave (`--fz-color-texto-suave`). Tokens `--fz-lista-datos-*`.
+
+```vue
+<ListaDatosFz :datos="[{ etiqueta: 'Cancha', valor: 'Fútbol 5 #2' }, { etiqueta: 'Monto', valor: '$ 4.000,00', destacado: true }]" />
+```
+
 ### `CampoFormularioFz`: obligatorio, etiqueta chica y contenido propio
 
 Todo opcional y aditivo: sin las props nuevas el campo se ve y se comporta como siempre.

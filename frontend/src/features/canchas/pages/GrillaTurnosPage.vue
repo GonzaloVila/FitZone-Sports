@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
+import ModalPagarReserva from '@/features/pagos/components/modales/ModalPagarReserva.vue'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
-import { AvisoFz, CampoFormularioFz, EncabezadoPaginaFz } from '@/ui'
+import { AvisoFz, BotonFz, CampoFormularioFz, EncabezadoPaginaFz } from '@/ui'
 import ConfirmarReserva from '../components/ConfirmarReserva.vue'
 import GrillaTurnos from '../components/GrillaTurnos.vue'
 import { useFechaDeTurnos } from '../composables/useFechaDeTurnos'
@@ -49,6 +50,12 @@ const clasificados = computed(() => clasificarTurnos(turnos.value, ahora.value))
 const seleccionado = ref<Disponibilidad | null>(null)
 const abierto = ref(false)
 
+// El pago de la reserva que se acaba de hacer: se abre desde el aviso "Pagar ahora" y, al cerrarlo después de un pago aprobado,
+// el aviso pasa a decir que la reserva está pagada.
+const pagoAbierto = ref(false)
+const reservaPagada = ref<number | null>(null)
+const yaPagada = computed(() => reservaHecha.value !== null && reservaHecha.value.id === reservaPagada.value)
+
 function elegir(turno: Disponibilidad) {
   limpiar()
   seleccionado.value = turno
@@ -75,8 +82,14 @@ async function confirmar() {
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
     <AvisoFz v-if="errorReserva && !abierto" variante="peligro">{{ errorReserva }}</AvisoFz>
     <AvisoFz v-if="reservaPermitida && reservaHecha" variante="exito">
-      Reserva confirmada por {{ formatearMonto(reservaHecha.precioAplicado) }}.
-      <RouterLink :to="{ name: 'pagar-reserva', query: { reservaId: reservaHecha.id } }">Pagar ahora</RouterLink>
+      <div class="turnos-pagina__reserva">
+        <span v-if="yaPagada">Reserva confirmada y pagada por {{ formatearMonto(reservaHecha.precioAplicado) }}.</span>
+        <template v-else>
+          <span>Reserva confirmada por {{ formatearMonto(reservaHecha.precioAplicado) }}.</span>
+          <!-- Abre el modal de pago en esta misma pantalla (no navega): por eso es un botón y no un enlace. -->
+          <BotonFz variante="secundario" tamano="sm" @click="pagoAbierto = true">Pagar ahora</BotonFz>
+        </template>
+      </div>
     </AvisoFz>
 
     <p v-if="cargandoCancha" class="turnos-pagina__estado" role="status">Cargando turnos…</p>
@@ -103,6 +116,14 @@ async function confirmar() {
       :error="errorReserva"
       @confirmar="confirmar"
     />
+
+    <ModalPagarReserva
+      v-if="reservaPermitida"
+      v-model:abierto="pagoAbierto"
+      :reserva="reservaHecha"
+      :nombre-cancha="cancha ? nombreDeCancha(cancha) : `Cancha #${canchaId}`"
+      @pagado="reservaPagada = reservaHecha?.id ?? null"
+    />
   </section>
 </template>
 
@@ -118,6 +139,13 @@ async function confirmar() {
 .turnos-pagina__fecha {
   width: max-content;
   max-width: 100%;
+}
+
+.turnos-pagina__reserva {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fz-espaciado-base);
 }
 
 .turnos-pagina__estado {

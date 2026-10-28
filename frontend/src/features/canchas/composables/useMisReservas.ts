@@ -1,23 +1,55 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useActualizacionPeriodica } from '@/compartido/composables/useActualizacionPeriodica'
 import { mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
+import {
+  leerConsultaMisReservas,
+  parametrosDeConsultaMisReservas,
+  sinParametrosDeMisReservas,
+  type ConsultaMisReservas,
+} from '../direccion'
 import { mensajeCancelacion } from '../errores'
+import type { PestanaReservas } from '../presentacion'
 import type { EstadoReserva } from '../services/servicioCanchas'
 import type { FilaReserva } from '../tipos'
 
-const POR_PAGINA = 100
+export const POR_PAGINA_RESERVAS = 12
 const CONCURRENCIA_PAGOS = 4
 const RELOJ_MS = 30_000
 const REFRESCO_MS = 60_000
 
+// Las reservas del usuario de la sesión, una pestaña a la vez (Próximas, Canceladas o Pasadas), paginadas en el servidor.
+// La pestaña y la página viven en la dirección (?pestana=, ?pagina-reservas=): sobreviven a recargar y a volver de la pantalla
+// de turnos. Cada cambio reemplaza la entrada del historial y cambiar de pestaña vuelve a la página 1.
 export function useMisReservas() {
   const servicios = useServicios()
   const { usuarioId } = useUsuarioSesion()
+  const route = useRoute()
+  const router = useRouter()
 
-  const pestana = ref('proximas')
+  const consulta = computed(() => leerConsultaMisReservas(route.query))
+
+  function actualizar(cambios: Partial<ConsultaMisReservas>) {
+    const siguiente = { ...consulta.value, ...cambios }
+    void router.replace({ query: { ...sinParametrosDeMisReservas(route.query), ...parametrosDeConsultaMisReservas(siguiente) } })
+  }
+
+  const pestana = computed({
+    get: (): PestanaReservas => consulta.value.pestana,
+    set: (valor: string) => {
+      const elegida = valor === 'canceladas' || valor === 'pasadas' ? valor : 'proximas'
+      actualizar({ pestana: elegida, pagina: 1 })
+    },
+  })
+  const pagina = computed({
+    get: () => consulta.value.pagina,
+    set: (numero: number) => actualizar({ pagina: numero }),
+  })
+
   const filas = ref<FilaReserva[]>([])
+  const total = ref(0)
   const cargando = ref(true)
   const error = ref<string | null>(null)
   const accionando = ref(false)
@@ -25,6 +57,9 @@ export function useMisReservas() {
   const exitoAccion = ref<string | null>(null)
   const ahora = ref(Date.now())
 
+  const totalPaginas = computed(() => Math.max(1, Math.ceil(total.value / POR_PAGINA_RESERVAS)))
+
+  // Próximas es el listado por defecto del servidor (confirmadas activas): no lleva estado.
   const estadoDePestana = computed<EstadoReserva | undefined>(() => {
     if (pestana.value === 'canceladas') return 'CANCELADA'
     if (pestana.value === 'pasadas') return 'CUMPLIDA'
@@ -55,11 +90,12 @@ export function useMisReservas() {
     const id = usuarioId.value
     if (id === null) {
       filas.value = []
+      total.value = 0
       cargando.value = false
       return
     }
 
-    const consulta = ++ultimaConsulta
+    const consultaActual = ++ultimaConsulta
     controlador?.abort()
     controlador = new AbortController()
     const { signal } = controlador
@@ -68,23 +104,37 @@ export function useMisReservas() {
     try {
       const lista = await servicios.canchas.listarReservas(
         { usuarioId: id, estado: estadoDePestana.value },
-        1,
-        POR_PAGINA,
+        pagina.value,
+        POR_PAGINA_RESERVAS,
         signal,
       )
-      if (consulta !== ultimaConsulta) return
+      if (consultaActual !== ultimaConsulta) return
+
+      total.value = lista.total
+      // Si la página pedida quedó fuera de rango (por ejemplo, se canceló la última reserva de la última página), se vuelve a
+      // la última; el cambio de página vuelve a consultar.
+      if (lista.items.length === 0 && lista.total > 0 && pagina.value > totalPaginas.value) {
+        pagina.value = totalPaginas.value
+        return
+      }
       filas.value = lista.items.map((reserva) => ({ reserva, pago: 'cargando' }))
       await cargarPagos(signal)
     } catch (e) {
-      if (consulta !== ultimaConsulta) return
+      if (consultaActual !== ultimaConsulta) return
       filas.value = []
+      total.value = 0
       error.value = mensajeDeError(e, 'No se pudieron cargar tus reservas.')
     } finally {
-      if (consulta === ultimaConsulta) cargando.value = false
+      if (consultaActual === ultimaConsulta) cargando.value = false
     }
   }
 
-  watch(pestana, () => void cargar())
+  // Cada pestaña tiene sus propias columnas: al cambiar de pestaña no quedan a la vista las filas de la anterior. Cambiar de
+  // página sí conserva las filas (la tabla queda ocupada) hasta que llegan las nuevas.
+  watch(pestana, () => {
+    filas.value = []
+  })
+  watch([pestana, pagina], () => void cargar())
   useActualizacionPeriodica(cargar, { intervaloMs: REFRESCO_MS, inmediato: false })
 
   const reloj = setInterval(() => {
@@ -127,6 +177,9 @@ export function useMisReservas() {
   return {
     limpiarMensajes,
     pestana,
+    pagina,
+    total,
+    totalPaginas,
     filas,
     cargando,
     error,
@@ -136,5 +189,6 @@ export function useMisReservas() {
     ahora,
     sinUsuario,
     cancelar,
+    recargar: cargar,
   }
 }

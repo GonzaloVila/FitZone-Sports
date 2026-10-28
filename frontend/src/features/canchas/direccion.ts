@@ -8,7 +8,7 @@ import {
   type ConsultaCruda,
   type Parametros,
 } from '@/compartido/parametrosDeDireccion'
-import { ESTADOS_CANCHA, TIPOS_CANCHA } from './presentacion'
+import { ESTADOS_CANCHA, PESTANAS_RESERVAS, TIPOS_CANCHA, type PestanaReservas } from './presentacion'
 
 // ---- Lista de canchas: filtros y página ----
 
@@ -52,6 +52,62 @@ export function sinParametrosDeCanchas<T extends ConsultaCruda>(query: T): Parti
   delete resto.tipo
   delete resto.estado
   delete resto.pagina
+  return resto
+}
+
+// ---- Mis reservas: pestaña, página y reserva a pagar ----
+
+// La página lleva su propio nombre: `pagina` es la de la lista de canchas y las dos vistas comparten la dirección.
+const PARAMETRO_PESTANA = 'pestana'
+const PARAMETRO_PAGINA = 'pagina-reservas'
+const PARAMETRO_PAGAR = 'pagar'
+
+export interface ConsultaMisReservas {
+  pestana: PestanaReservas
+  pagina: number
+}
+
+export function leerConsultaMisReservas(query: ConsultaCruda): ConsultaMisReservas {
+  const pestana = textoDe(query, PARAMETRO_PESTANA)
+  const pagina = textoDe(query, PARAMETRO_PAGINA)
+  return {
+    pestana: PESTANAS_RESERVAS.find((valor) => valor === pestana) ?? 'proximas',
+    pagina: pagina !== null && esEnteroPositivo(pagina) ? Number(pagina) : 1,
+  }
+}
+
+// Solo lo que se aparta de "Próximas, página 1".
+export function parametrosDeConsultaMisReservas(consulta: ConsultaMisReservas): Parametros {
+  const parametros: Parametros = {}
+  if (consulta.pestana !== 'proximas') parametros[PARAMETRO_PESTANA] = consulta.pestana
+  if (consulta.pagina > 1) parametros[PARAMETRO_PAGINA] = String(consulta.pagina)
+  return parametros
+}
+
+// La dirección sin la pestaña ni la página (queda, por ejemplo, la vista o la reserva a pagar), para escribir las nuevas.
+export function sinParametrosDeMisReservas<T extends ConsultaCruda>(query: T): Partial<T> {
+  const resto: Partial<T> = { ...query }
+  delete resto[PARAMETRO_PESTANA]
+  delete resto[PARAMETRO_PAGINA]
+  return resto
+}
+
+// Al salir de "Mis reservas" no queda nada de ella en la dirección.
+export function sinParametrosDeVistaMisReservas<T extends ConsultaCruda>(query: T): Partial<T> {
+  const resto = sinParametrosDeMisReservas(query)
+  delete resto[PARAMETRO_PAGAR]
+  return resto
+}
+
+// ?pagar=<id de la reserva>: abre el modal de pago de esa reserva. Un valor inválido se ignora.
+export function reservaAPagarDe(query: ConsultaCruda): number | null {
+  const id = textoDe(query, PARAMETRO_PAGAR)
+  return id !== null && esEnteroPositivo(id) ? Number(id) : null
+}
+
+export function sinReservaAPagar<T extends ConsultaCruda>(query: T): Partial<T> {
+  const resto: Partial<T> = { ...query }
+  delete resto[PARAMETRO_PAGAR]
   return resto
 }
 

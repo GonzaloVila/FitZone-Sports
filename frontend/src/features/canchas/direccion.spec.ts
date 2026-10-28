@@ -3,12 +3,63 @@ import {
   PARAMETROS_DESDE_MIS_RESERVAS,
   destinoVolver,
   leerConsultaCanchas,
+  leerConsultaMisReservas,
   parametrosDeConsultaCanchas,
+  parametrosDeConsultaMisReservas,
   parametrosDesdeCanchas,
+  reservaAPagarDe,
   sinParametrosDeCanchas,
+  sinParametrosDeMisReservas,
+  sinParametrosDeVistaMisReservas,
+  sinReservaAPagar,
 } from './direccion'
 
 const consultaVacia = { sede: null, tipo: '', estado: '', pagina: 1 }
+
+describe('Mis reservas en la dirección', () => {
+  it('sin parámetros: Próximas, página 1', () => {
+    expect(leerConsultaMisReservas({})).toEqual({ pestana: 'proximas', pagina: 1 })
+  })
+
+  it('lee la pestaña y la página (que lleva su propio nombre: `pagina` es la de la lista de canchas)', () => {
+    expect(leerConsultaMisReservas({ pestana: 'canceladas', 'pagina-reservas': '3' })).toEqual({ pestana: 'canceladas', pagina: 3 })
+    expect(leerConsultaMisReservas({ pagina: '5' }).pagina).toBe(1)
+  })
+
+  it('una pestaña desconocida o una página inválida se ignoran como si no estuvieran', () => {
+    expect(leerConsultaMisReservas({ pestana: 'futuras' }).pestana).toBe('proximas')
+    for (const pagina of ['0', '-1', 'abc', '1.5', '']) {
+      expect(leerConsultaMisReservas({ 'pagina-reservas': pagina }).pagina, pagina).toBe(1)
+    }
+  })
+
+  it('solo escribe lo que se aparta de Próximas, página 1', () => {
+    expect(parametrosDeConsultaMisReservas({ pestana: 'proximas', pagina: 1 })).toEqual({})
+    expect(parametrosDeConsultaMisReservas({ pestana: 'pasadas', pagina: 1 })).toEqual({ pestana: 'pasadas' })
+    expect(parametrosDeConsultaMisReservas({ pestana: 'proximas', pagina: 2 })).toEqual({ 'pagina-reservas': '2' })
+  })
+
+  it('sacar los parámetros de la pestaña y la página deja lo demás (la vista y la reserva a pagar)', () => {
+    const query = { vista: 'mis-reservas', pestana: 'pasadas', 'pagina-reservas': '2', pagar: '9', sede: '1' }
+
+    expect(sinParametrosDeMisReservas(query)).toEqual({ vista: 'mis-reservas', pagar: '9', sede: '1' })
+  })
+
+  it('al salir de Mis reservas no queda nada de ella (tampoco la reserva a pagar)', () => {
+    const query = { vista: 'mis-reservas', pestana: 'pasadas', 'pagina-reservas': '2', pagar: '9', sede: '1' }
+
+    expect(sinParametrosDeVistaMisReservas(query)).toEqual({ vista: 'mis-reservas', sede: '1' })
+  })
+
+  it('?pagar= es el id de la reserva a pagar; uno inválido se ignora', () => {
+    expect(reservaAPagarDe({ pagar: '12' })).toBe(12)
+    expect(reservaAPagarDe({})).toBeNull()
+    for (const pagar of ['0', '-3', 'abc', '1.5', '', ' 2']) {
+      expect(reservaAPagarDe({ pagar }), pagar).toBeNull()
+    }
+    expect(sinReservaAPagar({ vista: 'mis-reservas', pagar: '12' })).toEqual({ vista: 'mis-reservas' })
+  })
+})
 
 describe('leerConsultaCanchas', () => {
   it('sin parámetros: sede por defecto (null), todos los deportes y estados y página 1', () => {

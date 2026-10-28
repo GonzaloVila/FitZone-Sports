@@ -1,14 +1,26 @@
 <script setup lang="ts">
-import { AvisoFz, BotonFz, ModalFz } from '@/ui'
-import { ETIQUETA_TIPO_CANCHA, formatearDia, formatearMonto, rangoDeTurno } from '../presentacion'
+import { computed } from 'vue'
+import { AvisoFz, BotonFz, ListaDatosFz, ModalFz, type DatoFz } from '@/ui'
+import { nombreDeCancha } from '../edicion'
+import { formatearDia, formatearMonto, rangoDeTurno } from '../presentacion'
 import type { Cancha, Disponibilidad } from '../services/servicioCanchas'
 
-defineProps<{
+const props = defineProps<{
   cancha: Cancha | null
   turno: Disponibilidad | null
   enviando: boolean
   error: string | null
 }>()
+
+const datos = computed<DatoFz[]>(() => {
+  if (!props.cancha || !props.turno) return []
+  return [
+    { etiqueta: 'Cancha', valor: nombreDeCancha(props.cancha) },
+    { etiqueta: 'Día', valor: formatearDia(props.turno.fechaHoraInicio) },
+    { etiqueta: 'Turno', valor: rangoDeTurno(props.turno.fechaHoraInicio, props.turno.fechaHoraFin) },
+    { etiqueta: 'Precio base por hora', valor: formatearMonto(props.cancha.costoPorHora) },
+  ]
+})
 
 const abierto = defineModel<boolean>({ default: false })
 
@@ -27,25 +39,8 @@ defineEmits<{
     ancho="angosto"
     :ocupado="enviando"
   >
-    <dl v-if="cancha && turno" class="confirmar">
-      <div class="confirmar__fila">
-        <dt class="confirmar__etiqueta">Cancha</dt>
-        <dd class="confirmar__valor">{{ ETIQUETA_TIPO_CANCHA[cancha.tipo] }} #{{ cancha.id }}</dd>
-      </div>
-      <div class="confirmar__fila">
-        <dt class="confirmar__etiqueta">Día</dt>
-        <dd class="confirmar__valor">{{ formatearDia(turno.fechaHoraInicio) }}</dd>
-      </div>
-      <div class="confirmar__fila">
-        <dt class="confirmar__etiqueta">Turno</dt>
-        <dd class="confirmar__valor">{{ rangoDeTurno(turno.fechaHoraInicio, turno.fechaHoraFin) }}</dd>
-      </div>
-      <div class="confirmar__fila">
-        <dt class="confirmar__etiqueta">Precio base por hora</dt>
-        <dd class="confirmar__valor">{{ formatearMonto(cancha.costoPorHora) }}</dd>
-      </div>
-    </dl>
-    <p class="confirmar__nota">El precio final lo calcula el sistema al confirmar la reserva.</p>
+    <ListaDatosFz v-if="datos.length > 0" :datos="datos" />
+    <p class="confirmar__nota">El precio final puede variar según tu membresía y el horario.</p>
     <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>
 
     <template #acciones="{ cerrar }">
@@ -58,31 +53,6 @@ defineEmits<{
 </template>
 
 <style scoped>
-.confirmar {
-  display: flex;
-  flex-direction: column;
-  gap: var(--fz-espaciado-compacto);
-  margin: 0;
-}
-
-.confirmar__fila {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--fz-espaciado-compacto);
-}
-
-.confirmar__etiqueta {
-  color: var(--fz-color-texto-suave);
-  font-size: var(--fz-texto-cuerpo);
-}
-
-.confirmar__valor {
-  margin: 0;
-  font-size: var(--fz-texto-cuerpo);
-  font-weight: var(--fz-peso-enfasis);
-}
-
 .confirmar__nota {
   margin: 0;
   color: var(--fz-color-texto-suave);

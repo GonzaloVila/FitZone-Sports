@@ -1,4 +1,5 @@
 import type { EstadoCancha, EstadoReserva, TipoCancha } from './services/servicioCanchas'
+import type { EstadoPagoReserva } from './tipos'
 
 export const ESTADOS_CANCHA: EstadoCancha[] = ['OPERATIVA', 'EN_MANTENIMIENTO']
 export const ESTADOS_RESERVA: EstadoReserva[] = ['CONFIRMADA', 'CANCELADA', 'CUMPLIDA']
@@ -86,22 +87,45 @@ export function puedeCancelarse(
   )
 }
 
-export type SituacionReserva = 'proxima' | 'en-curso' | 'cumplida' | 'cancelada'
+// Las pestañas de "Mis reservas" (cada una pide un estado al servidor; Próximas, el de por defecto: confirmadas activas).
+export type PestanaReservas = 'proximas' | 'canceladas' | 'pasadas'
+export const PESTANAS_RESERVAS: PestanaReservas[] = ['proximas', 'canceladas', 'pasadas']
 
-export function situacionDeReserva(
-  reserva: { estado: EstadoReserva; fechaHoraInicio: string; fechaHoraFin: string },
-  ahora: Date = new Date(),
-): SituacionReserva {
-  if (reserva.estado === 'CANCELADA') return 'cancelada'
-  const instante = ahora.getTime()
-  if (instante >= new Date(reserva.fechaHoraFin).getTime()) return 'cumplida'
-  if (instante >= new Date(reserva.fechaHoraInicio).getTime()) return 'en-curso'
-  return 'proxima'
+export interface InsigniaPago {
+  texto: string
+  variante: 'exito' | 'advertencia' | 'neutra'
 }
 
-export const ETIQUETA_SITUACION: Record<SituacionReserva, string> = {
-  proxima: 'Próxima',
-  'en-curso': 'En curso',
-  cumplida: 'Cumplida',
-  cancelada: 'Cancelada',
+// La única insignia de la columna "Pago" de una reserva. La pestaña ya dice si la reserva es próxima, pasada o cancelada, así
+// que acá solo se dice si está paga: en Próximas "Pagada" o "Pendiente de pago"; en Pasadas y Canceladas "Pagada" o "Sin pago".
+// Null mientras no se sabe (se está consultando el pago o la consulta falló): no se afirma nada que no se sepa.
+export function insigniaDePago(pago: EstadoPagoReserva, pestana: PestanaReservas): InsigniaPago | null {
+  if (pago === 'pagada') return { texto: 'Pagada', variante: 'exito' }
+  if (pago !== 'pendiente') return null
+  return pestana === 'proximas'
+    ? { texto: 'Pendiente de pago', variante: 'advertencia' }
+    : { texto: 'Sin pago', variante: 'neutra' }
+}
+
+export type AccionReserva = 'pagar' | 'cancelar'
+
+export interface AccionDeReserva {
+  clave: AccionReserva
+  // Se ve pero no se puede elegir todavía (se está consultando el pago).
+  deshabilitada?: boolean
+}
+
+// Las acciones del menú de una reserva de Próximas: "Pagar" mientras no haya un pago aprobado (deshabilitada hasta saber si lo
+// hay) y "Cancelar" si el turno todavía no empezó. Puede no haber ninguna (turno en curso y ya pagado).
+export function accionesDeReserva(
+  reserva: { estado: EstadoReserva; fechaHoraInicio: string },
+  pago: EstadoPagoReserva,
+  ahora: Date = new Date(),
+): AccionDeReserva[] {
+  const acciones: AccionDeReserva[] = []
+  if (puedePagarse(reserva.estado) && pago !== 'pagada') {
+    acciones.push(pago === 'cargando' ? { clave: 'pagar', deshabilitada: true } : { clave: 'pagar' })
+  }
+  if (puedeCancelarse(reserva, ahora)) acciones.push({ clave: 'cancelar' })
+  return acciones
 }

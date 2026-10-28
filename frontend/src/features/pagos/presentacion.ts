@@ -54,6 +54,17 @@ export function formatearHora(iso: string): string {
   }).format(new Date(iso))
 }
 
-export function rangoDeTurno(inicio: string, fin: string): string {
-  return `${formatearFechaHora(inicio)} a ${formatearHora(fin)}`
+// "jueves 12 de noviembre", en la zona de la sede.
+export function formatearDia(iso: string): string {
+  return new Intl.DateTimeFormat('es-AR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'America/Argentina/Buenos_Aires',
+  }).format(new Date(iso))
+}
+
+// "18:00 a 19:00".
+export function rangoHorario(inicio: string, fin: string): string {
+  return `${formatearHora(inicio)} a ${formatearHora(fin)}`
 }

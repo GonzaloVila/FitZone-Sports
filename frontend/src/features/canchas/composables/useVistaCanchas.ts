@@ -1,5 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { sinParametrosDeVistaMisReservas } from '../direccion'
 
 export type VistaCanchas = 'canchas' | 'mis-reservas'
 
@@ -16,7 +17,8 @@ export function useVistaCanchas(tieneMisReservas: MaybeRefOrGetter<boolean>) {
     get: () => (toValue(tieneMisReservas) && route.query.vista === VISTA_MIS_RESERVAS ? VISTA_MIS_RESERVAS : 'canchas'),
     set: (nueva) => {
       if (nueva === vista.value) return
-      const query = { ...route.query }
+      // Lo propio de "Mis reservas" (pestaña, página, reserva a pagar) no pasa de una vista a la otra.
+      const query = sinParametrosDeVistaMisReservas(route.query)
       delete query.vista
       void router.push({ query: nueva === VISTA_MIS_RESERVAS ? { ...query, vista: VISTA_MIS_RESERVAS } : query })
     },

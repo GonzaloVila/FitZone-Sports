@@ -1,31 +1,45 @@
 import { describe, expect, it } from 'vitest'
-import { armarEtiquetasCanchas, etiquetaDeCancha } from './etiquetas'
+import { armarDatosDeCanchas, etiquetaDeCancha, sedeDeCancha } from './etiquetas'
 
-describe('armarEtiquetasCanchas', () => {
-  it('liga cada id con deporte + número, como en la lista de canchas', () => {
-    const etiquetas = armarEtiquetasCanchas([
-      { id: 2, tipo: 'FUTBOL5' },
-      { id: 7, tipo: 'PADDLE' },
-    ])
+const CANCHAS = [
+  { id: 2, tipo: 'FUTBOL5' as const, sedeId: 1 },
+  { id: 7, tipo: 'PADDLE' as const, sedeId: 3 },
+]
 
-    expect(etiquetas.get(2)).toBe('Fútbol 5 #2')
-    expect(etiquetas.get(7)).toBe('Paddle #7')
-    expect(etiquetas.size).toBe(2)
+describe('armarDatosDeCanchas', () => {
+  it('liga cada id con su etiqueta (deporte + número, como en la lista de canchas) y su sede', () => {
+    const datos = armarDatosDeCanchas(CANCHAS)
+
+    expect(datos.get(2)).toEqual({ etiqueta: 'Fútbol 5 #2', sedeId: 1 })
+    expect(datos.get(7)).toEqual({ etiqueta: 'Paddle #7', sedeId: 3 })
+    expect(datos.size).toBe(2)
   })
 
   it('sin canchas queda vacío', () => {
-    expect(armarEtiquetasCanchas([]).size).toBe(0)
+    expect(armarDatosDeCanchas([]).size).toBe(0)
   })
 })
 
 describe('etiquetaDeCancha', () => {
-  const etiquetas = armarEtiquetasCanchas([{ id: 2, tipo: 'FUTBOL5' }])
+  const datos = armarDatosDeCanchas(CANCHAS)
 
   it('usa la etiqueta del mapa', () => {
-    expect(etiquetaDeCancha(etiquetas, 2)).toBe('Fútbol 5 #2')
+    expect(etiquetaDeCancha(datos, 2)).toBe('Fútbol 5 #2')
   })
 
   it('si la cancha no aparece cae a "Cancha #N"', () => {
-    expect(etiquetaDeCancha(etiquetas, 9)).toBe('Cancha #9')
+    expect(etiquetaDeCancha(datos, 9)).toBe('Cancha #9')
+  })
+})
+
+describe('sedeDeCancha', () => {
+  const datos = armarDatosDeCanchas(CANCHAS)
+
+  it('devuelve la sede de la cancha', () => {
+    expect(sedeDeCancha(datos, 7)).toBe(3)
+  })
+
+  it('si la cancha no aparece no sabe cuál es', () => {
+    expect(sedeDeCancha(datos, 9)).toBeNull()
   })
 })

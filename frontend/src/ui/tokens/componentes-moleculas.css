@@ -143,4 +143,15 @@
   --fz-campo-formulario-sufijo-margen: 0.25rem;
   --fz-campo-formulario-etiqueta-texto-chica: var(--fz-texto-minimo);
   --fz-campo-formulario-obligatorio-color: var(--fz-color-peligro);
+
+  /* ---- Lista de datos: pares etiqueta / valor (molécula) ---- */
+  --fz-lista-datos-separacion-x: var(--fz-espaciado-base);
+  --fz-lista-datos-separacion-y: var(--fz-espaciado-compacto);
+  --fz-lista-datos-etiqueta-texto: var(--fz-texto-cuerpo);
+  --fz-lista-datos-etiqueta-color: var(--fz-color-texto-suave);
+  --fz-lista-datos-valor-texto: var(--fz-texto-cuerpo);
+  --fz-lista-datos-valor-peso: var(--fz-peso-normal);
+  --fz-lista-datos-valor-color: var(--fz-color-texto);
+  --fz-lista-datos-destacado-texto: var(--fz-texto-subtitulo);
+  --fz-lista-datos-destacado-peso: var(--fz-peso-enfasis);
 }

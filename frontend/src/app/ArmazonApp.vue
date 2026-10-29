@@ -83,7 +83,7 @@ async function cerrarSesion() {
 <template>
   <PlantillaAppFz :disposicion="disposicion">
     <template #encabezado>
-      <MarcaFz :nombre="NOMBRE_APP" :descripcion="lateral ? (perfil.nombreSede.value ?? undefined) : undefined" />
+      <MarcaFz :nombre="NOMBRE_APP" :descripcion="lateral ? (perfil.nombreSede.value ?? undefined) : undefined" logo-url="/logofzsvg.svg" />
     </template>
 
     <template v-if="grupos.length > 0" #navegacion>

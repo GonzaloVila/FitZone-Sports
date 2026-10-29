@@ -9,7 +9,7 @@ const { iniciarSesion, cargando, error } = useIniciarSesion()
 <template>
   <PlantillaCentradaFz titulo="Iniciar sesión" subtitulo="Ingresá tus credenciales para acceder.">
     <template #marca>
-      <MarcaFz nombre="FitZone Sports" descripcion="Gestión de Clubes y Sedes Deportivas" />
+      <MarcaFz nombre="FitZone Sports" descripcion="Gestión de Clubes y Sedes Deportivas" logo-url="/logofzsvg.svg" />
     </template>
     <FormularioLogin :cargando="cargando" :error="error ?? undefined" @enviar="iniciarSesion" />
   </PlantillaCentradaFz>

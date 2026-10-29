@@ -6,6 +6,8 @@ const props = defineProps<{
   descripcion?: string
   // Letra del cuadradito. Por defecto, la primera del nombre.
   inicial?: string
+  // Ruta a imagen de logo opcional. Si se define, se muestra la imagen en lugar de la inicial.
+  logoUrl?: string
 }>()
 
 const letra = computed(() => (props.inicial ?? props.nombre).charAt(0).toUpperCase())
@@ -13,7 +15,10 @@ const letra = computed(() => (props.inicial ?? props.nombre).charAt(0).toUpperCa
 
 <template>
   <div class="marca">
-    <span class="marca__logo" aria-hidden="true">{{ letra }}</span>
+    <span v-if="logoUrl" class="marca__logo-custom" aria-hidden="true">
+      <img :src="logoUrl" alt="" class="marca__logo-custom-img" />
+    </span>
+    <span v-else class="marca__logo" aria-hidden="true">{{ letra }}</span>
     <span class="marca__nombre">{{ nombre }}</span>
     <!-- Alineada con el nombre, no con el cuadradito; si no entra, se trunca (el title tiene el texto completo). -->
     <span v-if="descripcion" class="marca__descripcion" :title="descripcion">{{ descripcion }}</span>
@@ -40,6 +45,23 @@ const letra = computed(() => (props.inicial ?? props.nombre).charAt(0).toUpperCa
   font-size: var(--fz-marca-logo-texto-tamano);
   font-weight: var(--fz-marca-logo-peso);
   line-height: 1;
+}
+
+.marca__logo-custom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  width: auto;
+  line-height: 1;
+}
+
+.marca__logo-custom-img {
+  height: 100%;
+  width: auto;
+  max-width: 2.75rem;
+  object-fit: contain;
+  display: block;
 }
 
 .marca__nombre {

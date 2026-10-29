@@ -23,6 +23,14 @@ describe('MarcaFz', () => {
     expect(wrapper.get('.marca__logo').attributes('aria-hidden')).toBe('true')
   })
 
+  it('renderiza la imagen del logo si se provee logoUrl', () => {
+    const wrapper = mount(MarcaFz, { props: { nombre: 'FitZone', logoUrl: '/logofzsvg.svg' } })
+
+    const img = wrapper.find('.marca__logo-custom-img')
+    expect(img.exists()).toBe(true)
+    expect(img.attributes('src')).toBe('/logofzsvg.svg')
+  })
+
   it('la descripción es opcional y lleva el texto completo en el title', () => {
     const sin = mount(MarcaFz, { props: { nombre: 'FitZone' } })
     const con = mount(MarcaFz, { props: { nombre: 'FitZone', descripcion: 'Sede Centro' } })

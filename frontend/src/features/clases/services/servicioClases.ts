@@ -13,7 +13,8 @@ export type EstadoEspera = components['schemas']['EstadoEspera']
 
 // Filtros con los nombres exactos de los parámetros del contrato.
 type QueryListarClases = NonNullable<operations['listarClases']['parameters']['query']>
-export type FiltrosClases = Pick<QueryListarClases, 'tipo' | 'sedeId'>
+export type FiltrosClases = Pick<QueryListarClases, 'tipo' | 'sedeId' | 'estado'>
+export type EstadoClaseFiltro = NonNullable<QueryListarClases['estado']>
 
 type QueryListarReservas = NonNullable<operations['listarReservasClase']['parameters']['query']>
 export type FiltrosReservasClase = Pick<QueryListarReservas, 'claseId' | 'socioId' | 'estado'>

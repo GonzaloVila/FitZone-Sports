@@ -1,4 +1,4 @@
-import type { Clase, EstadoEspera, EstadoReservaClase } from './services/servicioClases'
+import type { Clase, EstadoClaseFiltro, EstadoEspera, EstadoReservaClase } from './services/servicioClases'
 
 // Cómo se muestran los valores del contrato. Record<...> obliga a actualizar esto si el contrato agrega uno.
 export const ETIQUETAS_ESTADO_RESERVA: Record<EstadoReservaClase, string> = {
@@ -56,11 +56,19 @@ export interface EstadoClase {
   variante: 'neutra' | 'exito' | 'peligro'
 }
 
-// El estado sale de los cupos que informa el servidor y del horario de inicio.
+// Los estados de una clase (los del filtro `estado` del contrato) y cómo se llaman en pantalla, en el orden del selector.
+export const ESTADOS_CLASE: EstadoClaseFiltro[] = ['CON_CUPOS', 'SIN_CUPOS', 'COMENZADA']
+export const ETIQUETAS_ESTADO_CLASE: Record<EstadoClaseFiltro, string> = {
+  CON_CUPOS: 'Con cupos',
+  SIN_CUPOS: 'Sin cupos',
+  COMENZADA: 'Comenzada',
+}
+
+// El estado sale de los cupos que informa el servidor y del horario de inicio (el mismo criterio del filtro `estado`).
 export function estadoDeClase(clase: Pick<Clase, 'horarioInicio' | 'cupoDisponible'>, ahora: number = Date.now()): EstadoClase {
-  if (new Date(clase.horarioInicio).getTime() <= ahora) return { etiqueta: 'Comenzada', variante: 'neutra' }
-  if (clase.cupoDisponible <= 0) return { etiqueta: 'Sin cupos', variante: 'peligro' }
-  return { etiqueta: 'Con cupos', variante: 'exito' }
+  if (new Date(clase.horarioInicio).getTime() <= ahora) return { etiqueta: ETIQUETAS_ESTADO_CLASE.COMENZADA, variante: 'neutra' }
+  if (clase.cupoDisponible <= 0) return { etiqueta: ETIQUETAS_ESTADO_CLASE.SIN_CUPOS, variante: 'peligro' }
+  return { etiqueta: ETIQUETAS_ESTADO_CLASE.CON_CUPOS, variante: 'exito' }
 }
 
 const FORMATO_MONTO =new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' })

@@ -45,12 +45,26 @@ describe('Mis clases en la dirección', () => {
 })
 
 describe('leerConsultaAgenda', () => {
-  it('sin parámetros: sin filtro de disciplina, sede por defecto (null) y página 1', () => {
-    expect(leerConsultaAgenda({})).toEqual({ tipo: '', sede: null, pagina: 1 })
+  it('sin parámetros: sin filtro de disciplina ni de estado, sede por defecto (null) y página 1', () => {
+    expect(leerConsultaAgenda({})).toEqual({ tipo: '', sede: null, estado: '', pagina: 1 })
   })
 
-  it('lee disciplina, sede y página', () => {
-    expect(leerConsultaAgenda({ tipo: ' Yoga ', sede: '3', pagina: '2' })).toEqual({ tipo: 'Yoga', sede: '3', pagina: 2 })
+  it('lee disciplina, sede, estado y página', () => {
+    expect(leerConsultaAgenda({ tipo: ' Yoga ', sede: '3', estado: 'SIN_CUPOS', pagina: '2' })).toEqual({
+      tipo: 'Yoga',
+      sede: '3',
+      estado: 'SIN_CUPOS',
+      pagina: 2,
+    })
+  })
+
+  it('lee cada estado de clase; uno desconocido (o en minúsculas) se ignora como si no estuviera', () => {
+    for (const estado of ['CON_CUPOS', 'SIN_CUPOS', 'COMENZADA']) {
+      expect(leerConsultaAgenda({ estado }).estado).toBe(estado)
+    }
+    for (const estado of ['CANCELADA', 'con_cupos', '', ' COMENZADA']) {
+      expect(leerConsultaAgenda({ estado }).estado, estado).toBe('')
+    }
   })
 
   it('"todas" es una elección explícita y se distingue de la ausencia', () => {
@@ -71,30 +85,35 @@ describe('leerConsultaAgenda', () => {
   })
 
   it('un parámetro repetido vale como el primero y uno que no es texto se ignora', () => {
-    expect(leerConsultaAgenda({ sede: ['4', '5'], pagina: ['3'] })).toEqual({ tipo: '', sede: '4', pagina: 3 })
-    expect(leerConsultaAgenda({ tipo: null, sede: [null], pagina: 7 })).toEqual({ tipo: '', sede: null, pagina: 1 })
+    expect(leerConsultaAgenda({ sede: ['4', '5'], pagina: ['3'] })).toEqual({ tipo: '', sede: '4', estado: '', pagina: 3 })
+    expect(leerConsultaAgenda({ tipo: null, sede: [null], pagina: 7 })).toEqual({ tipo: '', sede: null, estado: '', pagina: 1 })
   })
 })
 
 describe('parametrosDeConsulta', () => {
   it('sin filtros no escribe nada', () => {
-    expect(parametrosDeConsulta({ tipo: '', sede: null, pagina: 1 })).toEqual({})
+    expect(parametrosDeConsulta({ tipo: '', sede: null, estado: '', pagina: 1 })).toEqual({})
   })
 
   it('escribe solo lo que se aparta del valor por defecto', () => {
-    expect(parametrosDeConsulta({ tipo: ' Yoga ', sede: '3', pagina: 2 })).toEqual({ tipo: 'Yoga', sede: '3', pagina: '2' })
-    expect(parametrosDeConsulta({ tipo: '', sede: null, pagina: 4 })).toEqual({ pagina: '4' })
+    expect(parametrosDeConsulta({ tipo: ' Yoga ', sede: '3', estado: 'CON_CUPOS', pagina: 2 })).toEqual({
+      tipo: 'Yoga',
+      sede: '3',
+      estado: 'CON_CUPOS',
+      pagina: '2',
+    })
+    expect(parametrosDeConsulta({ tipo: '', sede: null, estado: '', pagina: 4 })).toEqual({ pagina: '4' })
   })
 
   it('"todas las sedes" se escribe como sede=todas', () => {
-    expect(parametrosDeConsulta({ tipo: '', sede: '', pagina: 1 })).toEqual({ sede: 'todas' })
+    expect(parametrosDeConsulta({ tipo: '', sede: '', estado: '', pagina: 1 })).toEqual({ sede: 'todas' })
   })
 
   it('ida y vuelta: lo que se escribe se lee igual', () => {
     const consultas = [
-      { tipo: 'Spinning', sede: '2', pagina: 3 },
-      { tipo: '', sede: '', pagina: 1 },
-      { tipo: 'Yoga', sede: null, pagina: 1 },
+      { tipo: 'Spinning', sede: '2', estado: 'COMENZADA', pagina: 3 },
+      { tipo: '', sede: '', estado: '', pagina: 1 },
+      { tipo: 'Yoga', sede: null, estado: 'SIN_CUPOS', pagina: 1 },
     ]
     for (const consulta of consultas) {
       expect(leerConsultaAgenda(parametrosDeConsulta(consulta))).toEqual(consulta)
@@ -104,7 +123,7 @@ describe('parametrosDeConsulta', () => {
 
 describe('sinParametrosDeAgenda', () => {
   it('quita los de la agenda y conserva los demás (la vista, por ejemplo)', () => {
-    expect(sinParametrosDeAgenda({ vista: 'mis-clases', tipo: 'Yoga', sede: '3', pagina: '2' })).toEqual({
+    expect(sinParametrosDeAgenda({ vista: 'mis-clases', tipo: 'Yoga', sede: '3', estado: 'CON_CUPOS', pagina: '2' })).toEqual({
       vista: 'mis-clases',
     })
   })
@@ -112,13 +131,14 @@ describe('sinParametrosDeAgenda', () => {
 
 describe('parametros de los enlaces al detalle', () => {
   it('desde la agenda lleva el origen y los filtros', () => {
-    expect(parametrosDesdeAgenda({ tipo: 'Yoga', sede: '', pagina: 2 })).toEqual({
+    expect(parametrosDesdeAgenda({ tipo: 'Yoga', sede: '', estado: 'SIN_CUPOS', pagina: 2 })).toEqual({
       desde: 'agenda',
       tipo: 'Yoga',
       sede: 'todas',
+      estado: 'SIN_CUPOS',
       pagina: '2',
     })
-    expect(parametrosDesdeAgenda({ tipo: '', sede: null, pagina: 1 })).toEqual({ desde: 'agenda' })
+    expect(parametrosDesdeAgenda({ tipo: '', sede: null, estado: '', pagina: 1 })).toEqual({ desde: 'agenda' })
   })
 
   it('desde "Mis clases" lleva solo el origen', () => {

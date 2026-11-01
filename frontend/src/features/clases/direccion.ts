@@ -9,6 +9,7 @@ import {
   type ConsultaCruda,
   type Parametros,
 } from '@/compartido/parametrosDeDireccion'
+import { ESTADOS_CLASE } from './presentacion'
 
 // ---- Agenda: filtros y página ----
 
@@ -18,14 +19,18 @@ export interface ConsultaAgenda {
   tipo: string
   // null = el parámetro no está (la sede por defecto); '' = todas las sedes elegidas a propósito; si no, el id como texto.
   sede: string | null
+  // Un estado de clase (CON_CUPOS, SIN_CUPOS o COMENZADA), o '' = todos los estados.
+  estado: string
   pagina: number
 }
 
 export function leerConsultaAgenda(query: ConsultaCruda): ConsultaAgenda {
   const sede = textoDe(query, 'sede')
+  const estado = textoDe(query, 'estado')
   return {
     tipo: textoDe(query, 'tipo')?.trim() ?? '',
     sede: sede === SEDE_TODAS ? '' : sede !== null && esEnteroPositivo(sede) ? sede : null,
+    estado: ESTADOS_CLASE.find((valor) => valor === estado) ?? '',
     pagina: paginaDe(query),
   }
 }
@@ -36,6 +41,7 @@ export function parametrosDeConsulta(consulta: ConsultaAgenda): Parametros {
   const tipo = consulta.tipo.trim()
   if (tipo) parametros.tipo = tipo
   if (consulta.sede !== null) parametros.sede = consulta.sede === '' ? SEDE_TODAS : consulta.sede
+  if (consulta.estado) parametros.estado = consulta.estado
   if (consulta.pagina > 1) parametros.pagina = String(consulta.pagina)
   return parametros
 }
@@ -45,6 +51,7 @@ export function sinParametrosDeAgenda<T extends ConsultaCruda>(query: T): Partia
   const resto: Partial<T> = { ...query }
   delete resto.tipo
   delete resto.sede
+  delete resto.estado
   delete resto.pagina
   return resto
 }

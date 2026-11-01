@@ -106,7 +106,13 @@ const altaAbierta = ref(false)
     <VistaMisClases v-if="!enAgenda" />
 
     <template v-else>
-      <FiltrosClases v-model:tipo="filtros.tipo" v-model:sede="filtros.sede" :sedes="sedes" :sede-fija="sedeFija" />
+      <FiltrosClases
+        v-model:tipo="filtros.tipo"
+        v-model:sede="filtros.sede"
+        v-model:estado="filtros.estado"
+        :sedes="sedes"
+        :sede-fija="sedeFija"
+      />
 
       <AvisoFz v-if="errorSedes" variante="advertencia">{{ errorSedes }}</AvisoFz>
       <AvisoFz v-if="error" variante="peligro">{{ error }}</AvisoFz>

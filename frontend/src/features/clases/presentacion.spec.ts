@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { estadoDeClase } from './presentacion'
+import { ESTADOS_CLASE, ETIQUETAS_ESTADO_CLASE, estadoDeClase } from './presentacion'
 
 const AHORA = new Date('2026-05-04T12:00:00-03:00').getTime()
+
+describe('estados de clase del filtro', () => {
+  it('tienen la misma etiqueta que muestra la tabla para ese estado', () => {
+    expect(ESTADOS_CLASE.map((estado) => ETIQUETAS_ESTADO_CLASE[estado])).toEqual(['Con cupos', 'Sin cupos', 'Comenzada'])
+  })
+})
 
 describe('estadoDeClase', () => {
   it('una clase que ya empezó figura como comenzada, aunque tenga cupos', () => {

@@ -10,12 +10,13 @@ import {
   sinParametrosDeAgenda,
   type ConsultaAgenda,
 } from '../direccion'
+import { ESTADOS_CLASE } from '../presentacion'
 import type { FiltrosClases, Clase } from '../services/servicioClases'
 
 export const POR_PAGINA_CLASES = 10
 const ESPERA_BUSQUEDA_MS = 300
 
-// Los filtros (disciplina y sede) y la página viven en la dirección, junto con la vista: sobreviven a ir al detalle y volver,
+// Los filtros (disciplina, sede y estado) y la página viven en la dirección, junto con la vista: sobreviven a ir al detalle y volver,
 // a recargar y a compartir el enlace. Cada cambio reemplaza la entrada del historial (Atrás no recorre cada selección).
 // Un parámetro ausente es el valor por defecto: "Todas las sedes" para el GERENTE y el SOCIO, y la sede del token para el
 // RECEPCION (fija, sin selector). `sedePorDefecto` solo lo pasa la pantalla para un RECEPCION sin sede en el token (su sede
@@ -74,6 +75,10 @@ export function useAgendaClases(sedePorDefecto?: MaybeRefOrGetter<number | null>
       get: () => sede.value,
       set: (valor: string) => actualizar({ sede: valor, pagina: 1 }),
     }),
+    estado: computed({
+      get: () => consulta.value.estado,
+      set: (valor: string) => actualizar({ estado: valor, pagina: 1 }),
+    }),
   })
   const pagina = computed({
     get: () => consulta.value.pagina,
@@ -95,6 +100,8 @@ export function useAgendaClases(sedePorDefecto?: MaybeRefOrGetter<number | null>
     return {
       tipo: consulta.value.tipo || undefined,
       sedeId: sede.value && Number.isInteger(id) ? id : undefined,
+      // "Todos los estados" ('') no manda el parámetro.
+      estado: ESTADOS_CLASE.find((valor) => valor === consulta.value.estado),
     }
   }
 
@@ -130,8 +137,8 @@ export function useAgendaClases(sedePorDefecto?: MaybeRefOrGetter<number | null>
     }
   }
 
-  // Cualquier cambio de lo que se pide (disciplina, sede, página) vuelve a consultar.
-  watch([() => consulta.value.tipo, sede, () => consulta.value.pagina], () => void cargar())
+  // Cualquier cambio de lo que se pide (disciplina, sede, estado, página) vuelve a consultar.
+  watch([() => consulta.value.tipo, sede, () => consulta.value.estado, () => consulta.value.pagina], () => void cargar())
 
   onScopeDispose(() => {
     clearTimeout(temporizador)

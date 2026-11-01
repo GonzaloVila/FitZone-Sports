@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Sede } from '@/features/sedes/services/servicioSedes'
 import { CampoTextoFz, SelectFz } from '@/ui'
+import { ESTADOS_CLASE, ETIQUETAS_ESTADO_CLASE } from '../presentacion'
 
 defineProps<{
   sedes: Sede[]
@@ -10,6 +11,7 @@ defineProps<{
 
 const tipo = defineModel<string>('tipo', { required: true })
 const sede = defineModel<string>('sede', { required: true })
+const estado = defineModel<string>('estado', { required: true })
 </script>
 
 <template>
@@ -30,6 +32,13 @@ const sede = defineModel<string>('sede', { required: true })
       <SelectFz v-model="sede" name="sede" aria-label="Sede">
         <option value="">Todas las sedes</option>
         <option v-for="opcion in sedes" :key="opcion.id" :value="String(opcion.id)">{{ opcion.nombre }}</option>
+      </SelectFz>
+    </div>
+
+    <div class="filtros__select">
+      <SelectFz v-model="estado" name="estado" aria-label="Estado de la clase">
+        <option value="">Todos los estados</option>
+        <option v-for="valor in ESTADOS_CLASE" :key="valor" :value="valor">{{ ETIQUETAS_ESTADO_CLASE[valor] }}</option>
       </SelectFz>
     </div>
   </div>

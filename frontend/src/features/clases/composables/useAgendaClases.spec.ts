@@ -164,6 +164,61 @@ describe('useAgendaClases', () => {
       detener()
     })
 
+    it('sin estado en la dirección ("Todos los estados") no manda el parámetro `estado`', async () => {
+      const { filtros, detener } = armar()
+      await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
+
+      expect(filtros.estado).toBe('')
+      expect(mocks.listar.mock.calls.at(-1)?.[0].estado).toBeUndefined()
+      detener()
+    })
+
+    it('arranca con el estado de la dirección y lo manda al servicio', async () => {
+      mocks.route.query = { estado: 'SIN_CUPOS' }
+      const { filtros, detener } = armar()
+      await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
+
+      expect(filtros.estado).toBe('SIN_CUPOS')
+      expect(mocks.listar).toHaveBeenCalledWith({ tipo: undefined, sedeId: undefined, estado: 'SIN_CUPOS' }, 1, 10, expect.anything())
+      detener()
+    })
+
+    it('elegir un estado reemplaza la dirección, vuelve a la página 1 y consulta con ese estado', async () => {
+      mocks.route.query = { pagina: '3' }
+      const { filtros, detener } = armar()
+      await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
+
+      filtros.estado = 'CON_CUPOS'
+
+      expect(ultimoReplace()).toEqual({ query: { estado: 'CON_CUPOS' } })
+      await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(2))
+      expect(mocks.listar).toHaveBeenLastCalledWith({ tipo: undefined, sedeId: undefined, estado: 'CON_CUPOS' }, 1, 10, expect.anything())
+      detener()
+    })
+
+    it('volver a "Todos los estados" saca el parámetro de la dirección y de la consulta', async () => {
+      mocks.route.query = { estado: 'COMENZADA' }
+      const { filtros, detener } = armar()
+      await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
+
+      filtros.estado = ''
+
+      expect(ultimoReplace()).toEqual({ query: {} })
+      await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(2))
+      expect(mocks.listar.mock.calls.at(-1)?.[0].estado).toBeUndefined()
+      detener()
+    })
+
+    it('un estado desconocido en la dirección se ignora y no se manda', async () => {
+      mocks.route.query = { estado: 'CANCELADA' }
+      const { filtros, detener } = armar()
+      await vi.waitFor(() => expect(mocks.listar).toHaveBeenCalledTimes(1))
+
+      expect(filtros.estado).toBe('')
+      expect(mocks.listar.mock.calls.at(-1)?.[0].estado).toBeUndefined()
+      detener()
+    })
+
     it('cambiar de página reemplaza la dirección y consulta esa página', async () => {
       mocks.listar.mockResolvedValue({ items: [], total: 35 })
       const { pagina, detener } = armar()

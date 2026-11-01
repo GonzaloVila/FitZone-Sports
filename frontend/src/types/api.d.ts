@@ -478,7 +478,7 @@ export interface paths {
         };
         /**
          * Listado de clases con filtros
-         * @description Filtrado por tipo y/o sede (lista blanca de parámetros) y paginación.
+         * @description Filtrado por tipo, sede y/o estado (lista blanca de parámetros) y paginación.
          */
         get: operations["listarClases"];
         put?: never;
@@ -664,7 +664,7 @@ export interface paths {
         put?: never;
         /**
          * Cancelar un cupo de clase (RF-07)
-         * @description Cancela un cupo confirmado. Hasta 2 horas antes del inicio de la clase la cancelación es sin penalidad. Dentro de esas 2 horas se permite igual, pero se cobra una penalidad del 50% del valor nominal de la clase (se registra como un Pago con concepto RESERVA_CLASE a nombre del socio que cancela). Una reserva inexistente responde 404; una ya cancelada se resuelve idempotente (204). Una reserva cuya clase ya comenzó (estado efectivo CUMPLIDA) responde 409 `ReservaClasePasada`. El cupo liberado se notifica a la lista de espera (RF-08) en la Unidad III.
+         * @description Cancela un cupo confirmado. Hasta 2 horas antes del inicio de la clase la cancelación es sin penalidad. Dentro de esas 2 horas se permite igual, pero se cobra una penalidad del 50% de un valor nominal interno fijo (las clases no tienen precio propio), que se registra como un Pago con concepto RESERVA_CLASE a nombre del socio que cancela. Una reserva inexistente responde 404; una ya cancelada se resuelve idempotente (204). Una reserva cuya clase ya comenzó (estado efectivo CUMPLIDA) responde 409 `ReservaClasePasada`. El cupo liberado se notifica a la lista de espera (RF-08) en la Unidad III.
          */
         post: operations["cancelarReservaClase"];
         delete?: never;
@@ -3101,6 +3101,8 @@ export interface operations {
                 tipo?: string;
                 /** @description ID numérico de la sede */
                 sedeId?: number;
+                /** @description Estado de la clase: COMENZADA (ya empezó), SIN_CUPOS (todavía no empezó y no quedan cupos) o CON_CUPOS (todavía no empezó y quedan cupos). Sin este parámetro devuelve las clases en cualquier estado. */
+                estado?: "CON_CUPOS" | "SIN_CUPOS" | "COMENZADA";
                 page?: components["parameters"]["Page"];
                 perPage?: components["parameters"]["PerPage"];
             };

@@ -17,11 +17,11 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ comprobante: [pago: Pago]; anular: [pago: Pago] }>()
 
-// Fecha, Monto y Estado ocupan lo justo; Usuario y Concepto se reparten el resto del ancho.
+// Una sola columna se reparte el ancho sobrante, la que identifica la fila (Usuario, o Concepto en "Mis pagos"); las demás ocupan lo justo.
 const columnas = computed<ColumnaTabla[]>(() => [
   ...(props.mostrarUsuario ? [{ clave: 'usuario', etiqueta: 'Usuario' }] : []),
   { clave: 'fecha', etiqueta: 'Fecha', ajustada: true },
-  { clave: 'concepto', etiqueta: 'Concepto' },
+  { clave: 'concepto', etiqueta: 'Concepto', ajustada: props.mostrarUsuario },
   { clave: 'estado', etiqueta: 'Estado', ajustada: true },
   { clave: 'monto', etiqueta: 'Monto', ajustada: true, alineacion: 'fin' as const },
   { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' as const },

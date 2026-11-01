@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter, type RouteMeta } from 'vue-router'
+import { RUTA_LOGO } from '@/compartido/marca'
 import { usePerfilSesion } from '@/features/sesion/composables/usePerfilSesion'
 import { rolPermitido } from '@/features/sesion/acceso'
 import { etiquetaRol } from '@/features/sesion/presentacion'
@@ -83,7 +84,7 @@ async function cerrarSesion() {
 <template>
   <PlantillaAppFz :disposicion="disposicion">
     <template #encabezado>
-      <MarcaFz :nombre="NOMBRE_APP" :descripcion="lateral ? (perfil.nombreSede.value ?? undefined) : undefined" logo-url="/logofzsvg.svg" />
+      <MarcaFz :nombre="NOMBRE_APP" :descripcion="lateral ? (perfil.nombreSede.value ?? undefined) : undefined" :logo-url="RUTA_LOGO" />
     </template>
 
     <template v-if="grupos.length > 0" #navegacion>

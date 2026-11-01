@@ -20,9 +20,9 @@ const router = useRouter()
 
 const columnas: ColumnaTabla[] = [
   { clave: 'tipo', etiqueta: 'Clase', encabezadoFila: true },
-  { clave: 'horario', etiqueta: 'Horario' },
-  { clave: 'instructor', etiqueta: 'Instructor' },
-  { clave: 'sede', etiqueta: 'Sede' },
+  { clave: 'horario', etiqueta: 'Horario', ajustada: true },
+  { clave: 'instructor', etiqueta: 'Instructor', ajustada: true },
+  { clave: 'sede', etiqueta: 'Sede', ajustada: true },
   { clave: 'cupos', etiqueta: 'Cupos libres', ajustada: true },
   { clave: 'estado', etiqueta: 'Estado', ajustada: true },
   { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' },

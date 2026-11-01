@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RUTA_LOGO } from '@/compartido/marca'
 import { MarcaFz, PlantillaCentradaFz } from '@/ui'
 import FormularioLogin from '../components/FormularioLogin.vue'
 import { useIniciarSesion } from '../composables/useIniciarSesion'
@@ -9,7 +10,7 @@ const { iniciarSesion, cargando, error } = useIniciarSesion()
 <template>
   <PlantillaCentradaFz titulo="Iniciar sesión" subtitulo="Ingresá tus credenciales para acceder.">
     <template #marca>
-      <MarcaFz nombre="FitZone Sports" descripcion="Gestión de Clubes y Sedes Deportivas" logo-url="/logofzsvg.svg" />
+      <MarcaFz nombre="FitZone Sports" descripcion="Gestión de Clubes y Sedes Deportivas" :logo-url="RUTA_LOGO" />
     </template>
     <FormularioLogin :cargando="cargando" :error="error ?? undefined" @enviar="iniciarSesion" />
   </PlantillaCentradaFz>

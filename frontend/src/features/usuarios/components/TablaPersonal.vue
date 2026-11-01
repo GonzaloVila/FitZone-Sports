@@ -11,7 +11,7 @@ defineProps<{
 const columnas: ColumnaTabla[] = [
   { clave: 'nombre', etiqueta: 'Nombre y apellido', encabezadoFila: true },
   { clave: 'dni', etiqueta: 'DNI', ajustada: true },
-  { clave: 'email', etiqueta: 'Correo' },
+  { clave: 'email', etiqueta: 'Correo', ajustada: true },
   { clave: 'sede', etiqueta: 'Sede de trabajo', ajustada: true },
 ]
 

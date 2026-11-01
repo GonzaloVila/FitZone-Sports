@@ -50,6 +50,8 @@
   --fz-marca-logo-texto-tamano: var(--fz-texto-minimo);
   --fz-marca-logo-peso: var(--fz-peso-enfasis);
   --fz-marca-logo-radio: var(--fz-radio-control);
+  --fz-marca-logo-imagen-alto: 1.75rem;
+  --fz-marca-logo-imagen-ancho-max: 2.75rem;
   --fz-marca-nombre-texto: var(--fz-texto-cuerpo);
   --fz-marca-nombre-peso: var(--fz-peso-enfasis);
   --fz-marca-nombre-color: var(--fz-color-texto);

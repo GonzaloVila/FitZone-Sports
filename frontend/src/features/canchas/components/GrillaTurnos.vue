@@ -24,8 +24,8 @@ const VARIANTE = { libre: 'exito', ocupado: 'advertencia' } as const
 
 const columnas = computed<ColumnaTabla[]>(() => [
   { clave: 'horario', etiqueta: 'Horario', encabezadoFila: true },
-  { clave: 'estado', etiqueta: 'Estado' },
-  ...(props.reservantes ? [{ clave: 'reservo', etiqueta: 'Reservó' }] : []),
+  { clave: 'estado', etiqueta: 'Estado', ajustada: true },
+  ...(props.reservantes ? [{ clave: 'reservo', etiqueta: 'Reservó', ajustada: true }] : []),
   ...(props.puedeReservar ? [{ clave: 'accion', etiqueta: 'Reserva', ajustada: true, alineacion: 'fin' as const }] : []),
 ])
 

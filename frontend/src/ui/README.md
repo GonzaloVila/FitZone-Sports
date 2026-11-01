@@ -299,6 +299,7 @@ Cuadradito oscuro con la inicial, el nombre y, si hay, una descripción debajo (
 | `nombre` | `string` | Obligatoria |
 | `descripcion` | `string` | Opcional |
 | `inicial` | `string` | Opcional; por defecto, la primera letra del `nombre` |
+| `logoUrl` | `string` | Opcional; ruta de una imagen que reemplaza al cuadradito con la inicial (decorativa; el kit no sabe qué imagen es) |
 
 ```vue
 <PlantillaCentradaFz titulo="Iniciar sesión" subtitulo="Ingresá tus credenciales para acceder.">
@@ -396,7 +397,7 @@ Todas opcionales y aditivas; sin ellas la columna se comporta como siempre.
 
 | Opción | Efecto |
 | --- | --- |
-| `ajustada` | La columna ocupa lo justo para su contenido; el espacio sobrante va a las columnas que no lo son |
+| `ajustada` | La columna ocupa lo justo para su contenido; el espacio sobrante va a las columnas que no lo son. Regla de las tablas: una sola columna flexible (la que identifica la fila), el resto `ajustada`, y los importes con `alineacion: 'fin'` |
 | `alineacion` | `'inicio'` (por defecto), `'centro'` o `'fin'`, para el encabezado y las celdas |
 | `encabezadoEnLineas` | El encabezado puede partirse en varias líneas, balanceadas (por defecto va en una sola) |
 | `conDivisor` | El encabezado y todas las celdas de la columna llevan una línea vertical en su borde inicial (`border-inline-start`, con `--fz-tabla-borde` y `--fz-tabla-borde-ancho`, como las líneas de fila), continua de arriba a abajo. Las tablas con acciones la usan en la columna "Acciones" para separarla del resto. Por defecto no hay línea |

@@ -23,13 +23,13 @@ const emit = defineEmits<{ editar: [cancha: Cancha] }>()
 const router = useRouter()
 
 // Convención de las tablas: las acciones de la fila son botones de solo ícono (hasta 2 acciones posibles), en una columna con
-// su encabezado "Acciones" y separada del resto por una línea vertical; el nombre es texto simple. Solo la última columna es ajustada (ocupa lo que necesita): las
-// demás se reparten el resto del ancho, así Estado y Precio base no quedan empujadas contra el borde derecho.
+// su encabezado "Acciones" y separada del resto por una línea vertical; el nombre es texto simple. Solo Deporte (la que identifica la
+// fila) se reparte el ancho sobrante: las demás son ajustadas (ocupan lo que necesitan) y el precio va alineado al final.
 const columnas = computed<ColumnaTabla[]>(() => [
   { clave: 'tipo', etiqueta: 'Deporte', encabezadoFila: true },
-  ...(props.mostrarSede ? [{ clave: 'sede', etiqueta: 'Sede' }] : []),
-  { clave: 'estado', etiqueta: 'Estado' },
-  { clave: 'costo', etiqueta: 'Precio base por hora' },
+  ...(props.mostrarSede ? [{ clave: 'sede', etiqueta: 'Sede', ajustada: true }] : []),
+  { clave: 'estado', etiqueta: 'Estado', ajustada: true },
+  { clave: 'costo', etiqueta: 'Precio por hora', ajustada: true, alineacion: 'fin' as const },
   { clave: 'acciones', etiqueta: 'Acciones', conDivisor: true, ajustada: true, alineacion: 'centro' },
 ])
 

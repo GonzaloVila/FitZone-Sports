@@ -51,7 +51,7 @@ const letra = computed(() => (props.inicial ?? props.nombre).charAt(0).toUpperCa
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 1.75rem;
+  height: var(--fz-marca-logo-imagen-alto);
   width: auto;
   line-height: 1;
 }
@@ -59,7 +59,7 @@ const letra = computed(() => (props.inicial ?? props.nombre).charAt(0).toUpperCa
 .marca__logo-custom-img {
   height: 100%;
   width: auto;
-  max-width: 2.75rem;
+  max-width: var(--fz-marca-logo-imagen-ancho-max);
   object-fit: contain;
   display: block;
 }

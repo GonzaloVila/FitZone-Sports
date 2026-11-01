@@ -4593,3 +4593,113 @@ El alta de RECEPCION con sede (A3) solo existía por API: el front no tenía pan
 ### Pendientes que siguen abiertos
 
 1. Los controllers de usuarios, socios, clases, canchas y reservas siguen sin guards: se cierran módulo por módulo, y antes de implementar se hace una auditoría de endpoints para decidir cuáles deben quedar públicos (login, refresh, ingreso con QR, aforo) y cuáles exigen sesión o rol.
+
+---
+
+## 2026-10-31 - Tablas con una columna flexible, importes a la derecha y logo con tokens
+
+**Fecha:** 31/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `f0e9c1c` (el logo base es el `829af21`, de Santiago Rayn)
+
+### Actividades
+
+1. **Regla común de columnas en las 13 tablas:** cada tabla tiene una sola columna flexible, la que identifica la fila, y todas las demás son `ajustada: true` (ocupan lo justo para su contenido). Antes unas tablas tenían una columna flexible y otras entre dos y cinco, y por eso los datos se veían agrupados a la derecha en unas y repartidos hacia la izquierda en otras. Columna flexible por tabla: Socio (Historial de acceso, Personas dentro, Socios, Inscriptos y Lista de espera de la clase), Nombre y apellido (Personal), Cancha (reservas de canchas), Deporte (Canchas), Clase (Agenda de clases, Mis reservas y Mis esperas), Usuario (Pagos; Concepto cuando no se muestra Usuario, como en Mis pagos) y Horario (grilla de turnos). "Acciones" no cambió: sigue última, ajustada, centrada y con divisor. No cambió el orden de las columnas y `TablaFz` no se modificó.
+2. **Importes a la derecha:** `alineacion: 'fin'` en Precio (reservas de cancha) y en Precio por hora (Canchas), además de Monto en Pagos, que ya lo tenía.
+3. **Encabezado "Precio por hora":** en Canchas la columna se llamaba "Precio base por hora". Era el encabezado más largo de la tabla y, como la columna se ajusta a su contenido, empujaba a Sede y Estado hacia la izquierda. Se acortó a "Precio por hora". El modal de confirmación de reserva y el subtítulo de la pantalla de turnos conservan "precio base por hora".
+4. **Logo (commit `829af21`, de Santiago):** reemplazó la letra de la marca por una imagen: `frontend/public/logofzsvg.svg` (con `fill="currentColor"`, así toma el color del texto en claro y en oscuro), prop opcional `logoUrl` en `MarcaFz.vue` (sin ella sigue mostrando la letra) y uso en `ArmazonApp.vue` y `LoginPage.vue`, con un test nuevo en `MarcaFz.spec.ts`.
+5. **Pulido del logo:** las medidas sueltas pasaron a los tokens `--fz-marca-logo-imagen-alto` (1.75rem) y `--fz-marca-logo-imagen-ancho-max` (2.75rem) en `ui/tokens/componentes-moleculas.css`, con resultado visual idéntico. La ruta quedó en una sola constante, `RUTA_LOGO` (`${import.meta.env.BASE_URL}logofzsvg.svg`), en el archivo nuevo `compartido/marca.ts`, usada por `ArmazonApp` y `LoginPage`. La prop `logoUrl` quedó documentada en la tabla de props de `MarcaFz` de `ui/README.md`.
+6. **Documentación:** la regla de columnas quedó escrita en la fila `ajustada` de las opciones de columna de `ui/README.md`, y se corrigieron los README de `features/canchas` y `features/pagos` y los comentarios que habían quedado falsos (`TablaReservas`, `ListaCanchas` y `TablaPagos`).
+
+### Decisiones tomadas
+
+1. **Una sola columna flexible por tabla, la que identifica la fila:** se aprovechó la opción `ajustada` que ya tenía `TablaFz`, sin tocar el componente.
+2. **En "Mis pagos" la columna flexible es Concepto:** Concepto lleva `ajustada: props.mostrarUsuario`, así que es ajustada cuando se muestra Usuario y flexible cuando no.
+3. **`RUTA_LOGO` en `compartido/marca.ts`:** `NOMBRE_APP` es local de `ArmazonApp` y las pantallas de features no importan desde `app/`; `config.ts` no servía porque lanza un error si falta `VITE_API_URL`, y eso rompería los tests de `LoginPage`. `MarcaFz` sigue sin conocer ninguna imagen concreta: el kit no depende de la marca.
+4. **`import.meta.env.BASE_URL` en la ruta del logo:** así sigue funcionando si Vite usa una base distinta de "/".
+
+### Problemas encontrados
+
+1. **Encabezado largo en Canchas:** al revisar la tabla a ojo, "Precio base por hora" descompensaba la distribución. Se acortó (actividad 3). Los otros encabezados largos ("Renovación automática" en Socios, que ya se parte en dos líneas con `encabezadoEnLineas`, y "Hora de ingreso" en Personas dentro) no descompensan y no se tocaron.
+
+### Verificación
+
+- Frontend: `npm run type-check` y `npm run build` sin errores; 95 archivos y 968 tests en verde (los 967 anteriores más el test del logo de Santiago). No hizo falta cambiar ningún test.
+- Tablas y logo revisados a ojo.
+
+### Pendientes que siguen abiertos
+
+1. Columna "Reservó" de la grilla de turnos: quedó ajustada con la regla común; falta confirmar que no pida algún retoque propio.
+
+---
+
+## 2026-10-31 - Frontend: texto del rango de paginación unificado
+
+**Fecha:** 31/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `63959a9`
+
+### Actividades
+
+1. **Se reutilizó la función que ya existía:** `textoDeRango(total, pagina, porPagina, singular, plural)` y `rangoDePagina` estaban en `compartido/paginacion.ts`, pero solo las usaba Pagos. Devuelven "Mostrando X a Y de Z <sustantivo>", o "0 <plural>" si no hay filas. No se creó otra función ni cambió su firma.
+2. **Siete pantallas migradas:** dejaron de calcular a mano inicio, fin y singular o plural: `GestionSociosPage`, `AgendaClasesPage`, `ListaCanchasPage`, `GestionPersonalPage` (con los sustantivos de `ETIQUETA_RECEPCION` en minúsculas), `TablaHistorial`, `VistaMisReservas` (canchas) y `VistaMisClases` (pasadas). `ListaPagos` ya la usaba. No quedó código sin uso.
+3. **Fuera de la migración:** `TablaPersonasDentro` muestra "Mostrando N de M", sin rango, contando lo filtrado en el cliente sobre el total. Es otro texto y no encaja.
+4. **Tests:** tres casos nuevos en `paginacion.spec.ts` (primera página, última incompleta y total múltiplo del tamaño de página); los de página intermedia, una sola fila y lista vacía ya existían. Los tests de pantallas que verifican el texto (por ejemplo `GestionSociosPage`) siguen sin cambios. Ningún README explicaba cómo se arma el texto, así que no se tocaron.
+
+### Decisiones tomadas
+
+1. **Ningún texto visible cambió:** con lista vacía, seis pantallas muestran "0 socios", "0 canchas" y similares; `VistaMisReservas` deja el pie vacío con total 0, y se conservó con un `total === 0 ? '' : …` local.
+2. **`VistaMisClases` pasa la página ya acotada por `paginar`:** así el rango sigue igual cuando la página pedida supera el total. Antes armaba "Mostrando 0 a 0 de 0 reservas" con la lista vacía, pero ese pie solo se dibuja si hay reservas pasadas, así que nunca se veía; con la función diría "0 reservas" en ese caso, que tampoco se ve.
+
+### Problemas encontrados
+
+Ninguno.
+
+### Verificación
+
+- Frontend: `npm run type-check` y `npm run build` sin errores; 95 archivos y 971 tests en verde (antes 968).
+- Pantalla con paginación revisada a ojo: el texto se ve igual que antes.
+
+### Pendientes que siguen abiertos
+
+Ninguno nuevo. Cierra la deuda del texto del rango copiado en varias pantallas.
+
+---
+
+## 2026-10-31 - Filtro de estado en clases, texto de penalidad en el contrato y test de renovación del token
+
+**Fecha:** 31/10/2026 · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `dde5ba0` (backend y contrato) y `dc84209` (frontend)
+
+### Actividades
+
+1. **Backend, `GET /clases`:** parámetro de consulta opcional `estado`. Una clase no guarda estado: se deriva del horario y los cupos, igual que hacía `estadoDeClase` en el frontend. Valores: `CON_CUPOS`, `SIN_CUPOS` y `COMENZADA` (`ESTADOS_CLASE` en `clase.entity.ts`). `COMENZADA` es `horario_inicio <= ahora`; `SIN_CUPOS` y `CON_CUPOS` son clases futuras con reservas CONFIRMADAS mayores o iguales a la capacidad, o menores. Los cupos agotados no se pueden comparar en un `where` de Prisma, así que una consulta SQL pide los ids de las clases futuras agotadas y se aplican como `in` o `notIn` dentro del mismo `where`, antes de paginar: el total y la paginación son los del conjunto filtrado. Sin `estado` el comportamiento no cambia y un valor inválido da 422. Archivos: `clase.entity.ts`, `listar-clases-query.dto.ts`, `clases.service.ts` y `clase.repository.ts`.
+2. **Contrato:** `docs/openapi.yaml` (se mantiene a mano; no hay un script que lo genere) con el parámetro y sus valores. `frontend/src/types/api.d.ts` regenerado con `npm run types:api`.
+3. **Frontend, agenda de clases:** selector "Todos los estados" con las opciones "Con cupos", "Sin cupos" y "Comenzada", con el mismo estilo que los filtros de Canchas (`FiltrosClases.vue` y `AgendaClasesPage.vue`). El estado viaja en `?estado=`; cambiarlo vuelve a la página 1 y "todos" no manda el parámetro. `estadoDeClase` usa ahora el mismo mapa de etiquetas que el selector, así que no hay nombres nuevos. También se tocaron `servicioClases.ts`, `presentacion.ts`, `direccion.ts` (`ConsultaAgenda` ganó el campo `estado`), `useAgendaClases.ts` y el README de `features/clases`.
+4. **Texto de penalidad en el contrato:** la descripción de `reservaClaseId` en `pago-in.dto.ts` decía "El monto sale de la regla de RF-07 (50% del valor nominal)". Ahora dice "El monto lo calcula el servidor según la regla de RF-07: 50% de un valor nominal interno fijo (las clases no tienen precio propio); el cliente no lo envía." La descripción de `cancelarReservaClase` en `docs/openapi.yaml` decía "50% del valor nominal de la clase" y se igualó con el DTO. En los comentarios de `pagos.service.ts` y `penalidad-reserva-clase.service.ts` se aclaró "valor nominal interno".
+5. **Renovación del token (revisión):** `clienteApi.ts` ya serializaba bien las renovaciones. `renovarCompartido` usa una sola promesa en vuelo, que se limpia en el `finally` tanto con éxito como con error; `renovar()` nunca rechaza (ante un fallo devuelve `false`, se cierra la sesión una vez y no se reintenta); las llamadas a `/auth/refresh` van en serie por `enSerie`; y una petición que recibe 401 con un token que otra ya renovó solo se reintenta. No había tests: se agregó `clienteApi.spec.ts` con 5 casos (tres peticiones con 401 hacen una sola renovación, la promesa se limpia tras un éxito y tras un fallo, ante una renovación fallida se cierra la sesión sin bucle y los refresh explícitos no corren en paralelo).
+6. **Tests:** backend, DTO +3 (`clases-dtos.spec.ts`), integración +5 (`clases.service.integration-spec.ts`, con los tres estados) y e2e +3 (`clases.e2e-spec.ts`: 200 con filtro, 200 sin filtro y 422); frontend, `useAgendaClases.spec.ts` +5, `direccion.spec.ts` +1 y `presentacion.spec.ts` +1 (se sumó `estado: ''` a los literales existentes por el campo nuevo).
+
+### Decisiones tomadas
+
+1. **El filtro se resuelve en el servidor y antes de paginar:** como la lista está paginada, filtrar en el cliente mostraría páginas incompletas.
+2. **El estado sigue siendo derivado:** no se agregó columna ni migración.
+3. **El 50% se conserva en el contrato y solo se corrige "valor nominal":** el contrato es documentación técnica para el equipo y el porcentaje es real; lo impreciso era sugerir que la clase tiene un precio. La regla de no mostrar monto ni porcentaje de la penalidad aplica a los textos de la interfaz antes de cancelar; los avisos posteriores a la cancelación siguen mostrando el importe cobrado.
+4. **La renovación del token no se tocó:** ya estaba correcta; solo se sumó la cobertura que faltaba.
+
+### Problemas encontrados
+
+1. **`GET /clases` no tenía filtro de estado:** el contrato no lo contemplaba. Es lo que cierra este cambio.
+2. **Nada evita que N peticiones fallidas llamen N veces a `alExpirarSesion`:** es redundante pero no hace bucle, y no se cambió.
+
+### Verificación
+
+- Backend: `npx tsc --noEmit` sin errores; `npm run test:unit` 368 tests (más 1 salteado: las muestras de PDF; antes 365); `npm run test:integration` 80 tests en 13 archivos (antes 75); `npm run test:e2e` 117 tests en 21 archivos (antes 114).
+- Frontend: `npm run type-check` y `npm run build` sin errores; 96 archivos y 983 tests en verde (antes 95 y 971).
+
+### Pendientes que siguen abiertos
+
+1. Los controllers de usuarios, socios, membresías, clases, canchas, reservas y sedes siguen sin guards: se cierran módulo por módulo, con una auditoría de endpoints antes. `GET /usuarios/{id}` sigue sin probarse contra el backend real con RECEPCION y GERENTE (lo usa la columna "Reservó" de la grilla de turnos).
+2. Cuando se decida el tema de los pagos anulados, sacar del modal y del aviso de anulación la frase de la clave nueva.
+3. Carnet del socio con QR y cámara para escanearlo en el ingreso; endpoints y pantallas de registro y de recuperar contraseña (con el contrato definido antes).
+4. Antes del Demo Day: datos de demostración limpios, carpeta de comprobantes en el despliegue (a hablar con Gonza) y pasada final de accesibilidad.
+5. Reintegro al cancelar una reserva de cancha ya paga; probar de punta a punta la lista de espera de clases y decidir si "Confirmar cupo" va como botón visible.
+6. Quedan unos 70 PDF de tests (ids 119 a 292) sin limpiar en `backend/storage/comprobantes`.
+7. Errores 422 en inglés crudo en algunas validaciones del backend.
+8. Los `docs/UserCaseDiagrams` dicen "50% del valor nominal" (documentación del enunciado; no se tocaron).
+9. Columna "Reservó" de la grilla de turnos: falta confirmar que no pida algún retoque propio.

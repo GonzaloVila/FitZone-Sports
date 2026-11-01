@@ -58,6 +58,7 @@ export class ClasesService {
       {
         sedeId: filtros.sedeId,
         tipo: filtros.tipo,
+        estado: filtros.estado,
       },
       { page: filtros.page ?? 1, perPage: filtros.perPage ?? 20 },
     );

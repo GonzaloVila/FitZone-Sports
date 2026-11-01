@@ -85,7 +85,7 @@ export class ConceptoReservaClase {
 
   @ApiProperty({
     type: 'integer',
-    description: 'Reserva de clase a penalizar. El monto sale de la regla de RF-07 (50% del valor nominal).',
+    description: 'Reserva de clase a penalizar. El monto lo calcula el servidor según la regla de RF-07: 50% de un valor nominal interno fijo (las clases no tienen precio propio); el cliente no lo envía.',
     example: 4,
   })
   @IsInt()

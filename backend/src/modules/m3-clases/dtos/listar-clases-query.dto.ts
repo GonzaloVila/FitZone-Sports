@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsPositive, IsString, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsPositive, IsString, Max, Min } from 'class-validator';
+import { ESTADOS_CLASE, type EstadoClase } from '../entities/clase.entity';
 
 export class ListarClasesQueryDto {
   @ApiPropertyOptional({
@@ -15,6 +16,20 @@ export class ListarClasesQueryDto {
   @IsOptional()
   @IsString()
   tipo?: string;
+
+  // Sin `default` a propósito: sin `estado` se devuelven todas las clases. El enum y la descripción tienen que coincidir con
+  // `docs/openapi.yaml`.
+  @ApiPropertyOptional({
+    type: 'string',
+    enum: ESTADOS_CLASE,
+    description:
+      'Estado de la clase: COMENZADA (ya empezó), SIN_CUPOS (todavía no empezó y no quedan cupos) o CON_CUPOS ' +
+      '(todavía no empezó y quedan cupos). Sin este parámetro devuelve las clases en cualquier estado.',
+    example: 'CON_CUPOS',
+  })
+  @IsOptional()
+  @IsIn(ESTADOS_CLASE)
+  estado?: EstadoClase;
 
   @ApiPropertyOptional({
     type: 'integer', minimum: 1, default: 1 })

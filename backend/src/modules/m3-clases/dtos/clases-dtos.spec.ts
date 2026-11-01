@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ClaseIn } from 'src/modules/m3-clases/dtos/clase-in.dto';
 import { EsperaIn } from 'src/modules/m3-clases/dtos/espera-in.dto';
+import { ListarClasesQueryDto } from 'src/modules/m3-clases/dtos/listar-clases-query.dto';
 import { ReservaClaseIn } from 'src/modules/m3-clases/dtos/reserva-clase-in.dto';
 import { erroresDe } from '@test/helpers/validar-dto';
 
@@ -38,6 +39,27 @@ describe('M3 - DTOs de clases, reservas y espera', () => {
 
     it('rechaza campos desconocidos', async () => {
       expect(await erroresDe(ClaseIn, { ...valido, cupoDisponible: 5 })).not.toEqual([]);
+    });
+  });
+
+  describe('ListarClasesQueryDto', () => {
+    it('acepta una consulta sin filtros', async () => {
+      expect(await erroresDe(ListarClasesQueryDto, {})).toEqual([]);
+    });
+
+    it('acepta cada estado, solo y combinado con los demás filtros', async () => {
+      for (const estado of ['CON_CUPOS', 'SIN_CUPOS', 'COMENZADA']) {
+        expect(await erroresDe(ListarClasesQueryDto, { estado })).toEqual([]);
+      }
+      expect(
+        await erroresDe(ListarClasesQueryDto, { sedeId: '1', tipo: 'Yoga', estado: 'CON_CUPOS', page: '2', perPage: '10' }),
+      ).toEqual([]);
+    });
+
+    it('rechaza un estado que no existe, en minúsculas o vacío', async () => {
+      expect(await erroresDe(ListarClasesQueryDto, { estado: 'CANCELADA' })).not.toEqual([]);
+      expect(await erroresDe(ListarClasesQueryDto, { estado: 'con_cupos' })).not.toEqual([]);
+      expect(await erroresDe(ListarClasesQueryDto, { estado: '' })).not.toEqual([]);
     });
   });
 

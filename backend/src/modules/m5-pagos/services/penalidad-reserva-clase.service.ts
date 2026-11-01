@@ -18,7 +18,7 @@ export interface DatosPenalidadReservaClase {
 export class PenalidadReservaClaseService {
   constructor(
     private readonly cobroInterno: CobroInternoService,
-    // El importe (50% del valor nominal) y el usuario del socio los resuelve M3,
+    // El importe (50% de un valor nominal interno fijo) y el usuario del socio los resuelve M3,
     // dueño de la reserva y la clase.
     private readonly reservaClases: ReservaClasePrecioService,
   ) {}

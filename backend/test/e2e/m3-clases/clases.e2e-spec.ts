@@ -50,4 +50,57 @@ describe('M3 - Clases: gestión de agenda (RF-06)', () => {
     expect(claseEncontrada?.instructor).toBe('Martín Palermo');
     expect(resListar.body.total).toBeGreaterThanOrEqual(1);
   });
+
+  describe('GET /clases?estado=', () => {
+    let conCupos: number;
+    let comenzada: number;
+
+    beforeAll(async () => {
+      const nueva = async (inicioHoras: number) => {
+        const clase = await prisma.clase.create({
+          data: {
+            sede_id: ctx.sedeId,
+            tipo: 'Funcional',
+            instructor: 'Lola',
+            horario_inicio: new Date(Date.now() + inicioHoras * 3600 * 1000),
+            horario_fin: new Date(Date.now() + (inicioHoras + 1) * 3600 * 1000),
+            capacidad: 10,
+          },
+        });
+        ctx.clasesCreadas.push(clase.id);
+        return clase.id;
+      };
+      conCupos = await nueva(24);
+      comenzada = await nueva(-1);
+    });
+
+    const idsDe = (items: { id: number }[]) => items.map((c) => c.id);
+
+    it('200 con estado: devuelve solo las clases de ese estado, con su total', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/clases?sedeId=${ctx.sedeId}&tipo=Funcional&estado=CON_CUPOS`)
+        .expect(200);
+
+      expect(idsDe(res.body.items)).toEqual([conCupos]);
+      expect(res.body.total).toBe(1);
+
+      const resComenzadas = await request(app.getHttpServer())
+        .get(`/api/v1/clases?sedeId=${ctx.sedeId}&tipo=Funcional&estado=COMENZADA`)
+        .expect(200);
+      expect(idsDe(resComenzadas.body.items)).toEqual([comenzada]);
+    });
+
+    it('200 sin estado: devuelve las clases en cualquier estado', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/clases?sedeId=${ctx.sedeId}&tipo=Funcional`)
+        .expect(200);
+
+      expect(idsDe(res.body.items).sort()).toEqual([conCupos, comenzada].sort());
+      expect(res.body.total).toBe(2);
+    });
+
+    it('422 con un estado inválido', async () => {
+      await request(app.getHttpServer()).get('/api/v1/clases?estado=CANCELADA').expect(422);
+    });
+  });
 });

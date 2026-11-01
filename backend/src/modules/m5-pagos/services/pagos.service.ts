@@ -68,7 +68,7 @@ export class PagosService {
     private readonly membresias: MembresiaPrecioService,
     private readonly reservas: ReservaPrecioService,
     // RF-07: la penalidad por cancelacion tardia de una clase sale de M3, el
-    // monto es la penalidad de dominio (50% del valor nominal).
+    // monto es la penalidad de dominio (50% de un valor nominal interno fijo).
     private readonly reservaClases: ReservaClasePrecioService,
     private readonly comprobantes: ComprobantesService,
   ) {}

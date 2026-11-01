@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { textoDeRango } from '@/compartido/paginacion'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz, PaginacionFz } from '@/ui'
 import FiltrosPersonal from '../components/FiltrosPersonal.vue'
@@ -28,17 +29,19 @@ const hayFilas = computed(() => items.value.length > 0)
 const cargandoSinFilas = computed(() => cargando.value && !hayFilas.value)
 const vacio = computed(() => !cargando.value && !hayFilas.value && !error.value)
 
-const rangoInicio = computed(() => (total.value === 0 ? 0 : (pagina.value - 1) * porPagina + 1))
-const rangoFin = computed(() => Math.min(total.value, pagina.value * porPagina))
-
 // La región del pie siempre está en el DOM (los lectores de pantalla solo anuncian cambios de una región existente);
 // mientras no hay un resultado que informar, queda vacía.
-const textoRango = computed(() => {
-  if (cargandoSinFilas.value || error.value) return ''
-  if (total.value === 0) return `0 ${ETIQUETA_RECEPCION_PLURAL.toLowerCase()}`
-  const sustantivo = total.value === 1 ? ETIQUETA_RECEPCION.toLowerCase() : ETIQUETA_RECEPCION_PLURAL.toLowerCase()
-  return `Mostrando ${rangoInicio.value} a ${rangoFin.value} de ${total.value} ${sustantivo}`
-})
+const textoRango = computed(() =>
+  cargandoSinFilas.value || error.value
+    ? ''
+    : textoDeRango(
+        total.value,
+        pagina.value,
+        porPagina,
+        ETIQUETA_RECEPCION.toLowerCase(),
+        ETIQUETA_RECEPCION_PLURAL.toLowerCase(),
+      ),
+)
 
 const altaAbierta = ref(false)
 </script>

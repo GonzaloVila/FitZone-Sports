@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { textoDeRango } from '@/compartido/paginacion'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { AvisoFz, PaginacionFz, PestanasFz } from '@/ui'
 import { useMisClases } from '../composables/useMisClases'
@@ -39,10 +40,9 @@ const pestanas = [
 // "Pasadas" se pagina en el cliente (ya están todas cargadas); "Próximas" no.
 const POR_PAGINA_PASADAS = 10
 const paginaDePasadas = computed(() => paginar(pasadas.value, pagina.value, POR_PAGINA_PASADAS))
-const textoRango = computed(() => {
-  const { desde, hasta, total } = paginaDePasadas.value
-  return `Mostrando ${desde} a ${hasta} de ${total} ${total === 1 ? 'reserva' : 'reservas'}`
-})
+const textoRango = computed(() =>
+  textoDeRango(paginaDePasadas.value.total, paginaDePasadas.value.pagina, POR_PAGINA_PASADAS, 'reserva', 'reservas'),
+)
 
 // Si la página de la dirección superó el total (se recargó con una página vieja o la lista se achicó) se muestra la última
 // válida y se la escribe en la dirección. Recién cuando terminó de cargar: antes no hay reservas y toda página parece de más.

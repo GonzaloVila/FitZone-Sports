@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { textoDeRango } from '@/compartido/paginacion'
 import { AvatarFz, InsigniaFz, PaginacionFz, TablaFz, type ColumnaTabla } from '@/ui'
 import type { Ingreso } from '../services/servicioAcceso'
 
@@ -37,13 +38,9 @@ const cargandoSinFilas = computed(() => props.cargando && !hayFilas.value)
 
 // La región del pie siempre está en el DOM (los lectores de pantalla solo anuncian cambios de una región existente);
 // mientras no hay un resultado que informar, queda vacía.
-const textoRango = computed(() => {
-  if (cargandoSinFilas.value) return ''
-  if (props.total === 0) return '0 registros'
-  const inicio = (pagina.value - 1) * props.porPagina + 1
-  const fin = Math.min(props.total, pagina.value * props.porPagina)
-  return `Mostrando ${inicio} a ${fin} de ${props.total} ${props.total === 1 ? 'registro' : 'registros'}`
-})
+const textoRango = computed(() =>
+  cargandoSinFilas.value ? '' : textoDeRango(props.total, pagina.value, props.porPagina, 'registro', 'registros'),
+)
 </script>
 
 <template>

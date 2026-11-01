@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useSedeActiva } from '@/compartido/composables/useSedeActiva'
+import { textoDeRango } from '@/compartido/paginacion'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
 import {
@@ -101,16 +102,13 @@ const hayFilas = computed(() => items.value.length > 0)
 const cargandoSinFilas = computed(() => cargando.value && !hayFilas.value)
 const vacio = computed(() => !cargando.value && !hayFilas.value && !error.value)
 
-const rangoInicio = computed(() => (total.value === 0 ? 0 : (pagina.value - 1) * POR_PAGINA_CANCHAS + 1))
-const rangoFin = computed(() => Math.min(total.value, pagina.value * POR_PAGINA_CANCHAS))
-
 // La región del pie siempre está en el DOM (los lectores de pantalla solo anuncian cambios de una región existente);
 // mientras no hay un resultado que informar, queda vacía.
-const textoRango = computed(() => {
-  if (cargandoSinFilas.value || error.value) return ''
-  if (total.value === 0) return '0 canchas'
-  return `Mostrando ${rangoInicio.value} a ${rangoFin.value} de ${total.value} ${total.value === 1 ? 'cancha' : 'canchas'}`
-})
+const textoRango = computed(() =>
+  cargandoSinFilas.value || error.value
+    ? ''
+    : textoDeRango(total.value, pagina.value, POR_PAGINA_CANCHAS, 'cancha', 'canchas'),
+)
 </script>
 
 <template>

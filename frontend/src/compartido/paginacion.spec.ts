@@ -25,6 +25,18 @@ describe('textoDeRango', () => {
     expect(textoDeRango(25, 2, 10, 'pago', 'pagos')).toBe('Mostrando 11 a 20 de 25 pagos')
   })
 
+  it('en la primera página arranca en 1', () => {
+    expect(textoDeRango(25, 1, 10, 'pago', 'pagos')).toBe('Mostrando 1 a 10 de 25 pagos')
+  })
+
+  it('la última página incompleta termina en el total', () => {
+    expect(textoDeRango(25, 3, 10, 'pago', 'pagos')).toBe('Mostrando 21 a 25 de 25 pagos')
+  })
+
+  it('con un total múltiplo del tamaño de página la última página queda completa', () => {
+    expect(textoDeRango(20, 2, 10, 'pago', 'pagos')).toBe('Mostrando 11 a 20 de 20 pagos')
+  })
+
   it('con un solo resultado va en singular', () => {
     expect(textoDeRango(1, 1, 10, 'pago', 'pagos')).toBe('Mostrando 1 a 1 de 1 pago')
   })

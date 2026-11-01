@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { textoDeRango } from '@/compartido/paginacion'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { AvisoFz, BotonFz, IconoFz, InsigniaFz, PaginacionFz } from '@/ui'
 import FiltrosSocios from '../components/FiltrosSocios.vue'
@@ -34,17 +35,11 @@ const hayFilas = computed(() => items.value.length > 0)
 const cargandoSinFilas = computed(() => cargando.value && !hayFilas.value)
 const vacio = computed(() => !cargando.value && !hayFilas.value && !error.value)
 
-// Rango mostrado en la página actual.
-const rangoInicio = computed(() => (total.value === 0 ? 0 : (pagina.value - 1) * porPagina + 1))
-const rangoFin = computed(() => Math.min(total.value, pagina.value * porPagina))
-
 // La región del pie siempre está en el DOM (los lectores de pantalla solo anuncian cambios de una región
 // existente); mientras no hay un resultado que informar, queda vacía.
-const textoRango = computed(() => {
-  if (cargandoSinFilas.value || error.value) return ''
-  if (total.value === 0) return '0 socios'
-  return `Mostrando ${rangoInicio.value} a ${rangoFin.value} de ${total.value} ${total.value === 1 ? 'socio' : 'socios'}`
-})
+const textoRango = computed(() =>
+  cargandoSinFilas.value || error.value ? '' : textoDeRango(total.value, pagina.value, porPagina, 'socio', 'socios'),
+)
 
 const titulo = useTemplateRef<HTMLElement>('titulo')
 

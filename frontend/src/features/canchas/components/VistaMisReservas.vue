@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import { textoDeRango } from '@/compartido/paginacion'
 import ModalPagarReserva from '@/features/pagos/components/modales/ModalPagarReserva.vue'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { AvisoFz, PaginacionFz, PestanasFz, enfocarControlDeFila } from '@/ui'
@@ -56,12 +57,12 @@ const sedeDeCancha = (canchaId: number) => {
   return id === null ? '—' : nombreDeSede(id)
 }
 
-const rangoInicio = computed(() => (total.value === 0 ? 0 : (pagina.value - 1) * POR_PAGINA_RESERVAS + 1))
-const rangoFin = computed(() => Math.min(total.value, pagina.value * POR_PAGINA_RESERVAS))
-const textoRango = computed(() => {
-  if (cargandoSinFilas.value || error.value || total.value === 0) return ''
-  return `Mostrando ${rangoInicio.value} a ${rangoFin.value} de ${total.value} ${total.value === 1 ? 'reserva' : 'reservas'}`
-})
+// Sin reservas no hay pie: la lista vacía tiene su propio mensaje.
+const textoRango = computed(() =>
+  cargandoSinFilas.value || error.value || total.value === 0
+    ? ''
+    : textoDeRango(total.value, pagina.value, POR_PAGINA_RESERVAS, 'reserva', 'reservas'),
+)
 
 const modalCancelar = ref(false)
 const aCancelar = ref<FilaReserva | null>(null)

@@ -115,12 +115,13 @@ export interface paths {
          * Listado de usuarios con filtros
          * @description Filtros por rol, sede de trabajo, nombre y email (lista blanca de parámetros) y paginación. `sedeId` filtra por el puesto en `EmpleadoSede`, así que solo devuelve personal con puesto en esa sede
          *     (hoy, el recepcionista); no tiene relación con la sede de origen de un socio. Como en GET /ingresos y GET /socios, un `sedeId` inexistente no es un error: responde 200 con la lista vacía.
+         *     Requiere token: solo RECEPCION y GERENTE.
          */
         get: operations["listarUsuarios"];
         put?: never;
         /**
          * Registrar usuario
-         * @description Alta de usuario distinguiendo el rol de perfil (EXTERNO | RECEPCION | GERENTE). DNI y email son únicos. La contrasenia se guarda hasheada (bcrypt), nunca en texto plano. Un usuario NO se crea como SOCIO acá: hacerse socio es POST /socios, que lo convierte y crea su membresía inicial. Para RECEPCION (`A3`) `sedeId` es obligatorio y se materializa como fila de `EmpleadoSede` (1:1: una sede tiene a lo sumo un recepcionista y un recepcionista trabaja en una sola sede); para EXTERNO y GERENTE la sede no aplica y enviarla es un 422. Esa asignación no se modifica después por API. Responde 201 con el header Location apuntando al recurso creado.
+         * @description Alta de usuario distinguiendo el rol de perfil (EXTERNO | RECEPCION | GERENTE). DNI y email son únicos. La contrasenia se guarda hasheada (bcrypt), nunca en texto plano. Un usuario NO se crea como SOCIO acá: hacerse socio es POST /socios, que lo convierte y crea su membresía inicial. Para RECEPCION (`A3`) `sedeId` es obligatorio y se materializa como fila de `EmpleadoSede` (1:1: una sede tiene a lo sumo un recepcionista y un recepcionista trabaja en una sola sede); para EXTERNO y GERENTE la sede no aplica y enviarla es un 422. Esa asignación no se modifica después por API. Responde 201 con el header Location apuntando al recurso creado. Requiere token: GERENTE crea cualquiera de los tres roles; RECEPCION solo EXTERNO (403 si pide RECEPCION o GERENTE); SOCIO y EXTERNO no pueden crear usuarios (403).
          */
         post: operations["crearUsuario"];
         delete?: never;
@@ -141,7 +142,7 @@ export interface paths {
         };
         /**
          * Obtener usuario por id
-         * @description Devuelve el perfil del usuario (sin datos de contraseña). Si no existe, 404.
+         * @description Devuelve el perfil del usuario (sin datos de contraseña). Si no existe, 404. Requiere token: RECEPCION y GERENTE ven cualquiera; SOCIO y EXTERNO solo el propio (el de otro responde 404, como si no existiera).
          */
         get: operations["obtenerUsuario"];
         put?: never;
@@ -152,6 +153,7 @@ export interface paths {
         /**
          * Modificar parcialmente un usuario
          * @description Actualización parcial de contacto, foto y/o contraseña (contrasenia se hashea). Campos ausentes en el body no se modifican. Si el id no existe, responde 404.
+         *     Requiere token: GERENTE modifica a cualquiera; RECEPCION solo a SOCIO y EXTERNO (403 sobre un RECEPCION o un GERENTE, incluido él mismo); SOCIO y EXTERNO no modifican a nadie, ni a sí mismos (403).
          */
         patch: operations["modificarUsuario"];
         trace?: never;
@@ -165,13 +167,13 @@ export interface paths {
         };
         /**
          * Listado de socios con filtros
-         * @description Filtros por sede de origen, estado y plan de la membresía, y por nombre (lista blanca de parámetros) y paginación. `estado_membresia` y `plan` cruzan la relación 1:1 a la membresía del socio. Sin ningún filtro devuelve todos los socios de la cadena.
+         * @description Filtros por sede de origen, estado y plan de la membresía, y por nombre (lista blanca de parámetros) y paginación. `estado_membresia` y `plan` cruzan la relación 1:1 a la membresía del socio. Sin ningún filtro devuelve todos los socios de la cadena. Requiere token: solo RECEPCION y GERENTE.
          */
         get: operations["listarSocios"];
         put?: never;
         /**
          * Alta de socio (RF-02)
-         * @description Convierte al usuario en socio (subtabla Socio) indicando su sede de origen y crea la membresía inicial con el plan enviado, en la misma transacción: no existe un socio sin membresía. Un usuario que ya es socio responde 409. Lo inverso es DELETE /socios/{id} (dejar de ser socio).
+         * @description Convierte al usuario en socio (subtabla Socio) indicando su sede de origen y crea la membresía inicial con el plan enviado, en la misma transacción: no existe un socio sin membresía. Un usuario que ya es socio responde 409. Lo inverso es DELETE /socios/{id} (dejar de ser socio). Requiere token: solo RECEPCION y GERENTE.
          */
         post: operations["crearSocio"];
         delete?: never;
@@ -192,21 +194,21 @@ export interface paths {
         };
         /**
          * Obtener socio por id
-         * @description Devuelve el perfil del socio junto con su sede de origen y fecha de alta.
+         * @description Devuelve el perfil del socio junto con su sede de origen y fecha de alta. Requiere token: RECEPCION y GERENTE ven cualquiera; el SOCIO solo el suyo; el EXTERNO ninguno (el de otro, o cualquiera para un EXTERNO, responde 404 como si no existiera).
          */
         get: operations["obtenerSocio"];
         put?: never;
         post?: never;
         /**
          * Dejar de ser socio
-         * @description "Dar de baja un socio" equivale a dejar de ser socio: se elimina su fila en la subtabla Socio (y la membresía, relación 1:1) y el usuario vuelve a rol EXTERNO. El historial de reservas y pagos se conserva: referencia al usuario, no a la subtabla. Un socio inexistente responde 404.
+         * @description "Dar de baja un socio" equivale a dejar de ser socio: se elimina su fila en la subtabla Socio (y la membresía, relación 1:1) y el usuario vuelve a rol EXTERNO. El historial de reservas y pagos se conserva: referencia al usuario, no a la subtabla. Un socio inexistente responde 404. Requiere token: solo RECEPCION y GERENTE.
          */
         delete: operations["dejarDeSerSocio"];
         options?: never;
         head?: never;
         /**
          * Modificar parcialmente un socio
-         * @description Actualización parcial (por ejemplo, la sede de origen).
+         * @description Actualización parcial (por ejemplo, la sede de origen). Requiere token: solo RECEPCION y GERENTE.
          */
         patch: operations["modificarSocio"];
         trace?: never;
@@ -224,6 +226,7 @@ export interface paths {
         /**
          * Membresía actual del socio
          * @description Devuelve la membresía vigente del socio (relación 1:1, sin historial). Todo socio tiene membresía desde su alta, así que el 404 es solo por socio inexistente.
+         *     Requiere token: RECEPCION y GERENTE ven cualquiera; el SOCIO solo la suya; el EXTERNO ninguna (la de otro, o cualquiera para un EXTERNO, responde 404 como si el socio no existiera).
          */
         get: operations["obtenerMembresia"];
         put?: never;
@@ -233,7 +236,7 @@ export interface paths {
         head?: never;
         /**
          * Cambiar plan o configuración de la membresía
-         * @description Cambio de plan, renovación automática y/o estado sobre la misma fila (1:1, sin historial). Frenar la renovación = renueva_automatica:false; suspender = estado:SUSPENDIDA. Mandar `plan` abre un período nuevo desde HOY: fecha_inicio y fecha_fin se recalculan juntas con la duración del plan enviado, así que la membresía queda vigente desde la fecha del PATCH hasta un plan después. Los días que quedaban del período anterior no se trasladan. Sin `plan` en el body, ninguna de las dos fechas se toca.
+         * @description Cambio de plan, renovación automática y/o estado sobre la misma fila (1:1, sin historial). Frenar la renovación = renueva_automatica:false; suspender = estado:SUSPENDIDA. Mandar `plan` abre un período nuevo desde HOY: fecha_inicio y fecha_fin se recalculan juntas con la duración del plan enviado, así que la membresía queda vigente desde la fecha del PATCH hasta un plan después. Los días que quedaban del período anterior no se trasladan. Sin `plan` en el body, ninguna de las dos fechas se toca. Requiere token: solo RECEPCION y GERENTE.
          */
         patch: operations["modificarMembresia"];
         trace?: never;
@@ -2243,6 +2246,16 @@ export interface operations {
                     "application/json": components["schemas"]["ListaUsuarios"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["ValidationError"];
         };
     };
@@ -2282,6 +2295,16 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE), o RECEPCION intentando crear un rol que no sea EXTERNO */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description La sede de trabajo indicada no existe (solo RECEPCION) */
             404: {
                 headers: {
@@ -2336,6 +2359,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -2376,6 +2400,16 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE), o RECEPCION sobre un usuario RECEPCION o GERENTE */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
         };
@@ -2430,6 +2464,16 @@ export interface operations {
                     "application/json": components["schemas"]["ListaSocios"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["ValidationError"];
         };
     };
@@ -2468,7 +2512,17 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["NoAutorizado"];
             402: components["responses"]["PagoRechazado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
             409: components["responses"]["SocioExistente"];
             422: components["responses"]["ValidationError"];
@@ -2506,6 +2560,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -2529,6 +2584,16 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -2568,6 +2633,16 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
         };
@@ -2604,6 +2679,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -2643,7 +2719,17 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["NoAutorizado"];
             402: components["responses"]["PagoRechazado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
         };

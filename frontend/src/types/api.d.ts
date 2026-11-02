@@ -484,13 +484,13 @@ export interface paths {
         };
         /**
          * Listado de clases con filtros
-         * @description Filtrado por tipo, sede y/o estado (lista blanca de parámetros) y paginación.
+         * @description Filtrado por tipo, sede y/o estado (lista blanca de parámetros) y paginación. Requiere token: SOCIO, RECEPCION y GERENTE (el EXTERNO no usa clases: 403).
          */
         get: operations["listarClases"];
         put?: never;
         /**
          * Alta de clase (RF-06)
-         * @description Registra una clase con su tipo, instructor, rango horario (horarioInicio/horarioFin) y capacidad.
+         * @description Registra una clase con su tipo, instructor, rango horario (horarioInicio/horarioFin) y capacidad. Requiere token: GERENTE crea en cualquier sede; RECEPCION solo en su sede (403 si `sedeId` es otra); SOCIO y EXTERNO no pueden crear clases (403).
          */
         post: operations["crearClase"];
         delete?: never;
@@ -511,7 +511,7 @@ export interface paths {
         };
         /**
          * Obtener clase por id
-         * @description Devuelve la clase con los cupos libres restantes ahora. Si no existe, 404.
+         * @description Devuelve la clase con los cupos libres restantes ahora. Si no existe, 404. Requiere token: SOCIO, RECEPCION y GERENTE (el EXTERNO no usa clases: 403).
          */
         get: operations["obtenerClase"];
         put?: never;
@@ -534,7 +534,7 @@ export interface paths {
         };
         /**
          * Listado de reservas de una clase
-         * @description Ocupación de la clase. Sin `estado` devuelve solo las CONFIRMADA: las canceladas no aparecen en el listado y se piden con ?estado=CANCELADA (RF-12 conserva el histórico, no la visibilidad por defecto). Solo admite ?estado= y paginación (lista blanca de parámetros).
+         * @description Ocupación de la clase. Sin `estado` devuelve solo las CONFIRMADA: las canceladas no aparecen en el listado y se piden con ?estado=CANCELADA (RF-12 conserva el histórico, no la visibilidad por defecto). Solo admite ?estado= y paginación (lista blanca de parámetros). Requiere token: solo RECEPCION y GERENTE (SOCIO y EXTERNO: 403).
          */
         get: operations["listarReservasDeClase"];
         put?: never;
@@ -554,13 +554,13 @@ export interface paths {
         };
         /**
          * Listado de reservas de cancha con filtros
-         * @description Filtros por cancha, usuario, estado y día (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo las CONFIRMADA activas (fecha_hora_fin futura): las canceladas no aparecen y se piden con ?estado=CANCELADA (RF-12 conserva el histórico), y las ya cumplidas con ?estado=CUMPLIDA (estado derivado de la fecha).
+         * @description Filtros por cancha, usuario, estado y día (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo las CONFIRMADA activas (fecha_hora_fin futura): las canceladas no aparecen y se piden con ?estado=CANCELADA (RF-12 conserva el histórico), y las ya cumplidas con ?estado=CUMPLIDA (estado derivado de la fecha). Requiere token: RECEPCION y GERENTE ven todas (con los filtros que manden); SOCIO y EXTERNO solo las propias: el `usuarioId` se fuerza con el de la sesión y el que manden se ignora.
          */
         get: operations["listarReservasCancha"];
         put?: never;
         /**
          * Reservar un turno de cancha (RF-10, RN-02)
-         * @description Crea la reserva de cancha en transacción. Si la cancha está EN_MANTENIMIENTO no se reservan turnos futuros sobre ella (RF-12): responde 409 sin tocar las reservas ya tomadas. Si dos usuarios reservan el mismo turno a la vez, el unique index parcial (unq_reserva_turno) hace que un solo INSERT gane y el otro reciba 409 problem+json. El precio aplicado se guarda en el momento de la reserva.
+         * @description Crea la reserva de cancha en transacción. Si la cancha está EN_MANTENIMIENTO no se reservan turnos futuros sobre ella (RF-12): responde 409 sin tocar las reservas ya tomadas. Si dos usuarios reservan el mismo turno a la vez, el unique index parcial (unq_reserva_turno) hace que un solo INSERT gane y el otro reciba 409 problem+json. El precio aplicado se guarda en el momento de la reserva. Requiere token: RECEPCION y GERENTE reservan por cualquier usuario; SOCIO y EXTERNO solo a su nombre (404 si `usuarioId` es de otro).
          */
         post: operations["crearReservaCancha"];
         delete?: never;
@@ -579,7 +579,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Obtener reserva de cancha por id */
+        /**
+         * Obtener reserva de cancha por id
+         * @description Requiere token: RECEPCION y GERENTE ven cualquiera; SOCIO y EXTERNO solo la propia (la de otro responde 404, como si no existiera).
+         */
         get: operations["obtenerReservaCancha"];
         put?: never;
         post?: never;
@@ -603,7 +606,7 @@ export interface paths {
         put?: never;
         /**
          * Cancelar una reserva
-         * @description Acción modelada como sub-recurso y sin body: responde 204 (la cancelación no lleva datos extra). El DELETE de reserva ES esta cancelación; no se borra el histórico. Solo puede cancelar una reserva CONFIRMADA cuyo turno no haya empezado: una reserva inexistente responde 404; una ya CANCELADA responde 409 `ReservaYaCancelada`; y una cuyo turno ya pasó (estado efectivo CUMPLIDA) responde 409 `ReservaPasada`. Para reprogramar se cancela y se reserva un turno nuevo.
+         * @description Acción modelada como sub-recurso y sin body: responde 204 (la cancelación no lleva datos extra). El DELETE de reserva ES esta cancelación; no se borra el histórico. Solo puede cancelar una reserva CONFIRMADA cuyo turno no haya empezado: una reserva inexistente responde 404; una ya CANCELADA responde 409 `ReservaYaCancelada`; y una cuyo turno ya pasó (estado efectivo CUMPLIDA) responde 409 `ReservaPasada`. Para reprogramar se cancela y se reserva un turno nuevo. Requiere token: RECEPCION y GERENTE cancelan cualquiera; SOCIO y EXTERNO solo la propia (la de otro responde 404).
          */
         post: operations["cancelarReservaCancha"];
         delete?: never;
@@ -621,13 +624,13 @@ export interface paths {
         };
         /**
          * Listado de reservas de clase con filtros
-         * @description Filtros por clase, socio y estado (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo las CONFIRMADA: las canceladas no aparecen en el listado y se piden explícitamente con ?estado=CANCELADA (RF-12 conserva el histórico, no la visibilidad por defecto).
+         * @description Filtros por clase, socio y estado (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo las CONFIRMADA: las canceladas no aparecen en el listado y se piden explícitamente con ?estado=CANCELADA (RF-12 conserva el histórico, no la visibilidad por defecto). Requiere token: RECEPCION y GERENTE ven todas; el SOCIO solo las suyas (el `socioId` se fuerza con el de la sesión y el que mande se ignora); el EXTERNO no usa clases (403).
          */
         get: operations["listarReservasClase"];
         put?: never;
         /**
          * Reservar cupo en una clase
-         * @description Registra la reserva de cupo (RF-06) y decrementa el cupo disponible. La ventana de reserva es de hasta 48 horas antes del inicio de la clase: fuera de esa ventana responde 409, igual que el cupo completo (RF-06) o una reserva duplicada. Un socio con cuotas vencidas responde 403: no puede reservar con tarifa bonificada. La cancelación del cupo se hace por el sub-recurso /cancelaciones (RF-07), no por DELETE.
+         * @description Registra la reserva de cupo (RF-06) y decrementa el cupo disponible. La ventana de reserva es de hasta 48 horas antes del inicio de la clase: fuera de esa ventana responde 409, igual que el cupo completo (RF-06) o una reserva duplicada. Un socio con cuotas vencidas responde 403: no puede reservar con tarifa bonificada. La cancelación del cupo se hace por el sub-recurso /cancelaciones (RF-07), no por DELETE. Requiere token: RECEPCION y GERENTE reservan por cualquier socio; el SOCIO solo a su nombre (404 si `socioId` es de otro); el EXTERNO no usa clases (403).
          */
         post: operations["crearReservaClase"];
         delete?: never;
@@ -646,7 +649,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Obtener reserva de cupo por id */
+        /**
+         * Obtener reserva de cupo por id
+         * @description Requiere token: RECEPCION y GERENTE ven cualquiera; el SOCIO solo la suya (la de otro responde 404, como si no existiera); el EXTERNO no usa clases (403).
+         */
         get: operations["obtenerReservaClase"];
         put?: never;
         post?: never;
@@ -670,7 +676,7 @@ export interface paths {
         put?: never;
         /**
          * Cancelar un cupo de clase (RF-07)
-         * @description Cancela un cupo confirmado. Hasta 2 horas antes del inicio de la clase la cancelación es sin penalidad. Dentro de esas 2 horas se permite igual, pero se cobra una penalidad del 50% de un valor nominal interno fijo (las clases no tienen precio propio), que se registra como un Pago con concepto RESERVA_CLASE a nombre del socio que cancela. Una reserva inexistente responde 404; una ya cancelada se resuelve idempotente (204). Una reserva cuya clase ya comenzó (estado efectivo CUMPLIDA) responde 409 `ReservaClasePasada`. El cupo liberado se notifica a la lista de espera (RF-08) en la Unidad III.
+         * @description Cancela un cupo confirmado. Hasta 2 horas antes del inicio de la clase la cancelación es sin penalidad. Dentro de esas 2 horas se permite igual, pero se cobra una penalidad del 50% de un valor nominal interno fijo (las clases no tienen precio propio), que se registra como un Pago con concepto RESERVA_CLASE a nombre del socio que cancela. Una reserva inexistente responde 404; una ya cancelada se resuelve idempotente (204). Una reserva cuya clase ya comenzó (estado efectivo CUMPLIDA) responde 409 `ReservaClasePasada`. El cupo liberado se notifica a la lista de espera (RF-08) en la Unidad III. Requiere token: RECEPCION y GERENTE cancelan cualquiera; el SOCIO solo la suya (la de otro responde 404); el EXTERNO no usa clases (403).
          */
         post: operations["cancelarReservaClase"];
         delete?: never;
@@ -691,13 +697,13 @@ export interface paths {
         };
         /**
          * Listado de la lista de espera de una clase
-         * @description Cola vigente de la clase. Sin `estado` devuelve solo los dos estados vivos, EN_ESPERA y NOTIFICADO: las anotaciones CONFIRMADO ya son reservas y las CANCELADO se excluyen del listado (RF-12 conserva el histórico, no la visibilidad por defecto). Los excluidos se piden con ?estado=CONFIRMADO o ?estado=CANCELADO. Solo admite ?estado= y paginación (lista blanca de parámetros).
+         * @description Cola vigente de la clase. Sin `estado` devuelve solo los dos estados vivos, EN_ESPERA y NOTIFICADO: las anotaciones CONFIRMADO ya son reservas y las CANCELADO se excluyen del listado (RF-12 conserva el histórico, no la visibilidad por defecto). Los excluidos se piden con ?estado=CONFIRMADO o ?estado=CANCELADO. Solo admite ?estado= y paginación (lista blanca de parámetros). Requiere token: SOCIO, RECEPCION y GERENTE (el EXTERNO no usa clases: 403). Acceso provisorio: el SOCIO ve la cola completa porque el frontend calcula con ella su posición.
          */
         get: operations["listarEsperaDeClase"];
         put?: never;
         /**
          * Anotarse en la lista de espera de una clase (RF-08)
-         * @description Anota al socio en la espera de la clase. Solo aplica si la clase está llena: con cupos disponibles no tiene sentido esperar y responde 409 (cupo-disponible). Un socio ya anotado o con reserva activa en la misma clase responde 409 (espera-existente), y una clase ya iniciada también (clase-pasada). Un socio con cuotas vencidas responde 403: no puede entrar a la espera de clases bonificadas. El registro nace en EN_ESPERA. Cuando se libera un cupo (RF-07) se notifica a todos los anotados y el primer confirmante obtiene la reserva.
+         * @description Anota al socio en la espera de la clase. Solo aplica si la clase está llena: con cupos disponibles no tiene sentido esperar y responde 409 (cupo-disponible). Un socio ya anotado o con reserva activa en la misma clase responde 409 (espera-existente), y una clase ya iniciada también (clase-pasada). Un socio con cuotas vencidas responde 403: no puede entrar a la espera de clases bonificadas. El registro nace en EN_ESPERA. Cuando se libera un cupo (RF-07) se notifica a todos los anotados y el primer confirmante obtiene la reserva. Requiere token: RECEPCION y GERENTE anotan a cualquier socio; el SOCIO solo a su nombre (404 si `socioId` es de otro); el EXTERNO no usa clases (403).
          */
         post: operations["anotarseEnEspera"];
         delete?: never;
@@ -715,7 +721,7 @@ export interface paths {
         };
         /**
          * Listado de anotaciones de espera con filtros
-         * @description Filtros por clase, socio y estado (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los dos estados vivos, EN_ESPERA y NOTIFICADO: las CONFIRMADO ya son reservas y las CANCELADO no aparecen en el listado (RF-12 conserva el histórico, no la visibilidad por defecto).
+         * @description Filtros por clase, socio y estado (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los dos estados vivos, EN_ESPERA y NOTIFICADO: las CONFIRMADO ya son reservas y las CANCELADO no aparecen en el listado (RF-12 conserva el histórico, no la visibilidad por defecto). Requiere token: RECEPCION y GERENTE ven todas; el SOCIO solo las suyas (el `socioId` se fuerza con el de la sesión y el que mande se ignora); el EXTERNO no usa clases (403).
          */
         get: operations["listarEsperasClase"];
         put?: never;
@@ -736,13 +742,16 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Obtener anotación de espera por id */
+        /**
+         * Obtener anotación de espera por id
+         * @description Requiere token: RECEPCION y GERENTE ven cualquiera; el SOCIO solo la suya (la de otro responde 404, como si no existiera); el EXTERNO no usa clases (403).
+         */
         get: operations["obtenerEspera"];
         put?: never;
         post?: never;
         /**
          * Salir de la lista de espera (baja lógica)
-         * @description Baja lógica: la anotación pasa a CANCELADO (no se borra el registro; se conserva el histórico de la espera). Una anotación CONFIRMADA ya tomó el cupo: no se puede salir así; su reserva se gestiona por /reservas-clases (RF-07). Responder 409.
+         * @description Baja lógica: la anotación pasa a CANCELADO (no se borra el registro; se conserva el histórico de la espera). Una anotación CONFIRMADA ya tomó el cupo: no se puede salir así; su reserva se gestiona por /reservas-clases (RF-07). Responder 409. Requiere token: RECEPCION y GERENTE sacan a cualquiera; el SOCIO solo la suya (la de otro responde 404); el EXTERNO no usa clases (403).
          */
         delete: operations["salirDeEspera"];
         options?: never;
@@ -764,7 +773,7 @@ export interface paths {
         put?: never;
         /**
          * Confirmar cupo desde la lista de espera (RF-08)
-         * @description Materializa el first-come: el cupo liberado lo toma el primer anotado en NOTIFICADO que confirme; al confirmar se crea la ReservaClase y la anotación pasa a CONFIRMADO. Solo confirma quien está NOTIFICADO: si la anotación no fue notificada o el cupo ya lo tomó otro socio responde 409. La notificación en sí la emite el servidor (observer, no es un endpoint): este POST solo registra la decisión del socio. Devuelve 201 con la ReservaClase creada y Location: el id de la reserva es el dato que el socio necesita para referenciarla, y se obtiene en la misma respuesta en lugar de barrer GET /reservas-clases.
+         * @description Materializa el first-come: el cupo liberado lo toma el primer anotado en NOTIFICADO que confirme; al confirmar se crea la ReservaClase y la anotación pasa a CONFIRMADO. Solo confirma quien está NOTIFICADO: si la anotación no fue notificada o el cupo ya lo tomó otro socio responde 409. La notificación en sí la emite el servidor (observer, no es un endpoint): este POST solo registra la decisión del socio. Devuelve 201 con la ReservaClase creada y Location: el id de la reserva es el dato que el socio necesita para referenciarla, y se obtiene en la misma respuesta en lugar de barrer GET /reservas-clases. Requiere token: RECEPCION y GERENTE confirman cualquiera; el SOCIO solo la suya (la de otro responde 404); el EXTERNO no usa clases (403).
          */
         post: operations["confirmarEspera"];
         delete?: never;
@@ -1930,7 +1939,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description El socio posee cuotas vencidas; no puede reservar ni anotarse en espera con tarifa bonificada (RF-07/RF-08) */
+        /** @description Tiene dos significados, ambos con problem+json. Rol sin permiso: el EXTERNO no usa clases, o la sesión de un SOCIO no trae socioId. Socio en mora: el socio posee cuotas vencidas y no puede reservar ni anotarse en espera con tarifa bonificada (RF-07/RF-08). */
         SocioEnMora: {
             headers: {
                 [name: string]: unknown;
@@ -3257,6 +3266,16 @@ export interface operations {
                     "application/json": components["schemas"]["ListaClases"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (el EXTERNO no usa clases) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["ValidationError"];
         };
     };
@@ -3284,6 +3303,16 @@ export interface operations {
                     "application/json": components["schemas"]["ClaseOut"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) o sede que no es la del recepcionista */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
             409: components["responses"]["ClaseFueraDeHorario"];
             422: components["responses"]["ValidationError"];
@@ -3308,6 +3337,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClaseOut"];
+                };
+            };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (el EXTERNO no usa clases) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -3337,6 +3376,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListaReservasClase"];
+                };
+            };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -3381,6 +3430,7 @@ export interface operations {
                     "application/json": components["schemas"]["ListaReservasCancha"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             422: components["responses"]["ValidationError"];
         };
     };
@@ -3408,6 +3458,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReservaCanchaOut"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["ConflictoReservaCancha"];
             422: components["responses"]["ValidationError"];
@@ -3434,6 +3485,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReservaCanchaOut"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -3456,6 +3508,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["ConflictoCancelacionReserva"];
             422: components["responses"]["ValidationError"];
@@ -3494,6 +3547,16 @@ export interface operations {
                     "application/json": components["schemas"]["ListaReservasClase"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (el EXTERNO no usa clases) o sesión de socio sin socioId */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["ValidationError"];
         };
     };
@@ -3521,6 +3584,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReservaClaseOut"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             403: components["responses"]["SocioEnMora"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["ConflictoReservaClase"];
@@ -3548,6 +3612,16 @@ export interface operations {
                     "application/json": components["schemas"]["ReservaClaseOut"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (el EXTERNO no usa clases) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -3570,7 +3644,17 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["NoAutorizado"];
             402: components["responses"]["PagoRechazado"];
+            /** @description Rol sin permiso (el EXTERNO no usa clases) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
             409: components["responses"]["ReservaClasePasada"];
         };
@@ -3599,6 +3683,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListaEsperas"];
+                };
+            };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (el EXTERNO no usa clases) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -3632,6 +3726,7 @@ export interface operations {
                     "application/json": components["schemas"]["EsperaOut"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             403: components["responses"]["SocioEnMora"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["ConflictoEspera"];
@@ -3671,6 +3766,16 @@ export interface operations {
                     "application/json": components["schemas"]["ListaEsperas"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (el EXTERNO no usa clases) o sesión de socio sin socioId */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["ValidationError"];
         };
     };
@@ -3695,6 +3800,16 @@ export interface operations {
                     "application/json": components["schemas"]["EsperaOut"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (el EXTERNO no usa clases) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -3716,6 +3831,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (el EXTERNO no usa clases) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
             };
             404: components["responses"]["NotFound"];
             409: components["responses"]["EsperaConfirmada"];
@@ -3742,6 +3867,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReservaClaseOut"];
+                };
+            };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (el EXTERNO no usa clases) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             404: components["responses"]["NotFound"];

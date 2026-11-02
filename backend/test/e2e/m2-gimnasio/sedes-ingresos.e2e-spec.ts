@@ -28,6 +28,7 @@ describe('M2 - Ingresos / Aforo: contrato HTTP y scope por sede', () => {
     // /usuarios: ya no hace falta insertar la fila a mano.
     const crearRes = await request(app.getHttpServer())
       .post('/api/v1/usuarios')
+      .set(conToken(tokenGerente))
       .send({
         rol: 'RECEPCION',
         dni: dniUnico(),

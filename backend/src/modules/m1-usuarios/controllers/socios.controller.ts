@@ -10,13 +10,17 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiExtraModels,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -24,25 +28,46 @@ import {
   ApiParam,
   ApiPaymentRequiredResponse,
   ApiTags,
+  ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
+import { Roles } from '../../../commons/guards/roles.decorator';
+import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
+import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
 import { SocioIn } from '../dtos/socio-in.dto';
 import { ListarSociosQueryDto } from '../dtos/listar-socios-query.dto';
 import { SocioPatch } from '../dtos/socio-patch.dto';
 import { SocioOut } from '../dtos/socio-out.dto';
 import { ListaSociosDto } from '../dtos/lista-socios.dto';
+import { SociosAccesoService } from '../services/socios-acceso.service';
 import { SociosService } from '../services/socios.service';
 
+interface RequestConUsuario extends Request {
+  user: UsuarioAutenticado;
+}
+
+const NO_AUTORIZADO = 'Token inválido, expirado o ausente';
+const SOLO_PERSONAL = 'Rol sin permiso (solo RECEPCION/GERENTE)';
+
+// Todo el controller exige sesion. Alta, listado, modificacion y baja son de RECEPCION y GERENTE (@Roles); leer un socio es
+// de cualquier rol, pero el SOCIO solo el suyo y el EXTERNO ninguno (lo decide SociosAccesoService).
 @ApiTags('socios')
 @ApiExtraModels(Problem)
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('socios')
 export class SociosController {
-  constructor(private readonly sociosService: SociosService) {}
+  constructor(
+    private readonly sociosService: SociosService,
+    private readonly acceso: SociosAccesoService,
+  ) {}
 
   @Post()
+  @Roles('RECEPCION', 'GERENTE')
   @ApiOperation({ operationId: 'crearSocio', summary: 'Alta de socio (RF-02)' })
   @ApiCreatedResponse({
     description: 'Socio creado (y su membresía inicial si se indicó plan)',
@@ -52,6 +77,8 @@ export class SociosController {
     },
   })
   @ApiBadRequestResponse({ description: 'Solicitud mal formada (JSON inválido)', content: PROBLEM_JSON })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: SOLO_PERSONAL, content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Usuario a convertir no existe (404)', content: PROBLEM_JSON })
   @ApiConflictResponse({
     description: 'El usuario ya es socio (conflicto de unicidad)',
@@ -79,8 +106,11 @@ export class SociosController {
 
   // Antes que @Get(':socioId') por el mismo motivo que en UsuariosController.
   @Get()
+  @Roles('RECEPCION', 'GERENTE')
   @ApiOperation({ operationId: 'listarSocios', summary: 'Listado de socios con filtros' })
   @ApiOkResponse({ description: 'Listado de socios', type: ListaSociosDto })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: SOLO_PERSONAL, content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
   listar(@Query() dto: ListarSociosQueryDto): Promise<ListaSociosDto> {
     return this.sociosService.listar(dto);
@@ -91,16 +121,20 @@ export class SociosController {
   @ApiParam({ name: 'socioId', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Socio encontrado', type: SocioOut })
   @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
-  @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
-  obtener(@Param('socioId', ParseIntPipe) socioId: number): Promise<SocioOut> {
-    return this.sociosService.obtenerPorId(socioId);
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiNotFoundResponse({ description: 'Socio inexistente (o ajeno, para SOCIO y EXTERNO)', content: PROBLEM_JSON })
+  obtener(@Param('socioId', ParseIntPipe) socioId: number, @Req() req: RequestConUsuario): Promise<SocioOut> {
+    return this.acceso.obtener(req.user, socioId);
   }
 
   @Patch(':socioId')
+  @Roles('RECEPCION', 'GERENTE')
   @ApiOperation({ operationId: 'modificarSocio', summary: 'Modificar parcialmente un socio' })
   @ApiParam({ name: 'socioId', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Socio actualizado', type: SocioOut })
   @ApiBadRequestResponse({ description: 'socio_id no numérico o JSON inválido', content: PROBLEM_JSON })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: SOLO_PERSONAL, content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({
     description: 'Datos inválidos o sede de origen inexistente (P2003)',
@@ -114,11 +148,14 @@ export class SociosController {
   }
 
   @Delete(':socioId')
+  @Roles('RECEPCION', 'GERENTE')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ operationId: 'dejarDeSerSocio', summary: 'Dejar de ser socio' })
   @ApiParam({ name: 'socioId', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiNoContentResponse({ description: 'Socio dado de baja (sin cuerpo)' })
   @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: SOLO_PERSONAL, content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
   eliminar(@Param('socioId', ParseIntPipe) socioId: number): Promise<void> {
     return this.sociosService.dejarDeSerSocio(socioId);

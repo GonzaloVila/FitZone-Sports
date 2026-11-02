@@ -1,9 +1,8 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp, dniUnico } from '@test/helpers/base-de-datos';
-import { conToken, crearUsuarioConSesion } from '@test/helpers/sesion';
+import { clienteCon, crearUsuarioConSesion } from '@test/helpers/sesion';
 import { crearContextoM1 } from './m1.fixtures';
 
 // E2E de socios: el flujo HTTP completo (usuario -> socio -> membresía -> baja) y el
@@ -14,9 +13,14 @@ describe('M1 - Socios', () => {
   let prisma: PrismaService;
   let ctx: Awaited<ReturnType<typeof crearContextoM1>>;
 
+  // Los endpoints exigen sesion: el GERENTE arma el flujo. Su email lleva el prefijo `socio.`, que borra ctx.limpiar().
+  let tokenGerente: string;
+  const comoGerente = () => clienteCon(app, tokenGerente);
+
   beforeAll(async () => {
     ({ app, prisma } = await crearApp());
     ctx = await crearContextoM1(app, prisma);
+    tokenGerente = (await crearUsuarioConSesion(app, prisma, 'GERENTE', 'socio.gerente')).token;
   });
 
   afterAll(async () => {
@@ -25,7 +29,7 @@ describe('M1 - Socios', () => {
   });
 
   async function crearUsuario(nombre: string, email: string): Promise<number> {
-    const res = await request(app.getHttpServer())
+    const res = await comoGerente()
       .post('/api/v1/usuarios')
       .send({ rol: 'EXTERNO', dni: dniUnico(), nombre, email, contrasenia: 'clave12345' })
       .expect(201);
@@ -36,7 +40,7 @@ describe('M1 - Socios', () => {
     const emailDelSocio = ctx.emailSocio();
     const usuarioId = await crearUsuario('Socio E2E', emailDelSocio);
 
-    const crearSocioRes = await request(app.getHttpServer())
+    const crearSocioRes = await comoGerente()
       .post('/api/v1/socios')
       .send({ usuarioId, sedeOrigenId: ctx.sedeId, plan: 'MENSUAL' })
       .expect(201);
@@ -44,23 +48,23 @@ describe('M1 - Socios', () => {
     expect(crearSocioRes.headers.location).toBe(`/api/v1/socios/${socioId}`);
     expect(crearSocioRes.body).toMatchObject({ usuarioId, nombre: 'Socio E2E', email: emailDelSocio });
 
-    const usuarioComoSocio = await request(app.getHttpServer()).get(`/api/v1/usuarios/${usuarioId}`).expect(200);
+    const usuarioComoSocio = await comoGerente().get(`/api/v1/usuarios/${usuarioId}`).expect(200);
     expect(usuarioComoSocio.body.rol).toBe('SOCIO');
 
-    const membresiaRes = await request(app.getHttpServer()).get(`/api/v1/socios/${socioId}/membresias`).expect(200);
+    const membresiaRes = await comoGerente().get(`/api/v1/socios/${socioId}/membresias`).expect(200);
     expect(membresiaRes.body.plan).toBe('MENSUAL');
 
-    await request(app.getHttpServer()).delete(`/api/v1/socios/${socioId}`).expect(204);
+    await comoGerente().delete(`/api/v1/socios/${socioId}`).expect(204);
 
-    const usuarioFinal = await request(app.getHttpServer()).get(`/api/v1/usuarios/${usuarioId}`).expect(200);
+    const usuarioFinal = await comoGerente().get(`/api/v1/usuarios/${usuarioId}`).expect(200);
     expect(usuarioFinal.body.rol).toBe('EXTERNO');
-    await request(app.getHttpServer()).get(`/api/v1/socios/${socioId}/membresias`).expect(404);
+    await comoGerente().get(`/api/v1/socios/${socioId}/membresias`).expect(404);
   });
 
   it('RF-02: el pago de la membresía sobrevive a la baja del socio (historial)', async () => {
     const usuarioId = await crearUsuario('Pago Historial', ctx.emailSocio());
 
-    const socio = await request(app.getHttpServer())
+    const socio = await comoGerente()
       .post('/api/v1/socios')
       .send({ usuarioId, sedeOrigenId: ctx.sedeId, plan: 'MENSUAL' })
       .expect(201);
@@ -72,7 +76,7 @@ describe('M1 - Socios', () => {
     expect(pagoAntes).not.toBeNull();
     const pagoId = pagoAntes!.id;
 
-    await request(app.getHttpServer()).delete(`/api/v1/socios/${socio.body.id}`).expect(204);
+    await comoGerente().delete(`/api/v1/socios/${socio.body.id}`).expect(204);
 
     const membresiaTrasBaja = await prisma.membresia.findFirst({ where: { socio_id: socio.body.id } });
     expect(membresiaTrasBaja?.estado).toBe('SUSPENDIDA');
@@ -81,8 +85,7 @@ describe('M1 - Socios', () => {
     expect(pagoDespues).not.toBeNull();
     expect(pagoDespues!.pago_membresia?.membresia_id).toBe(membresiaTrasBaja!.id);
 
-    // /pagos exige sesion: el comprobante lo baja el personal. El prefijo `socio.` hace que la limpieza de la suite lo borre.
-    const { token } = await crearUsuarioConSesion(app, prisma, 'GERENTE', 'socio.gerente');
-    await request(app.getHttpServer()).get(`/api/v1/pagos/${pagoId}/comprobante`).set(conToken(token)).expect(200);
+    // /pagos exige sesion: el comprobante lo baja el personal.
+    await comoGerente().get(`/api/v1/pagos/${pagoId}/comprobante`).expect(200);
   });
 });

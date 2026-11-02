@@ -3,11 +3,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from 'src/app.module';
+import { PrismaService } from 'src/commons/database/prisma.service';
 import { ProblemFilter } from 'src/commons/filters/problem.filter';
+import { conToken, crearUsuarioConSesion } from '@test/helpers/sesion';
 
 // Contrato de los 4xx que produce el framework, uno por caso: JSON roto (400), path
 // param no numérico (422), ruta inexistente (404) y el 422 del ValidationPipe. Es del
-// filtro global, no de un módulo; ninguno toca la base.
+// filtro global, no de un módulo; ninguno escribe datos (solo se crea el usuario con sesión).
 const DETALLE_400 =
   'La solicitud está mal formada: el cuerpo no es JSON válido o algún parámetro tiene un formato inválido.';
 const DETALLE_422 = 'Uno o más campos no cumplen las reglas de validación.';
@@ -24,6 +26,11 @@ function sinIngles(res: request.Response): void {
 
 describe('Errores 4xx de framework - parseo, path params y ruta inexistente (e2e)', () => {
   let app: INestApplication;
+  let prisma: PrismaService;
+  // Los endpoints de socios exigen sesion y el guard corre antes que la validacion: sin token serian 401. Solo hace falta un
+  // usuario con sesion (GERENTE), que se crea por Prisma y se borra al final.
+  let usuarioId: number;
+  let token: string;
 
   beforeAll(async () => {
     const moduleRef: TestingModule = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -32,15 +39,19 @@ describe('Errores 4xx de framework - parseo, path params y ruta inexistente (e2e
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
     app.useGlobalFilters(new ProblemFilter());
     await app.init();
+    prisma = app.get(PrismaService);
+    ({ usuarioId, token } = await crearUsuarioConSesion(app, prisma, 'GERENTE', 'errores.framework'));
   });
 
   afterAll(async () => {
+    await prisma.usuario.deleteMany({ where: { id: usuarioId } });
     await app.close();
   });
 
   it('JSON inválido en el body responde 400 problem+json en español', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/socios')
+      .set(conToken(token))
       .set('Content-Type', 'application/json')
       .send('{"dni": 123,}');
 
@@ -51,7 +62,7 @@ describe('Errores 4xx de framework - parseo, path params y ruta inexistente (e2e
   });
 
   it('path param no numérico responde 422 problem+json en español', async () => {
-    const res = await request(app.getHttpServer()).get('/api/v1/socios/abc').expect(422);
+    const res = await request(app.getHttpServer()).get('/api/v1/socios/abc').set(conToken(token)).expect(422);
 
     expect(res.headers['content-type']).toMatch(/application\/problem\+json/);
     expect(res.body).toMatchObject({ status: 422, title: 'Error de validación', detail: DETALLE_422 });
@@ -70,6 +81,7 @@ describe('Errores 4xx de framework - parseo, path params y ruta inexistente (e2e
   it('el 422 del ValidationPipe sigue devolviendo el detalle de los campos', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/socios')
+      .set(conToken(token))
       .set('Content-Type', 'application/json')
       .send(JSON.stringify({ dni: 1 }))
       .expect(422);

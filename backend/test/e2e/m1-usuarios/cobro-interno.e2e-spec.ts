@@ -1,9 +1,9 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { PRECIOS_PLAN } from 'src/modules/m1-usuarios/entities/membresia.entity';
 import { crearApp, dniUnico } from '@test/helpers/base-de-datos';
+import { clienteCon, crearUsuarioConSesion } from '@test/helpers/sesion';
 import { crearContextoM1 } from './m1.fixtures';
 
 // Cobros INTERNOS de M1 (RF-02): el alta y el cambio de plan arman su token en el
@@ -15,9 +15,15 @@ describe('M1 - Cobro interno de membresía (PASARELA_MOCK)', () => {
   let prisma: PrismaService;
   let ctx: Awaited<ReturnType<typeof crearContextoM1>>;
 
+  // Los endpoints exigen sesion: el GERENTE da de alta usuarios y socios y cambia planes. Su email lleva el prefijo
+  // `socio.`, que es lo que borra ctx.limpiar().
+  let tokenGerente: string;
+  const comoGerente = () => clienteCon(app, tokenGerente);
+
   beforeAll(async () => {
     ({ app, prisma } = await crearApp());
     ctx = await crearContextoM1(app, prisma);
+    tokenGerente = (await crearUsuarioConSesion(app, prisma, 'GERENTE', 'socio.gerente')).token;
   });
 
   afterEach(() => {
@@ -30,7 +36,7 @@ describe('M1 - Cobro interno de membresía (PASARELA_MOCK)', () => {
   });
 
   async function crearUsuario(nombre: string): Promise<number> {
-    const res = await request(app.getHttpServer())
+    const res = await comoGerente()
       .post('/api/v1/usuarios')
       .send({ rol: 'EXTERNO', dni: dniUnico(), nombre, email: ctx.emailSocio(), contrasenia: 'clave12345' })
       .expect(201);
@@ -42,7 +48,7 @@ describe('M1 - Cobro interno de membresía (PASARELA_MOCK)', () => {
 
     process.env.PASARELA_MOCK = 'RECHAZADO';
 
-    await request(app.getHttpServer())
+    await comoGerente()
       .post('/api/v1/socios')
       .send({ usuarioId, sedeOrigenId: ctx.sedeId, plan: 'MENSUAL' })
       .expect(402);
@@ -59,7 +65,7 @@ describe('M1 - Cobro interno de membresía (PASARELA_MOCK)', () => {
 
     process.env.PASARELA_MOCK = 'PENDIENTE';
 
-    await request(app.getHttpServer())
+    await comoGerente()
       .post('/api/v1/socios')
       .send({ usuarioId, sedeOrigenId: ctx.sedeId, plan: 'MENSUAL' })
       .expect(402);
@@ -70,19 +76,19 @@ describe('M1 - Cobro interno de membresía (PASARELA_MOCK)', () => {
 
   it('RF-02: cambio de plan rechazado -> 402 y la membresía no cambia', async () => {
     const usuarioId = await crearUsuario('Plan Rechazado E2E');
-    const socioRes = await request(app.getHttpServer())
+    const socioRes = await comoGerente()
       .post('/api/v1/socios')
       .send({ usuarioId, sedeOrigenId: ctx.sedeId, plan: 'MENSUAL' })
       .expect(201);
 
-    await request(app.getHttpServer())
+    await comoGerente()
       .patch(`/api/v1/socios/${socioRes.body.id}/membresias`)
       .send({ estado: 'SUSPENDIDA' })
       .expect(200);
 
     process.env.PASARELA_MOCK = 'RECHAZADO';
 
-    await request(app.getHttpServer())
+    await comoGerente()
       .patch(`/api/v1/socios/${socioRes.body.id}/membresias`)
       .send({ plan: 'TRIMESTRAL' })
       .expect(402);
@@ -95,17 +101,17 @@ describe('M1 - Cobro interno de membresía (PASARELA_MOCK)', () => {
 
   it('RF-02: cambio de plan sobre membresía NO vigente cobra el plan nuevo vía evento', async () => {
     const usuarioId = await crearUsuario('Cambio Plan Mora E2E');
-    const socioRes = await request(app.getHttpServer())
+    const socioRes = await comoGerente()
       .post('/api/v1/socios')
       .send({ usuarioId, sedeOrigenId: ctx.sedeId, plan: 'MENSUAL' })
       .expect(201);
 
-    await request(app.getHttpServer())
+    await comoGerente()
       .patch(`/api/v1/socios/${socioRes.body.id}/membresias`)
       .send({ estado: 'SUSPENDIDA' })
       .expect(200);
 
-    const resCambio = await request(app.getHttpServer())
+    const resCambio = await comoGerente()
       .patch(`/api/v1/socios/${socioRes.body.id}/membresias`)
       .send({ plan: 'TRIMESTRAL' })
       .expect(200);

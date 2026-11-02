@@ -1,10 +1,11 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import request from 'supertest';
+import type request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from 'src/app.module';
 import { ProblemFilter } from 'src/commons/filters/problem.filter';
 import { PrismaService } from 'src/commons/database/prisma.service';
+import { clienteCon, crearUsuarioConSesion } from '@test/helpers/sesion';
 
 // Errores de DOMINIO: los 404 y 409 que lanzan los services, con su detail y title
 // propios (el filtro NO los colapsa a un texto genérico). Hasta cf97644 el filtro
@@ -17,6 +18,9 @@ describe('Errores de dominio - 404 y 409 (e2e)', () => {
 
   const usuariosCreados: number[] = [];
   const sociosCreados: number[] = [];
+  // Los endpoints exigen sesion: el GERENTE arma los datos y consulta los errores.
+  let tokenGerente: string;
+  const comoGerente = () => clienteCon(app, tokenGerente);
 
   const emailUnico = () => `errores.${Date.now()}.${Math.floor(Math.random() * 1000)}@e2e.fitzone.test`;
   const dniUnico = () => String(10000000 + Math.floor(Math.random() * 89999999));
@@ -34,6 +38,10 @@ describe('Errores de dominio - 404 y 409 (e2e)', () => {
       data: { nombre: 'Sede Errores E2E', direccion: 'Calle Falsa 456', aforo_maximo: 50 },
     });
     sedeId = sede.id;
+
+    const gerente = await crearUsuarioConSesion(app, prisma, 'GERENTE', 'errores.gerente');
+    usuariosCreados.push(gerente.usuarioId);
+    tokenGerente = gerente.token;
   });
 
   afterAll(async () => {
@@ -52,7 +60,7 @@ describe('Errores de dominio - 404 y 409 (e2e)', () => {
   });
 
   async function crearUsuario(overrides: Record<string, unknown> = {}): Promise<number> {
-    const res = await request(app.getHttpServer())
+    const res = await comoGerente()
       .post('/api/v1/usuarios')
       .send({ rol: 'EXTERNO', dni: dniUnico(), nombre: 'Errores E2E', email: emailUnico(), contrasenia: 'clave12345', ...overrides })
       .expect(201);
@@ -70,7 +78,7 @@ describe('Errores de dominio - 404 y 409 (e2e)', () => {
 
   describe('404 de dominio', () => {
     it('GET /usuarios/{id} inexistente conserva su detail y su instance', async () => {
-      const res = await request(app.getHttpServer()).get('/api/v1/usuarios/999999').expect(404);
+      const res = await comoGerente().get('/api/v1/usuarios/999999').expect(404);
 
       esProblemDeDominio(res, 404);
       expect(res.body.title).toBe('Recurso no encontrado');
@@ -79,14 +87,14 @@ describe('Errores de dominio - 404 y 409 (e2e)', () => {
     });
 
     it('GET /socios/{socio_id} inexistente conserva su detail', async () => {
-      const res = await request(app.getHttpServer()).get('/api/v1/socios/999999').expect(404);
+      const res = await comoGerente().get('/api/v1/socios/999999').expect(404);
 
       esProblemDeDominio(res, 404);
       expect(res.body.detail).toBe('No existe el recurso solicitado para el id indicado.');
     });
 
     it('POST /socios con usuario_id inexistente conserva su detail', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await comoGerente()
         .post('/api/v1/socios')
         .send({ usuarioId: 999999, sedeOrigenId: sedeId, plan: 'MENSUAL' })
         .expect(404);
@@ -101,7 +109,7 @@ describe('Errores de dominio - 404 y 409 (e2e)', () => {
       const dni = dniUnico();
       await crearUsuario({ dni });
 
-      const res = await request(app.getHttpServer())
+      const res = await comoGerente()
         .post('/api/v1/usuarios')
         .send({ rol: 'EXTERNO', dni, nombre: 'Dni Duplicado', email: emailUnico(), contrasenia: 'clave12345' })
         .expect(409);
@@ -115,7 +123,7 @@ describe('Errores de dominio - 404 y 409 (e2e)', () => {
       const email = emailUnico();
       await crearUsuario({ email });
 
-      const res = await request(app.getHttpServer())
+      const res = await comoGerente()
         .post('/api/v1/usuarios')
         .send({ rol: 'EXTERNO', dni: dniUnico(), nombre: 'Email Duplicado', email, contrasenia: 'clave12345' })
         .expect(409);
@@ -127,13 +135,13 @@ describe('Errores de dominio - 404 y 409 (e2e)', () => {
 
     it('POST /socios con usuario que ya es socio', async () => {
       const usuarioId = await crearUsuario();
-      const primerSocio = await request(app.getHttpServer())
+      const primerSocio = await comoGerente()
         .post('/api/v1/socios')
         .send({ usuarioId, sedeOrigenId: sedeId, plan: 'MENSUAL' })
         .expect(201);
       sociosCreados.push(primerSocio.body.id);
 
-      const res = await request(app.getHttpServer())
+      const res = await comoGerente()
         .post('/api/v1/socios')
         .send({ usuarioId, sedeOrigenId: sedeId, plan: 'MENSUAL' })
         .expect(409);

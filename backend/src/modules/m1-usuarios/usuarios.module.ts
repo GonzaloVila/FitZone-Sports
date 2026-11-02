@@ -13,7 +13,9 @@ import { SocioRepository } from './repositories/socio.repository';
 import { UsuarioRepository } from './repositories/usuario.repository';
 import { MembresiasService } from './services/membresias.service';
 import { MembresiaPrecioService } from './services/membresia-precio.service';
+import { SociosAccesoService } from './services/socios-acceso.service';
 import { SociosService } from './services/socios.service';
+import { UsuariosAccesoService } from './services/usuarios-acceso.service';
 import { UsuariosService } from './services/usuarios.service';
 
 // M1 es la raíz del grafo de módulos: no importa ningún módulo de dominio, solo
@@ -42,6 +44,10 @@ import { UsuariosService } from './services/usuarios.service';
     SociosService,
     MembresiasService,
     MembresiaPrecioService,
+    // Los dos que usan los controllers para lo que depende de quien llama (dueño, rol que crea, a quien modifica):
+    // aplican el alcance por rol y delegan en los servicios de arriba, que no cambian.
+    UsuariosAccesoService,
+    SociosAccesoService,
     MembresiasCron,
   ],
   // Los repositorios quedan privados a propósito: la capa de acceso a datos de M1

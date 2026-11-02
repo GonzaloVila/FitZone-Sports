@@ -5,29 +5,53 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiExtraModels,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiPaymentRequiredResponse,
   ApiTags,
+  ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
+import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
+import { Roles } from '../../../commons/guards/roles.decorator';
+import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
+import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
 import { MembresiaOut } from '../dtos/membresia-out.dto';
 import { MembresiaPatch } from '../dtos/membresia-patch.dto';
 import { MembresiasService } from '../services/membresias.service';
+import { SociosAccesoService } from '../services/socios-acceso.service';
 
+interface RequestConUsuario extends Request {
+  user: UsuarioAutenticado;
+}
+
+const NO_AUTORIZADO = 'Token inválido, expirado o ausente';
+
+// Todo el controller exige sesion. Leer la membresia es de cualquier rol, pero el SOCIO solo la suya y el EXTERNO ninguna
+// (SociosAccesoService); cambiar plan o configuracion es de RECEPCION y GERENTE.
 @ApiTags('membresias')
 @ApiExtraModels(Problem)
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('socios/:socioId/membresias')
 export class MembresiasController {
-  constructor(private readonly membresiasService: MembresiasService) {}
+  constructor(
+    private readonly membresiasService: MembresiasService,
+    private readonly acceso: SociosAccesoService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -37,14 +61,17 @@ export class MembresiasController {
   @ApiParam({ name: 'socioId', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Membresía vigente del socio', type: MembresiaOut })
   @ApiBadRequestResponse({ description: 'socio_id no numérico', content: PROBLEM_JSON })
-  @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiNotFoundResponse({ description: 'Socio inexistente (o ajeno, para SOCIO y EXTERNO)', content: PROBLEM_JSON })
   obtener(
     @Param('socioId', ParseIntPipe) socioId: number,
+    @Req() req: RequestConUsuario,
   ): Promise<MembresiaOut> {
-    return this.membresiasService.obtenerPorSocioId(socioId);
+    return this.acceso.obtenerMembresia(req.user, socioId);
   }
 
   @Patch()
+  @Roles('RECEPCION', 'GERENTE')
   @ApiOperation({
     operationId: 'modificarMembresia',
     summary: 'Cambiar plan o configuración de la membresía',
@@ -64,6 +91,8 @@ export class MembresiasController {
   @ApiParam({ name: 'socioId', type: 'integer', description: 'ID numérico del socio', example: 2 })
   @ApiOkResponse({ description: 'Membresía actualizada', type: MembresiaOut })
   @ApiBadRequestResponse({ description: 'socio_id no numérico o JSON inválido', content: PROBLEM_JSON })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: 'Rol sin permiso (solo RECEPCION/GERENTE)', content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Socio inexistente', content: PROBLEM_JSON })
   // Cambiar el plan de una membresía NO vigente cobra el plan nuevo (RF-02): si la
   // pasarela rechaza, el cambio no se aplica y responde 402.

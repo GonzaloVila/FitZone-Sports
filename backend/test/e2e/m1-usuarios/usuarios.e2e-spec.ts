@@ -1,9 +1,9 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
+import type request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp, dniUnico, emailUnico } from '@test/helpers/base-de-datos';
-import { conToken, crearUsuarioConSesion } from '@test/helpers/sesion';
+import { clienteCon, crearUsuarioConSesion } from '@test/helpers/sesion';
 import { crearContextoM1 } from './m1.fixtures';
 
 // E2E de usuarios: listado con filtros (y que `contrasenia` no viaje), el PATCH que
@@ -18,8 +18,10 @@ describe('M1 - Usuarios', () => {
   // prefijo `socio.` y a su propia sede, asi que estos datos se limpian aca.
   const usuariosCreados: number[] = [];
   const sedesCreadas: number[] = [];
-  // POST /sedes exige GERENTE: las sedes de estos tests se dan de alta con su sesion.
+  // Usuarios, socios y sedes exigen sesion: el GERENTE puede crear y modificar cualquier cosa, asi que los tests de datos
+  // (no los de acceso, que viven en acceso.e2e-spec.ts) arman todo con su sesion.
   let tokenGerente: string;
+  const comoGerente = () => clienteCon(app, tokenGerente);
 
   beforeAll(async () => {
     ({ app, prisma } = await crearApp());
@@ -39,27 +41,27 @@ describe('M1 - Usuarios', () => {
 
   it('GET /usuarios: listado plano, filtros y sin exponer contrasenia', async () => {
     const emailAna = ctx.emailSocio();
-    await request(app.getHttpServer())
+    await comoGerente()
       .post('/api/v1/usuarios')
       .send({ rol: 'EXTERNO', dni: dniUnico(), nombre: 'Ana Gómez', email: emailAna, contrasenia: 'clave12345' })
       .expect(201);
 
-    const todos = await request(app.getHttpServer()).get('/api/v1/usuarios').query({ perPage: 100 }).expect(200);
+    const todos = await comoGerente().get('/api/v1/usuarios').query({ perPage: 100 }).expect(200);
     const ana = todos.body.items.find((u: { email: string }) => u.email === emailAna);
     expect(ana).toBeDefined();
     expect(ana.contrasenia).toBeUndefined();
     expect(ana.sedeId).toBeNull();
 
-    const porNombre = await request(app.getHttpServer()).get('/api/v1/usuarios').query({ nombre: 'ana' }).expect(200);
+    const porNombre = await comoGerente().get('/api/v1/usuarios').query({ nombre: 'ana' }).expect(200);
     expect(porNombre.body.items.map((u: { email: string }) => u.email)).toContain(emailAna);
 
-    const porEmail = await request(app.getHttpServer()).get('/api/v1/usuarios').query({ email: emailAna }).expect(200);
+    const porEmail = await comoGerente().get('/api/v1/usuarios').query({ email: emailAna }).expect(200);
     expect(porEmail.body.items).toHaveLength(1);
     expect(porEmail.body.total).toBe(1);
   });
 
   it('PATCH /usuarios/{id} acepta null para limpiar telefono y foto_url', async () => {
-    const usuarioRes = await request(app.getHttpServer())
+    const usuarioRes = await comoGerente()
       .post('/api/v1/usuarios')
       .send({
         rol: 'EXTERNO',
@@ -72,7 +74,7 @@ describe('M1 - Usuarios', () => {
       })
       .expect(201);
 
-    const limpiado = await request(app.getHttpServer())
+    const limpiado = await comoGerente()
       .patch(`/api/v1/usuarios/${usuarioRes.body.id}`)
       .send({ telefono: null, fotoUrl: null })
       .expect(200);
@@ -83,9 +85,8 @@ describe('M1 - Usuarios', () => {
 
   describe('Alta de RECEPCION con sede de trabajo (A3)', () => {
     async function crearSedeE2E(): Promise<number> {
-      const res = await request(app.getHttpServer())
+      const res = await comoGerente()
         .post('/api/v1/sedes')
-        .set(conToken(tokenGerente))
         .send({ nombre: 'Sede Alta Recepcion E2E', direccion: 'Calle Recepcion 123', aforoMaximo: 10 })
         .expect(201);
       sedesCreadas.push(res.body.id);
@@ -107,7 +108,7 @@ describe('M1 - Usuarios', () => {
       const sedeId = await crearSedeE2E();
       const email = emailUnico('recep');
 
-      const creado = await request(app.getHttpServer())
+      const creado = await comoGerente()
         .post('/api/v1/usuarios')
         .send(datosRecepcion({ email, sedeId }))
         .expect(201);
@@ -119,12 +120,12 @@ describe('M1 - Usuarios', () => {
       const fila = await prisma.empleadoSede.findUnique({ where: { usuario_id: creado.body.id } });
       expect(fila).toMatchObject({ usuario_id: creado.body.id, sede_id: sedeId });
 
-      const detalle = await request(app.getHttpServer())
+      const detalle = await comoGerente()
         .get(`/api/v1/usuarios/${creado.body.id}`)
         .expect(200);
       expect(detalle.body.sedeId).toBe(sedeId);
 
-      const login = await request(app.getHttpServer())
+      const login = await comoGerente()
         .post('/api/v1/auth/login')
         .send({ email, contrasenia: 'clave12345' })
         .expect(200);
@@ -132,7 +133,7 @@ describe('M1 - Usuarios', () => {
     });
 
     it('422 si RECEPCION no manda sedeId', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await comoGerente()
         .post('/api/v1/usuarios')
         .send(datosRecepcion())
         .expect(422);
@@ -140,7 +141,7 @@ describe('M1 - Usuarios', () => {
     });
 
     it('422 si EXTERNO manda sedeId (la sede no aplica a ese rol)', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await comoGerente()
         .post('/api/v1/usuarios')
         .send(datosRecepcion({ rol: 'EXTERNO', sedeId: 1 }))
         .expect(422);
@@ -148,7 +149,7 @@ describe('M1 - Usuarios', () => {
     });
 
     it('404 si la sede no existe', async () => {
-      await request(app.getHttpServer())
+      await comoGerente()
         .post('/api/v1/usuarios')
         .send(datosRecepcion({ sedeId: 2_000_000 }))
         .expect(404);
@@ -156,14 +157,14 @@ describe('M1 - Usuarios', () => {
 
     it('409 si la sede ya tiene recepcionista, y no crea la segunda cuenta', async () => {
       const sedeId = await crearSedeE2E();
-      const primero = await request(app.getHttpServer())
+      const primero = await comoGerente()
         .post('/api/v1/usuarios')
         .send(datosRecepcion({ sedeId }))
         .expect(201);
       usuariosCreados.push(primero.body.id);
 
       const emailSegundo = emailUnico('recep');
-      const res = await request(app.getHttpServer())
+      const res = await comoGerente()
         .post('/api/v1/usuarios')
         .send(datosRecepcion({ email: emailSegundo, sedeId }))
         .expect(409);
@@ -183,9 +184,8 @@ describe('M1 - Usuarios', () => {
     let emailExterno: string;
 
     async function crearSedeE2E(nombre: string): Promise<number> {
-      const res = await request(app.getHttpServer())
+      const res = await comoGerente()
         .post('/api/v1/sedes')
-        .set(conToken(tokenGerente))
         .send({ nombre, direccion: 'Calle Listado Usuarios 1', aforoMaximo: 10 })
         .expect(201);
       sedesCreadas.push(res.body.id);
@@ -193,7 +193,7 @@ describe('M1 - Usuarios', () => {
     }
 
     function listar(query: Record<string, string | number> = {}) {
-      return request(app.getHttpServer()).get('/api/v1/usuarios').query(query);
+      return comoGerente().get('/api/v1/usuarios').query(query);
     }
 
     const idsDe = (res: request.Response) => res.body.items.map((u: { id: number }) => u.id);
@@ -203,7 +203,7 @@ describe('M1 - Usuarios', () => {
       sedeSinRecepcion = await crearSedeE2E('Sede E2E usuarios sin recepcion');
 
       emailRecepcion = emailUnico('recep');
-      const recepcion = await request(app.getHttpServer())
+      const recepcion = await comoGerente()
         .post('/api/v1/usuarios')
         .send({
           rol: 'RECEPCION',
@@ -218,7 +218,7 @@ describe('M1 - Usuarios', () => {
       usuariosCreados.push(recepcionId);
 
       emailExterno = emailUnico('externo');
-      const externo = await request(app.getHttpServer())
+      const externo = await comoGerente()
         .post('/api/v1/usuarios')
         .send({
           rol: 'EXTERNO',

@@ -1,5 +1,8 @@
+import { HttpStatus } from '@nestjs/common';
 import {
+  GENERIC_TYPE,
   ProblemException,
+  TITLES,
   conflictoDeDominio,
   datosInvalidos,
   recursoNoEncontrado,
@@ -23,6 +26,26 @@ export function sedeSoloParaRecepcion(rol: string): ProblemException {
 // 404: la sede referenciada no existe.
 export function sedeInexistente(sedeId: number): ProblemException {
   return recursoNoEncontrado(`No existe la sede ${sedeId}.`);
+}
+
+// 403: un RECEPCION solo da de alta clientes (EXTERNO); el personal lo crea el GERENTE.
+export function sinPermisoParaCrearRol(rol: string): ProblemException {
+  return new ProblemException({
+    type: GENERIC_TYPE,
+    title: TITLES[HttpStatus.FORBIDDEN],
+    status: HttpStatus.FORBIDDEN,
+    detail: `Su rol no permite crear usuarios con rol ${rol}.`,
+  });
+}
+
+// 403: un RECEPCION no modifica a otro personal (RECEPCION o GERENTE), ni a sí mismo.
+export function sinPermisoParaModificarUsuario(usuarioId: number): ProblemException {
+  return new ProblemException({
+    type: GENERIC_TYPE,
+    title: TITLES[HttpStatus.FORBIDDEN],
+    status: HttpStatus.FORBIDDEN,
+    detail: `Su rol no permite modificar al usuario ${usuarioId}.`,
+  });
 }
 
 // 409: EmpleadoSede.sede_id es unico (1:1 con Sede): una sede ya tiene a su

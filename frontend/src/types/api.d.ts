@@ -247,13 +247,13 @@ export interface paths {
         };
         /**
          * Listado de sedes
-         * @description Listado paginado de todas las sedes de la cadena (Gerente Central, A4). Solo admite paginación (lista blanca de parámetros).
+         * @description Listado paginado de todas las sedes de la cadena (Gerente Central, A4). Solo admite paginación (lista blanca de parámetros). Requiere token: cualquier rol con sesión.
          */
         get: operations["listarSedes"];
         put?: never;
         /**
          * Alta de sede
-         * @description Alta de una nueva sucursal por el Gerente Central (RNF-04). La sede queda disponible para canchas, clases y control de acceso en forma inmediata (configuración por BD).
+         * @description Alta de una nueva sucursal por el Gerente Central (RNF-04). La sede queda disponible para canchas, clases y control de acceso en forma inmediata (configuración por BD). Requiere token: solo GERENTE.
          */
         post: operations["crearSede"];
         delete?: never;
@@ -277,7 +277,7 @@ export interface paths {
         put?: never;
         /**
          * Registrar ingreso a la sede (RF-04)
-         * @description Registra el turno de acceso. Valida que el usuario tenga una membresía vigente (RF-04: estado distinto de SUSPENDIDA y fecha_fin no vencida) y que la sede tenga espacio (RF-05, cuenta los Ingresos sin egreso contra Sede.aforo_maximo). RN-01: un usuario no puede estar dentro de dos sedes a la vez; si ya tiene un ingreso sin egreso responde 409 (acceso-duplicado). El codigo_totp es el QR dinámico de la app del socio (TOTP, Unidad III); si el socio no activó el QR, se valida solo la membresía. fecha_hora_ingreso es opcional para el puesto de control offline (RNF-01): enviar la hora real del acceso cuando se sincroniza.
+         * @description Registra el turno de acceso. Valida que el usuario tenga una membresía vigente (RF-04: estado distinto de SUSPENDIDA y fecha_fin no vencida) y que la sede tenga espacio (RF-05, cuenta los Ingresos sin egreso contra Sede.aforo_maximo). RN-01: un usuario no puede estar dentro de dos sedes a la vez; si ya tiene un ingreso sin egreso responde 409 (acceso-duplicado). El codigo_totp es el QR dinámico de la app del socio (TOTP, Unidad III); si el socio no activó el QR, se valida solo la membresía. fecha_hora_ingreso es opcional para el puesto de control offline (RNF-01): enviar la hora real del acceso cuando se sincroniza. Requiere token: RECEPCION solo registra en su sede (403 si `sede_id` es otra); GERENTE registra en cualquiera.
          */
         post: operations["registrarIngreso"];
         delete?: never;
@@ -298,7 +298,7 @@ export interface paths {
         };
         /**
          * Obtener ingreso por id
-         * @description Devuelve el registro del acceso. `fecha_hora_egreso` es nula mientras el usuario permanezca dentro de la sede (es lo que define el aforo, RN-01). Para el egreso ver POST /ingresos/{ingresoId}/egreso.
+         * @description Devuelve el registro del acceso. `fecha_hora_egreso` es nula mientras el usuario permanezca dentro de la sede (es lo que define el aforo, RN-01). Para el egreso ver POST /ingresos/{ingresoId}/egreso. Requiere token: RECEPCION solo ve ingresos de su sede (403 si es de otra); GERENTE ve cualquiera.
          */
         get: operations["obtenerIngreso"];
         put?: never;
@@ -364,7 +364,7 @@ export interface paths {
         };
         /**
          * Aforo actual de una sede (RF-05)
-         * @description aforo_actual = cantidad de Ingresos sin fecha_hora_egreso de la sede (RN-01); restante = aforo_maximo - aforo_actual. Es la misma cuenta que valida cada POST de acceso.
+         * @description aforo_actual = cantidad de Ingresos sin fecha_hora_egreso de la sede (RN-01); restante = aforo_maximo - aforo_actual. Es la misma cuenta que valida cada POST de acceso. Requiere token: RECEPCION solo consulta su sede (403 si pide otra); GERENTE consulta cualquiera.
          */
         get: operations["obtenerAforo"];
         put?: never;
@@ -387,13 +387,13 @@ export interface paths {
         };
         /**
          * Listado de canchas de una sede
-         * @description Listado paginado de las canchas de la sede (incluye las no operativas, RF-12); opcional filtrar por ?estado= (lista blanca de parámetros). Sin ?estado= devuelve todas, incluidas las EN_MANTENIMIENTO.
+         * @description Listado paginado de las canchas de la sede (incluye las no operativas, RF-12); opcional filtrar por ?estado= (lista blanca de parámetros). Sin ?estado= devuelve todas, incluidas las EN_MANTENIMIENTO. Requiere token: cualquier rol con sesión.
          */
         get: operations["listarCanchas"];
         put?: never;
         /**
          * Alta de cancha (RF-09)
-         * @description El Gerente configura el tipo y el costo por hora (por defecto, operativa).
+         * @description El Gerente configura el tipo y el costo por hora (por defecto, operativa). Requiere token: solo GERENTE.
          */
         post: operations["crearCancha"];
         delete?: never;
@@ -411,7 +411,7 @@ export interface paths {
         };
         /**
          * Listado de canchas de todas las sedes
-         * @description Listado paginado de las canchas de TODAS las sedes (incluye las no operativas, RF-12); opcional filtrar por sede, tipo y estado (lista blanca de parámetros). Sin filtros devuelve todas las canchas de la cadena. Orden estable por sede y luego por id (`sede_id asc, id asc`). Como en GET /ingresos y GET /socios, un `sedeId` bien formado pero inexistente no es un error: responde 200 con la lista vacía (`items: []`, `total: 0`); el 404 de una sede inexistente es propio de GET /sedes/{sedeId}/canchas, donde la sede es parte de la ruta.
+         * @description Listado paginado de las canchas de TODAS las sedes (incluye las no operativas, RF-12); opcional filtrar por sede, tipo y estado (lista blanca de parámetros). Sin filtros devuelve todas las canchas de la cadena. Orden estable por sede y luego por id (`sede_id asc, id asc`). Como en GET /ingresos y GET /socios, un `sedeId` bien formado pero inexistente no es un error: responde 200 con la lista vacía (`items: []`, `total: 0`); el 404 de una sede inexistente es propio de GET /sedes/{sedeId}/canchas, donde la sede es parte de la ruta. Requiere token: cualquier rol con sesión.
          */
         get: operations["buscarCanchas"];
         put?: never;
@@ -432,7 +432,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** Obtener cancha por id */
+        /**
+         * Obtener cancha por id
+         * @description Requiere token: cualquier rol con sesión.
+         */
         get: operations["obtenerCancha"];
         put?: never;
         post?: never;
@@ -441,7 +444,7 @@ export interface paths {
         head?: never;
         /**
          * Modificar parcialmente una cancha
-         * @description Actualiza costo_por_hora (RF-09) y/o estado. Pasar a EN_MANTENIMIENTO no borra las reservas ya tomadas (RF-12): inhabilitar el futuro no toca el histórico.
+         * @description Actualiza costo_por_hora (RF-09) y/o estado. Pasar a EN_MANTENIMIENTO no borra las reservas ya tomadas (RF-12): inhabilitar el futuro no toca el histórico. Requiere token: solo GERENTE.
          */
         patch: operations["modificarCancha"];
         trace?: never;
@@ -458,7 +461,7 @@ export interface paths {
         };
         /**
          * Disponibilidad de turnos de una cancha
-         * @description Consulta indexada por día (RNF-03). Devuelve los tramos horarios libres/ocupados para la fecha solicitada. Si la cancha está EN_MANTENIMIENTO todos los tramos responden disponible:false (RF-12): se bloquea el futuro sin tocar las reservas ya tomadas. La consulta usa el índice compuesto (cancha_id, fecha_hora_inicio). Solo admite ?fecha= y paginación (lista blanca de parámetros).
+         * @description Consulta indexada por día (RNF-03). Devuelve los tramos horarios libres/ocupados para la fecha solicitada. Si la cancha está EN_MANTENIMIENTO todos los tramos responden disponible:false (RF-12): se bloquea el futuro sin tocar las reservas ya tomadas. La consulta usa el índice compuesto (cancha_id, fecha_hora_inicio). Solo admite ?fecha= y paginación (lista blanca de parámetros). Requiere token: cualquier rol con sesión.
          */
         get: operations["consultarDisponibilidad"];
         put?: never;
@@ -1863,23 +1866,6 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description La membresía del usuario no está vigente (RF-04) */
-        MembresiaInactiva: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                /**
-                 * @example {
-                 *       "type": "https://fitzone.app/errores/membresia-inactiva",
-                 *       "title": "Membresía inactiva",
-                 *       "status": 403,
-                 *       "detail": "El usuario 2 no posee una membresía vigente para ingresar a la sede 3."
-                 *     }
-                 */
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
         /** @description RN-01 (usuario ya dentro de otra sede) o aforo lleno (RF-05) */
         ConflictoAcceso: {
             headers: {
@@ -2683,6 +2669,7 @@ export interface operations {
                     "application/json": components["schemas"]["ListaSedes"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             422: components["responses"]["ValidationError"];
         };
     };
@@ -2708,6 +2695,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SedeOut"];
+                };
+            };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             422: components["responses"]["ValidationError"];
@@ -2796,7 +2793,16 @@ export interface operations {
                     "application/json": components["schemas"]["IngresoOut"];
                 };
             };
-            403: components["responses"]["MembresiaInactiva"];
+            401: components["responses"]["NoAutorizado"];
+            /** @description Tiene dos significados, ambos con problem+json: rol sin permiso (solo RECEPCION/GERENTE) o sede que no es la del recepcionista (type sede-fuera-de-alcance), y membresía inactiva del socio (type membresia-inactiva, RF-04). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
             409: components["responses"]["ConflictoAcceso"];
             422: components["responses"]["ValidationError"];
@@ -2821,6 +2827,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IngresoOut"];
+                };
+            };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) o ingreso de otra sede que la del recepcionista */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -2914,6 +2930,16 @@ export interface operations {
                     "application/json": components["schemas"]["AforoOut"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo RECEPCION/GERENTE) o sede que no es la del recepcionista */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -2943,6 +2969,7 @@ export interface operations {
                     "application/json": components["schemas"]["ListaCanchas"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
         };
@@ -2972,6 +2999,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CanchaOut"];
+                };
+            };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -3008,6 +3045,7 @@ export interface operations {
                     "application/json": components["schemas"]["ListaCanchas"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             422: components["responses"]["ValidationError"];
         };
     };
@@ -3032,6 +3070,7 @@ export interface operations {
                     "application/json": components["schemas"]["CanchaOut"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -3058,6 +3097,16 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CanchaOut"];
+                };
+            };
+            401: components["responses"]["NoAutorizado"];
+            /** @description Rol sin permiso (solo GERENTE) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
                 };
             };
             404: components["responses"]["NotFound"];
@@ -3090,6 +3139,7 @@ export interface operations {
                     "application/json": components["schemas"]["ListaDisponibilidad"];
                 };
             };
+            401: components["responses"]["NoAutorizado"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationError"];
         };

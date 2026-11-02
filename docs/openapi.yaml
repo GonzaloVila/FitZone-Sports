@@ -1281,7 +1281,10 @@ paths:
         - clases
       operationId: listarClases
       summary: Listado de clases con filtros
-      description: Filtrado por tipo, sede y/o estado (lista blanca de parámetros) y paginación.
+      description: >-
+        Filtrado por tipo, sede y/o estado (lista blanca de parámetros) y paginación. Requiere token: SOCIO, RECEPCION y GERENTE (el EXTERNO no usa clases: 403).
+      security:
+        - bearer: []
       parameters:
         - name: tipo
           in: query
@@ -1318,6 +1321,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaClases'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (el EXTERNO no usa clases)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -1325,7 +1336,11 @@ paths:
         - clases
       operationId: crearClase
       summary: Alta de clase (RF-06)
-      description: Registra una clase con su tipo, instructor, rango horario (horarioInicio/horarioFin) y capacidad.
+      description: >-
+        Registra una clase con su tipo, instructor, rango horario (horarioInicio/horarioFin) y capacidad. Requiere token: GERENTE crea en cualquier sede; RECEPCION solo en su sede
+        (403 si `sedeId` es otra); SOCIO y EXTERNO no pueden crear clases (403).
+      security:
+        - bearer: []
       requestBody:
         required: true
         content:
@@ -1345,6 +1360,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClaseOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (solo RECEPCION/GERENTE) o sede que no es la del recepcionista
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -1359,7 +1382,10 @@ paths:
         - clases
       operationId: obtenerClase
       summary: Obtener clase por id
-      description: Devuelve la clase con los cupos libres restantes ahora. Si no existe, 404.
+      description: >-
+        Devuelve la clase con los cupos libres restantes ahora. Si no existe, 404. Requiere token: SOCIO, RECEPCION y GERENTE (el EXTERNO no usa clases: 403).
+      security:
+        - bearer: []
       responses:
         '200':
           description: Clase encontrada
@@ -1367,6 +1393,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ClaseOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (el EXTERNO no usa clases)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
   /clases/{claseId}/reservas:
@@ -1379,7 +1413,9 @@ paths:
       summary: Listado de reservas de una clase
       description: >
         Ocupación de la clase. Sin `estado` devuelve solo las CONFIRMADA: las canceladas no aparecen en el listado y se piden con ?estado=CANCELADA (RF-12 conserva el histórico, no la visibilidad por
-        defecto). Solo admite ?estado= y paginación (lista blanca de parámetros).
+        defecto). Solo admite ?estado= y paginación (lista blanca de parámetros). Requiere token: solo RECEPCION y GERENTE (SOCIO y EXTERNO: 403).
+      security:
+        - bearer: []
       parameters:
         - name: estado
           in: query
@@ -1399,6 +1435,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaReservasClase'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (solo RECEPCION/GERENTE)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -1412,6 +1456,9 @@ paths:
       description: >
         Filtros por cancha, usuario, estado y día (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo las CONFIRMADA activas (fecha_hora_fin futura): las canceladas no aparecen y se
         piden con ?estado=CANCELADA (RF-12 conserva el histórico), y las ya cumplidas con ?estado=CUMPLIDA (estado derivado de la fecha).
+        Requiere token: RECEPCION y GERENTE ven todas (con los filtros que manden); SOCIO y EXTERNO solo las propias: el `usuarioId` se fuerza con el de la sesión y el que manden se ignora.
+      security:
+        - bearer: []
       parameters:
         - name: canchaId
           in: query
@@ -1450,6 +1497,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaReservasCancha'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -1460,7 +1509,9 @@ paths:
       description: >
         Crea la reserva de cancha en transacción. Si la cancha está EN_MANTENIMIENTO no se reservan turnos futuros sobre ella (RF-12): responde 409 sin tocar las reservas ya tomadas. Si dos usuarios
         reservan el mismo turno a la vez, el unique index parcial (unq_reserva_turno) hace que un solo INSERT gane y el otro reciba 409 problem+json. El precio aplicado se guarda en el momento de la
-        reserva.
+        reserva. Requiere token: RECEPCION y GERENTE reservan por cualquier usuario; SOCIO y EXTERNO solo a su nombre (404 si `usuarioId` es de otro).
+      security:
+        - bearer: []
       requestBody:
         required: true
         content:
@@ -1480,6 +1531,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservaCanchaOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -1494,6 +1547,10 @@ paths:
         - reservas-canchas
       operationId: obtenerReservaCancha
       summary: Obtener reserva de cancha por id
+      description: >-
+        Requiere token: RECEPCION y GERENTE ven cualquiera; SOCIO y EXTERNO solo la propia (la de otro responde 404, como si no existiera).
+      security:
+        - bearer: []
       responses:
         '200':
           description: Reserva
@@ -1501,6 +1558,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservaCanchaOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '404':
           $ref: '#/components/responses/NotFound'
   /reservas-canchas/{reservaCanchaId}/cancelaciones:
@@ -1515,9 +1574,14 @@ paths:
         Acción modelada como sub-recurso y sin body: responde 204 (la cancelación no lleva datos extra). El DELETE de reserva ES esta cancelación; no se borra el histórico. Solo puede cancelar una
         reserva CONFIRMADA cuyo turno no haya empezado: una reserva inexistente responde 404; una ya CANCELADA responde 409 `ReservaYaCancelada`; y una cuyo turno ya pasó (estado efectivo CUMPLIDA)
         responde 409 `ReservaPasada`. Para reprogramar se cancela y se reserva un turno nuevo.
+        Requiere token: RECEPCION y GERENTE cancelan cualquiera; SOCIO y EXTERNO solo la propia (la de otro responde 404).
+      security:
+        - bearer: []
       responses:
         '204':
           description: Reserva cancelada (sin cuerpo)
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -1533,6 +1597,9 @@ paths:
       description: >
         Filtros por clase, socio y estado (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo las CONFIRMADA: las canceladas no aparecen en el listado y se piden explícitamente con
         ?estado=CANCELADA (RF-12 conserva el histórico, no la visibilidad por defecto).
+        Requiere token: RECEPCION y GERENTE ven todas; el SOCIO solo las suyas (el `socioId` se fuerza con el de la sesión y el que mande se ignora); el EXTERNO no usa clases (403).
+      security:
+        - bearer: []
       parameters:
         - name: claseId
           in: query
@@ -1566,6 +1633,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaReservasClase'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (el EXTERNO no usa clases) o sesión de socio sin socioId
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -1576,7 +1651,9 @@ paths:
       description: >
         Registra la reserva de cupo (RF-06) y decrementa el cupo disponible. La ventana de reserva es de hasta 48 horas antes del inicio de la clase: fuera de esa ventana responde 409, igual que el
         cupo completo (RF-06) o una reserva duplicada. Un socio con cuotas vencidas responde 403: no puede reservar con tarifa bonificada. La cancelación del cupo se hace por el sub-recurso
-        /cancelaciones (RF-07), no por DELETE.
+        /cancelaciones (RF-07), no por DELETE. Requiere token: RECEPCION y GERENTE reservan por cualquier socio; el SOCIO solo a su nombre (404 si `socioId` es de otro); el EXTERNO no usa clases (403).
+      security:
+        - bearer: []
       requestBody:
         required: true
         content:
@@ -1596,6 +1673,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservaClaseOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '403':
           $ref: '#/components/responses/SocioEnMora'
         '404':
@@ -1612,6 +1691,10 @@ paths:
         - reservas-clases
       operationId: obtenerReservaClase
       summary: Obtener reserva de cupo por id
+      description: >-
+        Requiere token: RECEPCION y GERENTE ven cualquiera; el SOCIO solo la suya (la de otro responde 404, como si no existiera); el EXTERNO no usa clases (403).
+      security:
+        - bearer: []
       responses:
         '200':
           description: Reserva de cupo
@@ -1619,6 +1702,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservaClaseOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (el EXTERNO no usa clases)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
   /reservas-clases/{reservaClaseId}/cancelaciones:
@@ -1633,11 +1724,22 @@ paths:
         Cancela un cupo confirmado. Hasta 2 horas antes del inicio de la clase la cancelación es sin penalidad. Dentro de esas 2 horas se permite igual, pero se cobra una penalidad del 50% de un valor
         nominal interno fijo (las clases no tienen precio propio), que se registra como un Pago con concepto RESERVA_CLASE a nombre del socio que cancela. Una reserva inexistente responde 404; una ya cancelada se resuelve idempotente (204). Una
         reserva cuya clase ya comenzó (estado efectivo CUMPLIDA) responde 409 `ReservaClasePasada`. El cupo liberado se notifica a la lista de espera (RF-08) en la Unidad III.
+        Requiere token: RECEPCION y GERENTE cancelan cualquiera; el SOCIO solo la suya (la de otro responde 404); el EXTERNO no usa clases (403).
+      security:
+        - bearer: []
       responses:
         '204':
           description: Cupo cancelado (sin cuerpo). Con menos de 2 hs de anticipación, se cobró la penalidad antes de liberar el cupo.
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '402':
           $ref: '#/components/responses/PagoRechazado'
+        '403':
+          description: Rol sin permiso (el EXTERNO no usa clases)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -1653,6 +1755,9 @@ paths:
       description: >
         Cola vigente de la clase. Sin `estado` devuelve solo los dos estados vivos, EN_ESPERA y NOTIFICADO: las anotaciones CONFIRMADO ya son reservas y las CANCELADO se excluyen del listado (RF-12
         conserva el histórico, no la visibilidad por defecto). Los excluidos se piden con ?estado=CONFIRMADO o ?estado=CANCELADO. Solo admite ?estado= y paginación (lista blanca de parámetros).
+        Requiere token: SOCIO, RECEPCION y GERENTE (el EXTERNO no usa clases: 403). Acceso provisorio: el SOCIO ve la cola completa porque el frontend calcula con ella su posición.
+      security:
+        - bearer: []
       parameters:
         - name: estado
           in: query
@@ -1669,6 +1774,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaEsperas'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (el EXTERNO no usa clases)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -1682,6 +1795,9 @@ paths:
         Anota al socio en la espera de la clase. Solo aplica si la clase está llena: con cupos disponibles no tiene sentido esperar y responde 409 (cupo-disponible). Un socio ya anotado o con reserva
         activa en la misma clase responde 409 (espera-existente), y una clase ya iniciada también (clase-pasada). Un socio con cuotas vencidas responde 403: no puede entrar a la espera de clases
         bonificadas. El registro nace en EN_ESPERA. Cuando se libera un cupo (RF-07) se notifica a todos los anotados y el primer confirmante obtiene la reserva.
+        Requiere token: RECEPCION y GERENTE anotan a cualquier socio; el SOCIO solo a su nombre (404 si `socioId` es de otro); el EXTERNO no usa clases (403).
+      security:
+        - bearer: []
       requestBody:
         required: true
         content:
@@ -1701,6 +1817,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EsperaOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '403':
           $ref: '#/components/responses/SocioEnMora'
         '404':
@@ -1718,6 +1836,9 @@ paths:
       description: >
         Filtros por clase, socio y estado (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los dos estados vivos, EN_ESPERA y NOTIFICADO: las CONFIRMADO ya son reservas y las
         CANCELADO no aparecen en el listado (RF-12 conserva el histórico, no la visibilidad por defecto).
+        Requiere token: RECEPCION y GERENTE ven todas; el SOCIO solo las suyas (el `socioId` se fuerza con el de la sesión y el que mande se ignora); el EXTERNO no usa clases (403).
+      security:
+        - bearer: []
       parameters:
         - name: claseId
           in: query
@@ -1748,6 +1869,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaEsperas'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (el EXTERNO no usa clases) o sesión de socio sin socioId
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '422':
           $ref: '#/components/responses/ValidationError'
   /esperas-clases/{esperaId}:
@@ -1758,6 +1887,10 @@ paths:
         - esperas-clases
       operationId: obtenerEspera
       summary: Obtener anotación de espera por id
+      description: >-
+        Requiere token: RECEPCION y GERENTE ven cualquiera; el SOCIO solo la suya (la de otro responde 404, como si no existiera); el EXTERNO no usa clases (403).
+      security:
+        - bearer: []
       responses:
         '200':
           description: Anotación de espera
@@ -1765,6 +1898,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EsperaOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (el EXTERNO no usa clases)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -1775,9 +1916,20 @@ paths:
       description: >
         Baja lógica: la anotación pasa a CANCELADO (no se borra el registro; se conserva el histórico de la espera). Una anotación CONFIRMADA ya tomó el cupo: no se puede salir así; su reserva se
         gestiona por /reservas-clases (RF-07). Responder 409.
+        Requiere token: RECEPCION y GERENTE sacan a cualquiera; el SOCIO solo la suya (la de otro responde 404); el EXTERNO no usa clases (403).
+      security:
+        - bearer: []
       responses:
         '204':
           description: Anotación cancelada (sin cuerpo)
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (el EXTERNO no usa clases)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -1795,6 +1947,9 @@ paths:
         está NOTIFICADO: si la anotación no fue notificada o el cupo ya lo tomó otro socio responde 409. La notificación en sí la emite el servidor (observer, no es un endpoint): este POST solo
         registra la decisión del socio. Devuelve 201 con la ReservaClase creada y Location: el id de la reserva es el dato que el socio necesita para referenciarla, y se obtiene en la misma respuesta
         en lugar de barrer GET /reservas-clases.
+        Requiere token: RECEPCION y GERENTE confirman cualquiera; el SOCIO solo la suya (la de otro responde 404); el EXTERNO no usa clases (403).
+      security:
+        - bearer: []
       responses:
         '201':
           description: Cupo confirmado y ReservaClase creada
@@ -1808,6 +1963,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservaClaseOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (el EXTERNO no usa clases)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -3682,12 +3845,20 @@ components:
                 status: 409
                 detail: Otra persona notificada confirmó primero y el cupo ya no está disponible.
     SocioEnMora:
-      description: El socio posee cuotas vencidas; no puede reservar ni anotarse en espera con tarifa bonificada (RF-07/RF-08)
+      description: >-
+        Tiene dos significados, ambos con problem+json. Rol sin permiso: el EXTERNO no usa clases, o la sesión de un SOCIO no trae socioId. Socio en mora: el socio posee cuotas vencidas
+        y no puede reservar ni anotarse en espera con tarifa bonificada (RF-07/RF-08).
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Problem'
           examples:
+            rol-sin-permiso:
+              value:
+                type: about:blank
+                title: Acceso prohibido
+                status: 403
+                detail: No tiene permisos para acceder a este recurso.
             reserva-clases:
               value:
                 type: https://fitzone.app/errores/socio-en-mora

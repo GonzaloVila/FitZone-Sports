@@ -1,15 +1,15 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { penalidadCancelacionTardia } from 'src/modules/m3-clases/entities/reserva-clase.entity';
 import { crearApp } from '@test/helpers/base-de-datos';
-import { conToken, iniciarSesion } from '@test/helpers/sesion';
+import { clienteCon } from '@test/helpers/sesion';
 import { crearContextoM3 } from './m3.fixtures';
 
 // E2E de reservas de clase: el contrato HTTP del alta y los DOS cruces con M5 (RF-07):
 // la penalidad por cancelación tardía y el rechazo de la pasarela que deja la reserva
 // CONFIRMADA. La ventana/duplicado/estado CUMPLIDA viven en la integración.
+// La clase la crea el GERENTE y cada socio reserva y cancela con su propia sesión.
 describe('M3 - Reservas de clase: alta y penalidad (RF-07)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -27,7 +27,7 @@ describe('M3 - Reservas de clase: alta y penalidad (RF-07)', () => {
 
   async function crearClase(tipo: string, horas: number, capacidad: number): Promise<number> {
     const fechaClase = new Date(Date.now() + horas * 3600 * 1000).toISOString();
-    const res = await request(app.getHttpServer())
+    const res = await ctx.comoGerente()
       .post('/api/v1/clases')
       .send({
         sedeId: ctx.sedeId,
@@ -42,36 +42,34 @@ describe('M3 - Reservas de clase: alta y penalidad (RF-07)', () => {
     return res.body.id;
   }
 
+  // Un socio con membresía vigente y un cliente HTTP con la sesión de ese socio.
+  async function socioConSesion() {
+    const socio = await ctx.crearSocioConMembresia({ vigente: true });
+    return { ...socio, http: clienteCon(app, await ctx.tokenDe(socio.usuarioId)) };
+  }
+
   it('reserva exitosa dentro de las 48 hs responde 201 + Location y decrementa el cupo', async () => {
-    const { socioId } = await ctx.crearSocioConMembresia({ vigente: true });
+    const { socioId, http } = await socioConSesion();
     const claseId = await crearClase('CrossFit', 24, 10);
 
-    const resReserva = await request(app.getHttpServer())
-      .post('/api/v1/reservas-clases')
-      .send({ claseId, socioId })
-      .expect(201);
+    const resReserva = await http.post('/api/v1/reservas-clases').send({ claseId, socioId }).expect(201);
 
     expect(resReserva.headers.location).toBe(`/api/v1/reservas-clases/${resReserva.body.id}`);
     expect(resReserva.body.estado).toBe('CONFIRMADA');
 
-    const resDetalle = await request(app.getHttpServer()).get(`/api/v1/clases/${claseId}`).expect(200);
+    const resDetalle = await http.get(`/api/v1/clases/${claseId}`).expect(200);
     expect(resDetalle.body).toMatchObject({ reservasConfirmadas: 1, cupoDisponible: 9 });
   });
 
   it('cancelación con < 2 hs cobra la penalidad vía M5 y libera el cupo (RF-07)', async () => {
-    const { socioId, usuarioId } = await ctx.crearSocioConMembresia({ vigente: true });
+    const { socioId, http } = await socioConSesion();
     const claseId = await crearClase('Spinning Exprés', 1, 5);
 
-    const resReserva = await request(app.getHttpServer())
-      .post('/api/v1/reservas-clases')
-      .send({ claseId, socioId })
-      .expect(201);
+    const resReserva = await http.post('/api/v1/reservas-clases').send({ claseId, socioId }).expect(201);
     const reservaId: number = resReserva.body.id;
     ctx.reservasClasesConPenalidad.push(reservaId);
 
-    await request(app.getHttpServer())
-      .post(`/api/v1/reservas-clases/${reservaId}/cancelaciones`)
-      .expect(204);
+    await http.post(`/api/v1/reservas-clases/${reservaId}/cancelaciones`).expect(204);
 
     const pago = await prisma.pago.findFirst({ where: { pago_reserva_clase: { reserva_clase_id: reservaId } } });
     expect(pago).not.toBeNull();
@@ -82,44 +80,29 @@ describe('M3 - Reservas de clase: alta y penalidad (RF-07)', () => {
 
     // /pagos exige sesion. Como hace el frontend, el SOCIO busca su penalidad por reservaClaseId (el listado se acota solo a
     // su usuario) y baja el comprobante.
-    const token = await iniciarSesion(app, prisma, usuarioId);
-    const busqueda = await request(app.getHttpServer())
-      .get('/api/v1/pagos')
-      .set(conToken(token))
-      .query({ reservaClaseId: reservaId, page: 1, perPage: 1 })
-      .expect(200);
+    const busqueda = await http.get('/api/v1/pagos').query({ reservaClaseId: reservaId, page: 1, perPage: 1 }).expect(200);
     expect(busqueda.body.items.map((p: { id: number }) => p.id)).toEqual([pago!.id]);
-    const resComprobante = await request(app.getHttpServer())
-      .get(`/api/v1/pagos/${pago!.id}/comprobante`)
-      .set(conToken(token))
-      .expect(200);
+    const resComprobante = await http.get(`/api/v1/pagos/${pago!.id}/comprobante`).expect(200);
     expect((resComprobante.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
   });
 
   it('cancelación tardía rechazada por la pasarela: 402 y la reserva sigue CONFIRMADA (RF-07)', async () => {
-    const { socioId } = await ctx.crearSocioConMembresia({ vigente: true });
+    const { socioId, http } = await socioConSesion();
     const claseId = await crearClase('Spinning Exprés', 1, 5);
 
-    const resReserva = await request(app.getHttpServer())
-      .post('/api/v1/reservas-clases')
-      .send({ claseId, socioId })
-      .expect(201);
+    const resReserva = await http.post('/api/v1/reservas-clases').send({ claseId, socioId }).expect(201);
     const reservaId: number = resReserva.body.id;
 
     // M3 emite el evento ANTES de marcar CANCELADA; si M5 rechaza (402), el error
     // se propaga y la cancelación no se aplica.
     process.env.PASARELA_MOCK = 'RECHAZADO';
     try {
-      await request(app.getHttpServer())
-        .post(`/api/v1/reservas-clases/${reservaId}/cancelaciones`)
-        .expect(402);
+      await http.post(`/api/v1/reservas-clases/${reservaId}/cancelaciones`).expect(402);
     } finally {
       delete process.env.PASARELA_MOCK;
     }
 
-    const resConsulta = await request(app.getHttpServer())
-      .get(`/api/v1/reservas-clases/${reservaId}`)
-      .expect(200);
+    const resConsulta = await http.get(`/api/v1/reservas-clases/${reservaId}`).expect(200);
     expect(resConsulta.body.estado).toBe('CONFIRMADA');
 
     const pago = await prisma.pago.findFirst({ where: { pago_reserva_clase: { reserva_clase_id: reservaId } } });

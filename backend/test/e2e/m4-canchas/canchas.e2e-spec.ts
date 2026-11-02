@@ -68,8 +68,11 @@ describe('M4 - Canchas: alta y cruce con reservas (RF-09/RF-12)', () => {
       .send({ estado: 'EN_MANTENIMIENTO' })
       .expect(200);
 
+    // La reserva la hace el propio EXTERNO, con su sesion (el login va antes de armar la request: comparten servidor).
+    const tokenExterno = await ctx.tokenDe(externoId);
     const res = await request(app.getHttpServer())
       .post('/api/v1/reservas-canchas')
+      .set(conToken(tokenExterno))
       .send({
         canchaId: creada.body.id,
         usuarioId: externoId,

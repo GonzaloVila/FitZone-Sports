@@ -1,13 +1,14 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp } from '@test/helpers/base-de-datos';
+import { clienteCon } from '@test/helpers/sesion';
 import { crearContextoM4 } from './m4.fixtures';
 
 // E2E de reservas de cancha: el contrato HTTP (201 + Location, 204 sin cuerpo) y la
 // concurrencia real por HTTP. El pricing (RF-11/RN-03), la exclusión RN-02 y el State
 // derivado CUMPLIDA viven en la integración, contra la misma constraint de la base.
+// Cada EXTERNO reserva y cancela con su propia sesión (solo puede a su nombre).
 describe('M4 - Reservas de cancha: alta, cancelación y concurrencia (RF-10/RF-12/RN-02)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -23,14 +24,20 @@ describe('M4 - Reservas de cancha: alta, cancelación y concurrencia (RF-10/RF-1
     await app.close();
   });
 
-  it('crea una reserva de externo con 201, Location y estado CONFIRMADA', async () => {
-    const externo = await ctx.crearExterno();
+  // Un EXTERNO nuevo y su cliente HTTP con la sesión de ese usuario.
+  async function externoConSesion(nombre?: string) {
+    const usuarioId = await ctx.crearExterno(nombre);
+    return { usuarioId, http: clienteCon(app, await ctx.tokenDe(usuarioId)) };
+  }
 
-    const res = await request(app.getHttpServer())
+  it('crea una reserva de externo con 201, Location y estado CONFIRMADA', async () => {
+    const { usuarioId, http } = await externoConSesion();
+
+    const res = await http
       .post('/api/v1/reservas-canchas')
       .send({
         canchaId: ctx.canchaId,
-        usuarioId: externo,
+        usuarioId,
         fechaHoraInicio: ctx.inicio('10:00'),
         fechaHoraFin: ctx.fin('11:00'),
       })
@@ -42,26 +49,22 @@ describe('M4 - Reservas de cancha: alta, cancelación y concurrencia (RF-10/RF-1
   });
 
   it('cancela una CONFIRMADA con 204 sin cuerpo', async () => {
-    const externa = await ctx.crearExterno('Cancelable E2E M4');
+    const { usuarioId, http } = await externoConSesion('Cancelable E2E M4');
 
-    const creada = await request(app.getHttpServer())
+    const creada = await http
       .post('/api/v1/reservas-canchas')
       .send({
         canchaId: ctx.canchaId,
-        usuarioId: externa,
+        usuarioId,
         fechaHoraInicio: ctx.inicio('08:00'),
         fechaHoraFin: ctx.fin('09:00'),
       })
       .expect(201);
 
-    const res = await request(app.getHttpServer())
-      .post(`/api/v1/reservas-canchas/${creada.body.id}/cancelaciones`)
-      .expect(204);
+    const res = await http.post(`/api/v1/reservas-canchas/${creada.body.id}/cancelaciones`).expect(204);
     expect(res.body).toEqual({});
 
-    const detalle = await request(app.getHttpServer())
-      .get(`/api/v1/reservas-canchas/${creada.body.id}`)
-      .expect(200);
+    const detalle = await http.get(`/api/v1/reservas-canchas/${creada.body.id}`).expect(200);
     expect(detalle.body.estado).toBe('CANCELADA');
   });
 
@@ -72,8 +75,8 @@ describe('M4 - Reservas de cancha: alta, cancelación y concurrencia (RF-10/RF-1
     });
     ctx.canchasCreadas.push(cancha.id);
 
-    const usuarioA = await ctx.crearExterno('Concurrencia A');
-    const usuarioB = await ctx.crearExterno('Concurrencia B');
+    const usuarioA = await externoConSesion('Concurrencia A');
+    const usuarioB = await externoConSesion('Concurrencia B');
 
     const cuerpo = (usuarioId: number) => ({
       canchaId: cancha.id,
@@ -83,8 +86,8 @@ describe('M4 - Reservas de cancha: alta, cancelación y concurrencia (RF-10/RF-1
     });
 
     const [resA, resB] = await Promise.all([
-      request(app.getHttpServer()).post('/api/v1/reservas-canchas').send(cuerpo(usuarioA)),
-      request(app.getHttpServer()).post('/api/v1/reservas-canchas').send(cuerpo(usuarioB)),
+      usuarioA.http.post('/api/v1/reservas-canchas').send(cuerpo(usuarioA.usuarioId)),
+      usuarioB.http.post('/api/v1/reservas-canchas').send(cuerpo(usuarioB.usuarioId)),
     ]);
 
     expect([resA.status, resB.status].sort()).toEqual([201, 409]);

@@ -3,7 +3,7 @@ import type { PrismaService } from 'src/commons/database/prisma.service';
 import { PRECIOS_PLAN } from 'src/modules/m1-usuarios/entities/membresia.entity';
 import type { RolUsuario } from 'src/modules/m1-usuarios/entities/usuario.entity';
 import { dniUnico, emailUnico } from '@test/helpers/base-de-datos';
-import { crearUsuarioConSesion } from '@test/helpers/sesion';
+import { crearUsuarioConSesion, iniciarSesion } from '@test/helpers/sesion';
 
 // Fixtures compartidos por los e2e de M4 (antes en m4.e2e-spec.ts). Crea la sede y
 // la cancha base, y expone el alta de socio/externo, los horarios del dia y la limpieza.
@@ -46,6 +46,10 @@ export async function crearContextoM4(app: INestApplication, prisma: PrismaServi
     usuariosCreados.push(usuarioId);
     return token;
   }
+
+  // Sesion real (login por HTTP) de un usuario que ya existe, por ejemplo el EXTERNO o SOCIO del fixture: las reservas de
+  // cancha exigen token y SOCIO y EXTERNO solo reservan a su nombre.
+  const tokenDe = (usuarioId: number) => iniciarSesion(app, prisma, usuarioId);
 
   // Devuelve el id de Usuario (la FK de Reserva es usuarioId -> Usuario).
   async function crearSocio(opts: { vigente: boolean }): Promise<number> {
@@ -102,6 +106,7 @@ export async function crearContextoM4(app: INestApplication, prisma: PrismaServi
     crearExterno,
     crearSocio,
     crearSesion,
+    tokenDe,
     limpiar,
   };
 }

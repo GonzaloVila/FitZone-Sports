@@ -10,6 +10,7 @@ import { NotificarSociosEsperaObserver } from './observers/notificar-socios-espe
 import { ClaseRepository } from './repositories/clase.repository';
 import { EsperaClaseRepository } from './repositories/espera-clase.repository';
 import { ReservaClaseRepository } from './repositories/reserva-clase.repository';
+import { ClasesAccesoService } from './services/clases-acceso.service';
 import { ClasesService } from './services/clases.service';
 import { EsperasClasesService } from './services/esperas-clases.service';
 import { ReservaClasePrecioService } from './services/reserva-clase-precio.service';
@@ -40,6 +41,9 @@ import { ValidadorDeReservas } from './validaciones/validador-de-reservas';
     ClasesService,
     ReservasClasesService,
     EsperasClasesService,
+    // Lo que usan los controllers para lo que depende de quien llama (dueño, sede de la clase): aplica el alcance por rol
+    // y delega en los servicios de arriba, que no cambian.
+    ClasesAccesoService,
     ReservaClasePrecioService,
     // Observers de cupo liberado (RF-08): son oyentes del bus (`@OnEvent`), no se
     // registran a mano en ningun Subject.

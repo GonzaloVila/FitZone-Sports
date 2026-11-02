@@ -1,5 +1,4 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp } from '@test/helpers/base-de-datos';
@@ -25,7 +24,7 @@ describe('M3 - Listados: desempate de paginación', () => {
 
   async function crearClase(tipo: string, horas: number, capacidad: number): Promise<number> {
     const fechaClase = new Date(Date.now() + horas * 3600 * 1000).toISOString();
-    const res = await request(app.getHttpServer())
+    const res = await ctx.comoGerente()
       .post('/api/v1/clases')
       .send({
         sedeId: ctx.sedeId,
@@ -44,7 +43,7 @@ describe('M3 - Listados: desempate de paginación', () => {
     const claseId = await crearClase('Listado Espera Empate', 6, 1);
 
     const socioOcupante = await ctx.crearSocioConMembresia({ vigente: true });
-    await request(app.getHttpServer())
+    await ctx.comoGerente()
       .post('/api/v1/reservas-clases')
       .send({ claseId, socioId: socioOcupante.socioId })
       .expect(201);
@@ -52,7 +51,7 @@ describe('M3 - Listados: desempate de paginación', () => {
     const CANTIDAD = 4;
     for (let i = 0; i < CANTIDAD; i++) {
       const socio = await ctx.crearSocioConMembresia({ vigente: true });
-      await request(app.getHttpServer())
+      await ctx.comoGerente()
         .post(`/api/v1/clases/${claseId}/espera`)
         .send({ socioId: socio.socioId })
         .expect(201);
@@ -72,10 +71,10 @@ describe('M3 - Listados: desempate de paginación', () => {
       await prisma.esperaClase.update({ where: { id: fila.id }, data: { fecha_notificacion: null } });
     }
 
-    const pagina1 = await request(app.getHttpServer())
+    const pagina1 = await ctx.comoGerente()
       .get(`/api/v1/clases/${claseId}/espera?perPage=2&page=1`)
       .expect(200);
-    const pagina2 = await request(app.getHttpServer())
+    const pagina2 = await ctx.comoGerente()
       .get(`/api/v1/clases/${claseId}/espera?perPage=2&page=2`)
       .expect(200);
 

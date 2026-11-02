@@ -9,9 +9,12 @@ import {
   ParseIntPipe,
   Post,
   Query,
+  Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiExtraModels,
@@ -22,23 +25,41 @@ import {
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
+import { Roles } from '../../../commons/guards/roles.decorator';
+import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
+import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
 import { EsperaIn } from '../dtos/espera-in.dto';
 import { EsperaOut } from '../dtos/espera-out.dto';
 import { ListarEsperasClaseQueryDto } from '../dtos/listar-esperas-clase-query.dto';
 import { ReservaClaseOut } from '../dtos/reserva-clase-out.dto';
 import { ListaEsperasDto } from '../dtos/lista-esperas.dto';
-import { EsperasClasesService } from '../services/esperas-clases.service';
+import { ClasesAccesoService } from '../services/clases-acceso.service';
 
+interface RequestConUsuario extends Request {
+  user: UsuarioAutenticado;
+}
+
+const NO_AUTORIZADO = 'Token inválido, expirado o ausente';
+const NO_ES_SOCIO_NI_PERSONAL = 'Rol sin permiso (el EXTERNO no usa clases: solo SOCIO, RECEPCION y GERENTE)';
+
+// Todo el controller exige sesion y el EXTERNO nunca entra (no es socio). El SOCIO solo se anota, ve, sale y confirma lo
+// suyo (lo ajeno responde 404 y el listado se fuerza con su socioId); RECEPCION y GERENTE operan todo. Lo decide
+// ClasesAccesoService.
 @ApiTags('esperas-clases')
 @ApiExtraModels(Problem)
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('SOCIO', 'RECEPCION', 'GERENTE')
 @Controller()
 export class EsperasClasesController {
-  constructor(private readonly esperasService: EsperasClasesService) {}
+  constructor(private readonly acceso: ClasesAccesoService) {}
 
   @Post('clases/:claseId/espera')
   @ApiOperation({
@@ -56,8 +77,17 @@ export class EsperasClasesController {
       },
     },
   })
-  @ApiForbiddenResponse({ description: 'Socio en mora', content: PROBLEM_JSON })
-  @ApiNotFoundResponse({ description: 'Clase o socio no encontrado', content: PROBLEM_JSON })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({
+    description:
+      'Tiene dos significados, ambos con problem+json: rol sin permiso (el EXTERNO no usa clases) o sesión de socio sin ' +
+      'socioId; y socio en mora',
+    content: PROBLEM_JSON,
+  })
+  @ApiNotFoundResponse({
+    description: 'Clase o socio no encontrado (un SOCIO que manda el socioId de otro recibe este 404)',
+    content: PROBLEM_JSON,
+  })
   @ApiConflictResponse({
     description:
       'La clase todavía tiene cupos libres, el socio ya tiene una espera o una reserva activa ' +
@@ -68,9 +98,10 @@ export class EsperasClasesController {
   async anotarse(
     @Param('claseId', ParseIntPipe) claseId: number,
     @Body() dto: EsperaIn,
+    @Req() req: RequestConUsuario,
     @Res({ passthrough: true }) res: Response,
   ): Promise<EsperaOut> {
-    const espera = await this.esperasService.anotarseEnEspera(claseId, dto);
+    const espera = await this.acceso.anotarse(req.user, claseId, dto);
     res.setHeader('Location', `/api/v1/esperas-clases/${espera.id}`);
     return espera;
   }
@@ -82,9 +113,14 @@ export class EsperasClasesController {
   })
   @ApiParam({ name: 'esperaId', type: 'integer', description: 'ID de la solicitud de espera', example: 4 })
   @ApiOkResponse({ description: 'Detalle de la solicitud de espera', type: EsperaOut })
-  @ApiNotFoundResponse({ description: 'Solicitud de espera no encontrada', content: PROBLEM_JSON })
-  obtener(@Param('esperaId', ParseIntPipe) esperaId: number): Promise<EsperaOut> {
-    return this.esperasService.obtenerEspera(esperaId);
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: NO_ES_SOCIO_NI_PERSONAL, content: PROBLEM_JSON })
+  @ApiNotFoundResponse({
+    description: 'Solicitud de espera no encontrada (o ajena, para un SOCIO)',
+    content: PROBLEM_JSON,
+  })
+  obtener(@Param('esperaId', ParseIntPipe) esperaId: number, @Req() req: RequestConUsuario): Promise<EsperaOut> {
+    return this.acceso.obtenerEspera(req.user, esperaId);
   }
 
   @Delete('esperas-clases/:esperaId')
@@ -95,13 +131,15 @@ export class EsperasClasesController {
   })
   @ApiParam({ name: 'esperaId', type: 'integer', description: 'ID de la espera a cancelar', example: 4 })
   @ApiNoContentResponse({ description: 'Solicitud de espera dada de baja lógicamente (CANCELADO)' })
-  @ApiNotFoundResponse({ description: 'Solicitud no encontrada', content: PROBLEM_JSON })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: NO_ES_SOCIO_NI_PERSONAL, content: PROBLEM_JSON })
+  @ApiNotFoundResponse({ description: 'Solicitud no encontrada (o ajena, para un SOCIO)', content: PROBLEM_JSON })
   @ApiConflictResponse({
     description: 'La solicitud ya fue confirmada previamente',
     content: PROBLEM_JSON,
   })
-  salir(@Param('esperaId', ParseIntPipe) esperaId: number): Promise<void> {
-    return this.esperasService.salirDeEspera(esperaId);
+  salir(@Param('esperaId', ParseIntPipe) esperaId: number, @Req() req: RequestConUsuario): Promise<void> {
+    return this.acceso.salirDeEspera(req.user, esperaId);
   }
 
   @Post('esperas-clases/:esperaId/confirmaciones')
@@ -120,16 +158,19 @@ export class EsperasClasesController {
       },
     },
   })
-  @ApiNotFoundResponse({ description: 'Solicitud no encontrada', content: PROBLEM_JSON })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: NO_ES_SOCIO_NI_PERSONAL, content: PROBLEM_JSON })
+  @ApiNotFoundResponse({ description: 'Solicitud no encontrada (o ajena, para un SOCIO)', content: PROBLEM_JSON })
   @ApiConflictResponse({
     description: 'La espera no está notificada o el cupo fue tomado por otro socio',
     content: PROBLEM_JSON,
   })
   async confirmar(
     @Param('esperaId', ParseIntPipe) esperaId: number,
+    @Req() req: RequestConUsuario,
     @Res({ passthrough: true }) res: Response,
   ): Promise<ReservaClaseOut> {
-    const reserva = await this.esperasService.confirmarEspera(esperaId);
+    const reserva = await this.acceso.confirmarEspera(req.user, esperaId);
     res.setHeader('Location', `/api/v1/reservas-clases/${reserva.id}`);
     return reserva;
   }
@@ -143,8 +184,10 @@ export class EsperasClasesController {
     description: 'Listado de solicitudes en lista de espera',
     type: ListaEsperasDto,
   })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: NO_ES_SOCIO_NI_PERSONAL, content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos (ValidationPipe)', content: PROBLEM_JSON })
-  listar(@Query() query: ListarEsperasClaseQueryDto): Promise<ListaEsperasDto> {
-    return this.esperasService.listarEsperasClase(query);
+  listar(@Query() query: ListarEsperasClaseQueryDto, @Req() req: RequestConUsuario): Promise<ListaEsperasDto> {
+    return this.acceso.listarEsperas(req.user, query);
   }
 }

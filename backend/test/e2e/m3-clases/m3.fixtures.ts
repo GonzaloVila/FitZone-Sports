@@ -1,7 +1,9 @@
 import type { INestApplication } from '@nestjs/common';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { PRECIOS_PLAN } from 'src/modules/m1-usuarios/entities/membresia.entity';
+import type { RolUsuario } from 'src/modules/m1-usuarios/entities/usuario.entity';
 import { dniUnico, emailUnico } from '@test/helpers/base-de-datos';
+import { clienteCon, crearRecepcionConSesion, crearUsuarioConSesion, iniciarSesion } from '@test/helpers/sesion';
 
 // Fixtures compartidos por los e2e de M3 (antes en m3.e2e-spec.ts). Crea la sede y
 // expone el alta de socio+membresia, el helper de rango horario y la limpieza.
@@ -56,9 +58,33 @@ export async function crearContextoM3(app: INestApplication, prisma: PrismaServi
     return { usuarioId: usuario.id, socioId: socio.id };
   }
 
+  // Sesion real (login por HTTP) de un usuario que ya existe, por ejemplo el de un socio del fixture. Los endpoints de
+  // clases, esperas y reservas exigen token: cada socio actua con el suyo.
+  const tokenDe = (usuarioId: number) => iniciarSesion(app, prisma, usuarioId);
+
+  // Usuario nuevo del rol pedido con sesion; se borra con el resto en limpiar().
+  async function crearSesion(rol: RolUsuario): Promise<string> {
+    const { usuarioId, token } = await crearUsuarioConSesion(app, prisma, rol, 'm3.sesion');
+    usuariosCreados.push(usuarioId);
+    return token;
+  }
+
+  // RECEPCION con su sede de trabajo (EmpleadoSede, que limpiar() borra antes que el usuario).
+  async function crearRecepcion(sedeDeTrabajo: number): Promise<string> {
+    const { usuarioId, token } = await crearRecepcionConSesion(app, prisma, sedeDeTrabajo, 'm3.recep');
+    usuariosCreados.push(usuarioId);
+    return token;
+  }
+
+  // El GERENTE puede todo lo de clases (crear en cualquier sede, reservar y anotar por cualquier socio): los e2e de datos
+  // arman el escenario con su sesion. Los de acceso (acceso.e2e-spec.ts) usan una sesion por rol.
+  const tokenGerente = await crearSesion('GERENTE');
+  const comoGerente = () => clienteCon(app, tokenGerente);
+
   // Limpieza en orden inverso a las FKs. La penalidad (RF-07) es un Pago que
   // referencia la reserva: se limpia ANTES que la reserva (FK restrict).
   async function limpiar(): Promise<void> {
+    await prisma.empleadoSede.deleteMany({ where: { usuario_id: { in: usuariosCreados } } });
     await prisma.esperaClase.deleteMany({ where: { clase_id: { in: clasesCreadas } } });
     await prisma.pagoReservaClase.deleteMany({
       where: { reserva_clase_id: { in: reservasClasesConPenalidad } },
@@ -81,6 +107,10 @@ export async function crearContextoM3(app: INestApplication, prisma: PrismaServi
     reservasClasesConPenalidad,
     finDe,
     crearSocioConMembresia,
+    tokenDe,
+    crearSesion,
+    crearRecepcion,
+    comoGerente,
     limpiar,
   };
 }

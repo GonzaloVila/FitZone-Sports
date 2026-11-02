@@ -13,7 +13,8 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let ctx: Awaited<ReturnType<typeof crearContextoM4>>;
-  // La disponibilidad exige sesion de cualquier rol y poner una cancha en mantenimiento es de GERENTE.
+  // La disponibilidad exige sesion de cualquier rol, poner una cancha en mantenimiento es de GERENTE y el GERENTE reserva,
+  // cancela y consulta por cualquier usuario (las reservas de este archivo son de usuarios que crea el fixture).
   let token: string;
 
   beforeAll(async () => {
@@ -32,6 +33,7 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
 
     const creada = await request(app.getHttpServer())
       .post('/api/v1/reservas-canchas')
+      .set(conToken(token))
       .send({
         canchaId: ctx.canchaId,
         usuarioId: usuario,
@@ -52,6 +54,7 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
 
     await request(app.getHttpServer())
       .post(`/api/v1/reservas-canchas/${creada.body.id}/cancelaciones`)
+      .set(conToken(token))
       .expect(204);
 
     const conLibre = await request(app.getHttpServer())
@@ -71,6 +74,7 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
 
     const reserva = await request(app.getHttpServer())
       .post('/api/v1/reservas-canchas')
+      .set(conToken(token))
       .send({
         canchaId: conReserva.id,
         usuarioId: usuario,
@@ -94,6 +98,7 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
     // Ponerla en mantenimiento no borra lo ya reservado (RF-12).
     const sigue = await request(app.getHttpServer())
       .get(`/api/v1/reservas-canchas/${reserva.body.id}`)
+      .set(conToken(token))
       .expect(200);
     expect(sigue.body.estado).toBe('CONFIRMADA');
   });

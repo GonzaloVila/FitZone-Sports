@@ -15,6 +15,7 @@ import { CanchaRepository } from './repositories/cancha.repository';
 import { PrismaReservaRepository } from './repositories/reserva.repository';
 import { CanchasService } from './services/canchas.service';
 import { DisponibilidadService } from './services/disponibilidad.service';
+import { ReservasCanchasAccesoService } from './services/reservas-canchas-acceso.service';
 import { ReservasCanchasService } from './services/reservas-canchas.service';
 import { ReservaPrecioService } from './services/reserva-precio.service';
 import { CanchaExiste } from './validaciones/cancha-existe.validacion';
@@ -41,6 +42,9 @@ import { ValidadorDeReservasCancha } from './validaciones/validador-de-reservas-
     CanchasService,
     DisponibilidadService,
     ReservasCanchasService,
+    // Lo que usa el controller de reservas: aplica el alcance por rol (SOCIO y EXTERNO solo lo propio) antes de llegar
+    // a ReservasCanchasService.
+    ReservasCanchasAccesoService,
     ReservaPrecioService,
     // Precio dinamico (RF-11, ADR-06): las reglas se registran como providers y el
     // `useFactory` arma la coleccion ORDENADA (el @Order de Spring). El Tarifador la

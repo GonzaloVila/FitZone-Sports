@@ -1,8 +1,8 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp } from '@test/helpers/base-de-datos';
+import { clienteCon } from '@test/helpers/sesion';
 import { crearContextoM3 } from './m3.fixtures';
 
 // Concurrencia / locks: verificación atómica de que nunca se sobrepase la capacidad
@@ -24,7 +24,7 @@ describe('M3 - Concurrencia y locks', () => {
 
   async function crearClase(tipo: string, horas: number, capacidad: number): Promise<number> {
     const fechaClase = new Date(Date.now() + horas * 3600 * 1000).toISOString();
-    const res = await request(app.getHttpServer())
+    const res = await ctx.comoGerente()
       .post('/api/v1/clases')
       .send({
         sedeId: ctx.sedeId,
@@ -46,9 +46,12 @@ describe('M3 - Concurrencia y locks', () => {
       Array.from({ length: 10 }).map(() => ctx.crearSocioConMembresia({ vigente: true })),
     );
 
+    // Cada socio reserva con su propia sesion (un token por usuario).
+    const tokens = await Promise.all(socios.map((s) => ctx.tokenDe(s.usuarioId)));
+
     const respuestas = await Promise.all(
-      socios.map((s) =>
-        request(app.getHttpServer())
+      socios.map((s, i) =>
+        clienteCon(app, tokens[i]!)
           .post('/api/v1/reservas-clases')
           .send({ claseId, socioId: s.socioId }),
       ),
@@ -73,14 +76,15 @@ describe('M3 - Concurrencia y locks', () => {
     const claseId = await crearClase('Espera Simultanea', 12, 1);
 
     const ocupante = await ctx.crearSocioConMembresia({ vigente: true });
-    await request(app.getHttpServer())
+    await clienteCon(app, await ctx.tokenDe(ocupante.usuarioId))
       .post('/api/v1/reservas-clases')
       .send({ claseId, socioId: ocupante.socioId })
       .expect(201);
 
     const socio = await ctx.crearSocioConMembresia({ vigente: true });
+    const comoSocio = clienteCon(app, await ctx.tokenDe(socio.usuarioId));
 
-    const resAlta = await request(app.getHttpServer())
+    const resAlta = await comoSocio
       .post(`/api/v1/clases/${claseId}/espera`)
       .send({ socioId: socio.socioId })
       .expect(201);
@@ -96,7 +100,7 @@ describe('M3 - Concurrencia y locks', () => {
       }),
     ).rejects.toMatchObject({ code: 'P2002' });
 
-    const resRepetida = await request(app.getHttpServer())
+    const resRepetida = await comoSocio
       .post(`/api/v1/clases/${claseId}/espera`)
       .send({ socioId: socio.socioId })
       .expect(409);
@@ -114,22 +118,23 @@ describe('M3 - Concurrencia y locks', () => {
     const claseId = await crearClase('Reinscripcion Espera', 12, 1);
 
     const ocupante = await ctx.crearSocioConMembresia({ vigente: true });
-    await request(app.getHttpServer())
+    await clienteCon(app, await ctx.tokenDe(ocupante.usuarioId))
       .post('/api/v1/reservas-clases')
       .send({ claseId, socioId: ocupante.socioId })
       .expect(201);
 
     const socio = await ctx.crearSocioConMembresia({ vigente: true });
+    const comoSocio = clienteCon(app, await ctx.tokenDe(socio.usuarioId));
 
-    const resAlta = await request(app.getHttpServer())
+    const resAlta = await comoSocio
       .post(`/api/v1/clases/${claseId}/espera`)
       .send({ socioId: socio.socioId })
       .expect(201);
     const esperaId: number = resAlta.body.id;
 
-    await request(app.getHttpServer()).delete(`/api/v1/esperas-clases/${esperaId}`).expect(204);
+    await comoSocio.delete(`/api/v1/esperas-clases/${esperaId}`).expect(204);
 
-    const resReinscripcion = await request(app.getHttpServer())
+    const resReinscripcion = await comoSocio
       .post(`/api/v1/clases/${claseId}/espera`)
       .send({ socioId: socio.socioId })
       .expect(201);

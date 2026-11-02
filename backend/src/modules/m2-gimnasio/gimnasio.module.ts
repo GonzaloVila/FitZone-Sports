@@ -9,6 +9,7 @@ import { SedesController } from './controllers/sedes.controller';
 import { SincronizacionController } from './controllers/sincronizacion.controller';
 import { IngresoRepository } from './repositories/ingreso.repository';
 import { SedeRepository } from './repositories/sede.repository';
+import { IngresosAccesoService } from './services/ingresos-acceso.service';
 import { IngresosService } from './services/ingresos.service';
 import { SedesService } from './services/sedes.service';
 
@@ -27,6 +28,8 @@ import { SedesService } from './services/sedes.service';
     IngresoRepository,
     SedesService,
     IngresosService,
+    // Lo que usan los controllers para aforo, detalle y alta de ingreso: aplica el alcance por sede de RECEPCION.
+    IngresosAccesoService,
   ],
   // Sale unicamente `SedesService`: es lo que M4 necesita para validar que la sede
   // de una cancha exista. Los repositorios quedan privados de M2.

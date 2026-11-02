@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp, dniUnico, emailUnico } from '@test/helpers/base-de-datos';
+import { conToken, crearUsuarioConSesion } from '@test/helpers/sesion';
 import { crearContextoM1 } from './m1.fixtures';
 
 // E2E de usuarios: listado con filtros (y que `contrasenia` no viaje), el PATCH que
@@ -17,10 +18,15 @@ describe('M1 - Usuarios', () => {
   // prefijo `socio.` y a su propia sede, asi que estos datos se limpian aca.
   const usuariosCreados: number[] = [];
   const sedesCreadas: number[] = [];
+  // POST /sedes exige GERENTE: las sedes de estos tests se dan de alta con su sesion.
+  let tokenGerente: string;
 
   beforeAll(async () => {
     ({ app, prisma } = await crearApp());
     ctx = await crearContextoM1(app, prisma);
+    const gerente = await crearUsuarioConSesion(app, prisma, 'GERENTE', 'usuarios.gerente');
+    usuariosCreados.push(gerente.usuarioId);
+    tokenGerente = gerente.token;
   });
 
   afterAll(async () => {
@@ -79,6 +85,7 @@ describe('M1 - Usuarios', () => {
     async function crearSedeE2E(): Promise<number> {
       const res = await request(app.getHttpServer())
         .post('/api/v1/sedes')
+        .set(conToken(tokenGerente))
         .send({ nombre: 'Sede Alta Recepcion E2E', direccion: 'Calle Recepcion 123', aforoMaximo: 10 })
         .expect(201);
       sedesCreadas.push(res.body.id);
@@ -178,6 +185,7 @@ describe('M1 - Usuarios', () => {
     async function crearSedeE2E(nombre: string): Promise<number> {
       const res = await request(app.getHttpServer())
         .post('/api/v1/sedes')
+        .set(conToken(tokenGerente))
         .send({ nombre, direccion: 'Calle Listado Usuarios 1', aforoMaximo: 10 })
         .expect(201);
       sedesCreadas.push(res.body.id);

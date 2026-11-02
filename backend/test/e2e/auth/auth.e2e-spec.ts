@@ -156,12 +156,14 @@ describe('Auth / TOTP / Bloqueados / Sincronización (e2e)', () => {
     const codigo = authenticator.generate(secreto);
     const ingreso = await request(app.getHttpServer())
       .post('/api/v1/ingresos')
+      .set('Authorization', `Bearer ${tokenRecepcion}`)
       .send({ sedeId, socioId: socioAutenticadoId, codigoTotp: codigo })
       .expect(201);
 
     const codigoMalo = codigo === '000000' ? '111111' : '000000';
     await request(app.getHttpServer())
       .post('/api/v1/ingresos')
+      .set('Authorization', `Bearer ${tokenRecepcion}`)
       .send({ sedeId, socioId: socioAutenticadoId, codigoTotp: codigoMalo })
       .expect(403);
 
@@ -194,6 +196,7 @@ describe('Auth / TOTP / Bloqueados / Sincronización (e2e)', () => {
     const dentro = await crearSocio(await crearUsuario('EXTERNO', 'syncDentro'));
     await request(app.getHttpServer())
       .post('/api/v1/ingresos')
+      .set('Authorization', `Bearer ${tokenRecepcion}`)
       .send({ sedeId, socioId: dentro, codigoTotp: '123456' })
       .expect(201);
 

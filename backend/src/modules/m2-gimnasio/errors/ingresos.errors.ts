@@ -43,6 +43,26 @@ export function egresoFueraDeSede(ingresoId: number): ProblemException {
   });
 }
 
+// Detalle de un ingreso de otra sede: mismo texto que el egreso, que es el otro 403 por sede del módulo.
+export function ingresoFueraDeSede(ingresoId: number): ProblemException {
+  return new ProblemException({
+    type: 'https://fitzone.app/errores/ingreso-fuera-de-sede',
+    title: 'Ingreso fuera de la sede',
+    status: HttpStatus.FORBIDDEN,
+    detail: `El ingreso ${ingresoId} no pertenece a la sede del recepcionista.`,
+  });
+}
+
+// Aforo o alta de ingreso en una sede que no es la del recepcionista.
+export function sedeFueraDeAlcance(sedeId: number): ProblemException {
+  return new ProblemException({
+    type: 'https://fitzone.app/errores/sede-fuera-de-alcance',
+    title: 'Sede fuera de alcance',
+    status: HttpStatus.FORBIDDEN,
+    detail: `La sede ${sedeId} no es la sede de trabajo del recepcionista.`,
+  });
+}
+
 export function egresoDuplicado(ingresoId: number): ProblemException {
   return new ProblemException({
     type: 'https://fitzone.app/errores/egreso-duplicado',

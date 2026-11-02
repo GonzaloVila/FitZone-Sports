@@ -1,15 +1,21 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiCreatedResponse,
   ApiExtraModels,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
+  ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
+import { Roles } from '../../../commons/guards/roles.decorator';
+import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { BuscarCanchasQueryDto } from '../dtos/buscar-canchas-query.dto';
@@ -24,12 +30,20 @@ import { ListaDisponibilidadDto } from '../dtos/lista-disponibilidad.dto';
 import { CanchasService } from '../services/canchas.service';
 import { DisponibilidadService } from '../services/disponibilidad.service';
 
+const NO_AUTORIZADO = 'Token inválido, expirado o ausente';
+const SOLO_GERENTE = 'Rol sin permiso (solo GERENTE)';
+
 // Dos raices de ruta distintas en el contrato: /sedes/{sedeId}/canchas para
 // el alta y el listado, /canchas/{canchaId} para el resto. El tag es uno solo
 // ("canchas") para las cinco operaciones, asi que una sola clase con
 // @Controller() sin prefijo y la ruta completa por metodo emite el tag correcto.
+//
+// Todo el controller exige sesion. Las consultas (listar, buscar, obtener, disponibilidad) son de cualquier rol; el
+// alta y la modificacion son solo de GERENTE. No hay alcance por sede: las canchas no tienen dueño.
 @ApiTags('canchas')
 @ApiExtraModels(Problem)
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller()
 export class CanchasController {
   constructor(
@@ -48,6 +62,7 @@ export class CanchasController {
   })
   @ApiParam({ name: 'sedeId', type: 'integer', description: 'ID numerico de la sede', example: 3 })
   @ApiOkResponse({ description: 'Listado de canchas', type: ListaCanchasDto })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'La sede no existe', content: PROBLEM_JSON })
   // 422 por query params invalidos: la ValidationPipe global valida el DTO de
   // listado igual que valida los bodies, asi que ?estado=INVALIDA, ?page=0 o
@@ -67,6 +82,7 @@ export class CanchasController {
   }
 
   @Post('sedes/:sedeId/canchas')
+  @Roles('GERENTE')
   @ApiOperation({
     operationId: 'crearCancha',
     summary: 'Alta de cancha (RF-09)',
@@ -83,6 +99,8 @@ export class CanchasController {
       },
     },
   })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: SOLO_GERENTE, content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'La sede no existe', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Datos invalidos', content: PROBLEM_JSON })
   async crear(
@@ -110,6 +128,7 @@ export class CanchasController {
       'propio de GET /sedes/{sedeId}/canchas, donde la sede es parte de la ruta.',
   })
   @ApiOkResponse({ description: 'Listado de canchas', type: ListaCanchasDto })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Filtros o paginación inválidos', content: PROBLEM_JSON })
   buscar(@Query() query: BuscarCanchasQueryDto): Promise<ListaCanchasDto> {
     return this.canchasService.buscar({
@@ -130,12 +149,14 @@ export class CanchasController {
     example: 6,
   })
   @ApiOkResponse({ description: 'Cancha', type: CanchaOut })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'La cancha no existe', content: PROBLEM_JSON })
   obtener(@Param('canchaId', ParseIntPipe) canchaId: number): Promise<CanchaOut> {
     return this.canchasService.obtener(canchaId);
   }
 
   @Patch('canchas/:canchaId')
+  @Roles('GERENTE')
   @ApiOperation({
     operationId: 'modificarCancha',
     summary: 'Modificar parcialmente una cancha',
@@ -150,6 +171,8 @@ export class CanchasController {
     example: 6,
   })
   @ApiOkResponse({ description: 'Cancha actualizada', type: CanchaOut })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: SOLO_GERENTE, content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'La cancha no existe', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Datos invalidos', content: PROBLEM_JSON })
   modificar(
@@ -163,6 +186,7 @@ export class CanchasController {
   @ApiOperation({ operationId: 'consultarDisponibilidad', summary: 'Disponibilidad de turnos de una cancha' })
   @ApiParam({ name: 'canchaId', type: 'integer', description: 'ID numérico de la cancha', example: 1 })
   @ApiOkResponse({ description: 'Tramos horarios del día con su disponibilidad', type: ListaDisponibilidadDto })
+  @ApiUnauthorizedResponse({ description: NO_AUTORIZADO, content: PROBLEM_JSON })
   @ApiNotFoundResponse({ description: 'Cancha inexistente', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Fecha o paginación inválidas', content: PROBLEM_JSON })
   consultarDisponibilidad(

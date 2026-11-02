@@ -45,4 +45,26 @@ export async function crearUsuarioConSesion(
   return { usuarioId: usuario.id, token: await iniciarSesion(app, prisma, usuario.id) };
 }
 
+// Crea un RECEPCION con su sede de trabajo (EmpleadoSede) y le inicia sesion: el token trae `sedeId`, que se fija al login,
+// asi que la fila se crea antes. EmpleadoSede es 1:1 con la sede y con el usuario, y no se borra en cascada: la limpieza de la
+// suite tiene que borrar `empleadoSede` por `usuario_id` antes que el usuario.
+export async function crearRecepcionConSesion(
+  app: INestApplication,
+  prisma: PrismaService,
+  sedeId: number,
+  prefijoEmail = 'e2e.sesion',
+): Promise<{ usuarioId: number; token: string }> {
+  const usuario = await prisma.usuario.create({
+    data: {
+      rol: 'RECEPCION',
+      dni: dniUnico(),
+      nombre: 'Usuario RECEPCION E2E',
+      email: emailUnico(prefijoEmail),
+      contrasenia: 'hash-de-relleno',
+    },
+  });
+  await prisma.empleadoSede.create({ data: { usuario_id: usuario.id, sede_id: sedeId } });
+  return { usuarioId: usuario.id, token: await iniciarSesion(app, prisma, usuario.id) };
+}
+
 export const conToken = (token: string): { Authorization: string } => ({ Authorization: `Bearer ${token}` });

@@ -1,7 +1,9 @@
 import type { INestApplication } from '@nestjs/common';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { PRECIOS_PLAN } from 'src/modules/m1-usuarios/entities/membresia.entity';
+import type { RolUsuario } from 'src/modules/m1-usuarios/entities/usuario.entity';
 import { dniUnico, emailUnico } from '@test/helpers/base-de-datos';
+import { crearUsuarioConSesion } from '@test/helpers/sesion';
 
 // Fixtures compartidos por los e2e de M4 (antes en m4.e2e-spec.ts). Crea la sede y
 // la cancha base, y expone el alta de socio/externo, los horarios del dia y la limpieza.
@@ -35,6 +37,14 @@ export async function crearContextoM4(app: INestApplication, prisma: PrismaServi
     });
     usuariosCreados.push(usuario.id);
     return usuario.id;
+  }
+
+  // Usuario del rol pedido con sesion real (login por HTTP), para los endpoints de canchas que exigen token. Se limpia con
+  // el resto de los usuarios del contexto.
+  async function crearSesion(rol: RolUsuario): Promise<string> {
+    const { usuarioId, token } = await crearUsuarioConSesion(app, prisma, rol, 'm4.sesion');
+    usuariosCreados.push(usuarioId);
+    return token;
   }
 
   // Devuelve el id de Usuario (la FK de Reserva es usuarioId -> Usuario).
@@ -91,6 +101,7 @@ export async function crearContextoM4(app: INestApplication, prisma: PrismaServi
     fin,
     crearExterno,
     crearSocio,
+    crearSesion,
     limpiar,
   };
 }

@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp } from '@test/helpers/base-de-datos';
+import { conToken } from '@test/helpers/sesion';
 import { crearContextoM4 } from './m4.fixtures';
 
 // E2E de M4 canchas: solo lo que es HTTP/contrato y NO cubre la integración
@@ -15,10 +16,13 @@ describe('M4 - Canchas: alta y cruce con reservas (RF-09/RF-12)', () => {
   let prisma: PrismaService;
   let ctx: Awaited<ReturnType<typeof crearContextoM4>>;
   let sedeCanchasId: number;
+  // Las canchas exigen sesion: el alta y la edicion son de GERENTE y las consultas de cualquier rol.
+  let tokenGerente: string;
 
   beforeAll(async () => {
     ({ app, prisma } = await crearApp());
     ctx = await crearContextoM4(app, prisma);
+    tokenGerente = await ctx.crearSesion('GERENTE');
 
     const sede = await prisma.sede.create({
       data: { nombre: 'Sede E2E M4 canchas', direccion: 'Calle Sin Nombre 789', aforo_maximo: 30 },
@@ -35,6 +39,7 @@ describe('M4 - Canchas: alta y cruce con reservas (RF-09/RF-12)', () => {
   it('crea una cancha con 201, Location y estado OPERATIVA por defecto', async () => {
     const res = await request(app.getHttpServer())
       .post(`/api/v1/sedes/${sedeCanchasId}/canchas`)
+      .set(conToken(tokenGerente))
       .send({ tipo: 'PADDLE', costoPorHora: 7000 })
       .expect(201);
     ctx.canchasCreadas.push(res.body.id);
@@ -51,6 +56,7 @@ describe('M4 - Canchas: alta y cruce con reservas (RF-09/RF-12)', () => {
   it('poner una cancha EN_MANTENIMIENTO hace fallar la reserva con 409 cancha-en-mantenimiento', async () => {
     const creada = await request(app.getHttpServer())
       .post(`/api/v1/sedes/${sedeCanchasId}/canchas`)
+      .set(conToken(tokenGerente))
       .send({ tipo: 'PADDLE', costoPorHora: 5000 })
       .expect(201);
     ctx.canchasCreadas.push(creada.body.id);
@@ -58,6 +64,7 @@ describe('M4 - Canchas: alta y cruce con reservas (RF-09/RF-12)', () => {
 
     await request(app.getHttpServer())
       .patch(`/api/v1/canchas/${creada.body.id}`)
+      .set(conToken(tokenGerente))
       .send({ estado: 'EN_MANTENIMIENTO' })
       .expect(200);
 
@@ -105,7 +112,7 @@ describe('M4 - Canchas: alta y cruce con reservas (RF-09/RF-12)', () => {
     }
 
     function buscar(query: Record<string, string | number> = {}) {
-      return request(app.getHttpServer()).get('/api/v1/canchas').query(query);
+      return request(app.getHttpServer()).get('/api/v1/canchas').set(conToken(tokenGerente)).query(query);
     }
 
     const idsDe = (res: request.Response) => res.body.items.map((c: { id: number }) => c.id);
@@ -250,26 +257,29 @@ describe('M4 - Canchas: alta y cruce con reservas (RF-09/RF-12)', () => {
     // No regresion de las rutas hermanas: el listado nuevo no pisa a /canchas/{id}
     // ni cambia GET /sedes/{sedeId}/canchas.
     it('GET /sedes/{sedeId}/canchas sigue igual: lista la sede, filtra por estado y da 404 si no existe', async () => {
-      const todas = await request(app.getHttpServer()).get(`/api/v1/sedes/${sedeA}/canchas`).expect(200);
+      const porSede = (sedeId: number | string) =>
+        request(app.getHttpServer()).get(`/api/v1/sedes/${sedeId}/canchas`).set(conToken(tokenGerente));
+
+      const todas = await porSede(sedeA).expect(200);
       expect(idsDe(todas)).toEqual([paddleOpA, paddleMantA, futbolOpA]);
       expect(todas.body.total).toBe(3);
 
-      const operativas = await request(app.getHttpServer())
-        .get(`/api/v1/sedes/${sedeA}/canchas`)
-        .query({ estado: 'OPERATIVA' })
-        .expect(200);
+      const operativas = await porSede(sedeA).query({ estado: 'OPERATIVA' }).expect(200);
       expect(idsDe(operativas)).toEqual([paddleOpA, futbolOpA]);
 
       // El listado por sede no acepta los filtros nuevos: su lista blanca no cambio.
-      await request(app.getHttpServer()).get(`/api/v1/sedes/${sedeA}/canchas`).query({ tipo: 'PADDLE' }).expect(422);
-      await request(app.getHttpServer()).get(`/api/v1/sedes/${sedeA}/canchas`).query({ sedeId: sedeB }).expect(422);
+      await porSede(sedeA).query({ tipo: 'PADDLE' }).expect(422);
+      await porSede(sedeA).query({ sedeId: sedeB }).expect(422);
 
-      const inexistente = await request(app.getHttpServer()).get('/api/v1/sedes/2000000/canchas').expect(404);
+      const inexistente = await porSede(2000000).expect(404);
       expect(inexistente.headers['content-type']).toContain('application/problem+json');
     });
 
     it('GET /canchas/{canchaId} sigue resolviendo a la cancha y no al listado', async () => {
-      const res = await request(app.getHttpServer()).get(`/api/v1/canchas/${futbolOpB}`).expect(200);
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/canchas/${futbolOpB}`)
+        .set(conToken(tokenGerente))
+        .expect(200);
 
       expect(res.body).toMatchObject({ id: futbolOpB, sedeId: sedeB, tipo: 'FUTBOL5', estado: 'OPERATIVA' });
       expect(res.body.items).toBeUndefined();

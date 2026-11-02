@@ -25,6 +25,7 @@ import { IngresoIn } from '../dtos/ingreso-in.dto';
 import { IngresoOut } from '../dtos/ingreso-out.dto';
 import { ListaIngresosDto } from '../dtos/lista-ingresos.dto';
 import { ListarIngresosQueryDto } from '../dtos/listar-ingresos-query.dto';
+import { IngresosAccesoService } from '../services/ingresos-acceso.service';
 import { IngresosService } from '../services/ingresos.service';
 import type { ScopeIngreso } from '../services/ingresos.service';
 
@@ -36,7 +37,11 @@ interface RequestConUsuario extends Request {
 @ApiExtraModels(Problem)
 @Controller('ingresos')
 export class IngresosController {
-  constructor(private readonly ingresosService: IngresosService) {}
+  constructor(
+    private readonly ingresosService: IngresosService,
+    // Detalle y alta: aplica el alcance por sede de RECEPCION antes de llegar a IngresosService.
+    private readonly acceso: IngresosAccesoService,
+  ) {}
 
   // Declarado antes que @Get(':ingresoId'): además del orden lógico de lectura,
   // deja explícito que /ingresos no cae en la ruta con parámetro.
@@ -62,15 +67,26 @@ export class IngresosController {
   }
 
   @Get(':ingresoId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('RECEPCION', 'GERENTE')
+  @ApiBearerAuth()
   @ApiOperation({ operationId: 'obtenerIngreso', summary: 'Obtener ingreso por id' })
   @ApiParam({ name: 'ingresoId', type: 'integer', description: 'ID numérico del ingreso', example: 9 })
   @ApiOkResponse({ description: 'Registro de ingreso', type: IngresoOut })
+  @ApiUnauthorizedResponse({ description: 'Token inválido, expirado o ausente', content: PROBLEM_JSON })
+  @ApiForbiddenResponse({
+    description: 'Rol sin permiso (solo RECEPCION/GERENTE) o ingreso de otra sede que la del recepcionista',
+    content: PROBLEM_JSON,
+  })
   @ApiNotFoundResponse({ description: 'Ingreso inexistente', content: PROBLEM_JSON })
-  obtener(@Param('ingresoId', ParseIntPipe) ingresoId: number): Promise<IngresoOut> {
-    return this.ingresosService.obtenerIngreso(ingresoId);
+  obtener(@Param('ingresoId', ParseIntPipe) ingresoId: number, @Req() req: RequestConUsuario): Promise<IngresoOut> {
+    return this.acceso.obtener(req.user, ingresoId);
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('RECEPCION', 'GERENTE')
+  @ApiBearerAuth()
   @ApiOperation({ operationId: 'registrarIngreso', summary: 'Registrar ingreso a la sede (RF-04)' })
   @ApiCreatedResponse({
     description: 'Ingreso registrado',
@@ -79,15 +95,21 @@ export class IngresosController {
       Location: { description: 'URL del recurso creado', schema: { type: 'string', example: '/api/v1/ingresos/9' } },
     },
   })
-  @ApiForbiddenResponse({ description: 'Membresía inactiva (RF-04)', content: PROBLEM_JSON })
+  @ApiUnauthorizedResponse({ description: 'Token inválido, expirado o ausente', content: PROBLEM_JSON })
+  @ApiForbiddenResponse({
+    description:
+      'Rol sin permiso (solo RECEPCION/GERENTE), sede que no es la del recepcionista o membresía inactiva (RF-04)',
+    content: PROBLEM_JSON,
+  })
   @ApiNotFoundResponse({ description: 'Sede inexistente', content: PROBLEM_JSON })
   @ApiConflictResponse({ description: 'RN-01 (acceso duplicado) o aforo lleno (RF-05)', content: PROBLEM_JSON })
   @ApiUnprocessableEntityResponse({ description: 'Datos inválidos', content: PROBLEM_JSON })
   async crear(
     @Body() dto: IngresoIn,
+    @Req() req: RequestConUsuario,
     @Res({ passthrough: true }) res: Response,
   ): Promise<IngresoOut> {
-    const ingreso = await this.ingresosService.registrarIngreso(dto);
+    const ingreso = await this.acceso.registrar(req.user, dto);
     res.setHeader('Location', `/api/v1/ingresos/${ingreso.id}`);
     return ingreso;
   }

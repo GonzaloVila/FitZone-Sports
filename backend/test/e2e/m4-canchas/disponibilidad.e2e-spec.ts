@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp } from '@test/helpers/base-de-datos';
+import { conToken } from '@test/helpers/sesion';
 import { crearContextoM4 } from './m4.fixtures';
 
 // E2E de la grilla de disponibilidad (RF-12/RNF-03): es una consulta HTTP que la
@@ -12,10 +13,13 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let ctx: Awaited<ReturnType<typeof crearContextoM4>>;
+  // La disponibilidad exige sesion de cualquier rol y poner una cancha en mantenimiento es de GERENTE.
+  let token: string;
 
   beforeAll(async () => {
     ({ app, prisma } = await crearApp());
     ctx = await crearContextoM4(app, prisma);
+    token = await ctx.crearSesion('GERENTE');
   });
 
   afterAll(async () => {
@@ -42,6 +46,7 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
 
     const conOcupada = await request(app.getHttpServer())
       .get(`/api/v1/canchas/${ctx.canchaId}/disponibilidad?fecha=${ctx.DIA}&perPage=100`)
+      .set(conToken(token))
       .expect(200);
     expect(tramo(conOcupada.body.items)?.disponible).toBe(false);
 
@@ -51,6 +56,7 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
 
     const conLibre = await request(app.getHttpServer())
       .get(`/api/v1/canchas/${ctx.canchaId}/disponibilidad?fecha=${ctx.DIA}&perPage=100`)
+      .set(conToken(token))
       .expect(200);
     expect(tramo(conLibre.body.items)?.disponible).toBe(true);
   });
@@ -75,11 +81,13 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
 
     await request(app.getHttpServer())
       .patch(`/api/v1/canchas/${conReserva.id}`)
+      .set(conToken(token))
       .send({ estado: 'EN_MANTENIMIENTO' })
       .expect(200);
 
     const grilla = await request(app.getHttpServer())
       .get(`/api/v1/canchas/${conReserva.id}/disponibilidad?fecha=${ctx.DIA}&perPage=100`)
+      .set(conToken(token))
       .expect(200);
     expect(grilla.body.items.every((e: { disponible: boolean }) => e.disponible === false)).toBe(true);
 

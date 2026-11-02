@@ -25,6 +25,7 @@ import {
 import { IngresoRepository } from '../repositories/ingreso.repository';
 import type { IngresoFiltros } from '../repositories/ingreso.repository';
 import { SedeRepository } from '../repositories/sede.repository';
+import { recepcionFueraDeSede } from './alcance-ingresos';
 
 // Alcance por rol para el listado y el egreso (RF-04/Unidad III). RECEPCION queda
 // atado a su sede (la del JWT, que sale de EmpleadoSede); GERENTE ve y egresa en
@@ -132,7 +133,7 @@ export class IngresosService {
 
     // RECEPCION solo egresa en su sede. El 403 va antes del chequeo de egreso
     // duplicado a propósito: no se filtra el estado de un ingreso de otra sede.
-    if (scope.rol === 'RECEPCION' && scope.sedeId !== ingreso.sedeId) {
+    if (recepcionFueraDeSede(scope, ingreso.sedeId)) {
       throw egresoFueraDeSede(ingresoId);
     }
 

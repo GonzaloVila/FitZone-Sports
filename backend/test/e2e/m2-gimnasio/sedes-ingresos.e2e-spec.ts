@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { PRECIOS_PLAN } from 'src/modules/m1-usuarios/entities/membresia.entity';
 import { crearApp, dniUnico, emailUnico } from '@test/helpers/base-de-datos';
+import { conToken, crearUsuarioConSesion } from '@test/helpers/sesion';
 
 // E2E de M2: solo el contrato HTTP del flujo ingreso/aforo/egreso y el scope por sede
 // del RECEPCION (JWT -> sede). El resto (RN-01, aforo lleno, 403 no vigente, sync) lo
@@ -16,6 +17,7 @@ describe('M2 - Ingresos / Aforo: contrato HTTP y scope por sede', () => {
   const sociosCreados: number[] = [];
   const sedesCreadas: number[] = [];
   const tokensPorSede = new Map<number, string>();
+  let tokenGerente: string;
 
   async function tokenRecepcion(sedeId: number): Promise<string> {
     const cache = tokensPorSede.get(sedeId);
@@ -49,6 +51,7 @@ describe('M2 - Ingresos / Aforo: contrato HTTP y scope por sede', () => {
   async function crearSede(aforo: number): Promise<number> {
     const res = await request(app.getHttpServer())
       .post('/api/v1/sedes')
+      .set(conToken(tokenGerente))
       .send({ nombre: 'Sede E2E M2', direccion: 'Calle Falsa 123', aforoMaximo: aforo })
       .expect(201);
     sedesCreadas.push(res.body.id);
@@ -81,12 +84,18 @@ describe('M2 - Ingresos / Aforo: contrato HTTP y scope por sede', () => {
     return socio.id;
   }
 
-  function ingresar(sedeId: number, socioId: number) {
-    return request(app.getHttpServer()).post('/api/v1/ingresos').send({ sedeId, socioId, codigoTotp: '123456' });
+  function ingresar(sedeId: number, socioId: number, token: string) {
+    return request(app.getHttpServer())
+      .post('/api/v1/ingresos')
+      .set(conToken(token))
+      .send({ sedeId, socioId, codigoTotp: '123456' });
   }
 
   beforeAll(async () => {
     ({ app, prisma } = await crearApp());
+    const gerente = await crearUsuarioConSesion(app, prisma, 'GERENTE', 'm2.gerente');
+    usuariosCreados.push(gerente.usuarioId);
+    tokenGerente = gerente.token;
   });
 
   afterAll(async () => {
@@ -103,28 +112,36 @@ describe('M2 - Ingresos / Aforo: contrato HTTP y scope por sede', () => {
     const sedeId = await crearSede(5);
     const socioId = await crearSocioConMembresia(sedeId);
 
-    const ingresoRes = await ingresar(sedeId, socioId).expect(201);
+    const token = await tokenRecepcion(sedeId);
+    const ingresoRes = await ingresar(sedeId, socioId, token).expect(201);
     const ingresoId: number = ingresoRes.body.id;
     expect(ingresoRes.headers.location).toBe(`/api/v1/ingresos/${ingresoId}`);
 
-    const ocupado = await request(app.getHttpServer()).get(`/api/v1/sedes/${sedeId}/aforo`).expect(200);
+    const ocupado = await request(app.getHttpServer())
+      .get(`/api/v1/sedes/${sedeId}/aforo`)
+      .set(conToken(token))
+      .expect(200);
     expect(ocupado.body).toMatchObject({ aforoActual: 1, restante: 4 });
 
-    const token = await tokenRecepcion(sedeId);
     await request(app.getHttpServer())
       .post(`/api/v1/ingresos/${ingresoId}/egreso`)
       .set('Authorization', `Bearer ${token}`)
       .expect(204);
 
-    const liberado = await request(app.getHttpServer()).get(`/api/v1/sedes/${sedeId}/aforo`).expect(200);
+    const liberado = await request(app.getHttpServer())
+      .get(`/api/v1/sedes/${sedeId}/aforo`)
+      .set(conToken(token))
+      .expect(200);
     expect(liberado.body).toMatchObject({ aforoActual: 0, restante: 5 });
   });
 
   it('RECEPCION solo ve/egresa su sede: el query no la overridea y egresar otra sede da 403', async () => {
     const sedeA = await crearSede(10);
     const sedeB = await crearSede(10);
-    const ingresoA = (await ingresar(sedeA, await crearSocioConMembresia(sedeA)).expect(201)).body.id as number;
-    const ingresoB = (await ingresar(sedeB, await crearSocioConMembresia(sedeB)).expect(201)).body.id as number;
+    const ingresoA = (await ingresar(sedeA, await crearSocioConMembresia(sedeA), tokenGerente).expect(201)).body
+      .id as number;
+    const ingresoB = (await ingresar(sedeB, await crearSocioConMembresia(sedeB), tokenGerente).expect(201)).body
+      .id as number;
 
     const tokenA = await tokenRecepcion(sedeA);
 

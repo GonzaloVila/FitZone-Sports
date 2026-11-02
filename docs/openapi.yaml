@@ -653,7 +653,10 @@ paths:
         - sedes
       operationId: listarSedes
       summary: Listado de sedes
-      description: Listado paginado de todas las sedes de la cadena (Gerente Central, A4). Solo admite paginación (lista blanca de parámetros).
+      description: >-
+        Listado paginado de todas las sedes de la cadena (Gerente Central, A4). Solo admite paginación (lista blanca de parámetros). Requiere token: cualquier rol con sesión.
+      security:
+        - bearer: []
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PerPage'
@@ -664,6 +667,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaSedes'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '422':
           $ref: '#/components/responses/ValidationError'
     post:
@@ -672,7 +677,9 @@ paths:
       operationId: crearSede
       summary: Alta de sede
       description: |
-        Alta de una nueva sucursal por el Gerente Central (RNF-04). La sede queda disponible para canchas, clases y control de acceso en forma inmediata (configuración por BD).
+        Alta de una nueva sucursal por el Gerente Central (RNF-04). La sede queda disponible para canchas, clases y control de acceso en forma inmediata (configuración por BD). Requiere token: solo GERENTE.
+      security:
+        - bearer: []
       requestBody:
         required: true
         content:
@@ -692,6 +699,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SedeOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (solo GERENTE)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '422':
           $ref: '#/components/responses/ValidationError'
   /ingresos:
@@ -771,7 +786,9 @@ paths:
         Registra el turno de acceso. Valida que el usuario tenga una membresía vigente (RF-04: estado distinto de SUSPENDIDA y fecha_fin no vencida) y que la sede tenga espacio (RF-05, cuenta los
         Ingresos sin egreso contra Sede.aforo_maximo). RN-01: un usuario no puede estar dentro de dos sedes a la vez; si ya tiene un ingreso sin egreso responde 409 (acceso-duplicado). El codigo_totp
         es el QR dinámico de la app del socio (TOTP, Unidad III); si el socio no activó el QR, se valida solo la membresía. fecha_hora_ingreso es opcional para el puesto de control offline (RNF-01):
-        enviar la hora real del acceso cuando se sincroniza.
+        enviar la hora real del acceso cuando se sincroniza. Requiere token: RECEPCION solo registra en su sede (403 si `sede_id` es otra); GERENTE registra en cualquiera.
+      security:
+        - bearer: []
       requestBody:
         required: true
         content:
@@ -791,8 +808,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IngresoOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '403':
-          $ref: '#/components/responses/MembresiaInactiva'
+          description: >
+            Tiene dos significados, ambos con problem+json: rol sin permiso (solo RECEPCION/GERENTE) o sede que no es la del recepcionista (type sede-fuera-de-alcance),
+            y membresía inactiva del socio (type membresia-inactiva, RF-04).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+              examples:
+                membresiaInactiva:
+                  summary: La membresía del socio no está vigente (RF-04)
+                  value:
+                    type: https://fitzone.app/errores/membresia-inactiva
+                    title: Membresía inactiva
+                    status: 403
+                    detail: El socio 2 no posee una membresía vigente para ingresar a la sede 3.
+                sedeFueraDeAlcance:
+                  summary: RECEPCION registra en una sede que no es la suya
+                  value:
+                    type: https://fitzone.app/errores/sede-fuera-de-alcance
+                    title: Sede fuera de alcance
+                    status: 403
+                    detail: La sede 3 no es la sede de trabajo del recepcionista.
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -809,7 +849,9 @@ paths:
       summary: Obtener ingreso por id
       description: >
         Devuelve el registro del acceso. `fecha_hora_egreso` es nula mientras el usuario permanezca dentro de la sede (es lo que define el aforo, RN-01). Para el egreso ver POST
-        /ingresos/{ingresoId}/egreso.
+        /ingresos/{ingresoId}/egreso. Requiere token: RECEPCION solo ve ingresos de su sede (403 si es de otra); GERENTE ve cualquiera.
+      security:
+        - bearer: []
       responses:
         '200':
           description: Registro de ingreso
@@ -817,6 +859,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IngresoOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (solo RECEPCION/GERENTE) o ingreso de otra sede que la del recepcionista
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
   /ingresos/{ingresoId}/egreso:
@@ -889,7 +939,9 @@ paths:
       operationId: obtenerAforo
       summary: Aforo actual de una sede (RF-05)
       description: |
-        aforo_actual = cantidad de Ingresos sin fecha_hora_egreso de la sede (RN-01); restante = aforo_maximo - aforo_actual. Es la misma cuenta que valida cada POST de acceso.
+        aforo_actual = cantidad de Ingresos sin fecha_hora_egreso de la sede (RN-01); restante = aforo_maximo - aforo_actual. Es la misma cuenta que valida cada POST de acceso. Requiere token: RECEPCION solo consulta su sede (403 si pide otra); GERENTE consulta cualquiera.
+      security:
+        - bearer: []
       responses:
         '200':
           description: Aforo actual de la sede
@@ -897,6 +949,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AforoOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (solo RECEPCION/GERENTE) o sede que no es la del recepcionista
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
   /sedes/{sedeId}/canchas:
@@ -909,7 +969,9 @@ paths:
       summary: Listado de canchas de una sede
       description: >-
         Listado paginado de las canchas de la sede (incluye las no operativas, RF-12); opcional filtrar por ?estado= (lista blanca de parámetros). Sin ?estado= devuelve todas, incluidas las
-        EN_MANTENIMIENTO.
+        EN_MANTENIMIENTO. Requiere token: cualquier rol con sesión.
+      security:
+        - bearer: []
       parameters:
         - name: estado
           in: query
@@ -926,6 +988,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaCanchas'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -935,7 +999,10 @@ paths:
         - canchas
       operationId: crearCancha
       summary: Alta de cancha (RF-09)
-      description: El Gerente configura el tipo y el costo por hora (por defecto, operativa).
+      description: >-
+        El Gerente configura el tipo y el costo por hora (por defecto, operativa). Requiere token: solo GERENTE.
+      security:
+        - bearer: []
       requestBody:
         required: true
         content:
@@ -955,6 +1022,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CanchaOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (solo GERENTE)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -968,7 +1043,9 @@ paths:
       description: >-
         Listado paginado de las canchas de TODAS las sedes (incluye las no operativas, RF-12); opcional filtrar por sede, tipo y estado (lista blanca de parámetros). Sin filtros devuelve todas las
         canchas de la cadena. Orden estable por sede y luego por id (`sede_id asc, id asc`). Como en GET /ingresos y GET /socios, un `sedeId` bien formado pero inexistente no es un error: responde 200
-        con la lista vacía (`items: []`, `total: 0`); el 404 de una sede inexistente es propio de GET /sedes/{sedeId}/canchas, donde la sede es parte de la ruta.
+        con la lista vacía (`items: []`, `total: 0`); el 404 de una sede inexistente es propio de GET /sedes/{sedeId}/canchas, donde la sede es parte de la ruta. Requiere token: cualquier rol con sesión.
+      security:
+        - bearer: []
       parameters:
         - name: sedeId
           in: query
@@ -999,6 +1076,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaCanchas'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '422':
           $ref: '#/components/responses/ValidationError'
   /canchas/{canchaId}:
@@ -1009,6 +1088,9 @@ paths:
         - canchas
       operationId: obtenerCancha
       summary: Obtener cancha por id
+      description: 'Requiere token: cualquier rol con sesión.'
+      security:
+        - bearer: []
       responses:
         '200':
           description: Cancha
@@ -1016,6 +1098,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CanchaOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '404':
           $ref: '#/components/responses/NotFound'
     patch:
@@ -1024,7 +1108,9 @@ paths:
       operationId: modificarCancha
       summary: Modificar parcialmente una cancha
       description: |
-        Actualiza costo_por_hora (RF-09) y/o estado. Pasar a EN_MANTENIMIENTO no borra las reservas ya tomadas (RF-12): inhabilitar el futuro no toca el histórico.
+        Actualiza costo_por_hora (RF-09) y/o estado. Pasar a EN_MANTENIMIENTO no borra las reservas ya tomadas (RF-12): inhabilitar el futuro no toca el histórico. Requiere token: solo GERENTE.
+      security:
+        - bearer: []
       requestBody:
         required: true
         content:
@@ -1038,6 +1124,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CanchaOut'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
+        '403':
+          description: Rol sin permiso (solo GERENTE)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -1053,7 +1147,9 @@ paths:
       description: >
         Consulta indexada por día (RNF-03). Devuelve los tramos horarios libres/ocupados para la fecha solicitada. Si la cancha está EN_MANTENIMIENTO todos los tramos responden disponible:false
         (RF-12): se bloquea el futuro sin tocar las reservas ya tomadas. La consulta usa el índice compuesto (cancha_id, fecha_hora_inicio). Solo admite ?fecha= y paginación (lista blanca de
-        parámetros).
+        parámetros). Requiere token: cualquier rol con sesión.
+      security:
+        - bearer: []
       parameters:
         - name: fecha
           in: query
@@ -1072,6 +1168,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaDisponibilidad'
+        '401':
+          $ref: '#/components/responses/NoAutorizado'
         '404':
           $ref: '#/components/responses/NotFound'
         '422':
@@ -3397,17 +3495,6 @@ components:
             title: Pago no aprobado
             status: 409
             detail: El pago está en estado RECHAZADO; no se puede generar un comprobante.
-    MembresiaInactiva:
-      description: La membresía del usuario no está vigente (RF-04)
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
-          example:
-            type: https://fitzone.app/errores/membresia-inactiva
-            title: Membresía inactiva
-            status: 403
-            detail: El usuario 2 no posee una membresía vigente para ingresar a la sede 3.
     ConflictoAcceso:
       description: RN-01 (usuario ya dentro de otra sede) o aforo lleno (RF-05)
       content:

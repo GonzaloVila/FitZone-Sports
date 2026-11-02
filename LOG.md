@@ -4703,3 +4703,76 @@ Ninguno nuevo. Cierra la deuda del texto del rango copiado en varias pantallas.
 7. Errores 422 en inglés crudo en algunas validaciones del backend.
 8. Los `docs/UserCaseDiagrams` dicen "50% del valor nominal" (documentación del enunciado; no se tocaron).
 9. Columna "Reservó" de la grilla de turnos: falta confirmar que no pida algún retoque propio.
+
+---
+
+## 2026-11-02 - Guards de sesión y alcance por rol en todo el backend (auditoría y pasos 1 a 4)
+
+**Fecha:** 01/11/2026 (auditoría) y 02/11/2026 (pasos 1 a 4) · **Rama:** `main` · **Autor:** Santino Mazzulla (P3 Frontend) · **Commit:** `25516ca` y `1807953` (paso 1), `9894a34` y `0e98f6e` (paso 2), `1972c26` y `9c421cf` (paso 3), `a357071` (paso 4)
+
+### Actividades
+
+1. **Auditoría de endpoints (solo lectura, `docs/auditoria-guards.md`):** 54 endpoints en 15 controllers; 11 ya tenían guards, 3 son públicos por diseño (`login`, `refresh` y `logout`) y 40 respondían sin sesión (por ejemplo `POST /usuarios` y `POST /sedes` daban 201 sin token). El archivo relevó, para cada endpoint, su protección actual, qué pantalla del frontend lo llama y con qué rol, quién es el dueño del recurso y qué tests necesitaban sesión, y dejó 12 dudas (D1 a D12) que se resolvieron antes de implementar. Modelo seguido en todos los pasos: el de pagos (`57dd1c1`): guards en el controller, reglas de alcance como funciones puras con tests unitarios, un servicio de acceso aparte que delega en el servicio real sin cambiar sus firmas, contrato con `security` y respuestas 401, 403 y 404, y tests e2e con sesiones reales.
+2. **Paso 1: sedes, ingresos y canchas (11 endpoints):**
+   - `GET /sedes` y los de lectura de canchas (`GET /sedes/{id}/canchas`, `GET /canchas`, `GET /canchas/{id}` y `/disponibilidad`): cualquier usuario con sesión.
+   - `POST /sedes`, `POST /sedes/{id}/canchas` y `PATCH /canchas/{id}`: solo GERENTE.
+   - `GET /sedes/{id}/aforo`, `GET /ingresos/{id}` y `POST /ingresos`: RECEPCION y GERENTE; RECEPCION solo en su sede (403 si es otra, igual que ya hacía el egreso).
+   - Archivos nuevos: `alcance-ingresos.ts` (reglas puras) e `ingresos-acceso.service.ts`, con sus specs; el egreso pasó a usar la misma comparación de sede.
+   - Contrato: `security`, 401 y 403 en las 11 operaciones; el 403 de `POST /ingresos` describe sus dos significados (membresía inactiva y sede ajena) y se quitó el componente `MembresiaInactiva`, que ya no usaba nadie. `api.d.ts`: 108 líneas.
+   - Tests: helper `crearRecepcionConSesion`, `acceso.e2e-spec.ts` (m2) y `canchas-acceso.e2e-spec.ts` (m4), y se adaptaron `sedes-ingresos`, `auth`, `usuarios`, `canchas` y `disponibilidad`.
+3. **Paso 2: usuarios, socios y membresías (11 endpoints):**
+   - `POST /usuarios`: RECEPCION y GERENTE; RECEPCION solo puede crear EXTERNO (403 si pide RECEPCION o GERENTE), GERENTE crea cualquier rol.
+   - `GET /usuarios`: RECEPCION y GERENTE.
+   - `GET /usuarios/{id}`: dueño; SOCIO y EXTERNO solo el propio (404 si es otro), RECEPCION y GERENTE cualquiera.
+   - `PATCH /usuarios/{id}`: RECEPCION y GERENTE; SOCIO y EXTERNO siempre 403 (no hay pantalla de perfil); RECEPCION solo sobre SOCIO y EXTERNO (403 sobre RECEPCION, GERENTE y sobre sí mismo); GERENTE a cualquiera; usuario inexistente 404.
+   - `POST /socios`, `GET /socios`, `PATCH /socios/{id}`, `DELETE /socios/{id}` y `PATCH /socios/{id}/membresias`: RECEPCION y GERENTE.
+   - `GET /socios/{id}` y `GET /socios/{id}/membresias`: dueño; SOCIO solo con su propio `socioId`, EXTERNO siempre 404, RECEPCION y GERENTE cualquiera.
+   - Archivos nuevos: `alcance-usuarios.ts`, `usuarios-acceso.service.ts` y `socios-acceso.service.ts`, con sus specs; dos 403 nuevos en `usuarios.errors.ts`. Helpers de test `crearSocioConSesion` y `clienteCon`. `api.d.ts`: 102 líneas.
+   - Tests: `acceso.e2e-spec.ts` de m1 (17 tests) y todos los e2e de usuarios, socios, cobro interno, errores y gimnasio que llamaban sin token pasaron a usar un GERENTE creado por Prisma con login real.
+4. **Paso 3: clases, esperas y reservas (18 endpoints):**
+   - Clases: `POST /clases` para RECEPCION (solo en su sede, 403 si es otra) y GERENTE; `GET /clases`, `GET /clases/{id}` y la cola de espera para SOCIO, RECEPCION y GERENTE; inscriptos (`GET /clases/{id}/reservas`) para RECEPCION y GERENTE. EXTERNO recibe 403 en todo lo de clases porque no es socio.
+   - Reservas de clase y esperas: SOCIO solo a su nombre y solo lo suyo (404 si es ajeno; en los listados se fuerza el `socioId` del token y se ignora el de la consulta); RECEPCION y GERENTE ven y operan todo. Un SOCIO sin `socioId` en el token recibe 403 en listados y altas y 404 por id.
+   - Reservas de cancha: SOCIO y EXTERNO solo lo propio (404 si es ajeno, `usuarioId` forzado en el listado); RECEPCION y GERENTE ven y operan todo, sin filtrar la grilla de turnos.
+   - Archivos nuevos: en m3, `alcance-clases.ts`, `clases-acceso.service.ts` y `errors/acceso.errors.ts`; en m4, `alcance-reservas-canchas.ts` y `reservas-canchas-acceso.service.ts`; con sus specs. El componente `SocioEnMora` del contrato describe ahora sus dos significados (rol sin permiso o sesión sin `socioId`, y mora). `api.d.ts`: 173 líneas.
+   - Tests: `acceso.e2e-spec.ts` de m3 (11 tests) y `reservas-acceso.e2e-spec.ts` de m4 (10 tests); se adaptaron `clases`, `listados`, `concurrencia`, `espera`, `reservas` de m3 y `reservas`, `canchas` y `disponibilidad` de m4 (cada actor con su sesión).
+5. **Paso 4: guard global con `@Public()`:**
+   - `JwtAuthGuard` y `RolesGuard` son `APP_GUARD` en `AppModule`, en ese orden. Solo `POST /auth/login`, `POST /auth/refresh` y `POST /auth/logout` llevan `@Public()` (nuevo `public.decorator.ts`; `JwtAuthGuard` lee la marca con Reflector sobre método y clase). Un endpoint nuevo nace protegido por defecto.
+   - Se sacaron los `@UseGuards(JwtAuthGuard, RolesGuard)` de los 15 controllers, que quedaron redundantes; los `@Roles` y las reglas de alcance no cambiaron.
+   - Contrato: `security: [{ bearer: [] }]` global y `security: []` en las tres operaciones públicas; se quitaron los 51 bloques `security: bearer` repetidos y se actualizó la frase de la descripción general de la API. `api.d.ts` sin cambios.
+   - Tests nuevos: `jwt-auth.guard.spec.ts` (6 unitarios), `rutas-protegidas.e2e-spec.ts` (6 e2e: recorre las 54 rutas reales con DiscoveryService, fija las públicas en exactamente las tres, las cruza con el contrato y comprueba que las 51 protegidas dan 401 sin token y con token inválido) y `red-de-seguridad.e2e-spec.ts` (6 e2e: un controller descartable sin guards da 401 sin token y 200 con sesión, los roles se aplican sin `@UseGuards`, el 401 le gana al 403, `@Public()` deja pasar y una ruta inexistente sigue dando 404). Helper `test/helpers/rutas-app.ts`. README del backend actualizado: todo endpoint exige sesión por defecto y, para dejar uno público, hay que usar `@Public()` y actualizar el test que fija las rutas públicas.
+
+### Decisiones tomadas
+
+1. **Lo ajeno responde 404, no 403,** en los recursos con dueño, para no revelar qué ids existen; el 403 queda para el rol y para la sede ajena de RECEPCION (igual que el egreso). El 403 por sede va antes que el 404, salvo en el detalle de un ingreso, donde hay que leerlo primero.
+2. **EXTERNO no usa clases:** no es socio y no tiene `socioId`, así que recibe 403 en todo lo de clases, esperas y reservas de clase.
+3. **Quién crea y modifica usuarios:** RECEPCION solo crea EXTERNO (el alta de socio) y solo GERENTE crea personal; RECEPCION modifica solo a SOCIO y EXTERNO, GERENTE a cualquiera, y SOCIO y EXTERNO no modifican usuarios mientras no haya una pantalla de perfil.
+4. **Sin restricción por sede** para RECEPCION salvo en ingresos, aforo y alta de clases, porque la sede de origen del socio es informativa y el acceso es multi-sede.
+5. **Solo GERENTE** crea sedes y crea o edita canchas.
+6. **A nivel de API, RECEPCION y GERENTE pueden crear reservas a nombre de otra persona** (como en pagos), aunque ninguna pantalla lo ofrece.
+7. **La agenda de clases exige sesión;** la cola de espera de una clase queda abierta a SOCIO, RECEPCION y GERENTE de forma provisoria, porque el frontend calcula la posición del socio con la cola completa.
+8. **Orden de los chequeos:** el 403 por rol va primero, después la validación del cuerpo y recién entonces el 403 por regla de negocio (un alta inválida de RECEPCION da 422 antes que 403). El guard corre antes que la validación, por eso los tests de 400 y 422 sin token pasaron a 401 y se adaptaron.
+9. **Guard global y limpieza de los controllers** en lugar de dejar los guards repetidos en cada uno: se evita ejecutarlos dos veces y la protección ya no depende de que alguien se acuerde de ponerla.
+10. **Los cobros internos, crons, listeners y observers** no pasan por controllers y no cambiaron.
+
+### Problemas encontrados
+
+1. **40 endpoints abiertos:** cualquiera, incluso sin sesión, podía crear usuarios y sedes, listar socios, reservar y cancelar. Es lo que cierra este trabajo.
+2. **Tests e2e que llamaban sin token:** se adaptaron con sesiones reales, usando usuarios creados por Prisma con login real en lugar de depender de `POST /usuarios` sin token.
+3. **Login en medio de una request de supertest:** hacer `await` de un login mientras se arma una request cierra el servidor compartido y da `ECONNREFUSED`; hay que pedir el token antes de armar la request.
+4. **El Swagger UI (`/docs` y `/docs-json`) sigue abierto:** `main.ts` lo monta con Express, fuera de los guards de Nest. No se cambió.
+5. **El token es la fuente de verdad:** el rol, la sede y el `socioId` quedan fijados al login (token de acceso de 15 minutos). Un EXTERNO que RECEPCION convierte en socio ve su carnet recién cuando renueva el token o vuelve a iniciar sesión, y un socio dado de baja conserva el acceso a lo suyo hasta que vence el token.
+
+### Verificación
+
+- Backend, al final del paso 4: `npx tsc --noEmit` sin errores; `npm run test:unit` 452 tests (más 1 salteado a propósito; antes de los pasos 368); `npm run test:integration` 80 tests en 13 archivos; `npm run test:e2e` 189 tests en 28 archivos (antes de los pasos 117 en 21).
+- Frontend: sin cambios de código; `npm run type-check` y `npm run build` sin errores; 96 archivos y 983 tests en verde. Se verificó con búsquedas en el código que ninguna pantalla pública llama a endpoints cerrados, que SOCIO y EXTERNO solo piden usuario, socio y membresías con su propio id, y que el alta de socio crea primero un EXTERNO.
+- Prueba manual del 02/11 con los cuatro roles (SOCIO, EXTERNO, RECEPCION y GERENTE) sobre las pantallas de sedes, aforo e ingresos, canchas, socios, personal, clases, reservas y pagos: todo correcto, salvo los retoques de pantalla anotados abajo. Tras el paso 4: iniciar sesión, recargar con F5 (usa la ruta pública de refresco) y cerrar sesión funcionan.
+
+### Pendientes que siguen abiertos
+
+1. Decidir qué hacer con el Swagger UI abierto cuando el backend se despliegue en un servidor público (a hablar con Gonza; para la demo conviene dejarlo abierto).
+2. Límite de intentos en `POST /ingresos`: valida un código TOTP de 6 dígitos y no hay throttling; conviene antes de abrirlo a un puesto sin operador.
+3. Que el backend devuelva solo la posición del socio en la cola de espera, en lugar de la cola completa (hoy el socio ve `socioId` ajenos, sin nombres).
+4. Idea sin plantear: un cobro manual (por ejemplo en efectivo) que RECEPCION y GERENTE puedan generar desde Pagos. La API ya les permite crear pagos; falta el planteo y la pantalla.
+5. Retoques de frontend surgidos de la prueba manual: mostrar el email en el encabezado de SOCIO y EXTERNO; guión largo en la columna "Reservó" de la grilla de turnos cuando no hay reservante; reemplazar el menú "⋯" de "Listas de espera" por botones visibles; ícono de mostrar contraseña en las altas de socio y de personal; botón "Reservar" deshabilitado en los turnos que no se pueden reservar.
+6. Los demás pendientes generales (carnet con QR, registro y recuperación de contraseña, datos de demostración, accesibilidad, velocidad de los tests del frontend) siguen en la lista de pendientes del proyecto.

@@ -10,7 +10,6 @@ import {
   Query,
   Req,
   Res,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -29,9 +28,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
 import { Roles } from '../../../commons/guards/roles.decorator';
-import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
@@ -53,7 +50,6 @@ const NO_ES_SOCIO_NI_PERSONAL = 'Rol sin permiso (el EXTERNO no usa clases: solo
 @ApiTags('reservas-clases')
 @ApiExtraModels(Problem)
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('SOCIO', 'RECEPCION', 'GERENTE')
 @Controller()
 export class ReservasClasesController {

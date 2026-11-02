@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Query, Req, Res } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiConflictResponse,
@@ -15,9 +15,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
 import { Roles } from '../../../commons/guards/roles.decorator';
-import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
@@ -46,7 +44,6 @@ export class IngresosController {
   // Declarado antes que @Get(':ingresoId'): además del orden lógico de lectura,
   // deja explícito que /ingresos no cae en la ruta con parámetro.
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('RECEPCION', 'GERENTE')
   @ApiBearerAuth()
   @ApiOperation({ operationId: 'listarIngresos', summary: 'Listado de ingresos a sede con filtros' })
@@ -67,7 +64,6 @@ export class IngresosController {
   }
 
   @Get(':ingresoId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('RECEPCION', 'GERENTE')
   @ApiBearerAuth()
   @ApiOperation({ operationId: 'obtenerIngreso', summary: 'Obtener ingreso por id' })
@@ -84,7 +80,6 @@ export class IngresosController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('RECEPCION', 'GERENTE')
   @ApiBearerAuth()
   @ApiOperation({ operationId: 'registrarIngreso', summary: 'Registrar ingreso a la sede (RF-04)' })
@@ -116,7 +111,6 @@ export class IngresosController {
 
   @Post(':ingresoId/egreso')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('RECEPCION', 'GERENTE')
   @ApiBearerAuth()
   @ApiOperation({ operationId: 'registrarEgreso', summary: 'Registrar egreso de la sede (RF-05)' })

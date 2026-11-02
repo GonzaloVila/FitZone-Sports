@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Res, StreamableFile, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Res, StreamableFile } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiExtraModels,
@@ -11,9 +11,7 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { rangoDelDia } from '../../commons/fechas';
-import { JwtAuthGuard } from '../../commons/guards/jwt-auth.guard';
 import { Roles } from '../../commons/guards/roles.decorator';
-import { RolesGuard } from '../../commons/guards/roles.guard';
 import { Problem } from '../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../commons/swagger/problem-json';
 import { ReporteIngresosService } from '../m5-pagos/services/reporte-ingresos.service';
@@ -31,7 +29,6 @@ export class ReportesController {
   ) {}
 
   @Get('pagos')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('GERENTE')
   @ApiOperation({
     operationId: 'reporteIngresos',

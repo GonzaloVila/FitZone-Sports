@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, Res } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -13,9 +13,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
 import { Roles } from '../../../commons/guards/roles.decorator';
-import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { BuscarCanchasQueryDto } from '../dtos/buscar-canchas-query.dto';
@@ -43,7 +41,6 @@ const SOLO_GERENTE = 'Rol sin permiso (solo GERENTE)';
 @ApiTags('canchas')
 @ApiExtraModels(Problem)
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller()
 export class CanchasController {
   constructor(

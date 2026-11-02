@@ -12,7 +12,6 @@ import {
   Query,
   Req,
   Res,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -32,9 +31,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
 import { Roles } from '../../../commons/guards/roles.decorator';
-import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
@@ -58,7 +55,6 @@ const SOLO_PERSONAL = 'Rol sin permiso (solo RECEPCION/GERENTE)';
 @ApiTags('socios')
 @ApiExtraModels(Problem)
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('socios')
 export class SociosController {
   constructor(

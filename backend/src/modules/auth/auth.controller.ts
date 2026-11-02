@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   ApiBearerAuth,
@@ -17,9 +17,8 @@ import { plainToInstance } from 'class-transformer';
 import type { Request, Response } from 'express';
 import { leerCookie } from '../../commons/cookies';
 import { ProblemException } from '../../commons/filters/problem.exception';
-import { JwtAuthGuard } from '../../commons/guards/jwt-auth.guard';
+import { Public } from '../../commons/guards/public.decorator';
 import { Roles } from '../../commons/guards/roles.decorator';
-import { RolesGuard } from '../../commons/guards/roles.guard';
 import { Problem } from '../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../commons/swagger/problem-json';
 import { AuthService } from './auth.service';
@@ -67,6 +66,7 @@ export class AuthController {
     private readonly configService: ConfigService,
   ) {}
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ operationId: 'login', summary: 'Login con email y contraseña' })
@@ -94,6 +94,7 @@ export class AuthController {
     return sesion.respuesta;
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -149,6 +150,7 @@ export class AuthController {
     return sesion.respuesta;
   }
 
+  @Public()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
@@ -185,7 +187,6 @@ export class AuthController {
   }
 
   @Post('registro-qr')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SOCIO')
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth()

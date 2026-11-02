@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { validateEnv } from './config/env.config';
 import { CommonsModule } from './commons/commons.module';
 import { DatabaseModule } from './commons/database/database.module';
+import { JwtAuthGuard } from './commons/guards/jwt-auth.guard';
+import { RolesGuard } from './commons/guards/roles.guard';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsuariosModule } from './modules/m1-usuarios/usuarios.module';
 import { GimnasioModule } from './modules/m2-gimnasio/gimnasio.module';
@@ -32,6 +35,12 @@ import { ReportesModule } from './modules/reportes/reportes.module';
     CanchasModule,
     PagosModule,
     ReportesModule,
+  ],
+  providers: [
+    // Guards globales. El orden de los providers fija el de ejecucion: primero
+    // la sesion (401) y despues el rol (403). Las rutas abiertas llevan @Public().
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

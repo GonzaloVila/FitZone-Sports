@@ -12,7 +12,6 @@ import {
   Req,
   Res,
   StreamableFile,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -34,9 +33,7 @@ import {
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { faltaIdempotencyKey } from '../errors/pago.errors';
-import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
 import { Roles } from '../../../commons/guards/roles.decorator';
-import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
@@ -58,7 +55,6 @@ const NO_AUTORIZADO = 'Token inválido, expirado o ausente';
 @ApiTags('pagos')
 @ApiExtraModels(Problem)
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('pagos')
 export class PagosController {
   constructor(

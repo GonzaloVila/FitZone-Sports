@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiExtraModels,
@@ -9,9 +9,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
-import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
 import { Roles } from '../../../commons/guards/roles.decorator';
-import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import { BloqueadosOut } from '../dtos/bloqueados-out.dto';
@@ -31,7 +29,6 @@ export class BloqueadosController {
   constructor(private readonly membresiasService: MembresiasService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('RECEPCION', 'GERENTE')
   @ApiOperation({
     operationId: 'listarBloqueados',

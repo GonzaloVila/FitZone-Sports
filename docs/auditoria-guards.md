@@ -143,6 +143,8 @@ Integración (`*.integration-spec.ts`) y unitarios llaman a los servicios, no a 
 - Patrón de alcance: función pura (`alcance-pagos.ts`) + `*AccesoService` por módulo que delega en el servicio real, sin tocar el servicio interno.
 
 ### Guard global con `@Public()`
+> **Hecho (paso 4):** `JwtAuthGuard` y `RolesGuard` son `APP_GUARD` en `AppModule`; `@Public()` marca `login`, `refresh` y `logout`; los controllers ya no llevan `@UseGuards`; el contrato quedó con `security: [{ bearer: [] }]` global. Ver `backend/README.md`. Lo que sigue es el análisis previo.
+
 - Hoy no existe nada parecido (ni `APP_GUARD`, ni `IS_PUBLIC_KEY`).
 - Es viable: `APP_GUARD` en `AppModule` con `JwtAuthGuard` ampliado (lee `IS_PUBLIC_KEY` con `Reflector`; hoy no tiene dependencias) y luego `RolesGuard` (el orden de providers fija el orden de ejecución). Las rutas inexistentes siguen dando 404, porque el guard solo corre con ruta resuelta (lo cubre `framework-4xx`).
 - Excepciones: `login`, `refresh`, `logout` y las que resuelvan D5 y D8.

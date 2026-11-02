@@ -7,7 +7,7 @@ info:
     (ReservaCancha y ReservaClase): los turnos de cancha en /reservas-canchas (RF-10/RF-12/RN-02) y el cupo de clase en /reservas-clases (RF-06, con cancelación por RF-07). Convenciones: prefijo
     /api/v1, nivel 2 de Richardson, errores como application/problem+json (RFC 9457), Location en 201 e Idempotency-Key en pagos. Sin DELETE de usuarios/sedes/canchas/clases (el caso no lo pide): la
     "baja" de una reserva es su cancelación (sub-recurso) y dejar de ser socio es DELETE /socios (vuelve a EXTERNO). Pago no tiene PATCH/DELETE: un cobro mal hecho se ANULA y se repaga con nueva
-    Idempotency-Key (nunca se edita el comprobante). La autenticación (JWT) se incorpora en la Unidad III: /auth/login, /auth/refresh y /auth/logout son públicos (los dos últimos se autentican por el refresh token), y los endpoints protegidos se marcan con security: [{ bearer: [] }].
+    Idempotency-Key (nunca se edita el comprobante). La autenticación (JWT) se incorpora en la Unidad III: /auth/login, /auth/refresh y /auth/logout son públicos (los dos últimos se autentican por el refresh token), y toda otra operación exige sesión (token bearer, security: [{ bearer: [] }] global), salvo esas tres, que se marcan con security: [].
     El QR dinámico (RF-04) usa TOTP (RFC 6238): el puesto lee el código de 6 dígitos de la app del socio (IngresoIn.codigo_totp) y lo valida contra el secreto cifrado; /bloqueados y
     /sincronizacion/ingresos dan soporte al puesto de control offline (RNF-01). Los cambios de estado no van por PATCH: el path nombra la transición permitida, así las ilegales son inalcanzables. Las
     transiciones de estado usan sustantivo plural — /cancelaciones, /anulaciones, /confirmaciones. El egreso es la única excepción, en verbo (/ingresos/{ingresoId}/egreso), porque es la segunda fase
@@ -61,6 +61,7 @@ paths:
         Credenciales inválidas responden 401. Además del access token (corto, el front lo guarda en memoria) abre una sesión con un refresh token rotativo: los clientes web lo reciben en la cookie
         HttpOnly `refresh_token` (Path=/api/v1/auth) y no en el body; los clientes móviles, que mandan el header `X-Cliente: movil`, lo reciben en `LoginOut.refreshToken` y no se les setea cookie.
         Cada login abre una sesión (familia de refresh tokens) nueva.
+      security: []
       parameters:
         - name: X-Cliente
           in: header
@@ -104,6 +105,7 @@ paths:
         orígenes permitidos (defensa CSRF, además de SameSite); si falta o no está permitido responde 403. Cada refresh token sirve una sola vez: se rota, y presentar uno ya usado (robado o de un
         cliente duplicado) revoca todas las sesiones del usuario. No hay período de gracia: dos refresh simultáneos con el mismo token cuentan como reuso, así que el cliente tiene que serializar la
         renovación. Inexistente, vencido, revocado o reusado responden el mismo 401; un refresh fallido por cookie borra la cookie. El access token nuevo sale con el rol y la sede actuales del usuario.
+      security: []
       requestBody:
         required: false
         content:
@@ -145,6 +147,7 @@ paths:
         Público y sin bearer: se autentica por el refresh token (body `RefreshIn` o cookie `refresh_token`, igual que `/auth/refresh`; si vienen los dos, manda el body). Revoca todos los refresh
         tokens de la familia del presentado, es decir la sesión de ese dispositivo; las de otros dispositivos siguen vivas. Idempotente: un token desconocido, ya revocado o ausente también responde
         204. Cuando el token llega por cookie se exige el header `Origin` permitido (403 si falta o no lo está) y la respuesta borra la cookie (Max-Age=0).
+      security: []
       requestBody:
         required: false
         content:
@@ -174,8 +177,6 @@ paths:
       description: >
         Crea (o sobrescribe) el secreto TOTP del socio autenticado y devuelve la URI `otpauth://` para escanear con una app de autenticación. Solo SOCIO (RF-04). Requiere token. No hay recovery codes:
         perder el celular se resuelve re-registrando el QR.
-      security:
-        - bearer: []
       responses:
         '201':
           description: QR generado
@@ -206,8 +207,6 @@ paths:
       description: >
         Descarga que usa el puesto de control offline (RNF-01): devuelve los usuarios con membresía VENCIDA o SUSPENDIDA cuyo estado cambió desde `actualizado_desde` (sincronización incremental). Sin
         el parámetro trae el universo completo. Solo RECEPCION y GERENTE (RF-04, Unidad III).
-      security:
-        - bearer: []
       parameters:
         - name: actualizadoDesde
           in: query
@@ -241,8 +240,6 @@ paths:
         Filtros por rol, sede de trabajo, nombre y email (lista blanca de parámetros) y paginación. `sedeId` filtra por el puesto en `EmpleadoSede`, así que solo devuelve personal con puesto en esa sede
         (hoy, el recepcionista); no tiene relación con la sede de origen de un socio. Como en GET /ingresos y GET /socios, un `sedeId` inexistente no es un error: responde 200 con la lista vacía.
         Requiere token: solo RECEPCION y GERENTE.
-      security:
-        - bearer: []
       parameters:
         - name: rol
           in: query
@@ -313,8 +310,6 @@ paths:
         tiene a lo sumo un recepcionista y un recepcionista trabaja en una sola sede); para EXTERNO y GERENTE la sede no aplica y enviarla es un 422. Esa asignación no se modifica después por API.
         Responde 201 con el header Location apuntando al recurso creado. Requiere token: GERENTE crea cualquiera de los tres roles; RECEPCION solo EXTERNO (403 si pide RECEPCION o GERENTE); SOCIO y
         EXTERNO no pueden crear usuarios (403).
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -379,8 +374,6 @@ paths:
       description: >-
         Devuelve el perfil del usuario (sin datos de contraseña). Si no existe, 404. Requiere token: RECEPCION y GERENTE ven cualquiera; SOCIO y EXTERNO solo el propio
         (el de otro responde 404, como si no existiera).
-      security:
-        - bearer: []
       responses:
         '200':
           description: Perfil del usuario (sin datos de contraseña)
@@ -410,8 +403,6 @@ paths:
       description: |
         Actualización parcial de contacto, foto y/o contraseña (contrasenia se hashea). Campos ausentes en el body no se modifican. Si el id no existe, responde 404.
         Requiere token: GERENTE modifica a cualquiera; RECEPCION solo a SOCIO y EXTERNO (403 sobre un RECEPCION o un GERENTE, incluido él mismo); SOCIO y EXTERNO no modifican a nadie, ni a sí mismos (403).
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -456,8 +447,6 @@ paths:
       description: >
         Filtros por sede de origen, estado y plan de la membresía, y por nombre (lista blanca de parámetros) y paginación. `estado_membresia` y `plan` cruzan la relación 1:1 a la membresía del socio.
         Sin ningún filtro devuelve todos los socios de la cadena. Requiere token: solo RECEPCION y GERENTE.
-      security:
-        - bearer: []
       parameters:
         - name: sedeOrigenId
           in: query
@@ -521,8 +510,6 @@ paths:
       description: >
         Convierte al usuario en socio (subtabla Socio) indicando su sede de origen y crea la membresía inicial con el plan enviado, en la misma transacción: no existe un socio sin membresía. Un
         usuario que ya es socio responde 409. Lo inverso es DELETE /socios/{id} (dejar de ser socio). Requiere token: solo RECEPCION y GERENTE.
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -578,8 +565,6 @@ paths:
       description: >-
         Devuelve el perfil del socio junto con su sede de origen y fecha de alta. Requiere token: RECEPCION y GERENTE ven cualquiera; el SOCIO solo el suyo; el EXTERNO ninguno
         (el de otro, o cualquiera para un EXTERNO, responde 404 como si no existiera).
-      security:
-        - bearer: []
       responses:
         '200':
           description: Perfil del socio
@@ -607,8 +592,6 @@ paths:
       summary: Modificar parcialmente un socio
       description: >-
         Actualización parcial (por ejemplo, la sede de origen). Requiere token: solo RECEPCION y GERENTE.
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -651,8 +634,6 @@ paths:
       description: >
         "Dar de baja un socio" equivale a dejar de ser socio: se elimina su fila en la subtabla Socio (y la membresía, relación 1:1) y el usuario vuelve a rol EXTERNO. El historial de reservas y pagos
         se conserva: referencia al usuario, no a la subtabla. Un socio inexistente responde 404. Requiere token: solo RECEPCION y GERENTE.
-      security:
-        - bearer: []
       responses:
         '204':
           description: Deja de ser socio (sin cuerpo)
@@ -679,8 +660,6 @@ paths:
       description: |
         Devuelve la membresía vigente del socio (relación 1:1, sin historial). Todo socio tiene membresía desde su alta, así que el 404 es solo por socio inexistente.
         Requiere token: RECEPCION y GERENTE ven cualquiera; el SOCIO solo la suya; el EXTERNO ninguna (la de otro, o cualquiera para un EXTERNO, responde 404 como si el socio no existiera).
-      security:
-        - bearer: []
       responses:
         '200':
           description: Membresía del socio
@@ -710,8 +689,6 @@ paths:
         Cambio de plan, renovación automática y/o estado sobre la misma fila (1:1, sin historial). Frenar la renovación = renueva_automatica:false; suspender = estado:SUSPENDIDA. Mandar `plan` abre un
         período nuevo desde HOY: fecha_inicio y fecha_fin se recalculan juntas con la duración del plan enviado, así que la membresía queda vigente desde la fecha del PATCH hasta un plan después. Los
         días que quedaban del período anterior no se trasladan. Sin `plan` en el body, ninguna de las dos fechas se toca. Requiere token: solo RECEPCION y GERENTE.
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -756,8 +733,6 @@ paths:
       summary: Listado de sedes
       description: >-
         Listado paginado de todas las sedes de la cadena (Gerente Central, A4). Solo admite paginación (lista blanca de parámetros). Requiere token: cualquier rol con sesión.
-      security:
-        - bearer: []
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PerPage'
@@ -779,8 +754,6 @@ paths:
       summary: Alta de sede
       description: |
         Alta de una nueva sucursal por el Gerente Central (RNF-04). La sede queda disponible para canchas, clases y control de acceso en forma inmediata (configuración por BD). Requiere token: solo GERENTE.
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -820,8 +793,6 @@ paths:
         Filtros por sede, usuario, nombre y día (lista blanca de parámetros) y paginación. `dentro=true` devuelve solo los ingresos sin egreso, es decir los usuarios que siguen en la sede; es el
         detalle que /sedes/{sedeId}/aforo no da porque ese solo devuelve el número de ocupantes (RN-01). Requiere token: RECEPCION solo ve su sede (se fuerza el `sede_id` del JWT) y GERENTE ve
         cualquiera.
-      security:
-        - bearer: []
       parameters:
         - name: sedeId
           in: query
@@ -888,8 +859,6 @@ paths:
         Ingresos sin egreso contra Sede.aforo_maximo). RN-01: un usuario no puede estar dentro de dos sedes a la vez; si ya tiene un ingreso sin egreso responde 409 (acceso-duplicado). El codigo_totp
         es el QR dinámico de la app del socio (TOTP, Unidad III); si el socio no activó el QR, se valida solo la membresía. fecha_hora_ingreso es opcional para el puesto de control offline (RNF-01):
         enviar la hora real del acceso cuando se sincroniza. Requiere token: RECEPCION solo registra en su sede (403 si `sede_id` es otra); GERENTE registra en cualquiera.
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -951,8 +920,6 @@ paths:
       description: >
         Devuelve el registro del acceso. `fecha_hora_egreso` es nula mientras el usuario permanezca dentro de la sede (es lo que define el aforo, RN-01). Para el egreso ver POST
         /ingresos/{ingresoId}/egreso. Requiere token: RECEPCION solo ve ingresos de su sede (403 si es de otra); GERENTE ve cualquiera.
-      security:
-        - bearer: []
       responses:
         '200':
           description: Registro de ingreso
@@ -981,8 +948,6 @@ paths:
       description: >
         Cierra el turno de acceso escribiendo fecha_hora_egreso: libera el cupo de aforo (RF-05). Modelado como sub-recurso y sin body al igual que las cancelaciones. Un acceso ya egresado responde
         409 (egreso-duplicado); un ingreso inexistente, 404. Requiere token: RECEPCION solo egresa en su sede (403 si el ingreso no es de su sede); GERENTE egresa cualquiera.
-      security:
-        - bearer: []
       responses:
         '204':
           description: Egreso registrado (sin cuerpo)
@@ -1008,8 +973,6 @@ paths:
         El puesto de control offline registró ingresos/egresos sin conexión (validando contra su lista local de bloqueados) y al reconectar los envía en lote. El `sede_id` NO viaja en el body: sale
         del JWT del RECEPCION (su EmpleadoSede). El servidor re-valida cada item (membresía vigente, RN-01, aforo) y responde un resultado por item con el `local_id` del puesto para reconciliar. Solo
         RECEPCION.
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -1041,8 +1004,6 @@ paths:
       summary: Aforo actual de una sede (RF-05)
       description: |
         aforo_actual = cantidad de Ingresos sin fecha_hora_egreso de la sede (RN-01); restante = aforo_maximo - aforo_actual. Es la misma cuenta que valida cada POST de acceso. Requiere token: RECEPCION solo consulta su sede (403 si pide otra); GERENTE consulta cualquiera.
-      security:
-        - bearer: []
       responses:
         '200':
           description: Aforo actual de la sede
@@ -1071,8 +1032,6 @@ paths:
       description: >-
         Listado paginado de las canchas de la sede (incluye las no operativas, RF-12); opcional filtrar por ?estado= (lista blanca de parámetros). Sin ?estado= devuelve todas, incluidas las
         EN_MANTENIMIENTO. Requiere token: cualquier rol con sesión.
-      security:
-        - bearer: []
       parameters:
         - name: estado
           in: query
@@ -1102,8 +1061,6 @@ paths:
       summary: Alta de cancha (RF-09)
       description: >-
         El Gerente configura el tipo y el costo por hora (por defecto, operativa). Requiere token: solo GERENTE.
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -1145,8 +1102,6 @@ paths:
         Listado paginado de las canchas de TODAS las sedes (incluye las no operativas, RF-12); opcional filtrar por sede, tipo y estado (lista blanca de parámetros). Sin filtros devuelve todas las
         canchas de la cadena. Orden estable por sede y luego por id (`sede_id asc, id asc`). Como en GET /ingresos y GET /socios, un `sedeId` bien formado pero inexistente no es un error: responde 200
         con la lista vacía (`items: []`, `total: 0`); el 404 de una sede inexistente es propio de GET /sedes/{sedeId}/canchas, donde la sede es parte de la ruta. Requiere token: cualquier rol con sesión.
-      security:
-        - bearer: []
       parameters:
         - name: sedeId
           in: query
@@ -1190,8 +1145,6 @@ paths:
       operationId: obtenerCancha
       summary: Obtener cancha por id
       description: 'Requiere token: cualquier rol con sesión.'
-      security:
-        - bearer: []
       responses:
         '200':
           description: Cancha
@@ -1210,8 +1163,6 @@ paths:
       summary: Modificar parcialmente una cancha
       description: |
         Actualiza costo_por_hora (RF-09) y/o estado. Pasar a EN_MANTENIMIENTO no borra las reservas ya tomadas (RF-12): inhabilitar el futuro no toca el histórico. Requiere token: solo GERENTE.
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -1249,8 +1200,6 @@ paths:
         Consulta indexada por día (RNF-03). Devuelve los tramos horarios libres/ocupados para la fecha solicitada. Si la cancha está EN_MANTENIMIENTO todos los tramos responden disponible:false
         (RF-12): se bloquea el futuro sin tocar las reservas ya tomadas. La consulta usa el índice compuesto (cancha_id, fecha_hora_inicio). Solo admite ?fecha= y paginación (lista blanca de
         parámetros). Requiere token: cualquier rol con sesión.
-      security:
-        - bearer: []
       parameters:
         - name: fecha
           in: query
@@ -1283,8 +1232,6 @@ paths:
       summary: Listado de clases con filtros
       description: >-
         Filtrado por tipo, sede y/o estado (lista blanca de parámetros) y paginación. Requiere token: SOCIO, RECEPCION y GERENTE (el EXTERNO no usa clases: 403).
-      security:
-        - bearer: []
       parameters:
         - name: tipo
           in: query
@@ -1339,8 +1286,6 @@ paths:
       description: >-
         Registra una clase con su tipo, instructor, rango horario (horarioInicio/horarioFin) y capacidad. Requiere token: GERENTE crea en cualquier sede; RECEPCION solo en su sede
         (403 si `sedeId` es otra); SOCIO y EXTERNO no pueden crear clases (403).
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -1384,8 +1329,6 @@ paths:
       summary: Obtener clase por id
       description: >-
         Devuelve la clase con los cupos libres restantes ahora. Si no existe, 404. Requiere token: SOCIO, RECEPCION y GERENTE (el EXTERNO no usa clases: 403).
-      security:
-        - bearer: []
       responses:
         '200':
           description: Clase encontrada
@@ -1414,8 +1357,6 @@ paths:
       description: >
         Ocupación de la clase. Sin `estado` devuelve solo las CONFIRMADA: las canceladas no aparecen en el listado y se piden con ?estado=CANCELADA (RF-12 conserva el histórico, no la visibilidad por
         defecto). Solo admite ?estado= y paginación (lista blanca de parámetros). Requiere token: solo RECEPCION y GERENTE (SOCIO y EXTERNO: 403).
-      security:
-        - bearer: []
       parameters:
         - name: estado
           in: query
@@ -1457,8 +1398,6 @@ paths:
         Filtros por cancha, usuario, estado y día (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo las CONFIRMADA activas (fecha_hora_fin futura): las canceladas no aparecen y se
         piden con ?estado=CANCELADA (RF-12 conserva el histórico), y las ya cumplidas con ?estado=CUMPLIDA (estado derivado de la fecha).
         Requiere token: RECEPCION y GERENTE ven todas (con los filtros que manden); SOCIO y EXTERNO solo las propias: el `usuarioId` se fuerza con el de la sesión y el que manden se ignora.
-      security:
-        - bearer: []
       parameters:
         - name: canchaId
           in: query
@@ -1510,8 +1449,6 @@ paths:
         Crea la reserva de cancha en transacción. Si la cancha está EN_MANTENIMIENTO no se reservan turnos futuros sobre ella (RF-12): responde 409 sin tocar las reservas ya tomadas. Si dos usuarios
         reservan el mismo turno a la vez, el unique index parcial (unq_reserva_turno) hace que un solo INSERT gane y el otro reciba 409 problem+json. El precio aplicado se guarda en el momento de la
         reserva. Requiere token: RECEPCION y GERENTE reservan por cualquier usuario; SOCIO y EXTERNO solo a su nombre (404 si `usuarioId` es de otro).
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -1549,8 +1486,6 @@ paths:
       summary: Obtener reserva de cancha por id
       description: >-
         Requiere token: RECEPCION y GERENTE ven cualquiera; SOCIO y EXTERNO solo la propia (la de otro responde 404, como si no existiera).
-      security:
-        - bearer: []
       responses:
         '200':
           description: Reserva
@@ -1575,8 +1510,6 @@ paths:
         reserva CONFIRMADA cuyo turno no haya empezado: una reserva inexistente responde 404; una ya CANCELADA responde 409 `ReservaYaCancelada`; y una cuyo turno ya pasó (estado efectivo CUMPLIDA)
         responde 409 `ReservaPasada`. Para reprogramar se cancela y se reserva un turno nuevo.
         Requiere token: RECEPCION y GERENTE cancelan cualquiera; SOCIO y EXTERNO solo la propia (la de otro responde 404).
-      security:
-        - bearer: []
       responses:
         '204':
           description: Reserva cancelada (sin cuerpo)
@@ -1598,8 +1531,6 @@ paths:
         Filtros por clase, socio y estado (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo las CONFIRMADA: las canceladas no aparecen en el listado y se piden explícitamente con
         ?estado=CANCELADA (RF-12 conserva el histórico, no la visibilidad por defecto).
         Requiere token: RECEPCION y GERENTE ven todas; el SOCIO solo las suyas (el `socioId` se fuerza con el de la sesión y el que mande se ignora); el EXTERNO no usa clases (403).
-      security:
-        - bearer: []
       parameters:
         - name: claseId
           in: query
@@ -1652,8 +1583,6 @@ paths:
         Registra la reserva de cupo (RF-06) y decrementa el cupo disponible. La ventana de reserva es de hasta 48 horas antes del inicio de la clase: fuera de esa ventana responde 409, igual que el
         cupo completo (RF-06) o una reserva duplicada. Un socio con cuotas vencidas responde 403: no puede reservar con tarifa bonificada. La cancelación del cupo se hace por el sub-recurso
         /cancelaciones (RF-07), no por DELETE. Requiere token: RECEPCION y GERENTE reservan por cualquier socio; el SOCIO solo a su nombre (404 si `socioId` es de otro); el EXTERNO no usa clases (403).
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -1693,8 +1622,6 @@ paths:
       summary: Obtener reserva de cupo por id
       description: >-
         Requiere token: RECEPCION y GERENTE ven cualquiera; el SOCIO solo la suya (la de otro responde 404, como si no existiera); el EXTERNO no usa clases (403).
-      security:
-        - bearer: []
       responses:
         '200':
           description: Reserva de cupo
@@ -1725,8 +1652,6 @@ paths:
         nominal interno fijo (las clases no tienen precio propio), que se registra como un Pago con concepto RESERVA_CLASE a nombre del socio que cancela. Una reserva inexistente responde 404; una ya cancelada se resuelve idempotente (204). Una
         reserva cuya clase ya comenzó (estado efectivo CUMPLIDA) responde 409 `ReservaClasePasada`. El cupo liberado se notifica a la lista de espera (RF-08) en la Unidad III.
         Requiere token: RECEPCION y GERENTE cancelan cualquiera; el SOCIO solo la suya (la de otro responde 404); el EXTERNO no usa clases (403).
-      security:
-        - bearer: []
       responses:
         '204':
           description: Cupo cancelado (sin cuerpo). Con menos de 2 hs de anticipación, se cobró la penalidad antes de liberar el cupo.
@@ -1756,8 +1681,6 @@ paths:
         Cola vigente de la clase. Sin `estado` devuelve solo los dos estados vivos, EN_ESPERA y NOTIFICADO: las anotaciones CONFIRMADO ya son reservas y las CANCELADO se excluyen del listado (RF-12
         conserva el histórico, no la visibilidad por defecto). Los excluidos se piden con ?estado=CONFIRMADO o ?estado=CANCELADO. Solo admite ?estado= y paginación (lista blanca de parámetros).
         Requiere token: SOCIO, RECEPCION y GERENTE (el EXTERNO no usa clases: 403). Acceso provisorio: el SOCIO ve la cola completa porque el frontend calcula con ella su posición.
-      security:
-        - bearer: []
       parameters:
         - name: estado
           in: query
@@ -1796,8 +1719,6 @@ paths:
         activa en la misma clase responde 409 (espera-existente), y una clase ya iniciada también (clase-pasada). Un socio con cuotas vencidas responde 403: no puede entrar a la espera de clases
         bonificadas. El registro nace en EN_ESPERA. Cuando se libera un cupo (RF-07) se notifica a todos los anotados y el primer confirmante obtiene la reserva.
         Requiere token: RECEPCION y GERENTE anotan a cualquier socio; el SOCIO solo a su nombre (404 si `socioId` es de otro); el EXTERNO no usa clases (403).
-      security:
-        - bearer: []
       requestBody:
         required: true
         content:
@@ -1837,8 +1758,6 @@ paths:
         Filtros por clase, socio y estado (lista blanca de parámetros) y paginación. Sin `estado` devuelve solo los dos estados vivos, EN_ESPERA y NOTIFICADO: las CONFIRMADO ya son reservas y las
         CANCELADO no aparecen en el listado (RF-12 conserva el histórico, no la visibilidad por defecto).
         Requiere token: RECEPCION y GERENTE ven todas; el SOCIO solo las suyas (el `socioId` se fuerza con el de la sesión y el que mande se ignora); el EXTERNO no usa clases (403).
-      security:
-        - bearer: []
       parameters:
         - name: claseId
           in: query
@@ -1889,8 +1808,6 @@ paths:
       summary: Obtener anotación de espera por id
       description: >-
         Requiere token: RECEPCION y GERENTE ven cualquiera; el SOCIO solo la suya (la de otro responde 404, como si no existiera); el EXTERNO no usa clases (403).
-      security:
-        - bearer: []
       responses:
         '200':
           description: Anotación de espera
@@ -1917,8 +1834,6 @@ paths:
         Baja lógica: la anotación pasa a CANCELADO (no se borra el registro; se conserva el histórico de la espera). Una anotación CONFIRMADA ya tomó el cupo: no se puede salir así; su reserva se
         gestiona por /reservas-clases (RF-07). Responder 409.
         Requiere token: RECEPCION y GERENTE sacan a cualquiera; el SOCIO solo la suya (la de otro responde 404); el EXTERNO no usa clases (403).
-      security:
-        - bearer: []
       responses:
         '204':
           description: Anotación cancelada (sin cuerpo)
@@ -1948,8 +1863,6 @@ paths:
         registra la decisión del socio. Devuelve 201 con la ReservaClase creada y Location: el id de la reserva es el dato que el socio necesita para referenciarla, y se obtiene en la misma respuesta
         en lugar de barrer GET /reservas-clases.
         Requiere token: RECEPCION y GERENTE confirman cualquiera; el SOCIO solo la suya (la de otro responde 404); el EXTERNO no usa clases (403).
-      security:
-        - bearer: []
       responses:
         '201':
           description: Cupo confirmado y ReservaClase creada
@@ -1987,8 +1900,6 @@ paths:
         Idempotency-Key. `estado=TODOS` devuelve pagos en cualquier estado. `tipo` es el discriminante de ConceptoPago (RESERVA_CANCHA cruza con PagoReserva, MEMBRESIA con PagoMembresia). `desde` y
         `hasta` son días (YYYY-MM-DD) en hora local y forman un intervalo cerrado: ?desde=2026-03-01&hasta=2026-03-31 trae todo marzo. SOCIO y EXTERNO solo ven sus propios pagos (`usuarioId` se fuerza al de
         la sesión); RECEPCION y GERENTE ven todos.
-      security:
-        - bearer: []
       parameters:
         - name: usuarioId
           in: query
@@ -2079,8 +1990,6 @@ paths:
         Cobro de una reserva de cancha (PagoReserva) o una renovación de membresía (PagoMembresia). Requiere la cabecera Idempotency-Key: si la clave ya fue usada, el unique del esquema responde 409 y
         la pasarela no se invoca de nuevo. El monto lo computa la regla de negocio (por precio aplicado o plan). Sin PATCH/DELETE: un cobro mal hecho se ANULA por POST /pagos/{pagoId}/anulaciones y
         se repaga con una nueva Idempotency-Key. Cualquier rol con sesión puede cobrar: SOCIO y EXTERNO solo conceptos propios (uno ajeno responde 404 como si no existiera); RECEPCION y GERENTE cualquiera.
-      security:
-        - bearer: []
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -2123,8 +2032,6 @@ paths:
       operationId: obtenerPago
       summary: Obtener pago por id
       description: SOCIO y EXTERNO solo acceden a sus propios pagos (el de otro responde 404 como si no existiera); RECEPCION y GERENTE acceden a todos.
-      security:
-        - bearer: []
       responses:
         '200':
           description: Pago
@@ -2146,8 +2053,6 @@ paths:
       summary: Descargar comprobante PDF (RF-14)
       description: |
         Genera/retorna el comprobante del pago aprobado (snapshot al momento del pago). Si el pago no fue aprobado (PENDIENTE/RECHAZADO/ANULADO) responde 409. SOCIO y EXTERNO solo descargan comprobantes de sus propios pagos (el de otro responde 404); RECEPCION y GERENTE descargan cualquiera.
-      security:
-        - bearer: []
       responses:
         '200':
           description: Comprobante en PDF
@@ -2173,8 +2078,6 @@ paths:
       description: >
         Única forma de mover un pago hacia ANULADO (sin PATCH ni DELETE). Aplica a un pago PENDIENTE o APROBADO (por ej. cobro duplicado o mal hecho). Re-anular un pago ya ANULADO es idempotente:
         responde 204 sin cambios. Un pago RECHAZADO nunca se cobró y no es anulable: responde 409. El pago anulado no se borra del histórico: se repaga con una nueva Idempotency-Key. Solo RECEPCION y GERENTE; SOCIO y EXTERNO nunca.
-      security:
-        - bearer: []
       responses:
         '204':
           description: Pago anulado (sin cuerpo)
@@ -2200,8 +2103,6 @@ paths:
       summary: Reporte de ingresos por período (PDF)
       description: >
         Consolidado en PDF de los pagos APROBADO, agrupado por día local de la sede, sede y tipo de concepto, con total por fila y total general. `desde` y `hasta` son días (YYYY-MM-DD) en hora local y forman un intervalo cerrado; sin ellos es histórico. Solo GERENTE.
-      security:
-        - bearer: []
       parameters:
         - name: desde
           in: query
@@ -3934,4 +3835,5 @@ components:
             detail: Uno o más campos no cumplen las reglas de validación.
             errors:
               - nombre must be a string
-security: []
+security:
+  - bearer: []

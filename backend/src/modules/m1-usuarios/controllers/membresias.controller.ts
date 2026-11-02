@@ -6,7 +6,6 @@ import {
   ParseIntPipe,
   Patch,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -23,9 +22,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { JwtAuthGuard } from '../../../commons/guards/jwt-auth.guard';
 import { Roles } from '../../../commons/guards/roles.decorator';
-import { RolesGuard } from '../../../commons/guards/roles.guard';
 import { Problem } from '../../../commons/swagger/problem.dto';
 import { PROBLEM_JSON } from '../../../commons/swagger/problem-json';
 import type { UsuarioAutenticado } from '../../auth/strategies/jwt.strategy';
@@ -45,7 +42,6 @@ const NO_AUTORIZADO = 'Token inválido, expirado o ausente';
 @ApiTags('membresias')
 @ApiExtraModels(Problem)
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('socios/:socioId/membresias')
 export class MembresiasController {
   constructor(

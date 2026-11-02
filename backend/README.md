@@ -37,10 +37,10 @@ backend/
 │   ├── config/                      → validación de variables de entorno
 │   │
 │   ├── commons/                     → módulo transversal (infraestructura compartida)
-│   │   ├── commons.module.ts        → módulo transversal; hoy sin providers propios
+│   │   ├── commons.module.ts        → módulo transversal; registra y exporta PassportModule
 │   │   ├── database/                → PrismaService + DatabaseModule
 │   │   ├── filters/                 → ProblemFilter global → RFC 9457 + factories de error
-│   │   ├── guards/                  → placeholder para guards globales (auth / roles)
+│   │   ├── guards/                  → JwtAuthGuard + RolesGuard (globales), @Roles y @Public()
 │   │   ├── swagger/                 → helpers de Swagger (Problem, problem+json)
 │   │   ├── fechas.ts                → zona horaria de la sede y rangos de fecha
 │   │   └── paginacion.ts            → opciones de paginación compartidas
@@ -78,6 +78,21 @@ Los tests **no** viven en una carpeta aparte: los unitarios (`src/**/*.spec.ts`)
 integración (`src/**/*.integration-spec.ts`) están al lado del archivo que prueban, y
 `test/` queda solo para los e2e (`test/e2e/**/*.e2e-spec.ts`) más los helpers compartidos
 (`test/helpers/`, alias `@test/*`). Cada suite tiene su config de Vitest (`vitest.*.config.ts`).
+
+## Autenticación y autorización: protegido por defecto
+
+`AppModule` registra dos `APP_GUARD`, en este orden: `JwtAuthGuard` (401 si falta un JWT válido) y `RolesGuard`
+(403 según `@Roles(...)`; sin `@Roles` alcanza con la sesión). **Todo endpoint exige sesión por defecto**: un
+controller nuevo no necesita `@UseGuards` y no puede quedar abierto por olvido. Los controllers solo declaran
+`@Roles(...)` y las reglas de alcance viven en los `*AccesoService`.
+
+Para dejar un endpoint abierto hay que marcarlo con `@Public()` (`commons/guards/public.decorator.ts`, en el
+handler o en la clase) **y** actualizar `RUTAS_PUBLICAS` en `test/e2e/auth/rutas-protegidas.e2e-spec.ts`, el test que
+fija el conjunto exacto de rutas públicas (hoy `POST /auth/login`, `POST /auth/refresh` y `POST /auth/logout`) y que
+lo cruza con el `security: []` del contrato `docs/openapi.yaml`. En el contrato, `security: [{ bearer: [] }]` es
+global y las operaciones públicas declaran `security: []`.
+
+Swagger UI (`/docs` y `/docs-json`) se monta en `main.ts` sobre Express, fuera de los guards de Nest.
 
 ## Comandos
 

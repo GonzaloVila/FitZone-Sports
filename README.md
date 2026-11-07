@@ -1,73 +1,115 @@
-# FitZone-Sports
+# FitZone Sports
 
-Backend de la plataforma de gestión de la cadena de gimnasios **FitZone Sports** (TFI — Programación V). Monolito modular en **NestJS + TypeScript + Prisma + PostgreSQL (Supabase)**.
+## 1. Qué es el sistema
+FitZone Sports es una plataforma integral para la gestión operativa y administrativa de una cadena de gimnasios con múltiples sedes. Permite a los socios gestionar sus membresías, reservar turnos en canchas deportivas, inscribirse en clases grupales con lista de espera automática y acceder a las instalaciones mediante credenciales digitales con código QR dinámico. Para el personal administrativo y la gerencia, centraliza el control de accesos y aforo en tiempo real, la administración del personal de cada sede, el registro de cobros con emisión de comprobantes en PDF y la generación de reportes financieros consolidados.
 
-## Estructura
+---
 
-```
-backend/
-├── prisma/
-│   ├── schema.prisma        # Modelo de datos (14 tablas)
-│   └── migrations/          # Migraciones versionadas
-├── src/
-│   ├── app.module.ts        # Ensamblador raíz (módulos + EventEmitter)
-│   ├── commons/             # database, filters (problem+json), guards (JWT/roles), eventos, fechas
-│   ├── config/              # Validación de entorno (zod)
-│   └── modules/
-│       ├── auth/            # Login JWT + registro de QR TOTP (Unidad III)
-│       ├── m1-usuarios/     # Usuarios, socios, membresías, bloqueados
-│       ├── m2-gimnasio/     # Sedes, ingresos, aforo, sincronización offline
-│       ├── m3-clases/       # Clases, reservas, lista de espera (Observer)
-│       ├── m4-canchas/      # Canchas, reservas, precio dinámico (Strategy)
-│       └── m5-pagos/        # Pagos, comprobante PDF, renovación automática (RF-02)
-└── test/                    # e2e (supertest) + helpers compartidos; unit e integración van junto al source
-```
-
-## Stack
-
-- **Runtime:** Node.js + NestJS 12
-- **ORM:** Prisma 6 sobre PostgreSQL (Supabase)
-- **Auth:** JWT (`@nestjs/jwt` + Passport) + guards por rol
-- **QR dinámico:** TOTP (`otplib`), secreto cifrado AES-256-GCM
-- **Cobro interno RF-02:** event bus (`@nestjs/event-emitter`) + cron de renovación
-- **PDF:** PDFKit
-- **Tests:** Vitest (unit) + supertest (e2e)
-
-## Levantar
-
-```bash
-cd backend
-cp .env.example .env        # DATABASE_URL de Supabase (o Postgres local)
-npm install
-npx prisma migrate deploy
-npm run build
-npm run start:dev           # http://localhost:3000/api/v1 · Swagger en /docs
-```
-
-## Tests
-
-La suite sigue la pirámide y **no** vive en una carpeta aparte: unitarios e integración están
-co-locados con el source (`src/**/*.spec.ts` y `src/**/*.integration-spec.ts`); `test/` queda
-para los e2e (`test/e2e/**/*.e2e-spec.ts`) y los helpers compartidos (`test/helpers/`, alias `@test/*`).
-
-```bash
-npm run test:unit           # unitarios co-locados (Vitest, sin BD)
-npm run test:integration    # integración: services directo contra la BD real
-npm run test:e2e            # e2e HTTP contra base local (docker-compose.test.yml)
-npx tsc --noEmit            # typecheck
-```
-
-Los e2e también corren contra Supabase con `DATABASE_URL` apuntando a esa base + `FITZONE_E2E_ALLOW_REMOTE=1`.
-
-## Eventos de dominio y oyentes
-
-El bus interno (`@nestjs/event-emitter`) desacopla al emisor de quien escucha (ADR-09). Los nombres viven en `backend/src/commons/eventos.ts`.
-
-| Evento | Emisor | Oyente | Regla |
+## 2. Integrantes del equipo
+| Rol | Nombre y Apellido | Usuario Git | Responsabilidad principal |
 |---|---|---|---|
-| `socio.dadoDeAlta` | M1 (`SociosService.crear`) | `RenovacionesListener` (M5) → `RenovacionesService.cobrarMembresia` | RF-02: cobra la membresía inicial del alta |
-| `membresia.planCambiado` | M1 (`MembresiasService.modificar`) | `RenovacionesListener` (M5) | RF-02: cobra el plan nuevo al cambiar de plan sobre una membresía no vigente |
-| `reservaClase.canceladaTardia` | M3 (`ReservasClasesService.cancelarReservaClase`) | `PenalidadReservaClaseListener` (M5) | RF-07: cobra la penalidad del 50% al cancelar con menos de 2 h |
-| `reservaClase.cupoLiberado` | M3 (`ReservasClasesService.cancelarReservaClase`) | `NotificarSociosEsperaObserver` (estado) + `EmailCupoLiberadoObserver` (email), ambos M3 | RF-08: al liberarse un cupo, avisa a la lista de espera (Observer 1:N) |
+| P1 | Santiago Rayn | `srayn` | `raynarg` | Software Architect |
+| P2 | Exequiel Ansaldi | `exeansaldi0` / `Exequiel-Ansaldi` | Backend Developer |
+| P3 | Santino Mazzulla | `mazzullasantino85` / `Santi` | Frontend Developer |
+| P4 | Gonzalo Vila | `gonzalovila08` / `gonza` | Dev Ops Engineer |
 
-El bus es el **Observer** del proyecto (RF-08, un hecho → N interesados): `cancelarReservaClase` hace `emitAsync('reservaClase.cupoLiberado')` y los oyentes `@OnEvent` reaccionan. El cobro interno (RF-02/RF-07) aprovecha el mismo bus para que M1 y M3 publiquen sin importar a M5 (evita el ciclo M1→M5); no es un patrón aparte, es un uso mínimo del bus.
+---
+
+## 3. Puesta en marcha
+
+> **Requisitos previos:** Node.js (v20 o superior), npm y Docker (para PostgreSQL).
+
+### Paso 1: Clonar el repositorio
+```bash
+git clone git@github.com:GonzaloVila/FitZone-Sports.git && cd FitZone-Sports
+```
+
+### Paso 2: Levantar la base de datos PostgreSQL local
+```bash
+docker compose -f docker-compose.test.yml up -d
+```
+
+### Paso 3: Configurar variables de entorno del backend
+```bash
+cp backend/.env.example backend/.env && sed -i 's|^DATABASE_URL=.*|DATABASE_URL="postgresql://fitzone:fitzone@localhost:5432/fitzone_test?schema=public"|' backend/.env
+```
+
+### Paso 4: Instalar dependencias, aplicar migraciones, sembrar datos de prueba y compilar backend
+```bash
+cd backend && npm install && npx prisma migrate deploy && npx prisma db execute --file ../docs/db/seed_supabase_test_data.sql && npm run build && cd ..
+```
+
+### Paso 5: Instalar dependencias del frontend e iniciar ambos servidores
+```bash
+cd frontend && npm install && npm run build && cd .. && (cd backend && npm run start:dev &) && (cd frontend && npm run dev)
+```
+
+> **Verificación:**
+> - Aplicación web (Frontend): `http://localhost:5173`
+> - API REST (Backend): `http://localhost:3000/api/v1`
+> - Documentación Swagger: `http://localhost:3000/docs`
+
+---
+
+## 4. Credenciales de usuarios de prueba (Seed)
+
+> **Contraseña universal para todos los usuarios de prueba:** `Password123!`
+
+| Rol del sistema | Nombre y Apellido | Email (Usuario) | Contraseña | Detalle / Estado |
+|---|---|---|---|---|
+| **GERENTE** | Valeria Rossi | `valeria.rossi@fitzone.com` | `Password123!` | Gerencia general (acceso total a sedes, reportes y personal) |
+| **RECEPCION** | Lucas Benítez | `lucas.benitez@fitzone.com` | `Password123!` | Personal asignado a Sede Central Belgrano (control de aforo e ingresos) |
+| **SOCIO** (Al día) | Camila Domínguez | `camila.dominguez@gmail.com` | `Password123!` | Socia con membresía activa (Plan Anual), sin deuda |
+| **SOCIO** (En mora) | Esteban Morales | `esteban.morales@gmail.com` | `Password123!` | Socio con membresía vencida (Plan Trimestral) para probar rechazos por mora |
+| **EXTERNO** | Sofía Navarro | `sofia.navarro@hotmail.com` | `Password123!` | Cliente no socio habilitado para reserva y pago de canchas |
+
+---
+
+## 5. Tabla de enlaces
+
+| Recurso | Enlace | Estado / Ubicación |
+|---|---|---|
+| **ADR (Architectural Decision Records)** | [A COMPLETAR] | [A COMPLETAR] |
+| **Diagramas de Casos de Uso** | [Casos de Uso Módulo 3 — Clases](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/UserCaseDiagrams/Modulo3_Clases_CasosDeUso.md) | Disponible en repositorio |
+| **Diagrama de Base de Datos (DBML)** | [fitzone.dbml](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/db/fitzone.dbml) | Disponible en repositorio |
+| **Diagramas de Arquitectura (C4)** | [A COMPLETAR] | [A COMPLETAR] |
+| **Manuales de Usuario y Operación** | [Guía de Estudio y Arquitectura](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/Guia%20de%20Estudio%20y%20Arquitectura%20-%20FitZone%20Sports.pdf) | Disponible en repositorio |
+| **Manual de Puesta en Marcha Técnica** | [initialize_project.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/initialize_project.md) | Disponible en repositorio |
+| **Bitácora General** | [LOG.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/LOG.md) | Disponible en repositorio |
+| **Bitácora — Exequiel Ansaldi** | [docs/bitacoras/LOG-ansaldi.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/bitacoras/LOG-ansaldi.md) | [A COMPLETAR] |
+| **Bitácora — Gonzalo Vila** | [docs/bitacoras/LOG-vila.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/bitacoras/LOG-vila.md) | [A COMPLETAR] |
+| **Bitácora — Santiago Rayn** | [docs/bitacoras/LOG-rayn.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/bitacoras/LOG-rayn.md) | [A COMPLETAR] |
+| **Bitácora — Santino Mazzulla** | [docs/bitacoras/LOG-santino.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/bitacoras/LOG-santino.md) | [A COMPLETAR] |
+
+---
+
+## 6. Estado de la suite de pruebas y porcentaje de cobertura
+
+### Backend
+- **Pruebas Unitarias:**
+  - Archivos evaluados: 55 archivos (54 pasados, 1 omitido por flag de generación de muestras)
+  - Tests ejecutados: **452 pasados**, 1 omitido (453 totales)
+  - Cobertura global (`vitest --coverage`):
+    - **Líneas (Lines):** 61.86%
+    - **Sentencias (Statements):** 61.62%
+    - **Ramas (Branches):** 54.17%
+    - **Funciones (Functions):** 58.95%
+- **Comandos de ejecución:**
+  ```bash
+  cd backend
+  npm run test:unit           # Tests unitarios sin base de datos
+  npm run test:integration    # Tests de integración contra BD
+  npm run test:e2e            # Tests de punta a punta HTTP
+  ```
+
+### Frontend
+- **Pruebas Unitarias y de Componentes:**
+  - Archivos evaluados: 96 archivos pasados
+  - Tests ejecutados: **983 pasados** (100% exitosos)
+  - Cobertura: [A COMPLETAR]
+- **Comandos de ejecución:**
+  ```bash
+  cd frontend
+  npm test                    # Ejecución de suite de componentes y lógica (Vitest)
+  npm run type-check          # Verificación estática de tipos (vue-tsc)
+  ```

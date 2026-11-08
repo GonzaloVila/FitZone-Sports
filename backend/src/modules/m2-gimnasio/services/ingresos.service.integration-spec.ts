@@ -77,6 +77,32 @@ describe('M2 IngresosService (integration, BD real)', () => {
     await expect(registrar(sedeId, socioId)).rejects.toBeInstanceOf(ProblemException);
   });
 
+  it('RN-01 concurrente: dos ingresos simultáneos del mismo socio en dos sedes dejan uno solo abierto', async () => {
+    const sedeA = await nuevaSede(5);
+    const sedeB = await nuevaSede(5);
+    const socioId = await nuevoSocio(sedeA, true);
+
+    // Los dos pasan juntos el chequeo previo del service (que corre fuera de la transacción); quien decide es el
+    // índice parcial único ingreso_socio_abierto_unq. Se repite para no depender de que la carrera se dé en un intento.
+    for (let intento = 0; intento < 5; intento++) {
+      const resultados = await Promise.allSettled([registrar(sedeA, socioId), registrar(sedeB, socioId)]);
+
+      const ok = resultados.filter((r) => r.status === 'fulfilled');
+      const rechazos = resultados.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+      expect(ok).toHaveLength(1);
+      expect(rechazos).toHaveLength(1);
+      expect(rechazos[0].reason).toBeInstanceOf(ProblemException);
+      expect((rechazos[0].reason as ProblemException).getStatus()).toBe(409);
+
+      const abiertos = await prisma.ingreso.count({ where: { socio_id: socioId, fecha_hora_egreso: null } });
+      expect(abiertos).toBe(1);
+
+      // Egresa para que el próximo intento arranque con el socio afuera.
+      const abierto = (ok[0] as PromiseFulfilledResult<{ id: number }>).value;
+      await ingresos.registrarEgreso(abierto.id, { rol: 'GERENTE' });
+    }
+  });
+
   it('aforo lleno → 409 cuando la sede llega a su capacidad', async () => {
     const sedeId = await nuevaSede(1);
     const socioA = await nuevoSocio(sedeId, true);

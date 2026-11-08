@@ -16,6 +16,13 @@ export default defineConfig({
     reporters: ['verbose'],
     // Comparten una sola base (DATABASE_URL), igual que los e2e: no pueden correr en paralelo.
     fileParallelism: false,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json-summary'],
+      reportsDirectory: './coverage-integration',
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.spec.ts', 'src/**/*.integration-spec.ts', 'src/**/*.module.ts', 'src/main.ts'],
+    },
   },
   plugins: [
     swc.vite({

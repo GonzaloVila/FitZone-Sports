@@ -32,4 +32,5 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 .vitest/
-coverage-e2e/
+# Reportes de cobertura de cada suite (coverage-unit, coverage-integration, coverage-e2e)
+coverage-*/

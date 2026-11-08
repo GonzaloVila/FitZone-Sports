@@ -16,8 +16,8 @@ export default defineConfig({
     reporters: ['verbose'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'json-summary'],
-      reportsDirectory: './coverage-api',
+      // Solo la tabla en la terminal: no genera carpetas ni HTML.
+      reporter: ['text'],
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.spec.ts', 'src/**/*.integration-spec.ts', 'src/**/*.module.ts', 'src/main.ts'],
     },

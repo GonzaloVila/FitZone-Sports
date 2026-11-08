@@ -86,30 +86,36 @@ cd frontend && npm install && npm run build && cd .. && (cd backend && npm run s
 ## 6. Estado de la suite de pruebas y porcentaje de cobertura
 
 ### Backend
-- **Pruebas Unitarias:**
-  - Archivos evaluados: 55 archivos (54 pasados, 1 omitido por flag de generación de muestras)
-  - Tests ejecutados: **452 pasados**, 1 omitido (453 totales)
-  - Cobertura global (`vitest --coverage`):
-    - **Líneas (Lines):** 61.86%
-    - **Sentencias (Statements):** 61.62%
-    - **Ramas (Branches):** 54.17%
-    - **Funciones (Functions):** 58.95%
+- **Pruebas Unitarias:** 73 archivos (72 pasados, 1 omitido por flag de generación de muestras), **670 tests pasados**.
+  - Cobertura de los unitarios (`npm run test:cov`, umbral mínimo 70% líneas / 65% ramas):
+    - **Líneas (Lines):** 71.49%
+    - **Sentencias (Statements):** 71.29%
+    - **Ramas (Branches):** 66.84%
+    - **Funciones (Functions):** 64.22%
+- **Pruebas de Integración (base de datos real):** 13 archivos, **82 tests pasados**.
+- **Pruebas de API por HTTP (Supertest):** 28 archivos, **189 tests pasados**.
 - **Comandos de ejecución:**
   ```bash
   cd backend
-  npm run test:unit           # Tests unitarios sin base de datos
-  npm run test:integration    # Tests de integración contra BD
+  npm test                    # Tests unitarios sin base de datos
+  npm run test:cov            # Unitarios + tabla de cobertura en la terminal
+  npm run test:db:up          # Levanta la base de tests (requiere Docker Desktop abierto)
+  npm run test:db:migrate     # Aplica las migraciones a la base de tests
+  npm run test:integration    # Tests de integración contra la base de tests
   npm run test:api            # Tests de API por HTTP (supertest)
+  npm run test:all            # Cobertura + integración + API
   ```
 
 ### Frontend
 - **Pruebas Unitarias y de Componentes:**
   - Archivos evaluados: 96 archivos pasados
-  - Tests ejecutados: **983 pasados** (100% exitosos)
-  - Cobertura: [A COMPLETAR]
+  - Tests ejecutados: **985 pasados** (100% exitosos)
+  - Cobertura (`npm run test:cov`, umbral mínimo 50% líneas / 40% ramas): Líneas 53.47%, Sentencias 52.71%, Ramas 44.32%, Funciones 42.48%
 - **Comandos de ejecución:**
   ```bash
   cd frontend
   npm test                    # Ejecución de suite de componentes y lógica (Vitest)
+  npm run test:watch          # Modo watch
+  npm run test:cov            # Tests + tabla de cobertura en la terminal
   npm run type-check          # Verificación estática de tipos (vue-tsc)
   ```

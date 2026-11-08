@@ -96,17 +96,23 @@ Swagger UI (`/docs` y `/docs-json`) se monta en `main.ts` sobre Express, fuera d
 
 ## Comandos
 
-| Comando                   | Qué hace                                        |
-| ------------------------- | ----------------------------------------------- |
-| `npm run build`           | compilación con `nest build`                    |
-| `npm run start:dev`       | servidor en watch                               |
-| `npm run test:unit`       | unitarios co-locados, sin base de datos (`vitest.unit.config.ts`) |
-| `npm run test:integration`| integración: services directo contra la BD real (`vitest.integration.config.ts`) |
-| `npm run test:api`        | pruebas de API por HTTP contra la base de test (requiere Docker) |
-| `npm run test:db:up`      | levanta el Postgres de tests y espera a que esté sano |
-| `npm run test:db:migrate` | aplica las migraciones a la base de tests (`.env.test`) |
-| `npm run typecheck:test`  | typecheck de los tests y helpers (`tsconfig.test.json`) |
-| `npm run test:*:cov`      | la suite indicada con reporte de cobertura (`coverage-unit`, `coverage-integration`, `coverage-api`) |
+| Comando                    | Para qué |
+| -------------------------- | -------- |
+| `npm run start:dev`        | Levanta la API en http://localhost:3000 (Swagger en `/docs`) |
+| `npm run build`            | Compilación con `nest build` |
+| `npm test`                 | Tests unitarios (`src/**/*.spec.ts`), salida detallada |
+| `npm run test:watch`       | Unitarios en modo watch (se re-ejecutan al guardar) |
+| `npm run test:cov`         | Unitarios con la tabla de cobertura en la terminal (falla si baja del umbral) |
+| `npm run test:integration` | Integración: services contra la base de tests (`src/**/*.integration-spec.ts`) |
+| `npm run test:api`         | Pruebas de API por HTTP con Supertest (`test/api/**/*.api-spec.ts`) |
+| `npm run test:api:watch`   | Pruebas de API en modo watch |
+| `npm run test:all`         | Cobertura + integración + API, en ese orden |
+| `npm run test:db:up`       | Levanta el Postgres de tests (Docker) y espera a que esté listo |
+| `npm run test:db:migrate`  | Aplica las migraciones a la base de tests (`.env.test`) |
+| `npm run typecheck:test`   | Verifica los tipos de los tests y helpers (`tsconfig.test.json`) |
+
+Integración y API necesitan Docker Desktop abierto y la base de tests levantada
+(`npm run test:db:up` y `npm run test:db:migrate`). Los unitarios no.
 
 El documento OpenAPI lo publica el propio backend en `/docs` y `/docs-json`, y el
 YAML que se entrega sale de ahí. No hay comparador en el repo: la carpeta
@@ -123,4 +129,4 @@ según su propio README.
 - [x] M5: `PagosService`, `PagoRepository` y las operaciones del contrato (RF-13 / RF-14)
 - [x] Autenticación y roles (Unidad III): JWT + guards, TOTP, bloqueados, sync offline
 - [x] Patrones de Unidad III (ADR-10): State, Observer, Chain, reglas de precio
-- [x] Suite en pirámide: unitarios + integración (co-locados) + API por HTTP (`test:unit` / `test:integration` / `test:api`)
+- [x] Suite en pirámide: unitarios + integración (co-locados) + API por HTTP (`test` / `test:integration` / `test:api`)

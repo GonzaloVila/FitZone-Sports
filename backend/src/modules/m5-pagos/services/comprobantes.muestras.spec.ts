@@ -16,7 +16,7 @@ import { ComprobantesService } from 'src/modules/m5-pagos/services/comprobantes.
  * el servicio real, con datos inventados en lugar de las consultas a la base.
  *
  * Solo corre si existe la variable de entorno `MUESTRAS_COMPROBANTE=1`. En una corrida normal
- * de `npm run test:unit` se saltea y no escribe nada.
+ * de `npm test` se saltea y no escribe nada.
  *
  *   PowerShell:  $env:MUESTRAS_COMPROBANTE="1"; npx vitest run --config vitest.unit.config.ts src/modules/m5-pagos/services/comprobantes.muestras.spec.ts
  *   Git Bash:    MUESTRAS_COMPROBANTE=1 npx vitest run --config vitest.unit.config.ts src/modules/m5-pagos/services/comprobantes.muestras.spec.ts

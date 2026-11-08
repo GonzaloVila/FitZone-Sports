@@ -16,8 +16,8 @@ export default mergeConfig(
       restoreMocks: true,
       coverage: {
         provider: 'v8',
-        reporter: ['text', 'html', 'json-summary'],
-        reportsDirectory: './coverage',
+        // Solo la tabla en la terminal: no genera carpetas ni HTML.
+        reporter: ['text'],
         include: ['src/**/*.{ts,vue}'],
         // Fuera: los specs, los tipos generados del contrato y el arranque de la app.
         exclude: ['src/**/*.spec.ts', 'src/types/**', 'src/main.ts'],

@@ -113,6 +113,29 @@ describe('M4 ReservasCanchasService (integration, BD real)', () => {
     );
   });
 
+  it('RN-02 concurrente: dos personas reservan el mismo turno a la vez y se confirma una sola', async () => {
+    // Cada vuelta usa su propia cancha: las dos reservas salen juntas, sin chequeo previo que las ordene, y la que
+    // pierde la carrera la rechaza la constraint de exclusión de la base (exq_reserva_turno).
+    for (let intento = 0; intento < 5; intento++) {
+      const canchaId = await nuevaCancha();
+
+      const resultados = await Promise.allSettled([
+        reservar(canchaId, usuarioExterno, NO_PICO_INICIO, NO_PICO_FIN),
+        reservar(canchaId, usuarioSocio, NO_PICO_INICIO, NO_PICO_FIN),
+      ]);
+
+      const rechazos = resultados.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+      expect(resultados.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(rechazos).toHaveLength(1);
+      expect(rechazos[0].reason).toBeInstanceOf(ProblemException);
+      expect((rechazos[0].reason as ProblemException).getResponse()).toMatchObject({
+        status: 409,
+        type: 'https://fitzone.app/errores/turno-ocupado',
+      });
+      expect(await prisma.reserva.count({ where: { cancha_id: canchaId } })).toBe(1);
+    }
+  });
+
   it('listar default trae solo activas; CUMPLIDA trae las pasadas; CANCELADA las canceladas', async () => {
     const canchaId = await nuevaCancha(10000);
     const activa = await reservar(canchaId, usuarioExterno, NO_PICO_INICIO, NO_PICO_FIN);

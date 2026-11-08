@@ -89,20 +89,26 @@ export function calcularVigencia(
   plan: PlanMembresia,
   desde: Date = new Date(),
 ): { fechaInicio: Date; fechaFin: Date } {
-  const fechaInicio = desde;
-  const fechaFin = new Date(desde);
+  return { fechaInicio: desde, fechaFin: sumarMeses(desde, MESES_POR_PLAN[plan]) };
+}
 
-  switch (plan) {
-    case 'MENSUAL':
-      fechaFin.setMonth(fechaFin.getMonth() + 1);
-      break;
-    case 'TRIMESTRAL':
-      fechaFin.setMonth(fechaFin.getMonth() + 3);
-      break;
-    case 'ANUAL':
-      fechaFin.setFullYear(fechaFin.getFullYear() + 1);
-      break;
-  }
+const MESES_POR_PLAN: Record<PlanMembresia, number> = {
+  MENSUAL: 1,
+  TRIMESTRAL: 3,
+  ANUAL: 12,
+};
 
-  return { fechaInicio, fechaFin };
+// Suma meses de calendario conservando el dia y la hora. Si el mes destino no tiene
+// ese dia (31/01 + 1 mes), termina en su ultimo dia (28/02 o 29/02). Date.setMonth
+// solo no alcanza: desborda al mes siguiente (31/01 + 1 mes = 03/03), y el socio se
+// llevaba dias de mas; como la renovacion se ancla en la fecha_fin previa, el corrimiento
+// quedaba para siempre en todos sus periodos siguientes.
+function sumarMeses(desde: Date, meses: number): Date {
+  const fin = new Date(desde);
+  const dia = fin.getDate();
+  fin.setDate(1);
+  fin.setMonth(fin.getMonth() + meses);
+  const ultimoDiaDelMes = new Date(fin.getFullYear(), fin.getMonth() + 1, 0).getDate();
+  fin.setDate(Math.min(dia, ultimoDiaDelMes));
+  return fin;
 }

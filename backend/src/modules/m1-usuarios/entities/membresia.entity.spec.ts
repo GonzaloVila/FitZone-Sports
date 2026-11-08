@@ -41,6 +41,31 @@ describe('calcularVigencia (RF-02)', () => {
     );
   });
 
+  describe('fin de mes: si el mes destino es mas corto, termina en su ultimo dia (no se desborda al siguiente)', () => {
+    it.each([
+      ['MENSUAL', '2026-01-31T12:00:00Z', '2026-02-28T12:00:00Z'],
+      ['MENSUAL', '2028-01-31T12:00:00Z', '2028-02-29T12:00:00Z'],
+      ['MENSUAL', '2026-03-31T12:00:00Z', '2026-04-30T12:00:00Z'],
+      ['MENSUAL', '2026-01-30T12:00:00Z', '2026-02-28T12:00:00Z'],
+      ['TRIMESTRAL', '2026-11-30T12:00:00Z', '2027-02-28T12:00:00Z'],
+      ['TRIMESTRAL', '2026-05-31T12:00:00Z', '2026-08-31T12:00:00Z'],
+      ['ANUAL', '2028-02-29T12:00:00Z', '2029-02-28T12:00:00Z'],
+    ] as const)('%s desde %s termina el %s', (plan, desde, fin) => {
+      expect(calcularVigencia(plan, new Date(desde)).fechaFin).toEqual(new Date(fin));
+    });
+
+    it('un dia que existe en el mes destino no se toca', () => {
+      expect(calcularVigencia('MENSUAL', new Date('2026-01-28T12:00:00Z')).fechaFin).toEqual(
+        new Date('2026-02-28T12:00:00Z'),
+      );
+    });
+
+    it('conserva la hora del ancla', () => {
+      const fin = calcularVigencia('MENSUAL', new Date('2026-01-31T23:15:30.500Z')).fechaFin;
+      expect(fin.toISOString()).toBe('2026-02-28T23:15:30.500Z');
+    });
+  });
+
   it('sin ancla usa la fecha de hoy', () => {
     vi.useFakeTimers();
     vi.setSystemTime(DESDE);

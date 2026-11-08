@@ -69,7 +69,7 @@ cd frontend && npm install && npm run build && cd .. && (cd backend && npm run s
 
 | Recurso | Enlace | Estado / Ubicación |
 |---|---|---|
-| **ADR (Architectural Decision Records)** | [A COMPLETAR] | [A COMPLETAR] |
+| **ADR (Architectural Decision Records)** | [docs/adr/](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/adr) | Disponible en repositorio (ADR-001 a ADR-013) |
 | **Diagramas de Casos de Uso** | [Casos de Uso Módulo 3 — Clases](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/UserCaseDiagrams/Modulo3_Clases_CasosDeUso.md) | Disponible en repositorio |
 | **Diagrama de Base de Datos (DBML)** | [fitzone.dbml](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/db/fitzone.dbml) | Disponible en repositorio |
 | **Diagramas de Arquitectura (C4)** | [A COMPLETAR] | [A COMPLETAR] |

@@ -127,3 +127,19 @@
   - *Bloqueo 2:* El script `seed_supabase_test_data.sql` fallaba en bases de datos locales por columnas desactualizadas (`horario`, `precio`) y contraseñas con hash inválido que impedían el login de prueba. Se actualizaron las sentencias SQL y se colocó el hash bcrypt válido de `Password123!`.
 - **Commits:** `8a91946`
 - **Horas:** 4 horas
+
+
+---
+
+## Entrada 9
+- **Fecha:** 07/11/2026
+- **Sprint y unidad:** Sprint 8 — Unidad I (Arquitectura y Documentación Técnica / Consolidación de ADRs)
+- **Actividad:** Migré y formalicé todos los Registros de Decisión Arquitectónica (ADRs) trabajados originariamente en la Unidad I hacia markdowns independientes dentro de `docs/adr/`, aplicando el estándar riguroso de la cátedra con tabla de alternativas, contexto, decisión justificada, consecuencias y trazabilidad de requisitos. Mapeé los ADRs obligatorios (ADR-001 a ADR-009) y preservé las decisiones de diseño adicionales del equipo (ADR-010 a ADR-013). Realicé un análisis exhaustivo de coherencia con la implementación real del código, actualizando ADR-001 (evolución de Mediador hacia inyección explícita y bus de eventos) y completando los 4 ADRs obligatorios faltantes (ADR-003, ADR-004, ADR-007, ADR-008) con detalle técnico y tag `[A REVISAR]`. Actualicé el `README.md` vinculando el índice de ADRs.
+- **Decisión:**
+  - *Opción elegida:* Migrar cada decisión a un archivo markdown propio (`ADR-0NN.md`) correlativo en lugar de mantener un documento centralizado en el vault externo, catalogando los 9 ADRs obligatorios solicitados por la cátedra e integrando los patrones propios (Observer, Strategy, Repository y Capas) a partir de ADR-010. Detallar la implementación real en los obligatorios pendientes señalizándolos con `[A REVISAR]` para validación final del equipo.
+  - *Alternativas evaluadas:* Conservar las decisiones en el documento consolidado de arquitectura o en el PDF del Sprint 1. Se descartó porque la cátedra exige que los ADRs vivan versionados individualmente en el repositorio para facilitar su auditoría y cruce con el código fuente.
+- **Problema o bloqueo:**
+  - *Bloqueo:* Las decisiones de la Unidad I se encontraban documentadas en el vault del equipo bajo formato libre de tablas agrupadas, sin coincidir estrictamente con la plantilla individual requerida para la entrega final; además, ADR-001 citaba un `MediadorService` que había sido refactorizado y eliminado en Octubre.
+  - *Resolución:* Se extrajo y reestructuró cada registro individualmente garantizando que todas las decisiones cuenten con su tabla comparativa de alternativas, consecuencias y justificación técnica determinativa, alineando la evolución real del código (inyección explícita, constraints de exclusión GiST, cola offline y pirámide de pruebas).
+- **Commits:** `60fcf3a`
+- **Horas:** 4 horas

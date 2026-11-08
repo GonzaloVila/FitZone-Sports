@@ -191,7 +191,7 @@ export class ProblemFilter implements ExceptionFilter {
       // una constraint de exclusion que Prisma no modela (ver commons/errors/prisma.mapper),
       // asi que su violaciones no llegan por acá como P2002 sino como
       // PrismaClientUnknownRequestError (ver rama Unknown de más abajo).
-      if (target.includes('idempotenciaKey')) {
+      if (target.includes('idempotencia_key')) {
         return {
           type: 'https://fitzone.app/errores/idempotencia-repetida',
           title: 'Idempotency-Key repetida',

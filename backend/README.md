@@ -67,7 +67,7 @@ backend/
 ├── prisma/
 │   ├── schema.prisma                → modelo versionado (14 tablas)
 │   └── migrations/                  → migraciones versionadas
-├── test/                            → e2e (supertest) + helpers compartidos; los unit
+├── test/                            → pruebas de API (supertest) + helpers; los unit
 │                                       e integración viven junto al source (src/**)
 ├── Dockerfile
 ├── .env.example                     → variables documentadas (sin secretos)
@@ -76,7 +76,7 @@ backend/
 
 Los tests **no** viven en una carpeta aparte: los unitarios (`src/**/*.spec.ts`) y los de
 integración (`src/**/*.integration-spec.ts`) están al lado del archivo que prueban, y
-`test/` queda solo para los e2e (`test/e2e/**/*.e2e-spec.ts`) más los helpers compartidos
+`test/` queda para las pruebas de API por HTTP (`test/api/**/*.api-spec.ts`) más los helpers compartidos
 (`test/helpers/`, alias `@test/*`). Cada suite tiene su config de Vitest (`vitest.*.config.ts`).
 
 ## Autenticación y autorización: protegido por defecto
@@ -87,7 +87,7 @@ controller nuevo no necesita `@UseGuards` y no puede quedar abierto por olvido. 
 `@Roles(...)` y las reglas de alcance viven en los `*AccesoService`.
 
 Para dejar un endpoint abierto hay que marcarlo con `@Public()` (`commons/guards/public.decorator.ts`, en el
-handler o en la clase) **y** actualizar `RUTAS_PUBLICAS` en `test/e2e/auth/rutas-protegidas.e2e-spec.ts`, el test que
+handler o en la clase) **y** actualizar `RUTAS_PUBLICAS` en `test/api/auth/rutas-protegidas.api-spec.ts`, el test que
 fija el conjunto exacto de rutas públicas (hoy `POST /auth/login`, `POST /auth/refresh` y `POST /auth/logout`) y que
 lo cruza con el `security: []` del contrato `docs/openapi.yaml`. En el contrato, `security: [{ bearer: [] }]` es
 global y las operaciones públicas declaran `security: []`.
@@ -102,7 +102,11 @@ Swagger UI (`/docs` y `/docs-json`) se monta en `main.ts` sobre Express, fuera d
 | `npm run start:dev`       | servidor en watch                               |
 | `npm run test:unit`       | unitarios co-locados, sin base de datos (`vitest.unit.config.ts`) |
 | `npm run test:integration`| integración: services directo contra la BD real (`vitest.integration.config.ts`) |
-| `npm run test:e2e`        | e2e HTTP contra la base de test (requiere Docker) |
+| `npm run test:api`        | pruebas de API por HTTP contra la base de test (requiere Docker) |
+| `npm run test:db:up`      | levanta el Postgres de tests y espera a que esté sano |
+| `npm run test:db:migrate` | aplica las migraciones a la base de tests (`.env.test`) |
+| `npm run typecheck:test`  | typecheck de los tests y helpers (`tsconfig.test.json`) |
+| `npm run test:*:cov`      | la suite indicada con reporte de cobertura (`coverage-unit`, `coverage-integration`, `coverage-api`) |
 
 El documento OpenAPI lo publica el propio backend en `/docs` y `/docs-json`, y el
 YAML que se entrega sale de ahí. No hay comparador en el repo: la carpeta
@@ -119,4 +123,4 @@ según su propio README.
 - [x] M5: `PagosService`, `PagoRepository` y las operaciones del contrato (RF-13 / RF-14)
 - [x] Autenticación y roles (Unidad III): JWT + guards, TOTP, bloqueados, sync offline
 - [x] Patrones de Unidad III (ADR-10): State, Observer, Chain, reglas de precio
-- [x] Suite en pirámide: unitarios + integración (co-locados) + e2e (`test:unit` / `test:integration` / `test:e2e`)
+- [x] Suite en pirámide: unitarios + integración (co-locados) + API por HTTP (`test:unit` / `test:integration` / `test:api`)

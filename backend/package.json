@@ -18,8 +18,9 @@
     "test:unit:cov": "vitest run --config vitest.unit.config.ts --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:integration:cov": "vitest run --config vitest.integration.config.ts --coverage",
-    "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "test:e2e:cov": "vitest run --config vitest.e2e.config.ts --coverage"
+    "test:api": "vitest run --config vitest.api.config.ts",
+    "test:api:cov": "vitest run --config vitest.api.config.ts --coverage",
+    "typecheck:test": "tsc -p tsconfig.test.json"
   },
   "keywords": [],
   "author": "",

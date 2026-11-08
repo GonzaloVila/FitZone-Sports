@@ -7,7 +7,7 @@ import { PRECIOS_PLAN } from 'src/modules/m1-usuarios/entities/membresia.entity'
 import { dniUnico } from '@test/helpers/base-de-datos';
 import { conToken, crearUsuarioConSesion, iniciarSesion } from '@test/helpers/sesion';
 
-// Fixtures compartidos por los e2e de M5 (antes en el beforeAll de m5.e2e-spec.ts).
+// Fixtures compartidos por las pruebas de API de M5 (antes en el beforeAll de m5.e2e-spec.ts).
 // El contexto crea la sede + usuario/socio/membresia + cancha y expone helpers para
 // reservar y cobrar. Cada archivo hace su `limpiar()` en el afterAll.
 export async function crearContextoM5(app: INestApplication, prisma: PrismaService) {

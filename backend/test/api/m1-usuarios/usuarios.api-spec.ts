@@ -19,7 +19,7 @@ describe('M1 - Usuarios', () => {
   const usuariosCreados: number[] = [];
   const sedesCreadas: number[] = [];
   // Usuarios, socios y sedes exigen sesion: el GERENTE puede crear y modificar cualquier cosa, asi que los tests de datos
-  // (no los de acceso, que viven en acceso.e2e-spec.ts) arman todo con su sesion.
+  // (no los de acceso, que viven en acceso.api-spec.ts) arman todo con su sesion.
   let tokenGerente: string;
   const comoGerente = () => clienteCon(app, tokenGerente);
 

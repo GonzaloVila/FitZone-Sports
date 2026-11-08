@@ -5,7 +5,7 @@ import type { RolUsuario } from 'src/modules/m1-usuarios/entities/usuario.entity
 import { dniUnico, emailUnico } from '@test/helpers/base-de-datos';
 import { crearUsuarioConSesion, iniciarSesion } from '@test/helpers/sesion';
 
-// Fixtures compartidos por los e2e de M4 (antes en m4.e2e-spec.ts). Crea la sede y
+// Fixtures compartidos por las pruebas de API de M4 (antes en m4.e2e-spec.ts). Crea la sede y
 // la cancha base, y expone el alta de socio/externo, los horarios del dia y la limpieza.
 export async function crearContextoM4(app: INestApplication, prisma: PrismaService) {
   const usuariosCreados: number[] = [];

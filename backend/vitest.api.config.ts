@@ -6,8 +6,8 @@ export default defineConfig({
   test: {
     globals: true,
     root: './',
-    include: ['test/**/*.e2e-spec.ts'],
-    setupFiles: ['./test/vitest.e2e.setup.ts'],
+    include: ['test/api/**/*.api-spec.ts'],
+    setupFiles: ['./test/vitest.db.setup.ts'],
     testTimeout: 20000,
     hookTimeout: 20000,
     // Verboso a propósito: cada corrida imprime EN VIVO el nombre de cada test con
@@ -16,8 +16,8 @@ export default defineConfig({
     reporters: ['verbose'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html'],
-      reportsDirectory: './coverage-e2e',
+      reporter: ['text', 'html', 'json-summary'],
+      reportsDirectory: './coverage-api',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.spec.ts', 'src/**/*.integration-spec.ts', 'src/**/*.module.ts', 'src/main.ts'],
     },

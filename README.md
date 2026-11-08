@@ -99,7 +99,7 @@ cd frontend && npm install && npm run build && cd .. && (cd backend && npm run s
   cd backend
   npm run test:unit           # Tests unitarios sin base de datos
   npm run test:integration    # Tests de integración contra BD
-  npm run test:e2e            # Tests de punta a punta HTTP
+  npm run test:api            # Tests de API por HTTP (supertest)
   ```
 
 ### Frontend

@@ -5,7 +5,7 @@ import type { RolUsuario } from 'src/modules/m1-usuarios/entities/usuario.entity
 import { dniUnico, emailUnico } from '@test/helpers/base-de-datos';
 import { clienteCon, crearRecepcionConSesion, crearUsuarioConSesion, iniciarSesion } from '@test/helpers/sesion';
 
-// Fixtures compartidos por los e2e de M3 (antes en m3.e2e-spec.ts). Crea la sede y
+// Fixtures compartidos por las pruebas de API de M3 (antes en m3.e2e-spec.ts). Crea la sede y
 // expone el alta de socio+membresia, el helper de rango horario y la limpieza.
 export async function crearContextoM3(app: INestApplication, prisma: PrismaService) {
   const usuariosCreados: number[] = [];
@@ -77,7 +77,7 @@ export async function crearContextoM3(app: INestApplication, prisma: PrismaServi
   }
 
   // El GERENTE puede todo lo de clases (crear en cualquier sede, reservar y anotar por cualquier socio): los e2e de datos
-  // arman el escenario con su sesion. Los de acceso (acceso.e2e-spec.ts) usan una sesion por rol.
+  // arman el escenario con su sesion. Los de acceso (acceso.api-spec.ts) usan una sesion por rol.
   const tokenGerente = await crearSesion('GERENTE');
   const comoGerente = () => clienteCon(app, tokenGerente);
 

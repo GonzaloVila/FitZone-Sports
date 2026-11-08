@@ -1,0 +1,15 @@
+{
+  // Typecheck de los tests (npm run typecheck:test). tsconfig.json solo incluye src/,
+  // así que test/ (helpers y pruebas HTTP) y las configs de Vitest no se revisaban:
+  // un campo mal escrito en una aserción pasaba sin que nadie lo viera.
+  // Módulo ES porque los setups y las configs usan import.meta (Vitest los corre como ESM).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["vitest/globals", "node", "pdfkit"]
+  },
+  "include": ["src", "test", "vitest.*.config.ts"]
+}

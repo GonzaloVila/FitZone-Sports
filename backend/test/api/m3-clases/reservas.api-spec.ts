@@ -75,7 +75,7 @@ describe('M3 - Reservas de clase: alta y penalidad (RF-07)', () => {
     expect(pago).not.toBeNull();
     expect(pago!.estado).toBe('APROBADO');
     expect(pago!.monto.toNumber()).toBe(penalidadCancelacionTardia());
-    expect(pago!.comprobantePdfUrl).not.toBeNull();
+    expect(pago!.comprobante_pdf_url).not.toBeNull();
     ctx.pagosDePenalidad.push(pago!.id);
 
     // /pagos exige sesion. Como hace el frontend, el SOCIO busca su penalidad por reservaClaseId (el listado se acota solo a

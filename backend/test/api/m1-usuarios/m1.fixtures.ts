@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { PrismaService } from 'src/commons/database/prisma.service';
 import { emailUnico } from '@test/helpers/base-de-datos';
 
-// Fixtures compartidos por los e2e de M1 (antes en m1.e2e-spec.ts). Crea la sede y
+// Fixtures compartidos por las pruebas de API de M1 (antes en m1.e2e-spec.ts). Crea la sede y
 // expone el email de socio (prefijo `socio.`, que usa la limpieza) y la limpieza.
 export async function crearContextoM1(app: INestApplication, prisma: PrismaService) {
   const sede = await prisma.sede.create({

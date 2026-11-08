@@ -1,30 +1,36 @@
-# Postgres efímero solo para tests e2e. No usar para desarrollo normal
-# (para eso seguimos usando la Supabase compartida vía .env).
+# Postgres efímero solo para los tests de integración y de API. No usar para
+# desarrollo normal (para eso seguimos usando la Supabase compartida vía .env).
 #
-# Uso:
-#   docker compose -f docker-compose.test.yml up -d
-#   npx prisma migrate deploy --schema prisma/schema.prisma
-#   npx vitest run --config vitest.e2e.config.ts
+# - Los datos viven en memoria (tmpfs): cada vez que el contenedor se recrea
+#   arranca vacío, así que después de levantarlo hay que aplicar las migraciones.
+# - No arranca solo con Docker Desktop (restart: "no"): se levanta cuando se testea.
+# - El healthcheck permite esperar a que acepte conexiones con `up --wait`.
 #
-# O para correr todo de una:
-#   docker compose -f docker-compose.test.yml up -d && \
-#     DATABASE_URL="postgresql://fitzone:fitzone@localhost:5432/fitzone_test" \
-#     npx prisma migrate deploy --schema prisma/schema.prisma && \
-#     npx vitest run --config vitest.e2e.config.ts
+# Uso (desde backend/):
+#   npm run test:db:up        # levanta el contenedor y espera a que esté sano
+#   npm run test:db:migrate   # aplica las migraciones con backend/.env.test
+#   npm run test:integration
+#
+# Sin los scripts:
+#   docker compose -f docker-compose.test.yml up -d --wait
+#   DATABASE_URL="postgresql://fitzone:fitzone@localhost:55432/fitzone_test" \
+#     npx prisma migrate deploy --schema prisma/schema.prisma
 #
 services:
   postgres-test:
     image: postgres:16-alpine
     container_name: fitzone-postgres-test
-    restart: unless-stopped
+    restart: "no"
     environment:
       POSTGRES_USER: fitzone
       POSTGRES_PASSWORD: fitzone
       POSTGRES_DB: fitzone_test
     ports:
       - "55432:5432"
-    volumes:
-      - fitzone_test_data:/var/lib/postgresql/data
-
-volumes:
-  fitzone_test_data:
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fitzone -d fitzone_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 15

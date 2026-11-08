@@ -18,6 +18,9 @@ const {
   mensajeQr,
   generando,
   errorQr,
+  codigoTotpActual,
+  segundosRestantes,
+  payloadQrAcceso,
   generarQr,
   descartarQr,
   limpiarErrorQr,
@@ -81,19 +84,27 @@ const carnet = computed(() => {
       <section class="carnet-pagina__seccion" aria-labelledby="carnet-acceso">
         <h2 id="carnet-acceso" class="carnet-pagina__subtitulo">Acceso al gimnasio</h2>
         <p class="carnet-pagina__texto">
-          El código de ingreso lo genera la app de autenticación del socio. Para vincularla, activá el QR de acceso y
-          escanealo con esa app.
+          Activá tu código QR de acceso para ingresar a las sedes de FitZone Sports. Podés escanearlo directamente en la recepción del gimnasio o vincularlo con tu app de autenticación habitual (Google Authenticator, Authy, etc.).
         </p>
 
         <div>
           <BotonFz variante="secundario" @click="abrirModal">Activar o regenerar QR de acceso</BotonFz>
         </div>
 
-        <div v-if="qrUri" class="carnet-pagina__qr">
-          <QrFz :texto="qrUri" alt="Código QR para vincular tu app de autenticación" />
+        <div v-if="payloadQrAcceso" class="carnet-pagina__qr">
+          <div class="carnet-pagina__qr-contenedor">
+            <QrFz :texto="payloadQrAcceso" alt="Código QR de acceso para recepción" />
+          </div>
+
+          <div class="carnet-pagina__totp-caja">
+            <span class="carnet-pagina__totp-etiqueta">Código dinámico de acceso:</span>
+            <strong class="carnet-pagina__totp-codigo">{{ codigoTotpActual }}</strong>
+            <span class="carnet-pagina__totp-tiempo">Se actualiza en {{ segundosRestantes }}s</span>
+          </div>
+
           <p v-if="mensajeQr" class="carnet-pagina__texto">{{ mensajeQr }}</p>
-          <p v-if="secreto" class="carnet-pagina__texto">
-            Si no podés escanearlo, cargá este código a mano en la app:
+          <p v-if="secreto" class="carnet-pagina__texto carnet-pagina__texto-ayuda">
+            Para usar una app de autenticación externa, configurá este secreto:
             <code class="carnet-pagina__secreto">{{ secreto }}</code>
           </p>
           <div>
@@ -105,8 +116,7 @@ const carnet = computed(() => {
 
     <ModalFz v-model="modalAbierto" titulo="Activar o regenerar el QR de acceso" :ocupado="generando">
       <p class="carnet-pagina__texto">
-        Esta acción reemplaza el código anterior. Después vas a tener que volver a configurar la app de autenticación
-        del socio con el código nuevo.
+        Esta acción genera una clave de acceso nueva. Al aceptarla, tu carnet mostrará el código QR actualizado para presentar en recepción.
       </p>
       <AvisoFz v-if="errorQr" variante="peligro">{{ errorQr }}</AvisoFz>
 
@@ -154,11 +164,52 @@ const carnet = computed(() => {
   max-width: 36rem;
 }
 
+.carnet-pagina__texto-ayuda {
+  font-size: var(--fz-texto-pequeno);
+  color: var(--fz-color-texto-suave);
+}
+
 .carnet-pagina__qr {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--fz-espaciado-base);
+  padding: var(--fz-espaciado-base);
+  background: var(--fz-color-superficie);
+  border: 1px solid var(--fz-color-borde);
+  border-radius: var(--fz-radio-panel);
+}
+
+.carnet-pagina__qr-contenedor {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.carnet-pagina__totp-caja {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: var(--fz-espaciado-compacto);
+  text-align: center;
+}
+
+.carnet-pagina__totp-etiqueta {
+  font-size: var(--fz-texto-pequeno);
+  color: var(--fz-color-texto-suave);
+}
+
+.carnet-pagina__totp-codigo {
+  font-size: 2rem;
+  letter-spacing: 0.25em;
+  font-family: var(--fz-fuente-mono);
+  color: var(--fz-color-acento);
+}
+
+.carnet-pagina__totp-tiempo {
+  font-size: var(--fz-texto-pequeno);
+  color: var(--fz-color-texto-suave);
 }
 
 .carnet-pagina__secreto {

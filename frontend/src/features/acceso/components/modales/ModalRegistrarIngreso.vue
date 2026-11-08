@@ -2,11 +2,12 @@
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { Sede } from '@/features/sedes/services/servicioSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
-import { BotonFz, ModalFz } from '@/ui'
+import { BotonFz, IconoFz, ModalFz } from '@/ui'
 import { useRegistroIngreso } from '../../composables/useRegistroIngreso'
 import type { Ingreso } from '../../services/servicioAcceso'
 import FormularioIngreso from '../FormularioIngreso.vue'
 import ResultadoIngreso from '../ResultadoIngreso.vue'
+import ModalEscanearQr from './ModalEscanearQr.vue'
 
 defineProps<{
   sedes: Sede[]
@@ -34,6 +35,8 @@ const sedeTexto = computed({
 
 const { socioIdInput, codigoTotpInput, procesando, resultado, errores, registrar, reiniciarResultado } =
   useRegistroIngreso(sedeElegida)
+
+const escanerAbierto = ref(false)
 
 // El foco va al primer campo a corregir; si no hay errores, al ID, que es lo que se escribe para el siguiente ingreso (su
 // contenido queda seleccionado).
@@ -67,6 +70,13 @@ async function validar() {
   await nextTick()
   enfocarCampo()
 }
+
+async function manejarQrEscaneado(datos: { socioId: number; codigoTotp: string }) {
+  socioIdInput.value = String(datos.socioId)
+  codigoTotpInput.value = datos.codigoTotp
+  // One-shot: registrar inmediatamente con los datos capturados
+  await validar()
+}
 </script>
 
 <template>
@@ -79,6 +89,18 @@ async function validar() {
     :ocupado="procesando"
   >
     <div ref="cuerpo" class="cuerpo">
+      <div class="cuerpo__acciones-rapidas">
+        <BotonFz
+          variante="secundario"
+          tamano="sm"
+          :disabled="procesando"
+          @click="escanerAbierto = true"
+        >
+          <IconoFz nombre="acceso" tamano="sm" />
+          Escanear carnet con cámara
+        </BotonFz>
+      </div>
+
       <FormularioIngreso
         v-model:sede-id="sedeTexto"
         v-model:socio-id="socioIdInput"
@@ -101,6 +123,11 @@ async function validar() {
       </BotonFz>
     </template>
   </ModalFz>
+
+  <ModalEscanearQr
+    v-model:abierto="escanerAbierto"
+    @escaneado="manejarQrEscaneado"
+  />
 </template>
 
 <style scoped>
@@ -108,5 +135,10 @@ async function validar() {
   display: flex;
   flex-direction: column;
   gap: var(--fz-espaciado-base);
+}
+
+.cuerpo__acciones-rapidas {
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

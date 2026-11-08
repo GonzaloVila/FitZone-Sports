@@ -22,7 +22,7 @@ services:
       POSTGRES_PASSWORD: fitzone
       POSTGRES_DB: fitzone_test
     ports:
-      - "5432:5432"
+      - "55432:5432"
     volumes:
       - fitzone_test_data:/var/lib/postgresql/data
 

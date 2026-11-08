@@ -14,7 +14,9 @@
     "types:api": "openapi-typescript ../docs/openapi.yaml -o src/types/api.d.ts"
   },
   "dependencies": {
+    "html5-qrcode": "^2.3.8",
     "openapi-fetch": "^0.17.0",
+    "otpauth": "^9.6.0",
     "pinia": "^4.0.3",
     "qrcode": "1.5.4",
     "reka-ui": "^2.11.0",

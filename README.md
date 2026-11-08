@@ -31,12 +31,12 @@ docker compose -f docker-compose.test.yml up -d
 
 ### Paso 3: Configurar variables de entorno del backend
 ```bash
-cp backend/.env.example backend/.env && sed -i 's|^DATABASE_URL=.*|DATABASE_URL="postgresql://fitzone:fitzone@localhost:5432/fitzone_test?schema=public"|' backend/.env
+cp backend/.env.example backend/.env && sed -i 's|^DATABASE_URL=.*|DATABASE_URL="postgresql://fitzone:fitzone@localhost:55432/fitzone_test?schema=public"|' backend/.env
 ```
 
 ### Paso 4: Instalar dependencias, aplicar migraciones, sembrar datos de prueba y compilar backend
 ```bash
-cd backend && npm install && npx prisma migrate deploy && npx prisma db execute --file ../docs/db/seed_supabase_test_data.sql && npm run build && cd ..
+cd backend && npm install && npx prisma migrate deploy && npx prisma db execute --schema prisma/schema.prisma --file ../docs/db/seed_supabase_test_data.sql && npm run build && cd ..
 ```
 
 ### Paso 5: Instalar dependencias del frontend e iniciar ambos servidores

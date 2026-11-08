@@ -64,18 +64,18 @@ INSERT INTO "Sede" ("id", "nombre", "direccion", "aforo_maximo") VALUES
 -- 2. TABLA: "Usuario" (RF-01, Autenticación y Perfil por Rol)
 -- ============================================================================
 -- Contiene superclase Usuario.
--- Hash de contraseña utilizado: bcrypt ('Password123!') -> $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
+-- Hash de contraseña utilizado: bcrypt ('Password123!') -> $2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK
 INSERT INTO "Usuario" ("id", "rol", "dni", "nombre", "email", "contrasenia", "telefono", "foto_url") VALUES
   -- Rol Gerente (A4)
-  (1, 'GERENTE', '28111222', 'Valeria Rossi', 'valeria.rossi@fitzone.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '+5491144440001', 'https://fitzone.app/avatars/valeria.jpg'),
+  (1, 'GERENTE', '28111222', 'Valeria Rossi', 'valeria.rossi@fitzone.com', '$2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK', '+5491144440001', 'https://fitzone.app/avatars/valeria.jpg'),
   -- Rol Recepción (A3 - Staff asignado a sucursal)
-  (2, 'RECEPCION', '35333444', 'Lucas Benítez', 'lucas.benitez@fitzone.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '+5491144440002', 'https://fitzone.app/avatars/lucas.jpg'),
+  (2, 'RECEPCION', '35333444', 'Lucas Benítez', 'lucas.benitez@fitzone.com', '$2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK', '+5491144440002', 'https://fitzone.app/avatars/lucas.jpg'),
   -- Socios (A1)
-  (3, 'SOCIO', '38555666', 'Camila Domínguez', 'camila.dominguez@gmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '+5491144440003', 'https://fitzone.app/avatars/camila.jpg'),
-  (4, 'SOCIO', '40777888', 'Joaquín Pereyra', 'joaquin.pereyra@gmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '+5491144440004', 'https://fitzone.app/avatars/joaquin.jpg'),
-  (5, 'SOCIO', '33999000', 'Esteban Morales', 'esteban.morales@gmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '+5491144440005', 'https://fitzone.app/avatars/esteban.jpg'),
+  (3, 'SOCIO', '38555666', 'Camila Domínguez', 'camila.dominguez@gmail.com', '$2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK', '+5491144440003', 'https://fitzone.app/avatars/camila.jpg'),
+  (4, 'SOCIO', '40777888', 'Joaquín Pereyra', 'joaquin.pereyra@gmail.com', '$2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK', '+5491144440004', 'https://fitzone.app/avatars/joaquin.jpg'),
+  (5, 'SOCIO', '33999000', 'Esteban Morales', 'esteban.morales@gmail.com', '$2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK', '+5491144440005', 'https://fitzone.app/avatars/esteban.jpg'),
   -- Externo (A2 - Cliente que no es socio regular)
-  (6, 'EXTERNO', '42111333', 'Sofía Navarro', 'sofia.navarro@hotmail.com', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '+5491144440006', 'https://fitzone.app/avatars/sofia.jpg');
+  (6, 'EXTERNO', '42111333', 'Sofía Navarro', 'sofia.navarro@hotmail.com', '$2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK', '+5491144440006', 'https://fitzone.app/avatars/sofia.jpg');
 
 
 -- ============================================================================
@@ -104,10 +104,10 @@ INSERT INTO "Socio" ("id", "usuario_id", "sede_origen_id", "fecha_alta") VALUES
 -- - Socio 2 (Joaquín): Membresía ACTIVA (Plan MENSUAL) -> Al día.
 -- - Socio 3 (Esteban): Membresía VENCIDA (fecha_fin en el pasado).
 --   Permite probar que M3 rechaza su reserva gratuita con HTTP 403 ('socio-en-mora').
-INSERT INTO "Membresia" ("id", "socio_id", "plan", "estado", "fecha_inicio", "fecha_fin", "renueva_automatica") VALUES
-  (1, 1, 'ANUAL', 'ACTIVA', NOW() - INTERVAL '90 days', NOW() + INTERVAL '275 days', true),
-  (2, 2, 'MENSUAL', 'ACTIVA', NOW() - INTERVAL '10 days', NOW() + INTERVAL '20 days', false),
-  (3, 3, 'TRIMESTRAL', 'VENCIDA', NOW() - INTERVAL '120 days', NOW() - INTERVAL '30 days', false);
+INSERT INTO "Membresia" ("id", "socio_id", "plan", "estado", "fecha_inicio", "fecha_fin", "renueva_automatica", "precio") VALUES
+  (1, 1, 'ANUAL', 'ACTIVA', NOW() - INTERVAL '90 days', NOW() + INTERVAL '275 days', true, 120000.00),
+  (2, 2, 'MENSUAL', 'ACTIVA', NOW() - INTERVAL '10 days', NOW() + INTERVAL '20 days', false, 15000.00),
+  (3, 3, 'TRIMESTRAL', 'VENCIDA', NOW() - INTERVAL '120 days', NOW() - INTERVAL '30 days', false, 38000.00);
 
 
 -- ============================================================================
@@ -128,11 +128,11 @@ INSERT INTO "Cancha" ("id", "sede_id", "tipo", "costo_por_hora", "estado") VALUE
 -- - Clase 2: CrossFit dentro de 18 hs (capacidad 2, LLENA para probar lista de espera).
 -- - Clase 3: Yoga dentro de 96 hs / 4 días (para probar rechazo de reserva anticipada > 48h).
 -- - Clase 4: Boxeo dentro de 1 hora (para probar rechazo de cancelación sin penalidad < 2h).
-INSERT INTO "Clase" ("id", "sede_id", "tipo", "instructor", "horario", "capacidad") VALUES
-  (1, 1, 'Spinning', 'Martín Palermo', TO_CHAR(NOW() AT TIME ZONE 'UTC' + INTERVAL '24 hours', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), 15),
-  (2, 1, 'CrossFit', 'Franco Colapinto', TO_CHAR(NOW() AT TIME ZONE 'UTC' + INTERVAL '18 hours', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), 2),
-  (3, 2, 'Yoga Relax', 'Anahí Silva', TO_CHAR(NOW() AT TIME ZONE 'UTC' + INTERVAL '96 hours', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), 20),
-  (4, 1, 'Boxeo Training', 'Sergio Martínez', TO_CHAR(NOW() AT TIME ZONE 'UTC' + INTERVAL '1 hour', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), 10);
+INSERT INTO "Clase" ("id", "sede_id", "tipo", "instructor", "horario_inicio", "horario_fin", "capacidad") VALUES
+  (1, 1, 'Spinning', 'Martín Palermo', NOW() + INTERVAL '24 hours', NOW() + INTERVAL '25 hours', 15),
+  (2, 1, 'CrossFit', 'Franco Colapinto', NOW() + INTERVAL '18 hours', NOW() + INTERVAL '19 hours', 2),
+  (3, 2, 'Yoga Relax', 'Anahí Silva', NOW() + INTERVAL '96 hours', NOW() + INTERVAL '97 hours', 20),
+  (4, 1, 'Boxeo Training', 'Sergio Martínez', NOW() + INTERVAL '1 hour', NOW() + INTERVAL '2 hours', 10);
 
 
 -- ============================================================================
@@ -210,10 +210,10 @@ INSERT INTO "PagoMembresia" ("id_pago", "membresia_id") VALUES
 --   Prueba de RN-01: Si Usuario 4 intenta ingresar a cualquier sede, el índice
 --   parcial 'ingreso_usuario_abierto_unq' rechaza la petición.
 -- - Ingreso 3: Usuario 5 ingresó en Sede Palermo con validación offline (RNF-01).
-INSERT INTO "Ingreso" ("id", "sede_id", "usuario_id", "fecha_hora_ingreso", "fecha_hora_egreso", "validado_offline") VALUES
-  (1, 1, 3, NOW() - INTERVAL '3 hours', NOW() - INTERVAL '1 hour', false),
-  (2, 1, 4, NOW() - INTERVAL '40 minutes', NULL, false),
-  (3, 2, 5, NOW() - INTERVAL '2 hours', NOW() - INTERVAL '30 minutes', true);
+INSERT INTO "Ingreso" ("id", "sede_id", "socio_id", "fecha_hora_ingreso", "fecha_hora_egreso", "validado_offline") VALUES
+  (1, 1, 1, NOW() - INTERVAL '3 hours', NOW() - INTERVAL '1 hour', false),
+  (2, 1, 2, NOW() - INTERVAL '40 minutes', NULL, false),
+  (3, 2, 3, NOW() - INTERVAL '2 hours', NOW() - INTERVAL '30 minutes', true);
 
 
 -- ============================================================================

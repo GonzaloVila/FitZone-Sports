@@ -11,6 +11,7 @@ import TarjetaAforo from '../components/TarjetaAforo.vue'
 import TablaPersonasDentro from '../components/TablaPersonasDentro.vue'
 import { useAforo } from '../composables/useAforo'
 import { useEstadoConexion } from '../composables/useEstadoConexion'
+import { useListaBloqueadosOffline } from '../composables/useListaBloqueadosOffline'
 import { usePersonasDentro } from '../composables/usePersonasDentro'
 import { useSincronizacionOffline } from '../composables/useSincronizacionOffline'
 
@@ -45,6 +46,8 @@ const {
 
 const offline = useSincronizacionOffline(sedeActiva)
 const conexion = useEstadoConexion()
+// Se descarga completa al abrir la pantalla y se actualiza sola al volver la conexión.
+const bloqueados = useListaBloqueadosOffline()
 
 // Si se recupera la conexión y hay items encolados, sincronizar automáticamente
 watch(conexion.enLinea, (online) => {
@@ -159,6 +162,7 @@ const tonoMensaje = computed(() => {
       :cargando-sedes="cargandoSedes"
       :en-linea="conexion.enLinea.value"
       :al-encolar-offline="offline.agregarAccesoOffline"
+      :bloqueo-offline="bloqueados.bloqueoDe"
       @registrado="refrescarTodo"
     />
 

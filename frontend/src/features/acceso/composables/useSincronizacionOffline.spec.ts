@@ -30,13 +30,13 @@ describe('useSincronizacionOffline', () => {
     })
 
     expect(cola.value).toHaveLength(1)
-    expect(cola.value[0].socioId).toBe(10)
-    expect(cola.value[0].codigoTotp).toBe('123456')
-    expect(cola.value[0].tipo).toBe('ingreso')
+    expect(cola.value[0]!.socioId).toBe(10)
+    expect(cola.value[0]!.codigoTotp).toBe('123456')
+    expect(cola.value[0]!.tipo).toBe('ingreso')
 
     const persistido = JSON.parse(localStorage.getItem('fitzone_accesos_offline') || '[]')
     expect(persistido).toHaveLength(1)
-    expect(persistido[0].socioId).toBe(10)
+    expect(persistido[0]!.socioId).toBe(10)
   })
 
   it('reconcilia la cola eliminando solo los items con ok: true y reteniendo los rechazados', async () => {
@@ -46,8 +46,8 @@ describe('useSincronizacionOffline', () => {
     agregarAccesoOffline({ socioId: 1, codigoTotp: '111111', tipo: 'ingreso' })
     agregarAccesoOffline({ socioId: 2, codigoTotp: '222222', tipo: 'ingreso' })
 
-    const id1 = cola.value[0].localId
-    const id2 = cola.value[1].localId
+    const id1 = cola.value[0]!.localId
+    const id2 = cola.value[1]!.localId
 
     mockSincronizarIngresos.mockResolvedValueOnce({
       resultados: [
@@ -62,6 +62,6 @@ describe('useSincronizacionOffline', () => {
     expect(mockSincronizarIngresos).toHaveBeenCalledTimes(1)
     // El id1 fue aceptado y eliminado; el id2 fue rechazado y retenido
     expect(cola.value).toHaveLength(1)
-    expect(cola.value[0].localId).toBe(id2)
+    expect(cola.value[0]!.localId).toBe(id2)
   })
 })

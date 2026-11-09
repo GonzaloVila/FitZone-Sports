@@ -7,6 +7,8 @@ export type IngresoIn = components['schemas']['IngresoIn']
 export type ListaIngresos = components['schemas']['ListaIngresos']
 export type SincronizarIngresosIn = components['schemas']['SincronizarIngresosIn']
 export type SincronizarIngresosOut = components['schemas']['SincronizarIngresosOut']
+export type BloqueadosOut = components['schemas']['BloqueadosOut']
+export type Bloqueado = components['schemas']['BloqueadoItemOut']
 
 export type FiltrosIngresos = NonNullable<operations['listarIngresos']['parameters']['query']>
 
@@ -17,6 +19,9 @@ export interface ServicioAcceso {
   listarIngresos(filtros?: FiltrosIngresos, senal?: AbortSignal): Promise<ListaIngresos>
   obtenerIngreso(ingresoId: number, senal?: AbortSignal): Promise<Ingreso>
   sincronizarIngresos(datos: SincronizarIngresosIn): Promise<SincronizarIngresosOut>
+  // Socios con la membresía no vigente, para validar sin conexión (RNF-01). Con `actualizadoDesde` trae solo los que
+  // dejaron de estar vigentes desde ese instante; sin él, la lista completa.
+  listarBloqueados(actualizadoDesde?: string, senal?: AbortSignal): Promise<BloqueadosOut>
 }
 
 export function crearServicioAcceso(cliente: ClienteApi): ServicioAcceso {
@@ -68,6 +73,15 @@ export function crearServicioAcceso(cliente: ClienteApi): ServicioAcceso {
       return desenvolver(
         await cliente.POST('/sincronizacion/ingresos', {
           body: datos,
+        }),
+      )
+    },
+
+    async listarBloqueados(actualizadoDesde, senal) {
+      return desenvolver(
+        await cliente.GET('/bloqueados', {
+          params: { query: actualizadoDesde ? { actualizadoDesde } : {} },
+          signal: senal,
         }),
       )
     },

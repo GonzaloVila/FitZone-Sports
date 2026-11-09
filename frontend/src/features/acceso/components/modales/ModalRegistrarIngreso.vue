@@ -3,6 +3,7 @@ import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
 import type { Sede } from '@/features/sedes/services/servicioSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
 import { BotonFz, IconoFz, ModalFz } from '@/ui'
+import type { Bloqueo } from '../../composables/useListaBloqueadosOffline'
 import { useRegistroIngreso } from '../../composables/useRegistroIngreso'
 import type { Ingreso } from '../../services/servicioAcceso'
 import FormularioIngreso from '../FormularioIngreso.vue'
@@ -14,6 +15,8 @@ const props = defineProps<{
   cargandoSedes: boolean
   enLinea?: boolean
   alEncolarOffline?: (datos: { socioId: number; codigoTotp: string; tipo: 'ingreso' }) => void
+  // Lista local de inhabilitados: sin conexión, el socio que figure ahí se rechaza en el momento (RNF-01).
+  bloqueoOffline?: (socioId: number) => Bloqueo | null
 }>()
 
 const abierto = defineModel<boolean>('abierto', { required: true })
@@ -65,6 +68,7 @@ watch(abierto, async (valor) => {
 async function validar() {
   await registrar({
     enLinea: props.enLinea,
+    bloqueoOffline: props.bloqueoOffline,
     alEncolarOffline: props.alEncolarOffline
       ? (d) => {
           props.alEncolarOffline?.({ ...d, tipo: 'ingreso' })

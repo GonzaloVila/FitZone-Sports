@@ -2,6 +2,7 @@ import { ref, watch, type Ref } from 'vue'
 import { esErrorApi, mensajeDeError } from '@/compartido/http/errores'
 import { useServicios } from '@/compartido/servicios'
 import type { Ingreso } from '../services/servicioAcceso'
+import type { Bloqueo } from './useListaBloqueadosOffline'
 import { TIPOS_ERROR_ACCESO } from '../tipos'
 import { validarIngreso, type ErroresIngreso } from '../validacionIngreso'
 
@@ -19,6 +20,21 @@ export interface ResultadoIngresoInfo {
   mensaje: string
   detalle?: string
   ingreso?: Ingreso
+}
+
+const MOTIVOS_BLOQUEO: Record<Bloqueo['motivo'], string> = { VENCIDA: 'vencida', SUSPENDIDA: 'suspendida' }
+
+function fechaCorta(iso: string): string {
+  const fecha = new Date(iso)
+  return Number.isNaN(fecha.getTime()) ? iso : fecha.toLocaleDateString('es-AR')
+}
+
+export interface OpcionesRegistro {
+  alExito?: (ingreso: Ingreso) => void
+  alEncolarOffline?: (datos: { socioId: number; codigoTotp: string }) => void
+  // Lista local de inhabilitados (RNF-01): sin conexión, un socio que figure ahí se rechaza en el momento y no se encola.
+  bloqueoOffline?: (socioId: number) => Bloqueo | null
+  enLinea?: boolean
 }
 
 export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
@@ -45,11 +61,27 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
   watch(socioIdInput, () => delete errores.value.socioId)
   watch(codigoTotpInput, () => delete errores.value.codigoTotp)
 
-  async function registrar(opciones?: {
-    alExito?: (ingreso: Ingreso) => void
-    alEncolarOffline?: (datos: { socioId: number; codigoTotp: string }) => void
-    enLinea?: boolean
-  }) {
+  // Sin conexión: rechaza al socio si figura en la lista local de inhabilitados; si no, lo deja en la cola del puesto.
+  function resolverSinConexion(
+    encolar: NonNullable<OpcionesRegistro['alEncolarOffline']>,
+    bloqueoOffline: OpcionesRegistro['bloqueoOffline'],
+    datos: { socioId: number; codigoTotp: string },
+    aviso: Pick<ResultadoIngresoInfo, 'mensaje' | 'detalle'>,
+  ) {
+    const bloqueo = bloqueoOffline?.(datos.socioId)
+    if (bloqueo) {
+      resultado.value = {
+        tipo: 'membresia_inactiva',
+        mensaje: 'La membresía no está vigente o está suspendida.',
+        detalle: `Según la lista local del puesto, la membresía está ${MOTIVOS_BLOQUEO[bloqueo.motivo]} desde el ${fechaCorta(bloqueo.desde)}. El ingreso no se guardó.`,
+      }
+      return
+    }
+    encolar(datos)
+    resultado.value = { tipo: 'offline', ...aviso }
+  }
+
+  async function registrar(opciones?: OpcionesRegistro) {
     errores.value = validarIngreso({ sedeId: sedeId.value, socioId: socioIdInput.value, codigoTotp: codigoTotpInput.value })
     if (Object.keys(errores.value).length > 0) {
       resultado.value = null
@@ -70,12 +102,10 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
     // Si explícitamente se detectó offline o navigator.onLine es false, encolar sin llamar a la API
     const estaOffline = opciones?.enLinea === false || (typeof navigator !== 'undefined' && !navigator.onLine)
     if (estaOffline && opciones?.alEncolarOffline) {
-      opciones.alEncolarOffline({ socioId: socio, codigoTotp: codigo })
-      resultado.value = {
-        tipo: 'offline',
+      resolverSinConexion(opciones.alEncolarOffline, opciones.bloqueoOffline, { socioId: socio, codigoTotp: codigo }, {
         mensaje: 'Registrado sin conexión, se sincronizará al reconectar.',
         detalle: `Socio #${socio} guardado en la cola local del puesto.`,
-      }
+      })
       procesando.value = false
       return
     }
@@ -131,12 +161,10 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
       } else {
         // Fallo de red (no es ErrorApi): si hay callback para encolar offline, lo guardamos en la cola
         if (opciones?.alEncolarOffline) {
-          opciones.alEncolarOffline({ socioId: socio, codigoTotp: codigo })
-          resultado.value = {
-            tipo: 'offline',
+          resolverSinConexion(opciones.alEncolarOffline, opciones.bloqueoOffline, { socioId: socio, codigoTotp: codigo }, {
             mensaje: 'Sin conexión con el servidor. Registrado en cola offline.',
             detalle: 'Se sincronizará automáticamente cuando se restablezca la red.',
-          }
+          })
         } else {
           resultado.value = {
             tipo: 'error_general',

@@ -19,6 +19,7 @@ const casos: [string, (s: ServicioAcceso) => Promise<unknown>, string, string, u
   ['listarIngresos', (s) => s.listarIngresos(), 'GET', '/api/v1/ingresos', undefined],
   ['obtenerIngreso', (s) => s.obtenerIngreso(40), 'GET', '/api/v1/ingresos/40', undefined],
   ['sincronizarIngresos', (s) => s.sincronizarIngresos({ ingresos: [] } as never), 'POST', '/api/v1/sincronizacion/ingresos', { ingresos: [] }],
+  ['listarBloqueados', (s) => s.listarBloqueados(), 'GET', '/api/v1/bloqueados', undefined],
 ]
 
 describe('servicioAcceso', () => {
@@ -41,6 +42,16 @@ describe('servicioAcceso', () => {
     const url = new URL(fetchFalso.mock.calls.at(-1)![0].url)
     expect(url.searchParams.get('sedeId')).toBe('3')
     expect(url.searchParams.get('abiertos')).toBe('true')
+  })
+
+  it('listarBloqueados: sin fecha pide la lista completa; con fecha, solo los cambios (RNF-01)', async () => {
+    const { servicio, fetchFalso } = armar()
+
+    await servicio.listarBloqueados()
+    expect(new URL(fetchFalso.mock.calls.at(-1)![0].url).searchParams.has('actualizadoDesde')).toBe(false)
+
+    await servicio.listarBloqueados('2026-11-09T12:00:00Z')
+    expect(new URL(fetchFalso.mock.calls.at(-1)![0].url).searchParams.get('actualizadoDesde')).toBe('2026-11-09T12:00:00Z')
   })
 
   it('devuelve el aforo tal cual lo manda el servidor', async () => {

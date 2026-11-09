@@ -16,14 +16,22 @@ import type { Membresia, Socio } from '../services/servicioSocios'
 import type { AccionFicha, Opcional } from '../tipos'
 import FilaFichaSocio from './FilaFichaSocio.vue'
 
-const props = defineProps<{
-  socio: Socio
-  usuario: Opcional<Usuario>
-  membresia: Opcional<Membresia>
-  nombreSede: string
-  // La renovación automática se está guardando: el interruptor queda ocupado.
-  guardandoRenovacion: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    socio: Socio
+    usuario: Opcional<Usuario>
+    membresia: Opcional<Membresia>
+    nombreSede: string
+    // La renovación automática se está guardando: el interruptor queda ocupado.
+    guardandoRenovacion?: boolean
+    // En modo socio (carnet) no se muestran acciones administrativas ni interruptores editables.
+    modo?: 'admin' | 'socio'
+  }>(),
+  {
+    guardandoRenovacion: false,
+    modo: 'admin',
+  },
+)
 
 const emit = defineEmits<{
   'abrir-accion': [accion: AccionFicha]
@@ -69,6 +77,7 @@ function alSeleccionar(clave: string) {
         </p>
       </div>
       <MenuAccionesFz
+        v-if="modo === 'admin'"
         :etiqueta="`Acciones de ${socio.nombre}`"
         :identificador="`menu-socio-${socio.id}`"
         :acciones="acciones"
@@ -102,11 +111,13 @@ function alSeleccionar(clave: string) {
       </FilaFichaSocio>
       <FilaFichaSocio v-if="datos" etiqueta="Renovación automática" icono="cambiar">
         <InterruptorFz
+          v-if="modo === 'admin'"
           :model-value="datos.renuevaAutomatica"
           etiqueta="Renovación automática"
           :ocupado="guardandoRenovacion"
           @update:model-value="emit('alternar-renovacion')"
         />
+        <span v-else class="ficha__secundaria">{{ datos.renuevaAutomatica ? 'Activada' : 'Desactivada' }}</span>
       </FilaFichaSocio>
     </dl>
   </article>

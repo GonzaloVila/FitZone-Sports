@@ -12,6 +12,7 @@ const variante = computed(() => {
   switch (props.resultado?.tipo) {
     case 'exito':
       return 'exito'
+    case 'offline':
     case 'aforo_lleno':
       return 'advertencia'
     default:
@@ -23,6 +24,8 @@ const titulo = computed(() => {
   switch (props.resultado?.tipo) {
     case 'exito':
       return 'Ingreso permitido'
+    case 'offline':
+      return 'Ingreso registrado sin conexión'
     case 'membresia_inactiva':
     case 'acceso_duplicado':
     case 'aforo_lleno':

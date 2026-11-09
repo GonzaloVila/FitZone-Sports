@@ -34,14 +34,14 @@ export class SincronizacionController {
   constructor(private readonly ingresosService: IngresosService) {}
 
   @Post('ingresos')
-  @Roles('RECEPCION')
+  @Roles('RECEPCION', 'GERENTE')
   @ApiOperation({
     operationId: 'sincronizarIngresos',
     summary: 'Sincroniza lote de ingresos/egresos offline (RNF-01)',
   })
   @ApiCreatedResponse({ description: 'Lote procesado (resultado por item)', type: SincronizarIngresosOut })
   @ApiUnauthorizedResponse({ description: 'Token inválido, expirado o ausente', content: PROBLEM_JSON })
-  @ApiForbiddenResponse({ description: 'Rol sin permiso (solo RECEPCION) o sin sede asignada', content: PROBLEM_JSON })
+  @ApiForbiddenResponse({ description: 'Rol sin permiso (solo RECEPCION o GERENTE) o sin sede asignada', content: PROBLEM_JSON })
   sincronizar(
     @Body() dto: SincronizarIngresosIn,
     @Req() req: RequestConUsuario,

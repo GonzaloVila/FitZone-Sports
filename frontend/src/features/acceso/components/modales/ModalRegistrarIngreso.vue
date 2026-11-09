@@ -9,9 +9,11 @@ import FormularioIngreso from '../FormularioIngreso.vue'
 import ResultadoIngreso from '../ResultadoIngreso.vue'
 import ModalEscanearQr from './ModalEscanearQr.vue'
 
-defineProps<{
+const props = defineProps<{
   sedes: Sede[]
   cargandoSedes: boolean
+  enLinea?: boolean
+  alEncolarOffline?: (datos: { socioId: number; codigoTotp: string; tipo: 'ingreso' }) => void
 }>()
 
 const abierto = defineModel<boolean>('abierto', { required: true })
@@ -62,6 +64,13 @@ watch(abierto, async (valor) => {
 // hace el composable); el ID se borra solo si el ingreso se permitió (si se denegó, puede reintentarse con el mismo).
 async function validar() {
   await registrar({
+    enLinea: props.enLinea,
+    alEncolarOffline: props.alEncolarOffline
+      ? (d) => {
+          props.alEncolarOffline?.({ ...d, tipo: 'ingreso' })
+          socioIdInput.value = ''
+        }
+      : undefined,
     alExito: (ingreso) => {
       socioIdInput.value = ''
       emit('registrado', ingreso)

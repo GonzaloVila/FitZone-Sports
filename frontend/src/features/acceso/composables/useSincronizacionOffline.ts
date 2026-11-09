@@ -87,8 +87,18 @@ export function useSincronizacionOffline(sedeId: Ref<number | null | undefined>)
       const respuesta = await servicioAcceso.sincronizarIngresos(payload)
       resultadoLote.value = respuesta
 
-      // Si todo fue procesado, limpiamos la cola
-      limpiarCola()
+      // Reconciliar: solo eliminar de la cola los procesados exitosamente (ok: true).
+      // Conservar en la cola aquellos que hayan sido rechazados para revisión o aviso.
+      const aceptados = new Set<number>()
+      for (const res of respuesta.resultados ?? []) {
+        if (res.ok) aceptados.add(res.localId)
+      }
+      for (const res of respuesta.egresosProcesados ?? []) {
+        if (res.ok) aceptados.add(res.localId)
+      }
+
+      cola.value = cola.value.filter((item) => !aceptados.has(item.localId))
+      guardarColaLocal()
     } catch (e) {
       error.value = mensajeDeError(e, 'No se pudo sincronizar el lote offline.')
     } finally {

@@ -8,7 +8,7 @@ FitZone Sports es una plataforma integral para la gestión operativa y administr
 ## 2. Integrantes del equipo
 | Rol | Nombre y Apellido | Usuario Git | Responsabilidad principal |
 |---|---|---|---|
-| P1 | Santiago Rayn | `srayn` | `raynarg` | Software Architect |
+| P1 | Santiago Rayn | `srayn` / `raynarg` | Software Architect |
 | P2 | Exequiel Ansaldi | `exeansaldi0` / `Exequiel-Ansaldi` | Backend Developer |
 | P3 | Santino Mazzulla | `mazzullasantino85` / `Santi` | Frontend Developer |
 | P4 | Gonzalo Vila | `gonzalovila08` / `gonza` | Dev Ops Engineer |

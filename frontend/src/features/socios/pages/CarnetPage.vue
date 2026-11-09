@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { AvisoFz, BotonFz, ModalFz, QrFz } from '@/ui'
-import CarnetSocio from '../components/CarnetSocio.vue'
+import FichaSocio from '../components/FichaSocio.vue'
 import { useCarnet } from '../composables/useCarnet'
 import { ETIQUETAS_ESTADO, ETIQUETAS_PLAN, VARIANTES_ESTADO, formatearVigencia } from '../presentacion'
 
@@ -72,13 +72,12 @@ const carnet = computed(() => {
     <template v-else-if="socio">
       <AvisoFz v-if="errorSedes" variante="advertencia">{{ errorSedes }}</AvisoFz>
 
-      <CarnetSocio
-        :nombre="socio.nombre"
-        :dni="carnet.dni"
-        :plan="carnet.plan"
-        :estado="carnet.estado"
-        :vigencia="carnet.vigencia"
-        :sede="nombreDeSede(socio.sedeOrigenId)"
+      <FichaSocio
+        :socio="socio"
+        :usuario="usuario"
+        :membresia="membresia"
+        :nombre-sede="nombreDeSede(socio.sedeOrigenId)"
+        modo="socio"
       />
 
       <section class="carnet-pagina__seccion" aria-labelledby="carnet-acceso">

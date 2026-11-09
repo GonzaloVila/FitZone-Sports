@@ -7,6 +7,7 @@ import { validarIngreso, type ErroresIngreso } from '../validacionIngreso'
 
 export type TipoResultadoIngreso =
   | 'exito'
+  | 'offline'
   | 'membresia_inactiva'
   | 'acceso_duplicado'
   | 'aforo_lleno'
@@ -44,7 +45,11 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
   watch(socioIdInput, () => delete errores.value.socioId)
   watch(codigoTotpInput, () => delete errores.value.codigoTotp)
 
-  async function registrar(opciones?: { alExito?: (ingreso: Ingreso) => void }) {
+  async function registrar(opciones?: {
+    alExito?: (ingreso: Ingreso) => void
+    alEncolarOffline?: (datos: { socioId: number; codigoTotp: string }) => void
+    enLinea?: boolean
+  }) {
     errores.value = validarIngreso({ sedeId: sedeId.value, socioId: socioIdInput.value, codigoTotp: codigoTotpInput.value })
     if (Object.keys(errores.value).length > 0) {
       resultado.value = null
@@ -61,6 +66,19 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
 
     procesando.value = true
     resultado.value = null
+
+    // Si explícitamente se detectó offline o navigator.onLine es false, encolar sin llamar a la API
+    const estaOffline = opciones?.enLinea === false || (typeof navigator !== 'undefined' && !navigator.onLine)
+    if (estaOffline && opciones?.alEncolarOffline) {
+      opciones.alEncolarOffline({ socioId: socio, codigoTotp: codigo })
+      resultado.value = {
+        tipo: 'offline',
+        mensaje: 'Registrado sin conexión, se sincronizará al reconectar.',
+        detalle: `Socio #${socio} guardado en la cola local del puesto.`,
+      }
+      procesando.value = false
+      return
+    }
 
     try {
       const ingreso = await servicioAcceso.registrarIngreso({
@@ -111,9 +129,19 @@ export function useRegistroIngreso(sedeId: Ref<number | null | undefined>) {
           }
         }
       } else {
-        resultado.value = {
-          tipo: 'error_general',
-          mensaje: mensajeDeError(e, 'No se pudo conectar con el servidor.'),
+        // Fallo de red (no es ErrorApi): si hay callback para encolar offline, lo guardamos en la cola
+        if (opciones?.alEncolarOffline) {
+          opciones.alEncolarOffline({ socioId: socio, codigoTotp: codigo })
+          resultado.value = {
+            tipo: 'offline',
+            mensaje: 'Sin conexión con el servidor. Registrado en cola offline.',
+            detalle: 'Se sincronizará automáticamente cuando se restablezca la red.',
+          }
+        } else {
+          resultado.value = {
+            tipo: 'error_general',
+            mensaje: mensajeDeError(e, 'No se pudo conectar con el servidor.'),
+          }
         }
       }
     } finally {

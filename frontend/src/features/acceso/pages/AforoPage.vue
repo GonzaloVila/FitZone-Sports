@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import ModalNuevaSede from '@/features/sedes/components/modales/ModalNuevaSede.vue'
 import { useSedeActiva } from '@/compartido/composables/useSedeActiva'
 import { useSedes } from '@/features/sedes/composables/useSedes'
 import { useUsuarioSesion } from '@/features/sesion/composables/useUsuarioSesion'
-import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz, SelectFz } from '@/ui'
+import { AvisoFz, BotonFz, EncabezadoPaginaFz, IconoFz, InsigniaFz, SelectFz } from '@/ui'
 import ModalRegistrarIngreso from '../components/modales/ModalRegistrarIngreso.vue'
 import TarjetaAforo from '../components/TarjetaAforo.vue'
 import TablaPersonasDentro from '../components/TablaPersonasDentro.vue'
 import { useAforo } from '../composables/useAforo'
+import { useEstadoConexion } from '../composables/useEstadoConexion'
 import { usePersonasDentro } from '../composables/usePersonasDentro'
+import { useSincronizacionOffline } from '../composables/useSincronizacionOffline'
 
 const { rol, sedeId: sedeUsuario } = useUsuarioSesion()
 const esGerente = computed(() => rol.value === 'GERENTE')
@@ -41,6 +43,21 @@ const {
   },
 })
 
+const offline = useSincronizacionOffline(sedeActiva)
+const conexion = useEstadoConexion()
+
+// Si se recupera la conexión y hay items encolados, sincronizar automáticamente
+watch(conexion.enLinea, (online) => {
+  if (online && offline.cola.value.length > 0) {
+    void offline.sincronizar().then(() => refrescarTodo())
+  }
+})
+
+async function sincronizarPendientes() {
+  await offline.sincronizar()
+  await refrescarTodo()
+}
+
 async function refrescarTodo() {
   await Promise.all([refrescarAforo(), recargarPersonas()])
 }
@@ -58,6 +75,26 @@ const tonoMensaje = computed(() => {
   <section class="aforo">
     <EncabezadoPaginaFz titulo="Aforo y ocupación" subtitulo="Cuánta gente hay en la sede y quién está adentro.">
       <template #acciones>
+        <div class="aforo__estado-red">
+          <InsigniaFz :variante="conexion.enLinea.value ? 'exito' : 'peligro'">
+            {{ conexion.enLinea.value ? 'En línea' : 'Sin conexión' }}
+          </InsigniaFz>
+          <InsigniaFz v-if="offline.cola.value.length > 0" variante="advertencia">
+            {{ offline.cola.value.length }} pendiente{{ offline.cola.value.length > 1 ? 's' : '' }}
+          </InsigniaFz>
+        </div>
+
+        <BotonFz
+          v-if="offline.cola.value.length > 0"
+          variante="secundario"
+          :cargando="offline.sincronizando.value"
+          :disabled="!conexion.enLinea.value"
+          @click="sincronizarPendientes"
+        >
+          <IconoFz nombre="cambiar" tamano="sm" />
+          Sincronizar pendientes
+        </BotonFz>
+
         <BotonFz @click="ingresoAbierto = true">
           <IconoFz nombre="mas" tamano="sm" />
           Registrar ingreso
@@ -120,6 +157,8 @@ const tonoMensaje = computed(() => {
       v-model:abierto="ingresoAbierto"
       :sedes="sedes"
       :cargando-sedes="cargandoSedes"
+      :en-linea="conexion.enLinea.value"
+      :al-encolar-offline="offline.agregarAccesoOffline"
       @registrado="refrescarTodo"
     />
 
@@ -133,6 +172,12 @@ const tonoMensaje = computed(() => {
   flex-direction: column;
   gap: var(--fz-espaciado-base);
   width: 100%;
+}
+
+.aforo__estado-red {
+  display: flex;
+  align-items: center;
+  gap: var(--fz-espaciado-compacto);
 }
 
 .aforo__selector {

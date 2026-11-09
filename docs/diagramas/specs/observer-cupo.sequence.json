@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Observer - Aviso de cupo liberado (por el bus)",
+    "output": "diagramas/html/observer-cupo.html",
+    "viewBox": [1040, 600],
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "views": [
+      { "id": "emitir", "label": "Publicar el hecho", "focus": ["service", "bus"], "note": "cancelarReservaClase publica reservaClase.cupoLiberado y no conoce a los oyentes." },
+      { "id": "reaccionar", "label": "Cada oyente reacciona", "focus": ["bus", "esperaObs", "emailObs", "mail"], "note": "El bus despacha el evento; cada @OnEvent hace lo suyo." }
+    ]
+  },
+  "participants": [
+    { "id": "service", "type": "backend", "label": "ReservasClases", "sublabel": "service" },
+    { "id": "bus", "type": "messagebus", "label": "EventEmitter2", "sublabel": "bus (@OnEvent)" },
+    { "id": "esperaObs", "type": "backend", "label": "EsperaObs", "sublabel": "estado" },
+    { "id": "emailObs", "type": "backend", "label": "EmailObs", "sublabel": "email" },
+    { "id": "repo", "type": "database", "label": "ReservaRepo", "sublabel": "lock" },
+    { "id": "mail", "type": "external", "label": "SMTP", "sublabel": "cualquier proveedor" }
+  ],
+  "segments": [
+    { "from": 160, "to": 270, "label": "El bus despacha el hecho a cada oyente" },
+    { "from": 290, "to": 440, "label": "Cada oyente reacciona por su canal" }
+  ],
+  "messages": [
+    { "id": "emit", "from": "service", "to": "bus", "y": 172, "label": "emitAsync(cupoLiberado)", "variant": "emphasis" },
+    { "id": "bus-espera", "from": "bus", "to": "esperaObs", "y": 200, "label": "notificarCupoDisponible", "variant": "default" },
+    { "id": "espera-repo", "from": "esperaObs", "to": "repo", "y": 228, "label": "marcarNotificados(claseId)", "variant": "default" },
+    { "id": "repo-espera", "from": "repo", "to": "esperaObs", "y": 256, "label": "n notificados", "variant": "return" },
+    { "id": "bus-email", "from": "bus", "to": "emailObs", "y": 284, "label": "notificarCupoDisponible", "variant": "default" },
+    { "id": "email-repo", "from": "emailObs", "to": "repo", "y": 312, "label": "listarSociosEnEspera", "variant": "default" },
+    { "id": "repo-email", "from": "repo", "to": "emailObs", "y": 340, "label": "socios", "variant": "return" },
+    { "id": "email-mail", "from": "emailObs", "to": "mail", "y": 368, "label": "sendMail(cupo liberado)", "variant": "emphasis" },
+    { "id": "mail-email", "from": "mail", "to": "emailObs", "y": 396, "label": "entregado", "variant": "return" },
+    { "id": "bus-service", "from": "bus", "to": "service", "y": 424, "label": "resuelve (await)", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "service", "from": 166, "to": 430, "type": "backend" },
+    { "participant": "bus", "from": 170, "to": 420, "type": "messagebus" },
+    { "participant": "esperaObs", "from": 194, "to": 262, "type": "backend" },
+    { "participant": "emailObs", "from": 278, "to": 402, "type": "backend" },
+    { "participant": "repo", "from": 222, "to": 346, "type": "database" },
+    { "participant": "mail", "from": 362, "to": 402, "type": "external" }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Observer (RF-08), no Mediator",
+      "items": [
+        "Un hecho (se libero un cupo) -> N interesados que reaccionan sin conocerse: eso es Observer (1:N).",
+        "El bus (EventEmitter2) es solo el transporte, igual que publishEvent en Spring. Seria Mediator si coordinara un dialogo entre colegas (M1/M3 <-> M5)."
+      ]
+    }
+  ]
+}

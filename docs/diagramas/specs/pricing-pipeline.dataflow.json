@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Precio dinamico - Reglas en pipeline (RF-11)",
+    "output": "diagramas/html/pricing-pipeline.html",
+    "viewBox": [900, 505],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "pipeline", "label": "Reglas en orden", "focus": ["base", "descuento", "pico", "out"], "note": "El Tarifador se queda con las reglas que aplican y las reduce sobre el precio base." },
+      { "id": "contexto", "label": "Contexto de entrada", "focus": ["ctx", "descuento", "pico"], "note": "El contexto (socioVigente, inicio, fin) decide que regla aplica; no hay eleccion en runtime." }
+    ]
+  },
+  "stages": [
+    { "label": "Base" },
+    { "label": "Descuento socio" },
+    { "label": "Recargo pico" },
+    { "label": "Salida" }
+  ],
+  "nodes": [
+    { "id": "base", "type": "backend", "label": "costoBase", "sublabel": "cancha.costoPorHora", "stage": 0, "row": 1, "tag": "semilla" },
+    { "id": "ctx", "type": "backend", "label": "Contexto", "sublabel": "socio + horario", "stage": 0, "row": 0, "tag": "datos" },
+    { "id": "descuento", "type": "backend", "label": "DescuentoSocio", "sublabel": "ReglaDePrecio", "stage": 1, "row": 1, "tag": "-15% socio" },
+    { "id": "pico", "type": "backend", "label": "RecargoHorarioPico", "sublabel": "ReglaDePrecio", "stage": 2, "row": 1, "tag": "+20% pico" },
+    { "id": "out", "type": "backend", "label": "precioAplicado", "sublabel": "reserva", "stage": 3, "row": 1, "tag": "salida" }
+  ],
+  "flows": [
+    { "id": "base-descuento", "from": "base", "to": "descuento", "label": "aplicar(precio)", "variant": "emphasis", "route": "straight" },
+    { "id": "descuento-pico", "from": "descuento", "to": "pico", "label": "precio acumulado", "variant": "emphasis", "route": "straight" },
+    { "id": "pico-out", "from": "pico", "to": "out", "label": "precio final", "variant": "emphasis", "route": "straight" },
+    { "id": "ctx-descuento", "from": "ctx", "to": "descuento", "label": "socioVigente", "variant": "dashed", "route": "top-channel", "fromSide": "top", "toSide": "top" },
+    { "id": "ctx-pico", "from": "ctx", "to": "pico", "label": "inicio / fin", "variant": "dashed", "route": "top-channel", "fromSide": "top", "toSide": "top" }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "Strategy con intencion de Decorator (NO Composite)",
+      "items": [
+        "ReglaDePrecio expone aplica (me toca) y aplicar (transforma). TarifadorDePrecios inyecta la lista ordenada y hace filter(aplica).reduce(aplicar, costoBase).",
+        "Las reglas se ACUMULAN sobre el mismo precio: es una cadena de decoradores, no un Composite (no hay arbol). El orden lo fija el useFactory del modulo (el @Order de Spring)."
+      ]
+    }
+  ]
+}

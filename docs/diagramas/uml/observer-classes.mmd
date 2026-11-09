@@ -1,0 +1,30 @@
+classDiagram
+    direction LR
+    class EventEmitter2 {
+        <<bus>>
+        +emitAsync(nombre: string, evento: CupoLiberadoEvent) Promise~any~
+        +on(nombre: string, oyente: Function)
+    }
+    class ReservasClasesService {
+        +cancelarReservaClase(reservaClaseId: number) void
+    }
+    class NotificarSociosEsperaObserver {
+        +notificarCupoDisponible(evento: CupoLiberadoEvent) Promise~void~
+    }
+    class EmailCupoLiberadoObserver {
+        +notificarCupoDisponible(evento: CupoLiberadoEvent) Promise~void~
+    }
+    class CupoLiberadoEvent {
+        +claseId: number
+        +nombreClase: string
+        +horarioClase: string
+        +socioIdCancelador: number
+        +fechaLiberacion: Date
+    }
+
+    ReservasClasesService ..> EventEmitter2 : emitAsync(reservaClase.cupoLiberado)
+    EventEmitter2 ..> NotificarSociosEsperaObserver : @OnEvent
+    EventEmitter2 ..> EmailCupoLiberadoObserver : @OnEvent
+    NotificarSociosEsperaObserver ..> CupoLiberadoEvent : lee
+    EmailCupoLiberadoObserver ..> CupoLiberadoEvent : lee
+    note for EventEmitter2 "Observer (1 hecho -> N interesados), no Mediator.\nEl bus es el transporte; los oyentes se anotan con @OnEvent\n(igual que @EventListener en Spring). El emisor no los conoce.\nAgregar WhatsApp/push = otro @OnEvent, sin tocar al emisor."

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Facade - ReservasCanchasService.crear()",
+    "output": "diagramas/html/facade-reserva-cancha.html",
+    "viewBox": [1000, 480],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "entrada", "label": "Punto de entrada", "focus": ["ctrl", "facade"], "note": "El controller solo traduce HTTP; el service orquesta el caso de uso." },
+      { "id": "colaboradores", "label": "Colaboradores ocultos", "focus": ["facade", "canchas", "membresias", "validador", "precios", "reservas"], "note": "El cliente no conoce el orden ni los colaboradores." }
+    ]
+  },
+  "components": [
+    { "id": "ctrl", "type": "backend", "label": "ReservasController", "sublabel": "HTTP", "pos": [40, 210], "size": [150, 60] },
+    { "id": "facade", "type": "backend", "label": "ReservasService.crear()", "sublabel": "caso de uso (Facade)", "pos": [240, 195], "size": [190, 84], "tag": "orquesta" },
+    { "id": "canchas", "type": "database", "label": "CanchaRepo", "sublabel": "existe / operativa", "pos": [520, 90], "size": [170, 54] },
+    { "id": "membresias", "type": "backend", "label": "MembresiasService", "sublabel": "vigencia socio", "pos": [520, 160], "size": [170, 54] },
+    { "id": "validador", "type": "backend", "label": "ValidadorDeReservas", "sublabel": "Chain", "pos": [520, 230], "size": [170, 54] },
+    { "id": "precios", "type": "backend", "label": "PricingFactory", "sublabel": "Strategy/Decorator", "pos": [520, 300], "size": [170, 54] },
+    { "id": "reservas", "type": "database", "label": "ReservaRepo", "sublabel": "crea con lock", "pos": [520, 370], "size": [170, 54] }
+  ],
+  "connections": [
+    { "id": "ctrl-facade", "from": "ctrl", "to": "facade", "label": "delega", "variant": "emphasis" },
+    { "id": "facade-canchas", "from": "facade", "to": "canchas", "variant": "default" },
+    { "id": "facade-membresias", "from": "facade", "to": "membresias", "variant": "default" },
+    { "id": "facade-validador", "from": "facade", "to": "validador", "variant": "default" },
+    { "id": "facade-precios", "from": "facade", "to": "precios", "variant": "default" },
+    { "id": "facade-reservas", "from": "facade", "to": "reservas", "variant": "default" }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Facade",
+      "items": [
+        "Un unico punto de entrada al caso de uso 'reservar cancha': disponibilidad + membresia + precio + reserva.",
+        "El controller traduce HTTP; el service oculta el orden y los colaboradores. El cliente no los conoce."
+      ]
+    }
+  ]
+}

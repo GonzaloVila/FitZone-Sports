@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Chain of Responsibility - Validaciones previas a la reserva",
+    "output": "diagramas/html/chain-reservas.html",
+    "viewBox": [1040, 610],
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "views": [
+      { "id": "cadena", "label": "Recorre la cadena", "focus": ["service", "validador", "e1", "e2"], "note": "El ValidadorDeReservas recorre la lista ordenada de eslabones." },
+      { "id": "corte", "label": "Corta en la 1a violacion", "focus": ["validador", "e3", "e4"], "note": "El primer eslabon que encuentra una violacion lanza y corta la cadena." },
+      { "id": "happy", "label": "Si todas pasan", "focus": ["service", "repo"], "note": "Solo si ninguna valida en contra se crea la reserva con lock." }
+    ]
+  },
+  "participants": [
+    { "id": "service", "type": "backend", "label": "ReservasClases", "sublabel": "service" },
+    { "id": "validador", "type": "backend", "label": "Validador", "sublabel": "cadena" },
+    { "id": "e1", "type": "backend", "label": "ClaseExiste", "sublabel": "eslabon 1" },
+    { "id": "e2", "type": "backend", "label": "SocioAlDia", "sublabel": "eslabon 2" },
+    { "id": "e3", "type": "backend", "label": "Anticipada", "sublabel": "eslabon 3" },
+    { "id": "e4", "type": "backend", "label": "NoComenzada", "sublabel": "eslabon 4" },
+    { "id": "repo", "type": "database", "label": "ReservaRepo", "sublabel": "lock" }
+  ],
+  "segments": [
+    { "from": 160, "to": 410, "label": "Pipeline: corta en la 1a violacion" },
+    { "from": 438, "to": 520, "label": "Si todas pasan" }
+  ],
+  "messages": [
+    { "id": "validar", "from": "service", "to": "validador", "y": 172, "label": "validar(ctx)", "variant": "emphasis" },
+    { "id": "v-e1", "from": "validador", "to": "e1", "y": 200, "label": "1. validar", "variant": "default" },
+    { "id": "e1-v", "from": "e1", "to": "validador", "y": 228, "label": "ok", "variant": "return" },
+    { "id": "v-e2", "from": "validador", "to": "e2", "y": 256, "label": "2. validar", "variant": "default" },
+    { "id": "e2-v", "from": "e2", "to": "validador", "y": 284, "label": "ok", "variant": "return" },
+    { "id": "v-e3", "from": "validador", "to": "e3", "y": 312, "label": "3. validar", "variant": "default" },
+    { "id": "e3-v", "from": "e3", "to": "validador", "y": 340, "label": "ok", "variant": "return" },
+    { "id": "v-e4", "from": "validador", "to": "e4", "y": 368, "label": "4. validar", "variant": "emphasis" },
+    { "id": "e4-v", "from": "e4", "to": "validador", "y": 396, "label": "violacion: lanza", "variant": "emphasis" },
+    { "id": "v-service", "from": "validador", "to": "service", "y": 424, "label": "propaga el error (409)", "variant": "emphasis", "note": "El throw corta el resto de la cadena" },
+    { "id": "v-ok", "from": "validador", "to": "service", "y": 452, "label": "todas ok: continua", "variant": "return" },
+    { "id": "service-repo", "from": "service", "to": "repo", "y": 480, "label": "crearConLock", "variant": "emphasis" },
+    { "id": "repo-service", "from": "repo", "to": "service", "y": 508, "label": "reserva creada", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "service", "from": 166, "to": 520, "type": "backend" },
+    { "participant": "validador", "from": 170, "to": 472, "type": "backend" },
+    { "participant": "e1", "from": 194, "to": 234, "type": "backend" },
+    { "participant": "e2", "from": 250, "to": 290, "type": "backend" },
+    { "participant": "e3", "from": 306, "to": 346, "type": "backend" },
+    { "participant": "e4", "from": 362, "to": 402, "type": "backend" },
+    { "participant": "repo", "from": 474, "to": 514, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Chain of Responsibility (variante pipeline)",
+      "items": [
+        "Eslabones en una lista ordenada; la arma el contenedor (useFactory), no hay setNext manual.",
+        "ValidadorDeReservas.validar() corta en la primera violacion. El solape (RN-02) no es eslabon: lo arbitra la base."
+      ]
+    }
+  ]
+}

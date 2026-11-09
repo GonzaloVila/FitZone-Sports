@@ -1,0 +1,30 @@
+classDiagram
+    direction LR
+    class EstadoMembresia {
+        <<interface>>
+        +nombre: NombreEstadoMembresia
+        +esVigente(m: Membresia, ahora: Date) boolean
+        +alVencer(m: Membresia, ahora: Date) EstadoMembresia
+        +alSuspender() EstadoMembresia
+        +alReactivar() EstadoMembresia
+        +alRenovar() EstadoMembresia
+    }
+    class ACTIVA {
+        <<state>>
+    }
+    class VENCIDA {
+        <<state>>
+    }
+    class SUSPENDIDA {
+        <<state>>
+    }
+    class Membresia {
+        +estado: NombreEstadoMembresia
+        +fechaFin: Date
+    }
+
+    EstadoMembresia <|.. ACTIVA
+    EstadoMembresia <|.. VENCIDA
+    EstadoMembresia <|.. SUSPENDIDA
+    EstadoMembresia ..> Membresia : recibe por parametro
+    note for EstadoMembresia "estadoDe(m) elige el objeto segun el enum.\nSin back-reference: el contexto llega por parametro.\nState decide QUE se puede hacer; Strategy decide COMO se cobra."

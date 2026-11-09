@@ -1,0 +1,36 @@
+classDiagram
+    direction LR
+    class ValidacionDeReserva {
+        <<interface>>
+        +validar(ctx: ContextoReserva) void
+    }
+    class ValidadorDeReservas {
+        -validaciones: ValidacionDeReserva[]
+        +validar(ctx: ContextoReserva) void
+    }
+    class ClaseExiste {
+        +validar(ctx: ContextoReserva) void
+    }
+    class SocioAlDia {
+        +validar(ctx: ContextoReserva) void
+    }
+    class ReservaAnticipada {
+        +validar(ctx: ContextoReserva) void
+    }
+    class ClaseNoComenzada {
+        +validar(ctx: ContextoReserva) void
+    }
+    class ContextoReserva {
+        +claseId: number
+        +socioId: number
+        +clase: Clase
+        +estadoSocio: EstadoSocio
+    }
+
+    ValidadorDeReservas o-- ValidacionDeReserva : recorre en orden
+    ValidacionDeReserva <|.. ClaseExiste
+    ValidacionDeReserva <|.. SocioAlDia
+    ValidacionDeReserva <|.. ReservaAnticipada
+    ValidacionDeReserva <|.. ClaseNoComenzada
+    ValidacionDeReserva ..> ContextoReserva : decide con
+    note for ValidadorDeReservas "La lista la arma el contenedor (useFactory).\nCorta en la 1a violacion (throw). M4 tiene su gemelo:\nValidacionDeReservaCancha."

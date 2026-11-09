@@ -1,0 +1,30 @@
+classDiagram
+    direction LR
+    class ReservasCanchasService {
+        +crear(dto: ReservaCanchaIn) ReservaCanchaOut
+        +listar(filtros) ReservaCanchaOut[]
+        +obtener(id) ReservaCanchaOut
+        +cancelar(id) void
+    }
+    class CanchaRepository {
+        +buscarPorId(id) Cancha
+    }
+    class MembresiasService {
+        +consultarVigencia(usuarioId) Vigencia
+    }
+    class ValidadorDeReservasCancha {
+        +validar(ctx: ContextoReservaCancha) void
+    }
+    class PricingStrategyFactory {
+        +cotizar(ctx: PricingContext) number
+    }
+    class ReservaRepository {
+        +crear(reserva) ResultadoCrearReserva
+    }
+
+    ReservasCanchasService --> CanchaRepository : cancha
+    ReservasCanchasService --> MembresiasService : vigencia
+    ReservasCanchasService --> ValidadorDeReservasCancha : valida
+    ReservasCanchasService --> PricingStrategyFactory : cotiza
+    ReservasCanchasService --> ReservaRepository : persiste
+    note for ReservasCanchasService "Un punto de entrada al caso de uso 'reservar cancha'.\nEl controller solo traduce HTTP; el orden de los\ncolaboradores vive aca (Facade)."

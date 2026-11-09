@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Mapa de modulos y patrones aplicados (Unidad III)",
+    "output": "diagramas/html/mapa-modulos.html",
+    "viewBox": [820, 430],
+    "quality_profile": "showcase",
+    "views": [
+      { "id": "modulos", "label": "Modulos y sus patrones", "focus": ["m1", "m2", "m3", "m4", "m5"], "note": "Cada modulo con los patrones que realmente aplica." },
+      { "id": "base", "label": "Base compartida", "focus": ["commons"], "note": "Persistencia y filtros comunes a todos." }
+    ]
+  },
+  "components": [
+    { "id": "m1", "type": "backend", "label": "M1 Usuarios", "sublabel": "socios y membresias", "pos": [50, 110], "size": [200, 74], "tag": "State · Repository" },
+    { "id": "m2", "type": "backend", "label": "M2 Gimnasio", "sublabel": "ingresos y sedes", "pos": [290, 110], "size": [200, 74], "tag": "Repository" },
+    { "id": "m3", "type": "backend", "label": "M3 Clases", "sublabel": "reservas y espera", "pos": [530, 110], "size": [200, 74], "tag": "Observer · Chain" },
+    { "id": "m4", "type": "backend", "label": "M4 Canchas", "sublabel": "reservas de cancha", "pos": [50, 250], "size": [200, 74], "tag": "Strategy/Decor · Chain" },
+    { "id": "m5", "type": "backend", "label": "M5 Pagos", "sublabel": "cobros", "pos": [290, 250], "size": [200, 74], "tag": "Repository" },
+    { "id": "commons", "type": "database", "label": "Commons", "sublabel": "Prisma y filtros", "pos": [530, 250], "size": [200, 74], "tag": "persistencia" }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Backend NestJS (grafo M5 -> M3 -> M1)", "wraps": ["m1", "m2", "m3", "m4", "m5", "commons"] }
+  ],
+  "connections": [],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Donde y por que (no patronitis)",
+      "items": [
+        "Cada patron responde a una variacion REAL: State en la membresia, Observer en el cupo liberado, Chain en los flujos de reserva (M3 y M4), Strategy/Decorator en el precio, Repository en Reserva y Membresia.",
+        "Nest aporta la plomeria: DI (Strategy/Repository), event-emitter (Observer cross-modulo), useFactory (Chain). Singleton/Factory/Proxy se descartan porque el contenedor ya los cubre."
+      ]
+    }
+  ]
+}

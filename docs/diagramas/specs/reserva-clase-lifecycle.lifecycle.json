@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "State - Ciclo de vida de la reserva de clase",
+    "output": "diagramas/html/reserva-clase-lifecycle.html",
+    "viewBox": [980, 600],
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "main", "label": "Estado efectivo de la reserva de clase (CONFIRMADA / CUMPLIDA / CANCELADA)" }
+  ],
+  "states": [
+    { "id": "creada", "type": "start", "label": "Creada", "sublabel": "reservar cupo", "lane": "main", "col": 0, "step": "01", "tag": "alta" },
+    { "id": "confirmada", "type": "active", "label": "CONFIRMADA", "sublabel": "clase futura", "lane": "main", "col": 1, "step": "02", "tag": "cancelable" },
+    { "id": "cumplida", "type": "success", "label": "CUMPLIDA", "sublabel": "paso el fin", "lane": "main", "col": 2, "step": "03", "tag": "derivada" },
+    { "id": "cancelada", "type": "failure", "label": "CANCELADA", "sublabel": "a tiempo", "lane": "main", "col": 3, "step": "04", "tag": "terminal" }
+  ],
+  "transitions": [
+    { "id": "creada-confirmada", "from": "creada", "to": "confirmada", "label": "reservar", "variant": "default", "labelDy": 60 },
+    { "id": "confirmada-cumplida", "from": "confirmada", "to": "cumplida", "label": "fin de la clase (derivado)", "variant": "default", "labelDy": 60 },
+    { "id": "confirmada-cancelada", "from": "confirmada", "to": "cancelada", "label": "cancelar", "variant": "security", "route": "top-channel" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "State (RF-06/RF-07)",
+      "items": [
+        "El estado decide: `estadoDeReservaClase(r).puedeCancelar(r)` solo es true para CONFIRMADA antes de que empiece la clase.",
+        "CUMPLIDA se DERIVA de la fecha de fin de la clase (no se persiste). Cancelar una clase ya empezada responde 409 reserva-clase-pasada."
+      ]
+    }
+  ]
+}

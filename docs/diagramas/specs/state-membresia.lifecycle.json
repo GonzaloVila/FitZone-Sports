@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "State - Ciclo de vida de la membresia",
+    "output": "diagramas/html/state-membresia.html",
+    "viewBox": [1000, 620],
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "main", "label": "Estado de la membresia (ACTIVA / VENCIDA / SUSPENDIDA)" }
+  ],
+  "states": [
+    { "id": "alta", "type": "start", "label": "Alta", "sublabel": "POST /socios", "lane": "main", "col": 0, "step": "01", "tag": "entry" },
+    { "id": "activa", "type": "active", "label": "ACTIVA", "sublabel": "vigente segun fecha", "lane": "main", "col": 1, "step": "02", "tag": "active" },
+    { "id": "vencida", "type": "failure", "label": "VENCIDA", "sublabel": "el cron la vence", "lane": "main", "col": 2, "step": "03", "tag": "recoverable" },
+    { "id": "suspendida", "type": "waiting", "label": "SUSPENDIDA", "sublabel": "admin; no la toca el cron", "lane": "main", "col": 3, "step": "04", "tag": "paused" }
+  ],
+  "transitions": [
+    { "id": "alta-activa", "from": "alta", "to": "activa", "label": "crear socio", "variant": "default", "labelDy": 60 },
+    { "id": "activa-vencida", "from": "activa", "to": "vencida", "label": "alVencer (cron)", "variant": "default", "labelDy": 60 },
+    { "id": "vencida-suspendida", "from": "vencida", "to": "suspendida", "label": "alSuspender (admin)", "variant": "security", "labelDy": 60 },
+    { "id": "vencida-activa", "from": "vencida", "to": "activa", "label": "alRenovar (RF-02)", "variant": "emphasis", "route": "top-channel", "labelDx": -30 },
+    { "id": "suspendida-activa", "from": "suspendida", "to": "activa", "label": "alReactivar (admin)", "variant": "emphasis", "route": "top-channel", "labelDx": 30 }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "State (RF-02)",
+      "items": [
+        "estadoDe(m) elige el objeto de estado; cada uno implementa esVigente y sus transiciones (alVencer, alSuspender, alReactivar, alRenovar).",
+        "State decide QUE se puede hacer; Strategy (pricing M4) decide COMO se cobra. El enum se persiste en la base; el estado no guarda referencia de vuelta (contexto por parametro)."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+classDiagram
+    direction LR
+    class ReservaRepository {
+        <<abstract>>
+        +crear(reserva: ReservaNueva) ResultadoCrearReserva
+        +buscarPorId(id: number) Reserva
+        +cancelar(id: number) Reserva
+        +listar(filtros: FiltrosListarReservas) Reserva[]
+        +listarOcupadasEnRango(canchaId, desde, hasta) Reserva[]
+    }
+    class PrismaReservaRepository {
+        +crear(reserva) ResultadoCrearReserva
+        +buscarPorId(id) Reserva
+        +cancelar(id) Reserva
+        +listar(filtros) Reserva[]
+        +listarOcupadasEnRango(canchaId, desde, hasta) Reserva[]
+    }
+    class Reserva {
+        +id: number
+        +canchaId: number
+        +usuarioId: number
+        +fechaHoraInicio: Date
+        +fechaHoraFin: Date
+        +estado: EstadoReserva
+        +precioAplicado: number
+    }
+    class ReservasCanchasService {
+        +crear(dto) ReservaCanchaOut
+    }
+
+    ReservaRepository <|.. PrismaReservaRepository
+    PrismaReservaRepository ..> Reserva : traduce fila a entidad
+    ReservasCanchasService ..> ReservaRepository : depende del puerto
+    note for ReservaRepository "Puerto + adaptador con { provide, useClass }.\nEl service nunca ve una fila de Prisma."

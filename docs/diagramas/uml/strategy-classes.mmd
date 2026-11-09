@@ -1,0 +1,31 @@
+classDiagram
+    direction LR
+    class ReglaDePrecio {
+        <<interface>>
+        +aplica(ctx: ContextoDePrecio) boolean
+        +aplicar(precio: number, ctx: ContextoDePrecio) number
+    }
+    class DescuentoSocio {
+        +aplica(ctx) boolean
+        +aplicar(precio, ctx) number
+    }
+    class RecargoHorarioPico {
+        +aplica(ctx) boolean
+        +aplicar(precio, ctx) number
+    }
+    class TarifadorDePrecios {
+        -reglas: ReglaDePrecio[]
+        +cotizar(ctx: ContextoDePrecio) number
+    }
+    class ContextoDePrecio {
+        +costoBase: number
+        +socioVigente: boolean
+        +inicio: Date
+        +fin: Date
+    }
+
+    ReglaDePrecio <|.. DescuentoSocio
+    ReglaDePrecio <|.. RecargoHorarioPico
+    TarifadorDePrecios o-- ReglaDePrecio : lista ordenada (useFactory)
+    ReglaDePrecio ..> ContextoDePrecio : decide y transforma
+    note for TarifadorDePrecios "filter(aplica).reduce(aplicar, costoBase).\nLas reglas se ACUMULAN: Strategy con intencion\nde Decorator (NO Composite). El Tarifador recibe\nla lista por DI y no conoce reglas concretas."

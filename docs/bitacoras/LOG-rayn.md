@@ -152,3 +152,30 @@
   - *Resolución:* Asumí la redacción y armonización de cada registro, reconstruyendo las matrices de alternativas, alineando la documentación con la realidad del código fuente (inyección explícita, constraints GiST, cola offline y pirámide de pruebas con Vitest), y tras consensuar la propuesta con el equipo, incorporé las etiquetas `[A REVISAR]` en las 4 decisiones obligatorias restantes para validación final.
 - **Commits:** `93ab66b`, `6911bf6`
 - **Horas:** 5 horas
+
+
+---
+
+## Entrada 10
+- **Fecha:** 08/11/2026
+- **Sprint y unidad:** Sprint 8 — Unidad I, III y IV (Arquitectura, Sincronización Offline, Robustez de Acceso y Documentación Gráfica)
+- **Actividad:**
+  1. Unifiqué el diseño del carnet digital del socio (`CarnetPage.vue`) reutilizando `FichaSocio.vue` con la prop `modo="socio"`, logrando paridad visual total con la ficha de recepción y gerencia, ocultando las opciones avanzadas de staff (menú de 3 puntos e interruptores de renovación).
+  2. Implementé la capa offline del puesto de control de acceso: creé el composable reactivo `useEstadoConexion.ts` para detección automática de red, conecté la cola diferida en `useSincronizacionOffline.ts` corrigiendo el bug de borrado total de cola (ahora reconcilia selectivamente preservando ítems rechazados por el servidor), y conecté el encolado en `ModalRegistrarIngreso.vue` y `useRegistroIngreso.ts` mostrando aviso informativo.
+  3. En `AforoPage.vue`, incorporé el panel de conectividad con insignia de estado de red (`En línea` / `Sin conexión`), contador de accesos encolados, botón de sincronización manual y auto-sincronización reactiva al reconectar internet.
+  4. Habilité en el backend los permisos para que el rol `GERENTE` pueda sincronizar lotes de ingresos (`sincronizacion.controller.ts`).
+  5. Migré desde Google Drive al repositorio (`docs/diagramas/`) todo el paquete de diagramas de arquitectura, comportamiento y UML de patrones de diseño (Unidad I y III), incluyendo especificaciones editables (`specs/`, `uml/`), artefactos interactivos (`html/`) e imágenes PNG para la memoria técnica del TFI.
+- **Decisión:**
+  - *Opción elegida:*
+    - Reutilizar el componente `FichaSocio.vue` en lugar de mantener dos maquetas duplicadas (`CarnetSocio.vue` y `FichaSocio.vue`), garantizando atomic design coherente y mantenimiento unificado.
+    - Reconciliación selectiva en la sincronización offline: eliminar de la cola de `localStorage` únicamente los registros con `ok: true`, reteniendo los rechazados para su posterior análisis o aviso al recepcionista.
+    - Centralizar los diagramas técnicos de la Unidad I y III en `docs/diagramas/` estructurados por formato (`specs/`, `uml/`, `html/`, `png/`) junto a su `LEEME.md` explicativo para asegurar trazabilidad formal y visualización interactiva sin herramientas externas.
+  - *Alternativas evaluadas:*
+    - *Mantener un componente de carnet separado:* Se descartó porque provocaba inconsistencias de estilos y tokenización respecto a la ficha vista por recepción/gerencia.
+    - *Limpieza total de la cola offline tras enviar lote:* Se descartó porque si un ítem era rechazado en el servidor (ej. socio no encontrado o bloqueo no registrado), se perdía el registro sin trazabilidad local.
+    - *Dejar los diagramas en Google Drive / links externos:* Se descartó porque la cátedra exige que toda la evidencia técnica y diagramas de patrones vivan versionados dentro del repositorio.
+- **Problema o bloqueo:**
+  - *Bloqueo 1:* En modo offline no se dispone del secreto TOTP para validación local en el puesto de recepción física. Se resolvió registrando el intento en la cola local con timestamp ISO y bandera offline, delegando la re-validación al backend durante la sincronización atómica.
+  - *Bloqueo 2:* El controlador `SincronizacionController` restringía el acceso exclusivamente al rol `RECEPCION`, bloqueando a usuarios con rol `GERENTE` al operar o supervisar puestos de acceso de su sede. Se amplió el decorador `@Roles('RECEPCION', 'GERENTE')`.
+- **Commits:** `ed1992d`, `996a0ff`
+- **Horas:** 5 horas

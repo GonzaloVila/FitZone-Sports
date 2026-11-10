@@ -4776,3 +4776,171 @@ Ninguno nuevo. Cierra la deuda del texto del rango copiado en varias pantallas.
 4. Idea sin plantear: un cobro manual (por ejemplo en efectivo) que RECEPCION y GERENTE puedan generar desde Pagos. La API ya les permite crear pagos; falta el planteo y la pantalla.
 5. Retoques de frontend surgidos de la prueba manual: mostrar el email en el encabezado de SOCIO y EXTERNO; guión largo en la columna "Reservó" de la grilla de turnos cuando no hay reservante; reemplazar el menú "⋯" de "Listas de espera" por botones visibles; ícono de mostrar contraseña en las altas de socio y de personal; botón "Reservar" deshabilitado en los turnos que no se pueden reservar.
 6. Los demás pendientes generales (carnet con QR, registro y recuperación de contraseña, datos de demostración, accesibilidad, velocidad de los tests del frontend) siguen en la lista de pendientes del proyecto.
+
+## 2026-11-08 - Infraestructura de pruebas, pirámide reclasificada y cobertura del backend
+
+**Fecha:** 08/11/2026 · **Rama:** `main` · **Autor:** Gonzalo Vila (P4 Dev Ops) · **Commits:** `93171fd`, `9f6f7eb`, `f5e7c02`, `03b2393`, `5b03e3e`, `039ecb4`, `5a169e7`, `2a08223`, `dc8a99f`, `0f7af04`, `c2a986a`, `dc9664f`, `c959cf3`, `ee4e90a`
+
+### Actividades
+
+1. **Base de pruebas efímera (`93171fd`):** `docker-compose.test.yml` con PostgreSQL 16, datos en memoria (`tmpfs`), `restart: "no"` (no arranca solo con Docker Desktop) y healthcheck con `pg_isready`, para poder esperar a que esté lista con `up --wait`. Puerto 55432, base `fitzone_test`.
+2. **Scripts del backend (`9f6f7eb`, `f5e7c02`):**
+   - `npm run test:db:up` levanta el contenedor y espera a que esté sano; `npm run test:db:migrate` aplica las migraciones de Prisma con `backend/.env.test`.
+   - `npm test` corre Vitest. Se sacaron `@types/jest` y `@types/mocha`, que ya no se usaban.
+   - Cobertura V8 para unitarios e integración.
+3. **Cobertura del frontend (`03b2393`):** `@vitest/coverage-v8` fijado en `~5.0.5`; sin el `~`, npm intentaba subir Vitest a 5.1.
+4. **Pirámide reclasificada (`5b03e3e`):**
+   - Las 189 pruebas HTTP con Supertest no son E2E: pasan por la API, no por el navegador. Se renombraron de `test/e2e/**/*.e2e-spec.ts` a `test/api/**/*.api-spec.ts`, con su config `vitest.api.config.ts` y el setup compartido `test/vitest.db.setup.ts`. Ese setup frena la corrida si la URL de la base no es local, para no tocar nunca Supabase.
+   - Nuevo `tsconfig.test.json` para verificar los tipos de los tests (`npm run typecheck:test`).
+   - Se corrigió una aserción vacía en `reservas.api-spec.ts` de m3, que no comprobaba nada (ahora exige que el pago tenga `comprobante_pdf_url`).
+5. **Unitarios de `commons` (`039ecb4`):** `roles.guard`, `problem.filter`, `criptografia` (AES-256-GCM del secreto TOTP) y `totp.service`.
+6. **Unitarios e integración por módulo:**
+   - **m2 (`5a169e7`):** `ingresos.service` y `sedes.service`. En integración, **RN-01 con accesos simultáneos**: 5 intentos a la vez del mismo socio en dos sedes, y después se cuentan las filas en la base.
+   - **m4 (`2a08223`):** `canchas.service` y `disponibilidad.service`. En integración, **RN-02 con reservas simultáneas**: 5 intentos a la vez sobre el mismo turno; la constraint `exq_reserva_turno` deja pasar uno solo.
+   - **Membresías (`dc8a99f`):** cron de vencimiento, entidad, gestión (plan, estado y renovación) y cron de renovación automática de m5.
+   - **m3 (`c2a986a`):** agenda, reserva con la penalidad por cancelación tardía, lista de espera y los dos observers del cupo liberado (el del mail con `nodemailer` mockeado).
+   - **m1 (`dc9664f`):** alta de socio con la compensación del cobro (si la pasarela rechaza, se da de baja al socio recién creado).
+7. **Umbral de cobertura en la configuración (`dc9664f`):** backend 70 % líneas, 70 % sentencias, 65 % ramas y 60 % funciones; frontend 50 / 50 / 40 / 40 (la línea base medida, redondeada hacia abajo). Si la cobertura baja, la corrida falla.
+8. **Cobertura solo en la terminal (`c959cf3`):** se sacó el reporte HTML; queda la tabla en la terminal, como en la clase. Comandos simplificados: `npm test`, `npm run test:cov`, `npm run test:integration`, `npm run test:api` y `npm run test:all`. Se actualizaron las tablas de comandos del README y de `backend/README.md`.
+9. **Frontend, primer bloque (`ee4e90a`):** sesión (reglas de acceso por rol, servicio, store y `useUsuarioSesion`), el guard del router con el router real y los servicios HTTP de todas las features. Se probaron el método, la ruta y el cuerpo de cada operación, la paginación automática de sedes y usuarios, la `Idempotency-Key` de los pagos y la descarga de PDF. Umbral del frontend: 55 / 55 / 43 / 45.
+
+### Decisiones tomadas
+
+1. **Todo directo a `main`**, sin ramas ni PR (acordado con el profesor), y **sin tags** hasta la versión 1.0 de la entrega.
+2. **Las pruebas que tocan la base usan un Postgres en Docker, no Supabase:** crean y borran datos, y sobre la base compartida ensuciarían los datos del equipo, se pisarían entre corridas y dependerían de internet.
+3. **La cobertura se mide sobre las unitarias.** Integración y API prueban otra cosa (la base y el contrato) y sumarlas inflaría el porcentaje.
+4. **Los E2E serán en navegador, uno por requisito**, y no las 189 pruebas de API, que quedan como capa intermedia.
+5. **TDD y BDD quedan fuera de esta etapa.**
+
+### Problemas encontrados
+
+1. **Rama muerta en `problem.filter.ts`:** la detección de la `Idempotency-Key` repetida comparaba contra `idempotenciaKey`, pero Postgres informa el nombre de la columna (`idempotencia_key`). La rama nunca se ejecutaba. Corregido en `039ecb4`.
+2. **Vencimiento de membresía desbordado (`0f7af04`):** `calcularVigencia` sumaba meses con `setMonth`, así que un alta del 31/01 con plan mensual vencía el 03/03. Ahora usa `sumarMeses`, que se queda en el último día del mes (31/01 → 28/02). Tiene tests de fin de mes y de año bisiesto.
+3. **Spec de TOTP:** la URI que arma `otplib` agrega `period`, `digits` y `algorithm`, así que se compara por parámetros (`URL.searchParams`) y no por texto.
+4. **`vi.stubEnv(clave, '')` no equivale a "variable sin definir"** para el operador `??` del observer de mail: se usa `vi.stubEnv(clave, undefined)`.
+5. **Tipos de los tests:** faltaba `pdfkit` en los `types` de `tsconfig.test.json` (`Cannot find namespace PDFKit`).
+6. **`npm run start:dev` contra Supabase dio `tenant/user … not found`:** el proyecto de Supabase cambió o no existe. Hay que pedir la `DATABASE_URL` vigente al equipo. Mientras tanto, la app se puede levantar contra la base de pruebas.
+
+### Verificación
+
+- Backend: `npm test` 670 tests en 73 archivos (1 salteado a propósito); `npm run test:cov` 71,49 % líneas, 71,29 % sentencias, 66,84 % ramas y 64,22 % funciones (al empezar, 47 % líneas); `npm run test:integration` 82 tests en 13 archivos; `npm run test:api` 189 tests en 28 archivos; `npm run typecheck:test` sin errores.
+- Frontend: 1092 tests en 107 archivos (antes 985 en 96); cobertura 57,17 % líneas, 56,14 % sentencias, 45,48 % ramas y 47,06 % funciones; `npm run type-check` sin errores.
+
+### Pendientes que siguen abiertos
+
+1. Cubrir el resto del frontend (acceso, canchas, clases, pagos, socios y personal) y subir su umbral.
+2. Los 17 E2E en navegador y la revisión del ADR-007.
+3. Conseguir la `DATABASE_URL` vigente de Supabase.
+
+---
+
+## 2026-11-09 - Lista local de socios inhabilitados y PWA para el puesto de control sin conexión (RNF-01, Parte 2)
+
+**Fecha:** 09/11/2026 · **Rama:** `main` · **Autor:** Gonzalo Vila (P4 Dev Ops) · **Commits:** `c3ad1a5`, `3900621`
+
+Continúa la Parte 1 de Santiago Rayn (`ed1992d`: sincronización offline de ingresos, estado de la conexión y carnet unificado).
+
+### Actividades
+
+1. **Lista local de inhabilitados (`c3ad1a5`):**
+   - `servicioAcceso.listarBloqueados(actualizadoDesde?)` llama a `GET /bloqueados`, que ya existía en el backend.
+   - Nuevo `useListaBloqueadosOffline`: guarda en `localStorage` (`fitzone_bloqueados`) el mapa `socioId → { motivo, desde }` y la `ultimaSincronizacion`. Expone `estaBloqueado(socioId)` y `bloqueoDe(socioId)`. Sincroniza completo al abrir la pantalla e incremental al volver la conexión (evento `online`).
+   - Gancho en el ingreso sin conexión: antes de encolar en `agregarAccesoOffline`, si el socio está en la lista local se lo rechaza en el momento con "La membresía no está vigente o está suspendida", el motivo y la fecha, y no se encola. Se aplica en los dos caminos offline de `useRegistroIngreso`: sin red detectada y red caída en plena llamada. `ModalRegistrarIngreso` recibe la lista por la prop `bloqueoOffline` y `AforoPage` se la pasa.
+   - Tests: `useListaBloqueadosOffline` (9 casos), `useRegistroIngreso` (con y sin conexión, socio bloqueado, caída de red) y `listarBloqueados` en el spec del servicio.
+2. **PWA con `vite-plugin-pwa` 2.0 (`3900621`):**
+   - `registerType: 'autoUpdate'` y manifest con nombre, colores de la marca e íconos de 192 y 512, uno maskable y el `apple-touch-icon`. Los cuatro PNG se generaron del logo, en blanco sobre el azul primario (`#1a6ec1`).
+   - Workbox: el shell del build se precachea y toda navegación sin red cae en `index.html`. `/api/*` va `NetworkOnly`; las fuentes de Google y las imágenes van `StaleWhileRevalidate`.
+   - `index.html`: `lang="es"`, `theme-color`, `apple-touch-icon` y título "FitZone Sports".
+
+### Decisiones tomadas
+
+1. **Sincronización completa al abrir la pantalla:** `GET /bloqueados?actualizadoDesde=` solo informa a quien dejó de estar vigente. Con sincronizaciones solo incrementales, un socio que renueva quedaría bloqueado offline para siempre. La completa reemplaza la lista y lo saca.
+2. **La fecha de la última sincronización es la hora del servidor** (`servidorTime`), no la del puesto, que puede estar desfasada.
+3. **El shell se precachea en lugar de usar solo `StaleWhileRevalidate`:** el precache es lo que garantiza abrir la app en frío sin red, sin depender de haber visitado antes cada pantalla.
+4. **La API nunca se cachea:** son datos con sesión. Sin red, la app usa su cola offline y la lista local.
+
+### Problemas encontrados
+
+1. **El spec de la Parte 1 (`useSincronizacionOffline.spec.ts`) tenía errores de tipos** (`Object is possibly 'undefined'`) que hacían fallar el type-check y, con él, `npm run build` del frontend. Se corrigió con `!` en 7 líneas.
+2. **Abrir la app desde cero sin red lleva al login:** el access token vive solo en memoria y sin red no se puede renovar. El modo offline sirve si el puesto ya tenía la sesión abierta. Es una decisión de seguridad previa; no se cambió.
+
+### Verificación
+
+- Frontend: 1116 tests en 111 archivos; cobertura 58,86 % líneas; `npm run type-check` y `npm run build` sin errores (el build genera `sw.js` con 73 archivos precacheados).
+- Carga en frío sin conexión probada con Playwright sobre Edge contra `npm run preview`: después de una visita con red, `/login` y `/acceso/aforo` abrieron sin red, servidas por el service worker con status 200.
+
+### Pendientes que siguen abiertos
+
+1. Que `GET /bloqueados` informe también a quien volvió a estar vigente, para que la sincronización incremental alcance sola.
+
+---
+
+## 2026-11-10 - Cobertura completa del frontend, ADR-007 aceptado y E2E con Playwright
+
+**Fecha:** 10/11/2026 · **Rama:** `main` · **Autor:** Gonzalo Vila (P4 Dev Ops) · **Commits:** `d1888ab`, `22a3997`, `098aa22`, `cfd6138`, `27882bb`, `efbd0af`
+
+### Actividades
+
+1. **Frontend, acceso (`d1888ab`, 51 tests):**
+   - `useActualizacionPeriodica`: refresco cada 10 s, que se suspende con la pestaña oculta y se apaga al salir de la pantalla.
+   - `useAforo`, `usePersonasDentro` (egreso, con el 409 de otra terminal) y `useHistorialAccesos` (filtros, búsqueda con espera, respuestas fuera de orden).
+   - Se completó el spec de `useSincronizacionOffline`.
+   - `AforoPage`: insignias de conexión, sincronización automática al volver la red y la lista de inhabilitados que recibe el modal.
+   - `ModalRegistrarIngreso`: el flujo offline desde la interfaz.
+   - `HistorialAccesosPage`.
+   - Umbral 63 / 62 / 50 / 52.
+2. **Frontend, canchas y clases (`22a3997`, 42 tests):**
+   - `useGrillaTurnos` y `useMisReservas`.
+   - `GrillaTurnosPage`: reservar, el turno tomado por otro (RN-02 desde la interfaz) y la vista del personal con quién reservó.
+   - `ListaCanchasPage`.
+   - `DetalleClasePage`: reservar, lista de espera, cancelación con y sin penalidad, y vista del personal.
+   - `AgendaClasesPage`.
+   - Umbral 73 / 72 / 61 / 62.
+3. **Frontend, resto (`098aa22`, 45 tests):**
+   - `CarnetPage`: el código TOTP coincide con el que calcula `otpauth`, rota cada 30 s y el secreto no queda en el navegador.
+   - `ModalPagarReserva`, Pagos y Mis pagos (anulación, comprobante), y el reporte de ingresos.
+   - Alta de sede, gestión de personal (solo sedes libres) y `ArmazonApp` (menú por rol, cierre de sesión).
+   - Umbral final 82 / 80 / 72 / 72.
+4. **ADR-007 aceptado (`cfd6138`):**
+   - Se revisó la propuesta de Exequiel Ansaldi, que seguía en estado Propuesto, con el formato del Anexo B.
+   - Seis alternativas con sus motivos de descarte (Cypress, Selenium, Supertest como E2E, estrategia mayormente E2E y pruebas manuales).
+   - La pirámide real en tres capas, los umbrales configurados y la deuda asumida (CI que bloquee el merge, solo Chromium, sin TDD ni BDD).
+   - Se alineó la numeración de requisitos de 22 specs con el TIF (por ejemplo, aforo RF-05, agenda RF-06 y grilla de turnos RF-10).
+5. **E2E con Playwright (`27882bb`):**
+   - Paquete `e2e/` en la raíz: `npm test` prepara la base `fitzone_e2e` (migraciones y seed limpio), levanta el backend (puerto 3100) y el frontend (puerto 5180) apuntando a esa base, y corre los recorridos en Chromium.
+   - 17 recorridos, uno por requisito (RF-01 a RF-14, RN-01 a RN-03), en 6 archivos.
+   - RN-02 se prueba con dos navegadores que confirman el mismo turno a la vez, y se verifica que en la base quedó una sola reserva.
+   - Lo que se prueba pasa por la interfaz; la API solo prepara datos y limpia si un recorrido falla a mitad de camino.
+6. **Guía de pruebas (`efbd0af`):**
+   - `docs/pruebas.md`: la pirámide, cómo correr cada capa, cómo leer la tabla de cobertura y la salida de Playwright, el mapa de los 17 recorridos, problemas frecuentes y dónde agregar una prueba.
+   - Enlazada desde el README; se corrigió la mención a "tests e2e" en `initialize_project.md`.
+
+### Decisiones tomadas
+
+1. **Playwright y no Cypress ni Selenium para E2E:** es la única de las tres herramientas que permite probar RN-02 desde la interfaz con dos sesiones independientes a la vez. Además emula la pérdida de red y captura descargas (ADR-007).
+2. **Base E2E separada (`fitzone_e2e`) dentro del mismo contenedor:** no interfiere con la de integración y API, y cada corrida arranca del seed.
+3. **Puertos propios para los E2E (3100 y 5180):** no chocan con los servidores de desarrollo.
+4. **Sin la interfaz visual de Playwright (`--ui`):** no la pide la cátedra. Para la presentación alcanza con correr un recorrido con `--headed`.
+5. **Se revisó el ADR-007 en el mismo archivo** porque seguía en estado Propuesto. "Un ADR no se corrige: se supera" aplica a decisiones ya aceptadas.
+
+### Problemas encontrados
+
+1. **El seed tenía un pago sin concepto:** el pago 3, un "pase diario" de Sofía Navarro, no correspondía a ninguna membresía ni reserva, y "Mis pagos" de Sofía mostraba `El pago 3 no tiene subtipo`. Lo detectó el E2E de RF-14. Pasa a ser el pago anulado de su reserva cancelada (reserva 2); se conservan las tres fechas del filtro por período.
+2. **Vitest fallaba en todas las pruebas con `Cannot read properties of undefined (reading 'config')`:** en Windows, con la terminal en `c:\…` (minúscula), Vitest carga dos copias de sí mismo. Se resuelve abriendo la terminal en `C:\…`; quedó documentado en la guía.
+3. **Tests de página que se pisaban:** las páginas sin desmontar seguían escuchando `online` y `offline` en el test siguiente (`enableAutoUnmount`); jsdom no implementa `<dialog>.close()` (polyfill); un selector de nombre tomaba el campo de los filtros en lugar del del modal (se acotó al `<dialog>`).
+4. **E2E en cadena:** un recorrido que fallaba dejaba a la socia dentro de una sede y arrastraba a los siguientes. Se agregó una limpieza por API después de cada recorrido.
+5. **Advertencia de Vue sin corregir:** en el modal de ingreso, el campo "ID del socio" recibe un número donde el componente espera texto. Funciona, pero conviene corregirlo.
+
+### Verificación
+
+- Frontend: 1254 tests en 131 archivos (al empezar la etapa, 985 en 96); cobertura 84,97 % líneas, 83,25 % sentencias, 74,75 % ramas y 75,53 % funciones (al empezar, 53,47 % líneas); `npm run type-check` sin errores.
+- E2E: 17 de 17 en dos corridas completas seguidas desde el seed limpio, de unos 2,5 minutos cada una.
+- Backend sin cambios de código: 670 unitarios, 82 de integración y 189 de API en verde.
+
+### Pendientes que siguen abiertos
+
+1. Consultar al profesor si los E2E van con Playwright o con Supertest, como mostró en clase, y si se dejan las 189 pruebas de API.
+2. Corregir la advertencia del campo "ID del socio" en el modal de ingreso.
+3. Revisar el ADR-008: dice "volumen persistente" (la base de pruebas usa `tmpfs`) y llama "tests e2e" a los de API.
+4. Etapa de despliegue: pipeline de CI que corra la suite y bloquee el merge si falla; `docker compose up --build` que levante todo el sistema; seed con al menos 25 sedes (condición de admisibilidad); manual de puesta en marcha.
+5. Marcar la versión 1.0 en el último commit antes de la entrega (19/11/2026).

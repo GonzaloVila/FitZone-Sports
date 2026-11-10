@@ -21,9 +21,9 @@ export default mergeConfig(
         include: ['src/**/*.{ts,vue}'],
         // Fuera: los specs, los tipos generados del contrato y el arranque de la app.
         exclude: ['src/**/*.spec.ts', 'src/types/**', 'src/main.ts'],
-        // Piso de cobertura (ADR-007): lo medido tras cubrir sesión, router, servicios y acceso (65% líneas, 53% ramas, 54% funciones),
+        // Piso de cobertura (ADR-007): lo medido tras cubrir sesión, router, servicios, acceso, canchas y clases (75% líneas, 63% ramas, 65% funciones),
         // redondeado hacia abajo. Se sube a medida que se agregan los tests del frontend.
-        thresholds: { lines: 63, statements: 62, branches: 50, functions: 52 },
+        thresholds: { lines: 73, statements: 72, branches: 61, functions: 62 },
       },
     },
   }),

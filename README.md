@@ -108,9 +108,9 @@ cd frontend && npm install && npm run build && cd .. && (cd backend && npm run s
 
 ### Frontend
 - **Pruebas Unitarias y de Componentes:**
-  - Archivos evaluados: 118 archivos pasados
-  - Tests ejecutados: **1167 pasados** (100% exitosos)
-  - Cobertura (`npm run test:cov`, umbral mínimo 63% líneas / 50% ramas): Líneas 65.87%, Sentencias 64.28%, Ramas 53.48%, Funciones 54.59%
+  - Archivos evaluados: 124 archivos pasados
+  - Tests ejecutados: **1209 pasados** (100% exitosos)
+  - Cobertura (`npm run test:cov`, umbral mínimo 73% líneas / 61% ramas): Líneas 75.79%, Sentencias 74.35%, Ramas 63.97%, Funciones 65.12%
 - **Comandos de ejecución:**
   ```bash
   cd frontend

@@ -5,7 +5,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { ServiciosKey } from '@/compartido/servicios'
 import ListaCanchasPage from './ListaCanchasPage.vue'
 
-// RF-09 / RF-11: la pantalla de canchas. El GERENTE administra (alta y edición); SOCIO y EXTERNO reservan y tienen la
+// RF-09 / RF-10: la pantalla de canchas. El GERENTE administra (alta y edición); SOCIO y EXTERNO reservan y tienen la
 // vista "Mis reservas"; el RECEPCION consulta. Los modales de alta, edición y pago se reemplazan por stubs.
 enableAutoUnmount(afterEach)
 

@@ -5,7 +5,7 @@ import type { Cancha } from '../entities/cancha.entity';
 import type { CanchaRepository } from '../repositories/cancha.repository';
 import { DisponibilidadService } from './disponibilidad.service';
 
-// RF-12: grilla de turnos de una cancha para un dia, de 08:00 a 22:00 en tramos de 60 minutos, en hora de la sede
+// RF-10: grilla de turnos de una cancha para un dia, de 08:00 a 22:00 en tramos de 60 minutos, en hora de la sede
 // (UTC-3). Un tramo esta disponible si es futuro, la cancha no esta en mantenimiento y ninguna reserva activa lo pisa.
 const FECHA = '2026-12-02';
 const local = (hhmm: string) => new Date(`${FECHA}T${hhmm}:00-03:00`);

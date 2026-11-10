@@ -4,7 +4,7 @@ import type { paths } from '@/types/api'
 import { ErrorApi } from '@/compartido/http/errores'
 import { crearServicioAcceso, type ServicioAcceso } from './servicioAcceso'
 
-// RF-05 / RF-06 / RN-01: aforo, ingresos, egresos y sincronización offline. Cliente real de openapi-fetch con un
+// RF-04 / RF-05 / RN-01: aforo, ingresos, egresos y sincronización offline. Cliente real de openapi-fetch con un
 // `fetch` falso: se mira qué petición sale hacia el contrato.
 function armar(respuesta: () => Response = () => Response.json({})) {
   const fetchFalso = vi.fn(async (_peticion: Request) => respuesta())

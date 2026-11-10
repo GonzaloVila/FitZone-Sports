@@ -5,7 +5,7 @@ import { crearAlmacenToken } from '@/compartido/http/almacenToken'
 import { ErrorApi } from '@/compartido/http/errores'
 import { crearServicioSesion } from './servicioSesion'
 
-// RF-03: login, renovación y cierre de sesión. Se usa el cliente real de openapi-fetch con un `fetch` falso: se mira
+// Autenticación y roles (Unidad III): login, renovación y cierre de sesión. Se usa el cliente real de openapi-fetch con un `fetch` falso: se mira
 // qué petición sale y qué queda en el almacén del access token (solo en memoria).
 const SESION = {
   accessToken: 'token-nuevo',

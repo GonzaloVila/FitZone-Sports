@@ -4,7 +4,7 @@ import { defineComponent, ref, type Ref } from 'vue'
 import { ServiciosKey, type Servicios } from '@/compartido/servicios'
 import { useAforo } from './useAforo'
 
-// RF-06: el aforo de la sede activa, refrescado cada 10 segundos.
+// RF-05: el aforo de la sede activa, refrescado cada 10 segundos.
 const aforoDe = (sedeId: number, actual: number, maximo = 100) => ({ sedeId, aforoActual: actual, aforoMaximo: maximo })
 
 function montar(sedeId: Ref<number | null>, obtenerAforo = vi.fn(async (id: number, _senal?: AbortSignal) => aforoDe(id, 40))) {

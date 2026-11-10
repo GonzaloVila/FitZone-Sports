@@ -5,7 +5,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { ServiciosKey } from '@/compartido/servicios'
 import ArmazonApp from './ArmazonApp.vue'
 
-// RF-03: el armazón de la app autenticada. El menú sale de las rutas con meta.navegacion, filtradas por el rol de la
+// Autenticación y roles (Unidad III): el armazón de la app autenticada. El menú sale de las rutas con meta.navegacion, filtradas por el rol de la
 // sesión; el personal trabaja con barra lateral agrupada por sección y el socio o externo con barra superior. "Cerrar
 // sesión" siempre termina en el login, aunque falle el aviso al servidor.
 enableAutoUnmount(afterEach)

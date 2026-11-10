@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope } from 'vue'
 import { useActualizacionPeriodica } from './useActualizacionPeriodica'
 
-// El refresco automático del aforo (RF-06): repite una tarea cada N ms, se suspende con la pestaña oculta y se apaga al
+// El refresco automático del aforo (RF-05): repite una tarea cada N ms, se suspende con la pestaña oculta y se apaga al
 // destruirse el componente.
 function visibilidad(estado: 'visible' | 'hidden') {
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(estado)

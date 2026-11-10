@@ -8,7 +8,7 @@ import ModalRegistrarIngreso from '../components/modales/ModalRegistrarIngreso.v
 import TablaPersonasDentro from '../components/TablaPersonasDentro.vue'
 import AforoPage from './AforoPage.vue'
 
-// RF-06 / RNF-01: la pantalla del puesto de control. Junta el aforo, quién está dentro, el estado de la red, la cola
+// RF-05 / RNF-01: la pantalla del puesto de control. Junta el aforo, quién está dentro, el estado de la red, la cola
 // offline y la lista local de inhabilitados. Los modales se reemplazan por stubs: acá interesa qué reciben.
 // Cada página se desmonta al terminar su test: si no, sus oyentes de online/offline siguen activos en el siguiente.
 enableAutoUnmount(afterEach)

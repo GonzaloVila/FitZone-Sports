@@ -8,7 +8,7 @@ import { ServiciosKey } from '@/compartido/servicios'
 import { TIPOS_ERROR_CANCHAS } from '../errores'
 import { POR_PAGINA_RESERVAS, useMisReservas } from './useMisReservas'
 
-// RF-11 / RF-12: las reservas de cancha del usuario de la sesión, por pestaña (Próximas, Canceladas, Pasadas), con el
+// RF-10: las reservas de cancha del usuario de la sesión, por pestaña (Próximas, Canceladas, Pasadas), con el
 // estado de pago de cada una. La pestaña y la página viven en la dirección.
 enableAutoUnmount(afterEach)
 
@@ -139,7 +139,7 @@ describe('useMisReservas', () => {
     expect(api.total.value).toBe(0)
   })
 
-  describe('cancelar (RF-12)', () => {
+  describe('cancelar (RF-10)', () => {
     it('cancela, avisa y recarga la lista', async () => {
       const api = await montar()
       const consultas = servicios.canchas.listarReservas.mock.calls.length

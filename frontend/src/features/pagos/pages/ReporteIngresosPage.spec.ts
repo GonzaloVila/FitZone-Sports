@@ -4,7 +4,7 @@ import { ErrorApi } from '@/compartido/http/errores'
 import { ServiciosKey } from '@/compartido/servicios'
 import ReporteIngresosPage from './ReporteIngresosPage.vue'
 
-// RF-14: el reporte de ingresos en PDF del GERENTE, con un rango de fechas opcional.
+// Módulo 5, reportes de la gerencia: el reporte de ingresos en PDF del GERENTE, con un rango de fechas opcional.
 enableAutoUnmount(afterEach)
 
 const servicios = { pagos: { descargarReporte: vi.fn() } }

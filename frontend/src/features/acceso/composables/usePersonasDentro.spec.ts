@@ -6,7 +6,7 @@ import { ServiciosKey, type Servicios } from '@/compartido/servicios'
 import { TIPOS_ERROR_ACCESO } from '../tipos'
 import { usePersonasDentro } from './usePersonasDentro'
 
-// RF-06: quién está dentro de la sede y el registro de su egreso.
+// RF-05: quién está dentro de la sede y el registro de su egreso.
 const ingreso = (id: number) => ({ id, socioId: id + 100, nombre: `Socio ${id}`, sedeId: 3, fechaHoraIngreso: '2026-11-10T12:00:00Z' })
 
 function montar(sedeId: Ref<number | null>, opciones: { alModificar?: () => void } = {}) {

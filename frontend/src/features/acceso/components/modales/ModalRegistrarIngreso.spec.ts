@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { ServiciosKey } from '@/compartido/servicios'
 import ModalRegistrarIngreso from './ModalRegistrarIngreso.vue'
 
-// RF-05 / RNF-01: el modal con el que el puesto de control valida un ingreso. Se prueba desde la interfaz: se completa
+// RF-04 / RNF-01: el modal con el que el puesto de control valida un ingreso. Se prueba desde la interfaz: se completa
 // el formulario, se envía y se mira el resultado que ve el recepcionista.
 enableAutoUnmount(afterEach)
 

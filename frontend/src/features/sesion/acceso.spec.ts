@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { rolPermitido, rutaInicialPorRol } from './acceso'
 import type { Rol } from './tipos'
 
-// RF-03: cada rol entra a su pantalla inicial y solo a las rutas que su rol permite. El guard del router se apoya en
+// Autenticación y roles (Unidad III): cada rol entra a su pantalla inicial y solo a las rutas que su rol permite. El guard del router se apoya en
 // estas dos funciones para no caer en bucles de redirección.
 describe('rutaInicialPorRol', () => {
   it.each([

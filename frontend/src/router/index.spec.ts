@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ServiciosKey, type Servicios } from '@/compartido/servicios'
 import router from './index'
 
-// RF-03: el guard global del router. Sin sesión solo se ven las rutas públicas (el resto va a /login con ?redirect);
+// Autenticación y roles (Unidad III): el guard global del router. Sin sesión solo se ven las rutas públicas (el resto va a /login con ?redirect);
 // con sesión, /login y las rutas de otro rol llevan a la pantalla inicial del rol. Se usa el router real con todas las
 // rutas de las features; la sesión se "restaura" con un servicio doble que responde con el rol que pida cada test.
 function sesionDe(rol: string | null) {

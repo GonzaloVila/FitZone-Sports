@@ -5,7 +5,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { ServiciosKey } from '@/compartido/servicios'
 import AgendaClasesPage from './AgendaClasesPage.vue'
 
-// RF-07: la agenda de clases. El personal crea clases; el socio ve cuáles ya reservó y tiene la vista "Mis clases" con sus
+// RF-06: la agenda de clases. El personal crea clases; el socio ve cuáles ya reservó y tiene la vista "Mis clases" con sus
 // reservas y esperas. El modal de alta se reemplaza por un stub (useAltaClase tiene su propio spec).
 enableAutoUnmount(afterEach)
 

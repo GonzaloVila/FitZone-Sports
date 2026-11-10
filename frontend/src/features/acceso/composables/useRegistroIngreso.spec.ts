@@ -5,7 +5,7 @@ import { ServiciosKey, type Servicios } from '@/compartido/servicios'
 import { ErrorApi } from '@/compartido/http/errores'
 import { useRegistroIngreso } from './useRegistroIngreso'
 
-// RF-05 / RNF-01: registrar un ingreso en el puesto de control, con conexión y sin ella. Sin conexión, el socio que esté
+// RF-04 / RNF-01: registrar un ingreso en el puesto de control, con conexión y sin ella. Sin conexión, el socio que esté
 // en la lista local de inhabilitados se rechaza en el momento y no se encola.
 const INGRESO = { id: 40, socioId: 12, nombre: 'Ana Socia', sedeId: 1, fechaHoraIngreso: '2026-11-09T12:00:00Z' }
 

@@ -6,7 +6,7 @@ import { ServiciosKey } from '@/compartido/servicios'
 import TablaHistorial from '../components/TablaHistorial.vue'
 import HistorialAccesosPage from './HistorialAccesosPage.vue'
 
-// RF-06: historial de accesos. El RECEPCION ve solo su sede (no es un filtro que pueda sacar); el GERENTE, todas.
+// RF-05: historial de accesos. El RECEPCION ve solo su sede (no es un filtro que pueda sacar); el GERENTE, todas.
 enableAutoUnmount(afterEach)
 
 const SEDES = [

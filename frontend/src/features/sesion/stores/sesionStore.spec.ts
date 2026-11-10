@@ -6,7 +6,7 @@ import { ServiciosKey, type Servicios } from '@/compartido/servicios'
 import { useUsuarioSesion } from '../composables/useUsuarioSesion'
 import { useSesionStore } from './sesionStore'
 
-// RF-03: el store guarda quién es el usuario (nunca el token). Se monta una app vacía con pinia y los servicios
+// Autenticación y roles (Unidad III): el store guarda quién es el usuario (nunca el token). Se monta una app vacía con pinia y los servicios
 // provistos, como hace main.ts, y el servicio de sesión es un doble.
 const LOGIN_RECEPCION = {
   accessToken: 't',

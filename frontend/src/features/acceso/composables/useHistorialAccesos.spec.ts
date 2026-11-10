@@ -4,7 +4,7 @@ import { defineComponent } from 'vue'
 import { ServiciosKey, type Servicios } from '@/compartido/servicios'
 import { useHistorialAccesos } from './useHistorialAccesos'
 
-// RF-06: historial de accesos con filtros, búsqueda por nombre con espera y paginación de a 10.
+// RF-05: historial de accesos con filtros, búsqueda por nombre con espera y paginación de a 10.
 function montar(sedeInicial?: number | null) {
   const listarIngresos = vi.fn().mockResolvedValue({ items: [{ id: 1 }], total: 25 })
   let api!: ReturnType<typeof useHistorialAccesos>

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { paths } from '@/types/api'
 import { crearServicioClases, type ServicioClases } from './servicioClases'
 
-// RF-07 / RF-08: clases, reservas de clase y lista de espera. Cliente real de openapi-fetch con un `fetch` falso.
+// RF-06 a RF-08: clases, reservas de clase y lista de espera. Cliente real de openapi-fetch con un `fetch` falso.
 function armar() {
   const fetchFalso = vi.fn(async (peticion: Request) =>
     peticion.method === 'DELETE' || peticion.url.endsWith('/cancelaciones')

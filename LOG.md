@@ -4806,11 +4806,10 @@ Ninguno nuevo. Cierra la deuda del texto del rango copiado en varias pantallas.
 
 ### Decisiones tomadas
 
-1. **Todo directo a `main`**, sin ramas ni PR (acordado con el profesor), y **sin tags** hasta la versión 1.0 de la entrega.
-2. **Las pruebas que tocan la base usan un Postgres en Docker, no Supabase:** crean y borran datos, y sobre la base compartida ensuciarían los datos del equipo, se pisarían entre corridas y dependerían de internet.
-3. **La cobertura se mide sobre las unitarias.** Integración y API prueban otra cosa (la base y el contrato) y sumarlas inflaría el porcentaje.
-4. **Los E2E serán en navegador, uno por requisito**, y no las 189 pruebas de API, que quedan como capa intermedia.
-5. **TDD y BDD quedan fuera de esta etapa.**
+1. **Las pruebas que tocan la base usan un Postgres en Docker, no Supabase:** crean y borran datos, y sobre la base compartida ensuciarían los datos del equipo, se pisarían entre corridas y dependerían de internet.
+2. **La cobertura se mide sobre las unitarias.** Integración y API prueban otra cosa (la base y el contrato) y sumarlas inflaría el porcentaje.
+3. **Los E2E serán en navegador, uno por requisito**, y no las 189 pruebas de API, que quedan como capa intermedia.
+4. **TDD y BDD quedan fuera de esta etapa.**
 
 ### Problemas encontrados
 
@@ -4920,7 +4919,7 @@ Continúa la Parte 1 de Santiago Rayn (`ed1992d`: sincronización offline de ing
 1. **Playwright y no Cypress ni Selenium para E2E:** es la única de las tres herramientas que permite probar RN-02 desde la interfaz con dos sesiones independientes a la vez. Además emula la pérdida de red y captura descargas (ADR-007).
 2. **Base E2E separada (`fitzone_e2e`) dentro del mismo contenedor:** no interfiere con la de integración y API, y cada corrida arranca del seed.
 3. **Puertos propios para los E2E (3100 y 5180):** no chocan con los servidores de desarrollo.
-4. **Sin la interfaz visual de Playwright (`--ui`):** no la pide la cátedra. Para la presentación alcanza con correr un recorrido con `--headed`.
+4. **Sin la interfaz visual de Playwright (`--ui`):** no hace falta para correr la suite. Para la presentación alcanza con correr un recorrido con `--headed`.
 5. **Se revisó el ADR-007 en el mismo archivo** porque seguía en estado Propuesto. "Un ADR no se corrige: se supera" aplica a decisiones ya aceptadas.
 
 ### Problemas encontrados

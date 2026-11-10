@@ -34,4 +34,13 @@ describe('CampoTextoFz', () => {
 
     expect(wrapper.emitted('update:modelValue')).toEqual([['ana']])
   })
+
+  // El modelo es texto: con tipo="number" el valor no se convierte a número (lo convierte quien lo usa al validar o enviar).
+  it('con tipo number emite el valor como texto, no como número', async () => {
+    const wrapper = mount(CampoTextoFz, { props: { modelValue: '', tipo: 'number' } })
+
+    await wrapper.get('input').setValue('12')
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([['12']])
+  })
 })

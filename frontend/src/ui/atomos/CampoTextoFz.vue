@@ -19,7 +19,13 @@ withDefaults(
   },
 )
 
+// Siempre texto, también con tipo="number": `v-model` sobre un <input type="number"> convierte el valor a número por su
+// cuenta, y el modelo de este campo es un string (quien lo usa convierte cuando valida o envía).
 const modelo = defineModel<string>()
+
+function alEscribir(evento: Event) {
+  modelo.value = (evento.target as HTMLInputElement).value
+}
 </script>
 
 <template>
@@ -27,7 +33,8 @@ const modelo = defineModel<string>()
     <IconoFz :nombre="icono" tamano="sm" class="campo-envoltorio__icono" />
     <input
       v-bind="$attrs"
-      v-model="modelo"
+      :value="modelo"
+      @input="alEscribir"
       :type="tipo"
       :aria-invalid="invalido || undefined"
       :class="['campo', `campo--${tamano}`, 'campo--con-icono', { 'campo--invalido': invalido }]"
@@ -36,7 +43,8 @@ const modelo = defineModel<string>()
   <input
     v-else
     v-bind="$attrs"
-    v-model="modelo"
+    :value="modelo"
+    @input="alEscribir"
     :type="tipo"
     :aria-invalid="invalido || undefined"
     :class="['campo', `campo--${tamano}`, { 'campo--invalido': invalido }]"

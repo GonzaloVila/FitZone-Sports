@@ -38,6 +38,8 @@ test('RF-01 · la recepción da de alta a un socio nuevo con DNI, contacto y pla
 
   await expect(modal).toBeHidden()
   await expect(recepcion.getByText('Socio dado de alta').first()).toBeVisible()
+  // Con 25 socios en el seed, el nuevo no entra en la primera página: se lo busca por nombre.
+  await recepcion.getByRole('searchbox', { name: 'Buscar socio por nombre' }).fill(nuevo.nombre)
   await expect(recepcion.getByRole('row', { name: new RegExp(nuevo.nombre) })).toContainText('Mensual')
 
   // El socio nuevo ya puede iniciar sesión y ve su carnet con el plan elegido y la membresía activa.

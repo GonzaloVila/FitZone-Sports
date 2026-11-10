@@ -6,13 +6,13 @@
 --
 -- RESUMEN DE REGISTROS INSERTADOS POR TABLA:
 -- ----------------------------------------------------------------------------
--- 1.  "Sede"             : 3 registros (Central Belgrano, Palermo, Caballito)
--- 2.  "Usuario"          : 6 registros (1 Gerente, 1 Recepción, 3 Socios, 1 Externo)
--- 3.  "EmpleadoSede"     : 1 registro  (Staff asignado a Sede Central)
--- 4.  "Socio"            : 3 registros (Socios vinculados a Usuario y Sede)
--- 5.  "Membresia"        : 3 registros (2 Activas vigentes, 1 Vencida en MORA)
--- 6.  "Cancha"           : 3 registros (Paddle, Fútbol 5; Operativas y Mantenimiento)
--- 7.  "Clase"            : 4 registros (Spinning, CrossFit, Yoga, Boxeo)
+-- 1.  "Sede"             : 25 registros (Central Belgrano, Palermo, Caballito y 22 más, ver sección 15)
+-- 2.  "Usuario"          : 52 registros (1 Gerente, 23 Recepción, 25 Socios, 3 Externos)
+-- 3.  "EmpleadoSede"     : 23 registros (un recepcionista por sede, salvo Palermo y Caballito)
+-- 4.  "Socio"            : 25 registros (Socios vinculados a Usuario y Sede)
+-- 5.  "Membresia"        : 25 registros (24 Activas vigentes, 1 Vencida en MORA)
+-- 6.  "Cancha"           : 47 registros (Paddle, Fútbol 5; Operativas y Mantenimiento)
+-- 7.  "Clase"            : 48 registros (Spinning, CrossFit, Yoga, Boxeo y dos por sede nueva)
 -- 8.  "Reserva" (Cancha) : 2 registros (1 Confirmada, 1 Cancelada)
 -- 9.  "ReservaClase"     : 3 registros (2 en Clase CrossFit [Aforo 100%], 1 en Spinning)
 -- 10. "EsperaClase"      : 3 registros (1 EN_ESPERA, 1 NOTIFICADO, 1 CANCELADO)
@@ -217,6 +217,134 @@ INSERT INTO "Ingreso" ("id", "sede_id", "socio_id", "fecha_hora_ingreso", "fecha
   (1, 1, 1, NOW() - INTERVAL '3 hours', NOW() - INTERVAL '1 hour', false),
   (2, 1, 2, NOW() - INTERVAL '40 minutes', NULL, false),
   (3, 2, 3, NOW() - INTERVAL '2 hours', NOW() - INTERVAL '30 minutes', true);
+
+
+-- ============================================================================
+-- 15. SEDES 4 A 25: el set de 25 sedes que piden los lineamientos de entrega
+-- ============================================================================
+-- Los registros de arriba (sedes 1 a 3, usuarios 1 a 6 y sus datos) no cambian: los usan las credenciales del README y
+-- las pruebas E2E. Cada sede nueva suma un recepcionista con su puesto, un socio activo, dos canchas y dos clases.
+-- Los ids son explícitos (las secuencias se ajustan al final). Todos los usuarios tienen la contraseña Password123!.
+--   Recepcionistas: usuarios 7 a 28, recepcion.sede<N>@fitzone.com (N = id de la sede, 4 a 25)
+--   Socios:         usuarios 29 a 50, socio.sede<N>@fitzone.com; socios 4 a 25, uno por sede
+--   Externos:       usuarios 51 y 52
+--   Canchas:        4 a 47 (Paddle y Fútbol 5 en cada sede)
+--   Clases:         5 a 48, de 3 a 6 días después de la carga (las del seed original quedan primero en la agenda)
+
+INSERT INTO "Sede" ("id", "nombre", "direccion", "aforo_maximo") VALUES
+  (4, 'Sede Núñez', 'Av. del Libertador 7200, CABA', 45),
+  (5, 'Sede Recoleta', 'Av. Callao 1450, CABA', 40),
+  (6, 'Sede Villa Urquiza', 'Av. Triunvirato 4800, CABA', 35),
+  (7, 'Sede Almagro', 'Av. Corrientes 3900, CABA', 30),
+  (8, 'Sede Flores', 'Av. Rivadavia 7100, CABA', 40),
+  (9, 'Sede Villa Crespo', 'Av. Scalabrini Ortiz 600, CABA', 30),
+  (10, 'Sede San Telmo', 'Defensa 1100, CABA', 25),
+  (11, 'Sede Devoto', 'Av. Francisco Beiró 5300, CABA', 35),
+  (12, 'Sede Saavedra', 'Av. García del Río 3500, CABA', 30),
+  (13, 'Sede Colegiales', 'Av. Federico Lacroze 3100, CABA', 30),
+  (14, 'Sede Puerto Madero', 'Juana Manso 1200, CABA', 50),
+  (15, 'Sede Barracas', 'Av. Montes de Oca 1100, CABA', 30),
+  (16, 'Sede Boedo', 'Av. Boedo 900, CABA', 25),
+  (17, 'Sede Mataderos', 'Av. Alberdi 6500, CABA', 30),
+  (18, 'Sede Vicente López', 'Av. Maipú 1800, Vicente López', 45),
+  (19, 'Sede Olivos', 'Av. Libertador 2600, Olivos', 40),
+  (20, 'Sede San Isidro', 'Av. Centenario 500, San Isidro', 45),
+  (21, 'Sede Martínez', 'Av. Santa Fe 1700, Martínez', 35),
+  (22, 'Sede Avellaneda', 'Av. Mitre 600, Avellaneda', 40),
+  (23, 'Sede Lanús', 'Av. Hipólito Yrigoyen 4200, Lanús', 35),
+  (24, 'Sede Quilmes', 'Rivadavia 300, Quilmes', 35),
+  (25, 'Sede Morón', 'Av. Rivadavia 18000, Morón', 40);
+
+-- Un recepcionista por sede nueva (usuarios 7 a 28) y su puesto de trabajo (EmpleadoSede 2 a 23).
+INSERT INTO "Usuario" ("id", "rol", "dni", "nombre", "email", "contrasenia", "telefono", "foto_url")
+SELECT
+  s."id" + 3,
+  'RECEPCION',
+  (36000000 + s."id")::text,
+  'Recepción ' || replace(s."nombre", 'Sede ', ''),
+  'recepcion.sede' || s."id" || '@fitzone.com',
+  '$2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK',
+  '+54911455' || lpad(s."id"::text, 5, '0'),
+  NULL
+FROM "Sede" s
+WHERE s."id" BETWEEN 4 AND 25;
+
+INSERT INTO "EmpleadoSede" ("id", "usuario_id", "sede_id")
+SELECT s."id" - 2, s."id" + 3, s."id"
+FROM "Sede" s
+WHERE s."id" BETWEEN 4 AND 25;
+
+-- Un socio activo por sede nueva (usuarios 29 a 50, socios 4 a 25), con plan mensual, trimestral o anual alternado.
+INSERT INTO "Usuario" ("id", "rol", "dni", "nombre", "email", "contrasenia", "telefono", "foto_url")
+SELECT
+  s."id" + 25,
+  'SOCIO',
+  (39000000 + s."id")::text,
+  'Socio ' || replace(s."nombre", 'Sede ', ''),
+  'socio.sede' || s."id" || '@fitzone.com',
+  '$2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK',
+  '+54911466' || lpad(s."id"::text, 5, '0'),
+  NULL
+FROM "Sede" s
+WHERE s."id" BETWEEN 4 AND 25;
+
+INSERT INTO "Socio" ("id", "usuario_id", "sede_origen_id", "fecha_alta")
+SELECT s."id", s."id" + 25, s."id", NOW() - (s."id" * INTERVAL '3 days')
+FROM "Sede" s
+WHERE s."id" BETWEEN 4 AND 25;
+
+INSERT INTO "Membresia" ("id", "socio_id", "plan", "estado", "fecha_inicio", "fecha_fin", "renueva_automatica", "precio")
+SELECT
+  s."id",
+  s."id",
+  p.plan::"PlanMembresia",
+  'ACTIVA',
+  NOW() - INTERVAL '10 days',
+  NOW() - INTERVAL '10 days' + p.duracion,
+  s."id" % 2 = 0,
+  p.precio
+FROM "Sede" s
+JOIN (VALUES
+  (0, 'MENSUAL', INTERVAL '1 month', 30000.00),
+  (1, 'TRIMESTRAL', INTERVAL '3 months', 80000.00),
+  (2, 'ANUAL', INTERVAL '1 year', 280000.00)
+) AS p (resto, plan, duracion, precio) ON p.resto = s."id" % 3
+WHERE s."id" BETWEEN 4 AND 25;
+
+-- Dos clientes externos más (usuarios 51 y 52).
+INSERT INTO "Usuario" ("id", "rol", "dni", "nombre", "email", "contrasenia", "telefono", "foto_url") VALUES
+  (51, 'EXTERNO', '43222444', 'Tomás Herrera', 'tomas.herrera@gmail.com', '$2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK', '+5491144440051', NULL),
+  (52, 'EXTERNO', '44333555', 'Lucía Paz', 'lucia.paz@gmail.com', '$2b$10$US6bZu2hctQ8X4BKfju8Y.ROBS1wWsmdkT0g/jjUSNLVaExKAQAeK', '+5491144440052', NULL);
+
+-- Dos canchas por sede nueva (4 a 47): Paddle y Fútbol 5, con costos que varían un poco entre sedes.
+INSERT INTO "Cancha" ("id", "sede_id", "tipo", "costo_por_hora", "estado")
+SELECT
+  3 + ROW_NUMBER() OVER (ORDER BY s."id", t.orden),
+  s."id",
+  t.tipo::"TipoCancha",
+  t.costo + (s."id" % 5) * 500,
+  'OPERATIVA'
+FROM "Sede" s
+CROSS JOIN (VALUES (1, 'PADDLE', 8000.00), (2, 'FUTBOL5', 15000.00)) AS t (orden, tipo, costo)
+WHERE s."id" BETWEEN 4 AND 25;
+
+-- Dos clases por sede nueva (5 a 48), entre 3 y 6 días después de la carga, de una hora cada una.
+INSERT INTO "Clase" ("id", "sede_id", "tipo", "instructor", "horario_inicio", "horario_fin", "capacidad")
+SELECT
+  4 + ROW_NUMBER() OVER (ORDER BY s."id", c.orden),
+  s."id",
+  CASE WHEN s."id" % 2 = 0 THEN c.par ELSE c.impar END,
+  c.instructor,
+  date_trunc('hour', NOW()) + (3 + s."id" % 4) * INTERVAL '1 day' + c.desfase,
+  date_trunc('hour', NOW()) + (3 + s."id" % 4) * INTERVAL '1 day' + c.desfase + INTERVAL '1 hour',
+  c.capacidad
+FROM "Sede" s
+CROSS JOIN (VALUES
+  (1, 'Zumba', 'Stretching', 'Carla Méndez', INTERVAL '0 hours', 20),
+  (2, 'HIIT', 'Calistenia', 'Nicolás Ibarra', INTERVAL '2 hours', 15)
+) AS c (orden, par, impar, instructor, desfase, capacidad)
+WHERE s."id" BETWEEN 4 AND 25;
+
 
 
 -- ============================================================================

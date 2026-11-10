@@ -55,6 +55,8 @@ cd frontend && npm install && npm run build && cd .. && (cd backend && npm run s
 
 > **Contraseña universal para todos los usuarios de prueba:** `Password123!`
 
+> El seed (`docs/db/seed_supabase_test_data.sql`) carga **25 sedes**, cada una con canchas y clases, y usuarios de todos los roles.
+
 | Rol del sistema | Nombre y Apellido | Email (Usuario) | Contraseña | Detalle / Estado |
 |---|---|---|---|---|
 | **GERENTE** | Valeria Rossi | `valeria.rossi@fitzone.com` | `Password123!` | Gerencia general (acceso total a sedes, reportes y personal) |
@@ -62,6 +64,9 @@ cd frontend && npm install && npm run build && cd .. && (cd backend && npm run s
 | **SOCIO** (Al día) | Camila Domínguez | `camila.dominguez@gmail.com` | `Password123!` | Socia con membresía activa (Plan Anual), sin deuda |
 | **SOCIO** (En mora) | Esteban Morales | `esteban.morales@gmail.com` | `Password123!` | Socio con membresía vencida (Plan Trimestral) para probar rechazos por mora |
 | **EXTERNO** | Sofía Navarro | `sofia.navarro@hotmail.com` | `Password123!` | Cliente no socio habilitado para reserva y pago de canchas |
+| **RECEPCION** (sedes 4 a 25) | Recepción &lt;sede&gt; | `recepcion.sede<N>@fitzone.com` | `Password123!` | Un recepcionista por sede; `N` es el id de la sede (4 a 25) |
+| **SOCIO** (sedes 4 a 25) | Socio &lt;sede&gt; | `socio.sede<N>@fitzone.com` | `Password123!` | Un socio activo por sede, con plan mensual, trimestral o anual |
+| **EXTERNO** | Tomás Herrera / Lucía Paz | `tomas.herrera@gmail.com` / `lucia.paz@gmail.com` | `Password123!` | Clientes externos adicionales |
 
 ---
 

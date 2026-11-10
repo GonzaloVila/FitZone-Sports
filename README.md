@@ -75,6 +75,7 @@ cd frontend && npm install && npm run build && cd .. && (cd backend && npm run s
 | **Diagramas de Arquitectura (C4)** | [A COMPLETAR] | [A COMPLETAR] |
 | **Manuales de Usuario y Operación** | [Guía de Estudio y Arquitectura](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/Guia%20de%20Estudio%20y%20Arquitectura%20-%20FitZone%20Sports.pdf) | Disponible en repositorio |
 | **Manual de Puesta en Marcha Técnica** | [initialize_project.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/initialize_project.md) | Disponible en repositorio |
+| **Guía de Pruebas** | [docs/pruebas.md](docs/pruebas.md) | Cómo correr cada capa, leer la cobertura y los resultados E2E |
 | **Bitácora General** | [LOG.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/LOG.md) | Disponible en repositorio |
 | **Bitácora — Exequiel Ansaldi** | [docs/bitacoras/LOG-ansaldi.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/bitacoras/LOG-ansaldi.md) | [A COMPLETAR] |
 | **Bitácora — Gonzalo Vila** | [docs/bitacoras/LOG-vila.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/bitacoras/LOG-vila.md) | [A COMPLETAR] |
@@ -84,6 +85,8 @@ cd frontend && npm install && npm run build && cd .. && (cd backend && npm run s
 ---
 
 ## 6. Estado de la suite de pruebas y porcentaje de cobertura
+
+> Cómo correr cada capa y cómo leer los resultados: [docs/pruebas.md](docs/pruebas.md). Estrategia y umbrales: ADR-007.
 
 ### Backend
 - **Pruebas Unitarias:** 73 archivos (72 pasados, 1 omitido por flag de generación de muestras), **670 tests pasados**.

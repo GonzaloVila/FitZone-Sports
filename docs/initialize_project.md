@@ -58,5 +58,5 @@ Una vez levantado:
 
 ### NO necesarios para levantar el proyecto
 - **`npm run build`**: No es necesario para desarrollo; `start:dev` compila directamente en caliente. Solo se usa para compilar en producción a la carpeta `dist/`.
-- **`docker compose`**: No es necesario para levantar la app. El backend se conecta directamente a Supabase mediante `DATABASE_URL`. El archivo `docker-compose.test.yml` es únicamente para levantar un Postgres efímero para tests e2e aislados.
+- **`docker compose`**: No es necesario para levantar la app. El backend se conecta directamente a Supabase mediante `DATABASE_URL`. El archivo `docker-compose.test.yml` es únicamente para levantar el Postgres efímero de las pruebas de integración, de API y E2E (ver [pruebas.md](pruebas.md)).
 - **`npx prisma studio`**: No es necesario; es solo una herramienta visual optativa para inspeccionar datos de la BD en el navegador.

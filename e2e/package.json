@@ -1,0 +1,16 @@
+{
+  "name": "fitzone-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Pruebas E2E de FitZone Sports con Playwright: un recorrido por requisito del TIF (ADR-007).",
+  "scripts": {
+    "pretest": "node scripts/preparar-base.mjs",
+    "test": "playwright test",
+    "preparar": "node scripts/preparar-base.mjs",
+    "instalar-navegador": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "^24.13.4"
+  }
+}

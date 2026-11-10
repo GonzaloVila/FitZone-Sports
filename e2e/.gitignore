@@ -1,0 +1,4 @@
+node_modules/
+# Capturas y trazas de los recorridos que fallan (se abren con `npx playwright show-trace`).
+test-results/
+playwright-report/

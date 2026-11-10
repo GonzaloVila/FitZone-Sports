@@ -16,8 +16,8 @@
 -- 8.  "Reserva" (Cancha) : 2 registros (1 Confirmada, 1 Cancelada)
 -- 9.  "ReservaClase"     : 3 registros (2 en Clase CrossFit [Aforo 100%], 1 en Spinning)
 -- 10. "EsperaClase"      : 3 registros (1 EN_ESPERA, 1 NOTIFICADO, 1 CANCELADO)
--- 11. "Pago"             : 3 registros (Membresía, Reserva Cancha, Pase Diario)
--- 12. "PagoReserva"      : 1 registro  (Herencia 1:1 con Pago)
+-- 11. "Pago"             : 3 registros (Membresía, Reserva Cancha, Reserva Cancha anulada)
+-- 12. "PagoReserva"      : 2 registros (Herencia 1:1 con Pago)
 -- 13. "PagoMembresia"    : 1 registro  (Herencia 1:1 con Pago)
 -- 14. "Ingreso" (Acceso) : 3 registros (1 Finalizado, 1 Activo dentro, 1 Offline)
 -- ----------------------------------------------------------------------------
@@ -183,14 +183,17 @@ INSERT INTO "Pago" ("id", "usuario_id", "idempotencia_key", "fecha_pago", "monto
     -- tenga casos: un pago de hace 3 meses, uno de hace 3 dias y uno de ayer.
     (1, 3, 'idem-membresia-socio-1-2026', NOW() - INTERVAL '90 days', 45000.00, 'ARS', 'APROBADO', 'tok_visa_4242_approved_001', 'https://fitzone.app/comprobantes/pago-001.pdf'),
     (2, 3, 'idem-reserva-cancha-1-2026', NOW() - INTERVAL '3 days', 8500.00, 'ARS', 'APROBADO', 'tok_master_5555_approved_002', 'https://fitzone.app/comprobantes/pago-002.pdf'),
-    (3, 6, 'idem-pase-externo-6-2026', NOW() - INTERVAL '1 day', 3500.00, 'ARS', 'APROBADO', 'tok_visa_1111_approved_003', NULL);
+    -- El pago 3 es el de la reserva 2 de Sofía, que se canceló: queda ANULADO. Todo pago tiene que corresponder a un concepto
+    -- (membresía, reserva de cancha o de clase); uno sin subtipo rompe GET /pagos ("El pago 3 no tiene subtipo").
+    (3, 6, 'idem-reserva-cancha-2-2026', NOW() - INTERVAL '1 day', 16000.00, 'ARS', 'ANULADO', 'tok_visa_1111_approved_003', NULL);
 
 
 -- ============================================================================
 -- 12. TABLA: "PagoReserva" (Subtipo de Pago 1:1 con Reserva Cancha)
 -- ============================================================================
 INSERT INTO "PagoReserva" ("id_pago", "reserva_id") VALUES
-  (2, 1);
+  (2, 1),
+  (3, 2);
 
 
 -- ============================================================================

@@ -119,3 +119,15 @@ cd frontend && npm install && npm run build && cd .. && (cd backend && npm run s
   npm run test:cov            # Tests + tabla de cobertura en la terminal
   npm run type-check          # Verificación estática de tipos (vue-tsc)
   ```
+
+### E2E (Playwright)
+- **Pruebas de extremo a extremo:** 6 archivos, **17 recorridos pasados**, uno por requisito (RF-01 a RF-14, RN-01 a RN-03). El navegador (Chromium) usa el frontend real, que llama a la API real, que usa PostgreSQL en Docker. Ver ADR-007.
+  - Incluye la prueba de concurrencia de RN-02 desde la interfaz: dos usuarios, cada uno en su navegador, confirman el mismo turno a la vez y solo uno lo consigue.
+- **Comandos de ejecución** (requiere Docker Desktop abierto):
+  ```bash
+  cd e2e
+  npm install
+  npm run instalar-navegador  # Solo la primera vez: descarga Chromium
+  npm test                    # Prepara la base E2E (seed limpio), levanta backend y frontend y corre los 17 recorridos
+  ```
+  La base E2E (`fitzone_e2e`) es otra base dentro del mismo contenedor de pruebas: no se mezcla con la de integración ni con Supabase. El backend corre en el puerto 3100 y el frontend en el 5180, así que no chocan con los de desarrollo.

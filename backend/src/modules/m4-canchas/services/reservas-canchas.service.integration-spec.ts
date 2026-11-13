@@ -8,12 +8,15 @@ import { CanchasService } from 'src/modules/m4-canchas/services/canchas.service'
 import { ReservasCanchasService } from 'src/modules/m4-canchas/services/reservas-canchas.service';
 import { crearSede, crearUsuario } from '@test/helpers/base-de-datos';
 import { crearModuloDeIntegracion } from '@test/helpers/modulo-de-integracion';
+import { diaFuturo, enSede } from '@test/helpers/fechas';
 
 // Horas en hora local de la sede (UTC-3). Pico = arranca en [19:00,21:00).
-const NO_PICO_INICIO = '2026-12-02T17:00:00.000Z'; // 14:00 local
-const NO_PICO_FIN = '2026-12-02T18:00:00.000Z';
-const PICO_INICIO = '2026-12-02T22:30:00.000Z'; // 19:30 local
-const PICO_FIN = '2026-12-02T23:30:00.000Z';
+// Un día futuro calculado desde hoy (una fecha escrita a mano vence y la reserva pasaría a ser en el pasado).
+const DIA = diaFuturo(6);
+const NO_PICO_INICIO = enSede(DIA, '14:00');
+const NO_PICO_FIN = enSede(DIA, '15:00');
+const PICO_INICIO = enSede(DIA, '19:30');
+const PICO_FIN = enSede(DIA, '20:30');
 const PASADO_INICIO = '2026-01-02T17:00:00.000Z';
 const PASADO_FIN = '2026-01-02T18:00:00.000Z';
 

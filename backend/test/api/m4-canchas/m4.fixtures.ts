@@ -4,6 +4,7 @@ import { PRECIOS_PLAN } from 'src/modules/m1-usuarios/entities/membresia.entity'
 import type { RolUsuario } from 'src/modules/m1-usuarios/entities/usuario.entity';
 import { dniUnico, emailUnico } from '@test/helpers/base-de-datos';
 import { crearUsuarioConSesion, iniciarSesion } from '@test/helpers/sesion';
+import { diaFuturo } from '@test/helpers/fechas';
 
 // Fixtures compartidos por las pruebas de API de M4 (antes en m4.e2e-spec.ts). Crea la sede y
 // la cancha base, y expone el alta de socio/externo, los horarios del dia y la limpieza.
@@ -27,7 +28,8 @@ export async function crearContextoM4(app: INestApplication, prisma: PrismaServi
 
   // Horarios con offset explicito -03:00: representan sin ambiguedad la hora local de
   // la sede. Dia lejano para no chocar con reservas de otros tests.
-  const DIA = '2026-11-12';
+  // Un día futuro calculado desde hoy: una fecha escrita a mano vence y las reservas en el pasado dan 422.
+  const DIA = diaFuturo(3);
   const inicio = (hhmm: string) => `${DIA}T${hhmm}:00-03:00`;
   const fin = (hhmm: string) => `${DIA}T${hhmm}:00-03:00`;
 

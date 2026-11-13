@@ -9,13 +9,14 @@ import { PagosModule } from 'src/modules/m5-pagos/pagos.module';
 import { PagosService } from 'src/modules/m5-pagos/services/pagos.service';
 import { crearSede, crearUsuario } from '@test/helpers/base-de-datos';
 import { crearModuloDeIntegracion } from '@test/helpers/modulo-de-integracion';
+import { diaFuturo, enSede } from '@test/helpers/fechas';
 
 // Integration: una reserva con un pago RECHAZADO se puede volver a pagar con otra clave.
 // `PagoReserva.reserva_id` es @unique (una fila de pago por reserva), así que el segundo
 // intento reutiliza la fila RECHAZADA en lugar de chocar con el unique.
 describe('Reintento de pago tras un rechazo (integration, BD real)', () => {
-  const INICIO = '2026-12-05T17:00:00.000Z';
-  const FIN = '2026-12-05T18:00:00.000Z';
+  const INICIO = enSede(diaFuturo(7), '14:00');
+  const FIN = enSede(diaFuturo(7), '15:00');
   const sufijo = `${Date.now()}`;
   const claveA = `it-reintento-${sufijo}-A`;
   const claveB = `it-reintento-${sufijo}-B`;

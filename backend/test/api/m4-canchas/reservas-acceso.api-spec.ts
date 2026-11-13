@@ -5,6 +5,7 @@ import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp } from '@test/helpers/base-de-datos';
 import { conToken } from '@test/helpers/sesion';
 import { crearContextoM4 } from './m4.fixtures';
+import { diaFuturo } from '@test/helpers/fechas';
 
 // E2E del acceso a /reservas-canchas: todo exige sesion y cualquier rol entra. SOCIO y EXTERNO reservan, ven y cancelan solo
 // lo propio (lo ajeno es 404 y el listado se fuerza con su userId); RECEPCION y GERENTE operan por cualquiera, y su grilla
@@ -25,7 +26,7 @@ describe('M4 - Reservas de cancha: sesión y alcance por rol', () => {
     return { usuarioId, token: await ctx.tokenDe(usuarioId) };
   }
   const hh = (n: number) => String(n).padStart(2, '0');
-  const cuerpo = (usuarioId: number, dia = `2026-12-${hh(1 + Math.floor(turno / 12))}`, desde = 8 + (turno++ % 12)) => ({
+  const cuerpo = (usuarioId: number, dia = diaFuturo(10 + Math.floor(turno / 12)), desde = 8 + (turno++ % 12)) => ({
     canchaId: ctx.canchaId,
     usuarioId,
     fechaHoraInicio: `${dia}T${hh(desde)}:00:00-03:00`,
@@ -105,10 +106,10 @@ describe('M4 - Reservas de cancha: sesión y alcance por rol', () => {
     it('la grilla lista reservas ajenas por cancha y día, y filtran por usuario si quieren', async () => {
       const [a, b] = [await nuevo('SOCIO'), await nuevo('EXTERNO')];
       // Un día aparte, con las dos reservas ajenas entre sí.
-      const [rA, rB] = [await reservaDe(a.usuarioId, '2026-12-30', 9), await reservaDe(b.usuarioId, '2026-12-30', 10)];
+      const [rA, rB] = [await reservaDe(a.usuarioId, diaFuturo(20), 9), await reservaDe(b.usuarioId, diaFuturo(20), 10)];
 
       for (const t of [recepcion.token, gerente.token]) {
-        const dia = await http().get('/api/v1/reservas-canchas').query({ canchaId: ctx.canchaId, fecha: '2026-12-30', perPage: 100 }).set(conToken(t)).expect(200);
+        const dia = await http().get('/api/v1/reservas-canchas').query({ canchaId: ctx.canchaId, fecha: diaFuturo(20), perPage: 100 }).set(conToken(t)).expect(200);
         const ids = dia.body.items.map((r: { id: number }) => r.id);
         expect(ids).toEqual(expect.arrayContaining([rA, rB]));
 

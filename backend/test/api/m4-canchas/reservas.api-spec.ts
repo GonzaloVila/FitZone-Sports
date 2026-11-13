@@ -4,6 +4,7 @@ import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp } from '@test/helpers/base-de-datos';
 import { clienteCon } from '@test/helpers/sesion';
 import { crearContextoM4 } from './m4.fixtures';
+import { diaFuturo } from '@test/helpers/fechas';
 
 // E2E de reservas de cancha: el contrato HTTP (201 + Location, 204 sin cuerpo) y la
 // concurrencia real por HTTP. El pricing (RF-11/RN-03), la exclusión RN-02 y el State
@@ -69,7 +70,7 @@ describe('M4 - Reservas de cancha: alta, cancelación y concurrencia (RF-10/RF-1
   });
 
   it('RN-02: dos reservas del mismo turno en paralelo por HTTP: una 201 y la otra 409', async () => {
-    const dia = '2026-11-21';
+    const dia = diaFuturo(4);
     const cancha = await prisma.cancha.create({
       data: { sede_id: ctx.sedeId, tipo: 'FUTBOL5', costo_por_hora: 5000, estado: 'OPERATIVA' },
     });

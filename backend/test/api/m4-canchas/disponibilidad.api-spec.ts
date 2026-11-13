@@ -5,6 +5,7 @@ import type { PrismaService } from 'src/commons/database/prisma.service';
 import { crearApp } from '@test/helpers/base-de-datos';
 import { conToken } from '@test/helpers/sesion';
 import { crearContextoM4 } from './m4.fixtures';
+import { enSede } from '@test/helpers/fechas';
 
 // E2E de la grilla de disponibilidad (RF-12/RNF-03): es una consulta HTTP que la
 // integración no cubre, así que se conserva el comportamiento central (libre/ocupado
@@ -44,7 +45,7 @@ describe('M4 - Disponibilidad de cancha (RF-12/RNF-03)', () => {
 
     // 17:00 de la sede es 20:00Z.
     const tramo = (cuerpo: Array<{ fechaHoraInicio: string; disponible: boolean }>) =>
-      cuerpo.find((e) => new Date(e.fechaHoraInicio).toISOString() === '2026-11-12T20:00:00.000Z');
+      cuerpo.find((e) => new Date(e.fechaHoraInicio).toISOString() === enSede(ctx.DIA, '17:00'));
 
     const conOcupada = await request(app.getHttpServer())
       .get(`/api/v1/canchas/${ctx.canchaId}/disponibilidad?fecha=${ctx.DIA}&perPage=100`)

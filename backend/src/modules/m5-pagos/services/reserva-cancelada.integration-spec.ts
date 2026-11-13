@@ -8,12 +8,13 @@ import { PagosModule } from 'src/modules/m5-pagos/pagos.module';
 import { PagosService } from 'src/modules/m5-pagos/services/pagos.service';
 import { crearSede, crearUsuario } from '@test/helpers/base-de-datos';
 import { crearModuloDeIntegracion } from '@test/helpers/modulo-de-integracion';
+import { diaFuturo, enSede } from '@test/helpers/fechas';
 
 // Integration cruzada M4 -> M5: cancelar una reserva de cancha pagada emite el evento
 // y el listener de M5 anula el pago (devolución incluida) contra la BD real.
 describe('Cancelar reserva de cancha pagada (integration M4 -> M5)', () => {
-  const INICIO = '2026-12-03T17:00:00.000Z';
-  const FIN = '2026-12-03T18:00:00.000Z';
+  const INICIO = enSede(diaFuturo(8), '14:00');
+  const FIN = enSede(diaFuturo(8), '15:00');
 
   let moduleRef: TestingModule;
   let prisma: PrismaService;

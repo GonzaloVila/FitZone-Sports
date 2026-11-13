@@ -8,6 +8,9 @@
 #   4. E2E: los 17 recorridos de Playwright contra el sistema completo.
 #   5. Despliegue: `docker compose up --build` levanta el sistema y responde.
 # Los comandos son los mismos que se usan en local (ver docs/pruebas.md).
+#
+# El sistema operativo de cada job está fijo (ubuntu-24.04, no ubuntu-latest): así el entorno del CI no cambia solo cuando
+# GitHub mueve la etiqueta "latest" a una versión nueva.
 
 name: CI
 
@@ -25,7 +28,7 @@ concurrency:
 jobs:
   backend-unitarias:
     name: Backend · unitarias y cobertura
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -47,7 +50,7 @@ jobs:
 
   backend-integracion:
     name: Backend · integración y API
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -71,7 +74,7 @@ jobs:
 
   frontend:
     name: Frontend · tipos, pruebas y build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -94,7 +97,7 @@ jobs:
 
   e2e:
     name: E2E · Playwright
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # No vale la pena levantar todo el sistema si ya falló una capa de abajo.
     needs: [backend-unitarias, frontend]
     steps:
@@ -129,7 +132,7 @@ jobs:
 
   despliegue:
     name: Despliegue · docker compose
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Construir y levantar el sistema

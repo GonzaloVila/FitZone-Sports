@@ -1,0 +1,153 @@
+# Pipeline de integración continua de FitZone Sports (ADR-007, ADR-008).
+#
+# Corre en cada push a main y en cada pull request contra main. Son cinco jobs independientes, uno por capa de la
+# pirámide más el despliegue, y cualquiera que falle marca el commit o el PR en rojo:
+#   1. Backend: compilación, tipos de los tests y unitarias con su umbral de cobertura.
+#   2. Backend: integración y API contra PostgreSQL en Docker.
+#   3. Frontend: tipos, unitarias y de componentes con su umbral de cobertura, y build.
+#   4. E2E: los 17 recorridos de Playwright contra el sistema completo.
+#   5. Despliegue: `docker compose up --build` levanta el sistema y responde.
+# Los comandos son los mismos que se usan en local (ver docs/pruebas.md).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Un push nuevo a la misma rama cancela la corrida anterior, que ya quedó vieja.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-unitarias:
+    name: Backend · unitarias y cobertura
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Compilación
+        run: npm run build
+      - name: Tipos de los tests
+        run: npm run typecheck:test
+      - name: Unitarias con cobertura (falla si baja del umbral)
+        run: npm run test:cov
+
+  backend-integracion:
+    name: Backend · integración y API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: cp .env.test.example .env.test
+      - name: Base de pruebas (Docker)
+        run: npm run test:db:up
+      - run: npm run test:db:migrate
+      - name: Integración
+        run: npm run test:integration
+      - name: API por HTTP
+        run: npm run test:api
+
+  frontend:
+    name: Frontend · tipos, pruebas y build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VITE_API_URL: http://localhost:3000/api/v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Tipos
+        run: npm run type-check
+      - name: Unitarias y de componentes con cobertura (falla si baja del umbral)
+        run: npm run test:cov
+      - name: Build
+        run: npm run build-only
+
+  e2e:
+    name: E2E · Playwright
+    runs-on: ubuntu-latest
+    # No vale la pena levantar todo el sistema si ya falló una capa de abajo.
+    needs: [backend-unitarias, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - name: Dependencias
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+          npm ci --prefix e2e
+          (cd backend && npx prisma generate)
+      - name: Navegador
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - name: Recorridos E2E
+        working-directory: e2e
+        run: npm test
+      # Capturas, contenido de la página y traza de los recorridos que fallen.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-resultados
+          path: e2e/test-results/
+          retention-days: 7
+
+  despliegue:
+    name: Despliegue · docker compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir y levantar el sistema
+        run: docker compose up --build -d
+      - name: El frontend y la API responden con los datos del seed
+        run: |
+          for intento in $(seq 1 60); do
+            curl -fs http://localhost:8080/ > /dev/null && break
+            sleep 3
+          done
+          curl -fs http://localhost:8080/login > /dev/null
+          curl -fs -H "Content-Type: application/json" \
+            -d '{"email":"valeria.rossi@fitzone.com","contrasenia":"Password123!"}' \
+            http://localhost:3000/api/v1/auth/login | grep -q accessToken
+          docker compose exec -T db psql -U fitzone -d fitzone -tAc 'SELECT count(*) FROM "Sede"' | grep -qx 25
+      - name: Registros del sistema
+        if: failure()
+        run: docker compose logs
+      - name: Apagar
+        if: always()
+        run: docker compose down -v

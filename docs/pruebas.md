@@ -36,7 +36,7 @@ Dentro del contenedor hay dos bases:
 
 | Base | La usan | Cómo se prepara |
 |---|---|---|
-| `fitzone_test` | Integración y API | `npm run test:db:up` y `npm run test:db:migrate` (en `backend/`). Cada prueba crea sus datos y los borra al terminar. |
+| `fitzone_test` | Integración y API | La primera vez, `cp .env.test.example .env.test`; después, `npm run test:db:up` y `npm run test:db:migrate` (en `backend/`). Cada prueba crea sus datos y los borra al terminar. |
 | `fitzone_e2e` | E2E | Sola, al correr `npm test` en `e2e/`: crea la base si falta, aplica las migraciones y carga el seed (`docs/db/seed_supabase_test_data.sql`). Cada corrida arranca del mismo estado. |
 
 ## 3. Cómo correr cada capa
@@ -180,3 +180,19 @@ Si uno falla, Playwright muestra el paso que falló y guarda en `e2e/test-result
 | Un endpoint nuevo | API: `backend/test/api/<módulo>/nombre.api-spec.ts`. |
 | Un composable, servicio o pantalla del frontend | Unitaria al lado del archivo: `Nombre.spec.ts`. |
 | Un requisito nuevo del TIF | Un recorrido E2E en `e2e/tests/`, con el código del requisito al principio del nombre. |
+
+## 8. Integración continua
+
+`.github/workflows/ci.yml` corre todo esto en GitHub Actions en cada push a `main` y en cada pull request, con los mismos
+comandos de esta guía, en cinco jobs:
+
+| Job | Qué corre |
+|---|---|
+| Backend · unitarias y cobertura | `npm run build`, `npm run typecheck:test` y `npm run test:cov` |
+| Backend · integración y API | `npm run test:db:up`, `npm run test:db:migrate`, `npm run test:integration` y `npm run test:api` |
+| Frontend · tipos, pruebas y build | `npm run type-check`, `npm run test:cov` y el build |
+| E2E · Playwright | `npm test` en `e2e/`, después de que pasan los jobs de backend unitarias y frontend |
+| Despliegue · docker compose | `docker compose up --build` y comprobación de que la web, el login y las 25 sedes responden |
+
+El resultado se ve en la pestaña **Actions** del repositorio y junto a cada commit (✓ verde o ✗ roja). Si falla el job de
+E2E, las capturas y trazas quedan como artefacto descargable (`e2e-resultados`) durante 7 días.

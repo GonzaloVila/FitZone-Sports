@@ -1,0 +1,2 @@
+# Variables de docker-compose.yml (ver .env.example): nunca se suben.
+.env

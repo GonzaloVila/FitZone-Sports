@@ -1,0 +1,97 @@
+# FitZone Sports completo con un solo comando:
+#
+#   docker compose up --build
+#
+# - Aplicación web:  http://localhost:8080
+# - API REST:        http://localhost:3000/api/v1   (Swagger en http://localhost:3000/docs)
+#
+# Orden de arranque: la base → `migraciones` (aplica las migraciones y, si la base está vacía, carga el seed de 25 sedes)
+# → el backend → el frontend. Los datos quedan en el volumen `datos-postgres` entre reinicios; `docker compose down -v`
+# los borra y el próximo arranque vuelve a cargar el seed.
+#
+# Los valores por defecto sirven para levantarlo en una máquina local. Para otro entorno se cambian en un archivo `.env`
+# junto a este (ver .env.example); nunca se suben claves reales al repositorio.
+
+name: fitzone
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fitzone}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fitzone}
+      POSTGRES_DB: ${POSTGRES_DB:-fitzone}
+    volumes:
+      - datos-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Una sola vez por arranque: migraciones de Prisma y, solo si la base no tiene sedes, el seed (que vacía las tablas antes
+  # de insertar, por eso nunca corre sobre una base con datos). Usa la etapa de build del backend, que tiene el CLI de Prisma.
+  migraciones:
+    build:
+      context: ./backend
+      target: build
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fitzone}:${POSTGRES_PASSWORD:-fitzone}@db:5432/${POSTGRES_DB:-fitzone}?schema=public
+      PRISMA_HIDE_UPDATE_MESSAGE: "1"
+    volumes:
+      - ./docs/db/seed_supabase_test_data.sql:/seed/seed.sql:ro
+    command:
+      - sh
+      - -c
+      - |
+        npx prisma migrate deploy
+        if node prisma/base-vacia.mjs; then
+          echo "Base vacía: cargando el seed (25 sedes y usuarios de prueba)…"
+          npx prisma db execute --schema prisma/schema.prisma --file /seed/seed.sql
+        else
+          echo "La base ya tiene datos: no se carga el seed."
+        fi
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      target: runtime
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fitzone}:${POSTGRES_PASSWORD:-fitzone}@db:5432/${POSTGRES_DB:-fitzone}?schema=public
+      CORS_ORIGINS: ${URL_WEB:-http://localhost:8080}
+      JWT_SECRET: ${JWT_SECRET:-solo-para-uso-local-cambiar-en-otro-entorno}
+      TOTP_ENCRYPTION_KEY: ${TOTP_ENCRYPTION_KEY:-HT3zZIzLOfDe+USpRsLaw6OubDaTiqAe0gdEMNt74mo=}
+      # En local la app se sirve por http: la cookie del refresh token no puede exigir https.
+      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-false}
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/docs-json > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      migraciones:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${URL_API:-http://localhost:3000/api/v1}
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  datos-postgres:

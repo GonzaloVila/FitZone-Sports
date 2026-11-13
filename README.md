@@ -17,29 +17,50 @@ FitZone Sports es una plataforma integral para la gestión operativa y administr
 
 ## 3. Puesta en marcha
 
-> **Requisitos previos:** Node.js (v20 o superior), npm y Docker (para PostgreSQL).
+### Opción A: todo el sistema con un comando (recomendada)
 
-### Paso 1: Clonar el repositorio
+> **Requisito previo:** Docker Desktop (o Docker Engine con Docker Compose).
+
+```bash
+git clone git@github.com:GonzaloVila/FitZone-Sports.git && cd FitZone-Sports && docker compose up --build
+```
+
+La primera vez construye las imágenes (unos minutos), aplica las migraciones y carga el seed (25 sedes y los usuarios de la sección 4).
+
+> **Verificación:**
+> - Aplicación web (Frontend): `http://localhost:8080`
+> - API REST (Backend): `http://localhost:3000/api/v1`
+> - Documentación Swagger: `http://localhost:3000/docs`
+
+- `docker compose down` apaga el sistema y conserva los datos.
+- `docker compose down -v` borra también los datos; el próximo arranque vuelve a cargar el seed.
+- Las variables (secretos, puertos y URLs) son opcionales y se documentan en `.env.example`.
+
+### Opción B: modo desarrollo (con recarga en caliente)
+
+> **Requisitos previos:** Node.js (v22.18 o superior), npm y Docker (para PostgreSQL).
+
+#### Paso 1: Clonar el repositorio
 ```bash
 git clone git@github.com:GonzaloVila/FitZone-Sports.git && cd FitZone-Sports
 ```
 
-### Paso 2: Levantar la base de datos PostgreSQL local
+#### Paso 2: Levantar la base de datos PostgreSQL local
 ```bash
 docker compose -f docker-compose.test.yml up -d
 ```
 
-### Paso 3: Configurar variables de entorno del backend
+#### Paso 3: Configurar variables de entorno del backend
 ```bash
 cp backend/.env.example backend/.env && sed -i 's|^DATABASE_URL=.*|DATABASE_URL="postgresql://fitzone:fitzone@localhost:55432/fitzone_test?schema=public"|' backend/.env
 ```
 
-### Paso 4: Instalar dependencias, aplicar migraciones, sembrar datos de prueba y compilar backend
+#### Paso 4: Instalar dependencias, aplicar migraciones, sembrar datos de prueba y compilar backend
 ```bash
 cd backend && npm install && npx prisma migrate deploy && npx prisma db execute --schema prisma/schema.prisma --file ../docs/db/seed_supabase_test_data.sql && npm run build && cd ..
 ```
 
-### Paso 5: Instalar dependencias del frontend e iniciar ambos servidores
+#### Paso 5: Instalar dependencias del frontend e iniciar ambos servidores
 ```bash
 cd frontend && npm install && npm run build && cd .. && (cd backend && npm run start:dev &) && (cd frontend && npm run dev)
 ```

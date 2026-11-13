@@ -99,6 +99,7 @@ cd frontend && npm install && npm run build && cd .. && (cd backend && npm run s
 | **Diagramas de Casos de Uso** | [Casos de Uso Módulo 3 — Clases](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/UserCaseDiagrams/Modulo3_Clases_CasosDeUso.md) | Disponible en repositorio |
 | **Diagrama de Base de Datos (DBML)** | [fitzone.dbml](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/db/fitzone.dbml) | Disponible en repositorio |
 | **Diagramas de Arquitectura (C4)** | [A COMPLETAR] | [A COMPLETAR] |
+| **Diagramas de Despliegue y Pipeline CI/CD** | [docs/diagramas/png/despliegue.png](docs/diagramas/png/despliegue.png) · [docs/diagramas/png/pipeline.png](docs/diagramas/png/pipeline.png) | Fuente Mermaid en `docs/diagramas/infra/` |
 | **Manuales de Usuario y Operación** | [Guía de Estudio y Arquitectura](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/Guia%20de%20Estudio%20y%20Arquitectura%20-%20FitZone%20Sports.pdf) | Disponible en repositorio |
 | **Manual de Instalación y Operación** | [docs/manuales/manual-instalacion-operacion.md](docs/manuales/manual-instalacion-operacion.md) | Requisitos, puesta en marcha, variables, migraciones, respaldo, reversión, operación offline y alta de sede |
 | **Manual de Puesta en Marcha Técnica** | [initialize_project.md](file:///home/raynsanty/Documents/Sistemas/Facultad/3/Prog5/FitZone-Sports/docs/initialize_project.md) | Disponible en repositorio |

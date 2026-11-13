@@ -1,0 +1,42 @@
+%% Arquitectura del pipeline de CI/CD — FitZone Sports
+%% Autor: Vila Gonzalo · Fecha: 2026-11-13 · Versión: 1.0
+%% Fuente: .github/workflows/ci.yml, ADR-007, ADR-008.
+%% Exportar: npx -y @mermaid-js/mermaid-cli -i infra/pipeline.mmd -o png/pipeline.png -b white -s 2
+flowchart LR
+  DEV["Desarrollador<br/>rama tipo/descripcion"] -- "git push" --> PR["Pull request<br/>contra main"]
+  PR -- "dispara el workflow CI<br/>runner ubuntu-24.04<br/>(también cada push a main)" --> GHA
+
+  subgraph GHA["GitHub Actions"]
+    direction TB
+    subgraph PARALELO["Jobs en paralelo"]
+      direction LR
+      J1["1 · Backend: unitarias y cobertura<br/>build · tipos de los tests<br/>670 unitarias · umbral 70% líneas"]
+      J2["2 · Backend: integración y API<br/>Postgres en Docker · migraciones<br/>82 integración · 189 API"]
+      J3["3 · Frontend: tipos, pruebas y build<br/>vue-tsc · 1255 pruebas · umbral 82% líneas<br/>build de Vite"]
+      J5["5 · Despliegue: docker compose<br/>up --build · web, login y 25 sedes responden<br/>down -v"]
+    end
+    J4["4 · E2E Playwright<br/>base fitzone_e2e con seed · backend y frontend<br/>17 recorridos en Chromium"]
+    J1 --> J4
+    J3 --> J4
+  end
+
+  J2 --> R{"¿Los cinco jobs<br/>en verde?"}
+  J4 --> R
+  J5 --> R
+  J1 --> R
+  J3 --> R
+  R -- "sí" --> OK["✓ Merge habilitado"]
+  R -- "no" --> KO["✗ Merge bloqueado<br/>(regla de protección de main)"]
+  KO -- "corregir en la misma rama y pushear" --> PR
+  J4 -. "si falla" .-> ART[["Artefacto e2e-resultados<br/>capturas y trazas · 7 días"]]
+
+  OK --> MAIN["main"]
+  MAIN -- "git pull + docker compose up --build -d<br/>(migraciones automáticas)" --> ENT["Entorno de pruebas<br/>Docker Compose: db · migraciones · backend · frontend"]
+  ENT -. "reversión: git revert / git checkout v1.0-entrega<br/>+ restaurar respaldo pg_dump" .-> MAIN
+
+  classDef ok fill:#e7f6ec,stroke:#15803d,color:#000
+  classDef ko fill:#fdecec,stroke:#b91c1c,color:#000
+  classDef job fill:#e8f1fb,stroke:#1a6ec1,color:#000
+  class OK ok
+  class KO ko
+  class J1,J2,J3,J4,J5 job

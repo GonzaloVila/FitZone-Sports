@@ -1,0 +1,64 @@
+%% Diagrama de despliegue — FitZone Sports
+%% Autor: Vila Gonzalo · Fecha: 2026-11-13 · Versión: 1.0
+%% Fuente: docker-compose.yml, backend/Dockerfile, frontend/Dockerfile, ADR-003, ADR-008.
+%% Exportar: npx -y @mermaid-js/mermaid-cli -i infra/despliegue.mmd -o png/despliegue.png -b white -s 2
+flowchart LR
+  subgraph SEDE["Sede"]
+    direction TB
+    PUESTO["Puesto de control<br/>Navegador · PWA instalada<br/>RECEPCION"]
+    subgraph LOCAL["Navegador del puesto"]
+      direction TB
+      SW["Service worker<br/>shell de la app precacheado"]
+      COLA["Cola de ingresos offline<br/>localStorage: fitzone_accesos_offline"]
+      BLOQ["Lista de socios inhabilitados<br/>localStorage: fitzone_bloqueados"]
+    end
+    PUESTO --- SW
+    PUESTO --- COLA
+    PUESTO --- BLOQ
+  end
+
+  subgraph CLIENTES["Clientes por internet"]
+    direction TB
+    SOCIO["Socio / Cliente externo<br/>Navegador o PWA"]
+    GERENTE["Gerente central<br/>Navegador"]
+  end
+
+  NET(("Conexión principal<br/>a internet"))
+
+  subgraph SERVIDOR["Servidor · Docker Compose"]
+    direction TB
+    subgraph RED["Red interna de Docker"]
+      direction TB
+      FRONT["frontend<br/>nginx:1.27-alpine<br/>build de Vite (SPA)<br/>puerto 8080 → 80"]
+      BACK["backend<br/>node:24-alpine · NestJS 12 + Prisma 6<br/>API REST /api/v1 · Swagger /docs<br/>puerto 3000"]
+      MIG["migraciones<br/>etapa build del backend<br/>prisma migrate deploy + seed si la base está vacía<br/>(corre una vez y termina)"]
+      DB[("db<br/>postgres:16-alpine<br/>puerto 5432 (solo red interna)")]
+    end
+    VOL[["Volumen datos-postgres"]]
+  end
+
+  PASARELA["Pasarela de pagos<br/>simulada (mock) dentro del backend"]
+  SMTP["Servidor SMTP<br/>(opcional) avisos de cupo liberado"]
+
+  PUESTO -- "HTTPS" --> NET
+  SOCIO -- "HTTPS" --> NET
+  GERENTE -- "HTTPS" --> NET
+  NET -- "HTTP · archivos de la app" --> FRONT
+  NET -- "HTTP JSON · JWT + cookie de sesión" --> BACK
+  BACK -- "TCP 5432 · Prisma" --> DB
+  MIG -- "TCP 5432 · migraciones y seed" --> DB
+  DB --- VOL
+  BACK -. "cobro" .-> PASARELA
+  BACK -. "SMTP" .-> SMTP
+
+  %% Qué sigue funcionando si cae la conexión principal (RNF-01).
+  CAIDA{{"Si se cae la conexión principal:<br/>la app abre desde el service worker;<br/>un socio de la lista de inhabilitados se rechaza en el puesto;<br/>los demás ingresos quedan en la cola.<br/>Al volver la red: POST /api/v1/sincronizacion/ingresos<br/>y se actualiza la lista de inhabilitados."}}
+  LOCAL -.-> CAIDA
+  CAIDA -. "resincronización al volver la red" .-> BACK
+
+  classDef offline fill:#fff4e5,stroke:#d97706,color:#000
+  classDef contenedor fill:#e8f1fb,stroke:#1a6ec1,color:#000
+  classDef externo fill:#f3f4f6,stroke:#6b7280,color:#000
+  class SW,COLA,BLOQ,CAIDA offline
+  class FRONT,BACK,MIG,DB contenedor
+  class PASARELA,SMTP,NET externo
